@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 1 — Tokenization: how a computer splits text into words</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 03</p>
+  <h1>Tokenization</h1>
+  <p class="subtitle">How a computer splits text into words — and why that turns out to be a
+  hard problem.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>What tokenization is</h2>
+
+<p>Before a computer can do anything with text, it has to break the text into pieces. Those
+pieces are called <strong>tokens</strong>. This step is called <strong>tokenization</strong>.</p>
+
+<p>It sounds easy. Split on spaces, and you are done:</p>
+
+<pre><code>"the cat sat"   →   ["the", "cat", "sat"]</code></pre>
+
+<p>That works for this sentence. It stops working almost immediately.</p>
+
+<h2>Why splitting on spaces fails</h2>
+
+<p>Look at this sentence:</p>
+
+<pre><code>"Dr. O'Neill isn't in — he's at St. Mary's, re: the U.S.A. deal."</code></pre>
+
+<p>Split it on spaces and you get problems straight away:</p>
+
+<ul>
+  <li><code>Mary's,</code> keeps the comma stuck to it. That comma is not part of the name.</li>
+  <li><code>isn't</code> stays as one piece. But it is really two words: <em>is</em> and
+      <em>not</em>.</li>
+  <li><code>Dr.</code> and <code>U.S.A.</code> contain full stops. If you split on full stops to
+      fix the first problem, you break these.</li>
+</ul>
+
+<p>Every rule you add to fix one case breaks another. This is real, and it is worth seeing. But
+it is not the interesting problem. The interesting problem is underneath.</p>
+
+
+
+<h2>The real problem: the word list is fixed, but language is not</h2>
+
+<div class="callout">
+  <span class="label">First — what is a "model"?</span>
+  <p>This word is about to appear a lot, so let us pin it down. You do not need the details yet;
+  you need enough to follow the next page.</p>
+  <p>In sessions 1 and 2 you wrote <strong>rules by hand</strong>. You decided a date looks like
+  <code>\d{2}/\d{2}/\d{4}</code>, and you typed that out. The computer did what you said.</p>
+  <p>A <strong>model</strong> is the opposite. You do not write the rules. You show it a pile of
+  examples — this is called <strong>training</strong> — and it works out the patterns itself.
+  Afterwards you give it something new and it makes a guess.<span class="sidenote">If you want a
+  fuller answer now, the gentlest one on the internet is Google's <a
+  href="https://developers.google.com/machine-learning/intro-to-ml/what-is-ml">"What is Machine
+  Learning?"</a> — about 20 minutes, no mathematics. Their <a
+  href="https://developers.google.com/machine-learning/glossary#model">ML Glossary</a> is a good
+  place to look up any term that appears before we teach it. Neither is required reading. We
+  build all of this properly from <strong>session 20</strong> onward.</span></p>
+  <p>To do that, a model has to keep some numbers for each word it knows — a handful of numbers
+  per word, which it adjusts while it learns. That is all "a model" needs to mean today:
+  <mark>a program that learned from examples, and keeps some numbers for every word it
+  knows.</mark></p>
+  <p>You will build your first one in week 6. For now, just hold on to the numbers-per-word part
+  — the rest of this lesson turns on it.</p>
+</div>
+
+<p>Every model in this course needs a <strong>vocabulary</strong>. That is a fixed list of every
+token the model knows. The model builds this list once, from its training text, and then it is
+fixed forever.</p>
+
+<p>It has to be fixed, because <strong>the model keeps a row of numbers for every token in that
+list</strong> — that is the "numbers per word" from the box above. Ten thousand words means ten
+thousand rows. So the size of the list decides the size of the model.</p>
+
+<p>Here is the problem. Language does not have a fixed word list. People invent new words all
+the time — <code>doomscrolling</code>, <code>rizz</code>, <code>ChatGPT-ing</code>. No matter
+how much text you train on, you will meet new words later.</p>
+
+<p>So the model breaks:</p>
+
+<pre><code>training:  vocabulary = every word seen in the training text
+later:     model sees "doomscrolling"  →  not in the list  →  &lt;UNK&gt;</code></pre>
+
+<p><code>&lt;UNK&gt;</code> means "unknown word". Every word the model has not seen becomes this
+same token. So the model cannot tell <code>doomscrolling</code> apart from any other unknown
+word. They all look identical to it.</p>
+
+<p>That is bad enough. But look closer at <code>doomscrolling</code>. It contains
+<code>scroll</code>, a word the model knows well. The meaning is sitting right there in the
+letters. Splitting on spaces throws that away.</p>
+
+<div class="recall">
+  <span class="label">Think about this before reading on</span>
+  <p>You have a fixed word list. Language keeps inventing new words. You are not allowed to use
+  <code>&lt;UNK&gt;</code>. What can you change?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p>Make the pieces <strong>smaller than words</strong>.</p>
+    <p>If your list holds word <em>parts</em>, you can spell any new word out of parts you
+    already have. Take this to the extreme and a list of single letters can spell every word
+    that exists.</p>
+    <p>But single letters are useless on their own. The letter <em>s</em> means nothing. And
+    sentences become very long lists of letters.</p>
+    <p>So you have a trade-off: <strong>big pieces carry meaning but miss new words. Small
+    pieces cover everything but carry little meaning.</strong> The answer is to sit in the
+    middle. That is what the next section does.</p>
+  </div>
+</div>
+
+<h2>Byte-Pair Encoding: let the data decide the pieces</h2>
+
+<p>We want word parts. But who decides where to split? A linguist could mark every prefix and
+suffix in English by hand. That would take years, and it would not work for other languages.</p>
+
+<p><strong>Byte-Pair Encoding</strong> (BPE) has a better idea. It learns the pieces by counting.
+The rule is simple:</p>
+
+<ol>
+  <li>Start with a list of single characters.</li>
+  <li>Count every pair of neighbouring symbols in your text.</li>
+  <li>Take the pair that appears <strong>most often</strong>. Join it into one new symbol. Add
+      that symbol to the list.</li>
+  <li>Repeat <em>k</em> times.</li>
+</ol>
+
+<p>That is the whole algorithm. <em>k</em> is a number you choose. It decides how big your final
+list is.</p>
+
+<h3>Working through an example</h3>
+
+<p>Here is a small set of words. The number on the left is how often each word appears. The
+<code>_</code> marks the end of a word.</p>
+
+<pre><code>5  l o w _
+2  l o w e s t _
+6  n e w e r _
+3  w i d e r _
+2  n e w _
+
+list:  _, d, e, i, l, n, o, r, s, t, w</code></pre>
+
+<p>Now count the pairs. The pair <code>e r</code> appears in <code>newer</code> (6 times) and in
+<code>wider</code> (3 times). That is <strong>9</strong> — more than any other pair. So we join
+it:</p>
+
+<pre><code>merge 1:  e + r  →  er
+
+5  l o w _
+2  l o w e s t _
+6  n e w er _
+3  w i d er _
+2  n e w _</code></pre>
+
+<p>Count again. Now <code>er _</code> appears 9 times. Join it. Then <code>n e</code> appears 8
+times (6 + 2). Join it. And so on:</p>
+
+<pre><code>merge 2:  er + _  →  er_
+merge 3:  n + e   →  ne
+merge 4:  ne + w  →  new
+merge 5:  l + o   →  lo
+merge 6:  lo + w  →  low
+
+5  low _
+2  low e s t _
+6  new er_
+3  w i d er_
+2  new _</code></pre>
+
+<div class="callout">
+  <span class="label">Look at what it learned</span>
+  <p>The algorithm created the symbol <code>er_</code>. In English, <em>-er</em> on the end of a
+  word means "more of something" — <em>wide</em> becomes <em>wider</em>. It is a real piece of
+  English grammar.</p>
+  <p><mark>Nobody told the algorithm any of this.</mark> It does not know what English is. It
+  only counted pairs. The grammar fell out of the counting.</p>
+  <p>It also learned that <code>low</code> and <code>new</code> are common enough to stay whole.
+  Common words stay in one piece. Rare words get split up.</p>
+</div>
+
+<h3>Why this fixes the problem</h3>
+
+<p>Take the word <code>lower</code>. It is <strong>not</strong> in our training list above. The
+old approach would call it <code>&lt;UNK&gt;</code> and give up.</p>
+
+<p>BPE splits it into <code>low</code> + <code>er_</code>. Both pieces are already in the list.
+The model knows <code>low</code>, and it knows what <code>er_</code> does to a word. So it can
+handle <code>lower</code> even though it has never seen it.</p>
+
+<p>No unknown words. That is the point of the whole method.</p>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What happens if you increase <em>k</em>, the number of merges?</p>
+  <div class="q-opts">
+    <button class="opt">Smaller list of symbols, and text becomes more tokens</button>
+    <button class="opt">Smaller list of symbols, and text becomes fewer tokens</button>
+    <button class="opt">Bigger list of symbols, and text becomes fewer tokens</button>
+    <button class="opt">Bigger list of symbols, and text becomes more tokens</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>bigger list, fewer tokens</strong>.</p>
+    <p>Each merge adds one new symbol to the list. So more merges means a bigger list.</p>
+    <p>And each merge replaces two symbols with one. So the same text needs fewer tokens to
+    write down.</p>
+    <p>This is the trade-off. A big list means short text, but the model gets big and slow. A
+    small list means a small model, but the text becomes long. You cannot have both. Real
+    systems usually pick somewhere around 30,000 to 50,000 merges.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Why does BPE mark the end of each word with <code>_</code>?</p>
+  <div class="q-opts">
+    <button class="opt">So the algorithm can remove spaces before it starts counting</button>
+    <button class="opt">So merges cannot run past the end of one word into another</button>
+    <button class="opt">So the rare words can be marked and split into characters</button>
+    <button class="opt">So the lines of training text stay separate while counting</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>so merges cannot run past the end of one word</strong>.</p>
+    <p>Without the marker, BPE would count the last letter of one word and the first letter of
+    the next as a pair, just like any other. If that pair was common, it would join them. You
+    would get junk symbols that span two words.</p>
+    <p>It has a second use too. Because <code>er_</code> and <code>er</code> are different
+    symbols, you can always rebuild the original text exactly, spaces and all. That matters for
+    any model that has to <em>write</em> text, which you will meet in Unit III.</p>
+  </div>
+</div>
+
+<h2>Where this comes back</h2>
+
+<p>The models you meet later in this course use exactly this idea.</p>
+
+<table>
+  <tr><th>Model</th><th>What it uses</th><th>When you meet it</th></tr>
+  <tr><td>BERT, DistilBERT</td><td>WordPiece — a close cousin of BPE</td><td>Unit III</td></tr>
+  <tr><td>GPT models</td><td>BPE, working on bytes</td><td>Unit III</td></tr>
+  <tr><td>Word2Vec, GloVe</td><td>Whole words — so it still has the
+      <code>&lt;UNK&gt;</code> problem</td><td>Unit II</td></tr>
+</table>
+
+<p>When you use BERT later, you will see words come out looking like this:</p>
+
+<pre><code>"doomscrolling"  →  ["doom", "##scroll", "##ing"]</code></pre>
+
+<p>The <code>##</code> means "this joins to the piece before it". It does the same job as the
+<code>_</code> in our example, just written differently. You already understand it.</p>
+
+<div class="callout">
+  <span class="label">The one thing to remember</span>
+  <p>Tokenization is not about splitting strings. It is about choosing the pieces your model is
+  allowed to think in. Choose whole words, and new words become unknown. Choose word parts, and
+  the model can handle anything.</p>
+</div>
+
+<h2>Read this next</h2>
+
+<p>The best source on this topic is <strong><a
+href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter 2, "Words and Tokens"</a></strong>
+from <em>Speech and Language Processing</em> by Jurafsky and Martin. It is free. Read the
+section on Byte-Pair Encoding.</p>
+
+<p>BPE came from a paper by <a href="https://aclanthology.org/P16-1162/">Sennrich, Haddow and
+Birch (2016)</a>. The title says what it does: <em>Neural Machine Translation of Rare Words with
+Subword Units</em>. It is readable, and it is short.</p>
+
+
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0002-regular-expressions.html">← Session 02: Regular expressions</a>
+  <span>Next — Session 04: cleaning up text: normalization and stop words</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

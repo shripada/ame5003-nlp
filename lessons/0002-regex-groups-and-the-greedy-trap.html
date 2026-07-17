@@ -1,0 +1,877 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Session 2 — Regex: capturing, choosing, and the greedy trap</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
+  <h1>Capturing, choosing, and the greedy trap</h1>
+  <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one bug
+  everybody writes at least once.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Where we got to</h2>
+
+<p>Last session you learned to describe the <strong>shape</strong> of text: <code>\d{2}</code>
+for two digits, <code>[Cc]at</code> for either spelling, <code>u?</code> for optional.</p>
+
+<p>That finds things. But finding is only half the job. Usually you want to <em>pull the pieces
+out</em>, or handle text that comes in more than one format. That is today.</p>
+
+<h2>Groups: getting the pieces out</h2>
+
+<p>Put round brackets around part of a pattern and it becomes a <strong>group</strong>. The regex
+engine remembers what matched inside each one.</p>
+
+<pre><code>text     "Exam on 15/03/2026."
+pattern  (\d{2})/(\d{2})/(\d{4})
+
+whole match  ->  15/03/2026
+group 1      ->  15      the day
+group 2      ->  03      the month
+group 3      ->  2026    the year</code></pre>
+
+<p>The groups are numbered left to right by their opening bracket. Group 0 is always the whole
+match.</p>
+
+<p>In Python:</p>
+
+<pre><code>import regex
+
+m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
+m.group(0)   # '15/03/2026'
+m.group(1)   # '15'
+m.group(3)   # '2026'</code></pre>
+
+<p>That is the difference between "there is a date here" and "the exam is in March".</p>
+
+<div class="callout warn">
+  <span class="label">A trap you will hit in the lab</span>
+  <p>Groups quietly change what <code>findall</code> gives back.</p>
+  <pre><code>text = "Due 15/03/2026 and 01/04/2026"
+
+regex.findall(r"(\d{2})/(\d{2})/(\d{4})", text)
+# [('15', '03', '2026'), ('01', '04', '2026')]   &lt;- tuples!
+
+regex.findall(r"\d{2}/\d{2}/\d{4}", text)
+# ['15/03/2026', '01/04/2026']                   &lt;- the dates</code></pre>
+  <p>With groups, <code>findall</code> returns <em>the groups</em>, not the whole match. If you
+  want brackets for grouping but not for capturing, use <code>(?:...)</code> — a
+  <strong>non-capturing group</strong>:</p>
+  <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
+# ['15/03/2026', '01/04/2026']</code></pre>
+</div>
+
+<h2>Alternation: this or that</h2>
+
+<p>The <code>|</code> symbol means "or".</p>
+
+<p>Real data is rarely in one format. Some people write <code>15/03/2026</code>, others write
+<code>15-03-2026</code>. One pattern can take both:</p>
+
+<pre><code>\d{2}[/-]\d{2}[/-]\d{4}
+
+matches  15/03/2026
+matches  15-03-2026</code></pre>
+
+<p>Here a character class <code>[/-]</code> does the job, because it is a choice between single
+characters. For longer choices you need <code>|</code> with brackets:</p>
+
+<pre><code>(?:cat|dog)s?
+
+on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
+
+<p>The brackets matter. <code>cat|dogs?</code> means "<code>cat</code>, or
+<code>dogs?</code>" — not what you wanted. <code>|</code> splits the <em>whole</em> pattern
+unless brackets stop it.</p>
+
+<h2>Word boundaries: the quiet bug</h2>
+
+<p>Search for <code>cat</code> in this word:</p>
+
+<pre><code>con<mark>cat</mark>enate</code></pre>
+
+<p>It matches. Your pattern found "cat" inside "concatenate", and it was right to — you asked for
+those three letters, and there they are.</p>
+
+<p><code>\b</code> means <strong>word boundary</strong>: the edge between a word character and a
+non-word character. It matches a position, not a character.</p>
+
+<pre><code>pattern      concatenate    the cat sat    cat.
+cat              yes            yes         yes
+\bcat\b          no             yes         yes</code></pre>
+
+<p>Note the last column. <code>\bcat\b</code> still matches <code>cat.</code> — the full stop is
+not a word character, so the boundary is there. That is usually what you want: you are after the
+word, punctuation and all.</p>
+
+<h3>The same test in Kannada</h3>
+
+<p>Session 1 showed you that <code>re</code> breaks Kannada words at the virama. Watch what that
+does to <code>\b</code>.</p>
+
+<p>In English, <code>\bcat\b</code> correctly <em>refuses</em> to match inside
+<code>concatenate</code> — "cat" is not a whole word there. Good. Now try the same thing on
+<code>ಕನ್ನಡ</code>, asking whether the fragment <code>ಕನ</code> is a whole word:</p>
+
+<pre><code>re.search(r"\bಕನ\b", "ಕನ್ನಡ")      # matches!    ← wrong
+regex.search(r"\bಕನ\b", "ಕನ್ನಡ")   # no match     ← right</code></pre>
+
+<p><code>re</code> says yes: it believes <code>ಕನ</code> is a complete word sitting inside
+<code>ಕನ್ನಡ</code>. It is not. It is the first half of one word.</p>
+
+<p>The reason follows from session 1. <code>\b</code> is defined as "the edge of a
+<code>\w</code> run". If <code>\w</code> is wrong about where words end, <code>\b</code> inherits
+the error:</p>
+
+<pre><code>number of \b positions inside ಕನ್ನಡ
+
+re      4      two at the ends, two invented at the virama
+regex   2      just the ends — correct</code></pre>
+
+<p>The rule is identical in both libraries. It works in English and fails in Kannada. That is
+what "not Unicode compliant" actually looks like in practice — not a crash, just a wrong answer
+delivered confidently.</p>
+
+<div class="callout">
+  <span class="label">Why this matters beyond regex</span>
+  <p>You have just met, in miniature, the question this whole unit is about: <strong>where does
+  a word end?</strong></p>
+  <p><code>\b</code> is one crude answer — "at the edge of a run of word characters". Even with
+  the right library it falls apart on <code>don't</code>, on <code>U.S.A.</code>, and on
+  languages that do not put spaces between words at all.</p>
+  <p><mark>A good library gets you a better wrong answer, not a right one.</mark> Session 3 is
+  about what to do instead.</p>
+</div>
+
+<h2>The greedy trap</h2>
+
+<p>This is the one. Everyone writes this bug once.</p>
+
+<p>You want to pull the tags out of this text:</p>
+
+<pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
+
+<p>A tag is an angle bracket, some stuff, another angle bracket. So: <code>&lt;.*&gt;</code>.
+Obvious. Run it:</p>
+
+<pre><code>regex.search(r"&lt;.*&gt;", text).group()
+
+# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
+
+<p>It matched <strong>the entire line</strong>. One giant "tag".</p>
+
+<p>Why? Because <code>*</code> and <code>+</code> are <strong>greedy</strong>. They take as much
+as they possibly can, and only give characters back if the rest of the pattern cannot otherwise
+match.</p>
+
+<p>Walk through it. <code>&lt;</code> matches the first angle bracket. Then <code>.*</code> runs
+to the <em>end of the line</em>, grabbing everything. Now the pattern still needs a
+<code>&gt;</code>, but there is nothing left. So <code>.*</code> backs up, one character at a
+time, until a <code>&gt;</code> can match — and the first <code>&gt;</code> it finds going
+<em>backwards</em> is the last one on the line.</p>
+
+<p>The fix is <code>?</code> after the quantifier. That makes it <strong>lazy</strong>: take as
+little as possible.</p>
+
+<pre><code>regex.search(r"&lt;.*?&gt;", text).group()      # &lt;b&gt;
+
+regex.findall(r"&lt;.*?&gt;", text)
+# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
+
+<div class="callout">
+  <span class="label">The better fix</span>
+  <p>Lazy matching works. But there is a sharper way to say it:</p>
+  <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
+# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
+  <p>Read it: "an angle bracket, then <em>anything that is not a closing bracket</em>, then a
+  closing bracket." It cannot overshoot, because it is not allowed to cross a <code>&gt;</code>
+  in the first place.</p>
+  <p><mark>Being precise about what you allow beats fixing it afterwards.</mark> That is the same
+  lesson as the roll number in session 1, and it will keep coming back.</p>
+</div>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">On the text <code>"aaa"</code>, what does the pattern <code>a+?</code>
+  match?</p>
+  <div class="q-opts">
+    <button class="opt">Just one letter a, the shortest possible</button>
+    <button class="opt">All three letters, the longest possible</button>
+    <button class="opt">Nothing at all, because it is invalid</button>
+    <button class="opt">Zero letters, an empty match at start</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>just one letter a</strong>.</p>
+    <p>Read <code>a+?</code> as two separate things. <code>a+</code> means "one or more a".
+    The <code>?</code> after it means "be lazy about it".</p>
+    <p>So: it must take at least one, and being lazy, it takes exactly one and stops.</p>
+    <p>The confusing part is that <code>?</code> has <strong>two jobs</strong>, just like
+    <code>^</code> did last session. After a character, <code>a?</code> means "optional". After a
+    quantifier, <code>+?</code> means "lazy". Which one it is depends on what comes
+    before it.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Why does <code>regex.findall(r"(\d{2})/(\d{4})", text)</code> return tuples?</p>
+  <div class="q-opts">
+    <button class="opt">Because findall always returns tuples of strings</button>
+    <button class="opt">Because the slash character splits every match found</button>
+    <button class="opt">Because findall returns the groups when groups exist</button>
+    <button class="opt">Because the pattern matches two separate things here</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>findall returns the groups when groups exist</strong>.</p>
+    <p>With no groups in the pattern, <code>findall</code> gives you a list of whole matches.
+    Add brackets and it assumes the groups are what you actually wanted, so it gives you those
+    instead — as a tuple per match.</p>
+    <p>Two ways out. If you do not need the pieces, drop the brackets. If you need brackets only
+    for grouping, make them non-capturing with <code>(?:...)</code>.</p>
+  </div>
+</div>
+
+<h2>Changing text, not just finding it</h2>
+
+<p><code>regex.sub</code> replaces what it matches. Groups make it powerful: <code>\1</code>,
+<code>\2</code> in the replacement mean "whatever group 1 and 2 matched".</p>
+
+<p>Reformat every Indian-style date into ISO format in one line:</p>
+
+<pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1", "Exam on 15/03/2026.")
+
+# 'Exam on 2026-03-15.'</code></pre>
+
+<p>Day, month and year get captured, then written back in a different order. No parsing, no
+loops.</p>
+
+<p>This is the kind of thing you will do constantly in Unit I — cleaning text into a consistent
+shape before anything else touches it.</p>
+
+<h2>What to remember</h2>
+
+<div class="callout">
+  <span class="label">The one thing</span>
+  <p>Quantifiers are <strong>greedy</strong> by default. They grab as much as they can. When a
+  pattern matches far more than you expected, this is almost always why.</p>
+  <p>Add <code>?</code> to make it lazy — or better, write the pattern so it cannot overshoot in
+  the first place.</p>
+</div>
+
+<h2>Read this next</h2>
+
+<p>Finish <strong>§2.6</strong> of <a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter
+2 of <em>Speech and Language Processing</em></a>, including the substitution part.</p>
+
+<p>Then go to <a href="https://regex101.com/">regex101.com</a> and paste in
+<code>&lt;.*&gt;</code> against some HTML. It draws the match as you type, and it will show you
+the greedy grab happening. Ten minutes there is worth an hour of reading.</p>
+
+<p>Next session: tokenization — where we take the <code>\b</code> problem seriously.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0001-what-is-nlp-and-your-first-tool.html">← Session 01: What NLP is</a>
+  <span>Next — Session 03: <a href="0003-tokenization-and-the-vocabulary-problem.html">Tokenization</a></span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

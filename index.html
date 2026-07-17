@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Principles of Natural Language Processing — MSIS</title>
+<style>
+:root {
+  --ink: #111; --ink-soft: #444; --ink-faint: #6b6b6b;
+  --rule: #d8d4cc; --bg: #fffef9; --surface: #fff;
+  --accent: #7a2e2e; --accent-soft: #f3e9e9; --code-bg: #f4f2ec;
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0; --ink-soft: #b3afa8; --ink-faint: #8b8880;
+    --rule: #34373d; --bg: #14161a; --surface: #1b1e23;
+    --accent: #e0958a; --accent-soft: #2c1f1e; --code-bg: #1d2026;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #e7e5e0; --ink-soft: #b3afa8; --ink-faint: #8b8880;
+  --rule: #34373d; --bg: #14161a; --surface: #1b1e23;
+  --accent: #e0958a; --accent-soft: #2c1f1e; --code-bg: #1d2026;
+}
+:root[data-theme="light"] {
+  --ink: #111; --ink-soft: #444; --ink-faint: #6b6b6b;
+  --rule: #d8d4cc; --bg: #fffef9; --surface: #fff;
+  --accent: #7a2e2e; --accent-soft: #f3e9e9; --code-bg: #f4f2ec;
+}
+html { font-size: 15px; }
+body {
+  margin: 0 auto; padding: 3rem 1.5rem 6rem; max-width: 62ch;
+  background: var(--bg); color: var(--ink);
+  font-family: var(--serif); line-height: 1.62;
+  -webkit-font-smoothing: antialiased;
+}
+.eyebrow {
+  font-family: var(--mono); font-size: .68rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--ink-faint); margin: 0 0 .6rem;
+}
+h1 { font-weight: 400; font-size: 2.2rem; line-height: 1.15; margin: 0 0 .4rem; text-wrap: balance; }
+.subtitle { font-style: italic; color: var(--ink-soft); font-size: 1.05rem; margin: 0 0 2.5rem; }
+h2 {
+  font-weight: 400; font-size: 1.35rem; margin: 3rem 0 1rem;
+  padding-bottom: .4rem; border-bottom: 1px solid var(--rule);
+}
+p { margin: 0 0 1.1rem; }
+a { color: var(--accent); text-underline-offset: 2px; }
+code { font-family: var(--mono); font-size: .82em; background: var(--code-bg); padding: .1em .35em; border-radius: 3px; }
+
+.item {
+  display: block; padding: .9rem 1.1rem; margin-bottom: .6rem;
+  border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--surface); text-decoration: none; color: var(--ink);
+  transition: border-color .12s, background .12s;
+}
+.item:hover { border-color: var(--accent); background: var(--accent-soft); }
+.item .n {
+  font-family: var(--mono); font-size: .65rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-faint); display: block; margin-bottom: .2rem;
+}
+.item .t { font-size: 1.02rem; }
+.item .d { font-size: .85rem; color: var(--ink-soft); margin-top: .15rem; }
+.soon { opacity: .5; pointer-events: none; }
+
+.callout {
+  border-left: 3px solid var(--accent); background: var(--accent-soft);
+  padding: 1rem 1.2rem; margin: 1.8rem 0; font-size: .92rem; border-radius: 0 4px 4px 0;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono); font-size: .62rem; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--accent); display: block; margin-bottom: .45rem;
+}
+footer {
+  margin-top: 4rem; padding-top: 1.2rem; border-top: 1px solid var(--rule);
+  font-size: .82rem; color: var(--ink-faint);
+}
+</style>
+</head>
+<body>
+
+<p class="eyebrow">MSIS Manipal · AME 5003 &amp; AME 5053</p>
+<h1>Principles of Natural Language Processing</h1>
+<p class="subtitle">Everything for this course — lessons, labs and the glossary — lives here.</p>
+
+<div class="callout">
+  <span class="label">Start here</span>
+  <p><strong>Labs run in Google Colab.</strong> You need a Google account and a browser. Nothing
+  to install.</p>
+  <p>Open <a href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb">Lab
+  1</a>, then immediately do <strong>File → Save a copy in Drive</strong>. Work in your own copy,
+  or you will lose it when the tab closes.</p>
+</div>
+
+<h2>Lessons</h2>
+
+<a class="item" href="lessons/0001-what-is-nlp-and-your-first-tool.html">
+  <span class="n">Session 01</span>
+  <span class="t">What NLP is, and your first tool</span>
+  <span class="d">Why language is hard for computers, and regular expressions.</span>
+</a>
+
+<a class="item" href="lessons/0002-regex-groups-and-the-greedy-trap.html">
+  <span class="n">Session 02</span>
+  <span class="t">Capturing, choosing, and the greedy trap</span>
+  <span class="d">Groups, alternation, word boundaries, and the bug everybody writes once.</span>
+</a>
+
+<a class="item" href="lessons/0003-tokenization-and-the-vocabulary-problem.html">
+  <span class="n">Session 03</span>
+  <span class="t">Tokenization</span>
+  <span class="d">Splitting text into words, and why it turns out to be hard.</span>
+</a>
+
+<div class="item soon">
+  <span class="n">Session 04</span>
+  <span class="t">Cleaning up text</span>
+  <span class="d">Coming soon.</span>
+</div>
+
+<h2>Labs</h2>
+
+<a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb">
+  <span class="n">Lab 01 · opens in Colab</span>
+  <span class="t">Refresher and setup</span>
+  <span class="d">Get Colab working, and refresh the Python this course leans on.</span>
+</a>
+
+<div class="item soon">
+  <span class="n">Lab 02</span>
+  <span class="t">Information extraction with regular expressions</span>
+  <span class="d">Coming soon.</span>
+</div>
+
+<h2>Reference</h2>
+
+<a class="item" href="reference/glossary.html">
+  <span class="n">Glossary</span>
+  <span class="t">Every term in this course</span>
+  <span class="d">Keep this open. NLP has a lot of near-synonyms that mean different things.</span>
+</a>
+
+<h2>The books</h2>
+
+<p>All prescribed. The first two are free online.</p>
+
+<ul>
+  <li><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and Language Processing</a> —
+      Jurafsky &amp; Martin. The main text. Free.</li>
+  <li><a href="https://www.nltk.org/book/">Natural Language Processing with Python</a> —
+      Bird, Klein &amp; Loper. Free.</li>
+  <li><a href="https://www.practicalnlp.ai/">Practical Natural Language Processing</a> —
+      Vajjala et al. <a href="https://github.com/practical-nlp/practical-nlp-code">Code is free.</a></li>
+  <li><a href="https://github.com/delip/PyTorchNLPBook">Natural Language Processing with
+      PyTorch</a> — Rao &amp; McMahan. Code is free.</li>
+  <li><a href="https://arxiv.org/abs/1510.00726">A Primer on Neural Network Models for NLP</a> —
+      Goldberg. Free.</li>
+</ul>
+
+<footer>
+  AME 5003 (theory) &amp; AME 5053 (lab) · MSIS Manipal ·
+  <a href="https://github.com/shripada/ame5003-nlp">source</a>
+</footer>
+
+</body>
+</html>

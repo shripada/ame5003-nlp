@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Session 1 — What NLP is, and your first tool</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 01</p>
+  <h1>What NLP is, and your first tool</h1>
+  <p class="subtitle">Why language is hard for computers — and how to pull facts out of text with
+  a pattern.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>You already use this every day</h2>
+
+<p>Natural Language Processing (NLP) is getting computers to work with human language. You have
+used it several times today without noticing:</p>
+
+<ul>
+  <li>Your phone predicted the next word as you typed.</li>
+  <li>Your email put a message in the spam folder.</li>
+  <li>A search engine found a page that did not contain your exact words.</li>
+  <li>Something translated a sentence for you.</li>
+  <li>You asked a chatbot a question and got a sensible answer back.</li>
+</ul>
+
+<p>Every one of these is in this course. By the end you will have built simplified versions of
+most of them.</p>
+
+<h2>So why is it hard?</h2>
+
+<p>Computers are good at exact things. Numbers, dates, IDs. Language is not exact. It is full of
+sentences that have more than one correct reading, and you resolve them without noticing.</p>
+
+<p>Read this sentence:</p>
+
+<pre><code>The old man the boat.</code></pre>
+
+<p>Most people read it, stop, and read it again. It looks broken. It is not. Here
+<strong>man</strong> is a verb — it means "to staff". The sentence says: <em>the old people are
+staffing the boat</em>.</p>
+
+<p>Your brain assumed "old man" was a noun phrase, then hit "the boat" and had to reverse. A
+computer has the same problem, and no instinct to fall back on.</p>
+
+<p>Another:</p>
+
+<pre><code>I saw a man on a hill with a telescope.</code></pre>
+
+<p>Who has the telescope? You? The man? Is the telescope on the hill? All three readings are
+valid English. Nothing in the words tells you which is meant.</p>
+
+<div class="callout">
+  <span class="label">The point</span>
+  <p>Language is <strong>ambiguous</strong>: the same words can mean different things. You
+  resolve ambiguity using knowledge of the world, and you do it so fast you never notice.</p>
+  <p>A computer has no world knowledge. Everything it knows must come from the text itself, or
+  from what we build into it. <mark>Almost every technique in this course is a way of dealing
+  with ambiguity.</mark></p>
+</div>
+
+<h2>Where this course goes</h2>
+
+<p>Three units, and each one answers a question left open by the one before.</p>
+
+<table>
+  <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
+  <tr><td>1</td><td>How do we turn messy text into clean pieces, and find things in it?</td>
+      <td>A working search engine</td></tr>
+  <tr><td>2</td><td>How do we turn words into numbers, so maths can work on them?</td>
+      <td>A sentiment classifier, and word vectors</td></tr>
+  <tr><td>3</td><td>How do we get a machine to understand context and generate language?</td>
+      <td>Neural models, up to fine-tuning BERT</td></tr>
+</table>
+
+<p>We start at the bottom. Before anything clever, you need to get facts out of raw text.</p>
+
+<h2>Your first tool: regular expressions</h2>
+
+<p>A <strong>regular expression</strong> (regex) is a small language for describing patterns in
+text. You write a pattern; the computer finds every piece of text that matches it.</p>
+
+<p>It is the oldest tool in NLP and still one of the most used. When you need to pull dates,
+phone numbers, or IDs out of documents, a regex is often the whole answer — no machine learning
+needed.<span class="sidenote">Jurafsky &amp; Martin, <a
+href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">SLP3 chapter 2</a>, <strong>§2.6</strong>.
+Note the section number — that chapter covers several topics and regex is not the first one.</span></p>
+
+<div class="callout">
+  <span class="label">In this course we use <code>regex</code>, not <code>re</code></span>
+  <p>Python ships with a regex library called <code>re</code>. We will not use it. Install this
+  instead:</p>
+  <pre><code>pip install regex</code></pre>
+  <p>Then <code>import regex</code> and use it exactly as you would <code>re</code> — same
+  functions, same patterns. You lose nothing.</p>
+  <p>Why: <code>re</code> does not handle Indian scripts correctly. You will see this for
+  yourself later in this lesson.</p>
+</div>
+
+<h3>The pieces you need today</h3>
+
+<table>
+  <tr><th>Pattern</th><th>Means</th><th>Example match</th></tr>
+  <tr><td><code>cat</code></td><td>exactly those letters</td><td><code>cat</code></td></tr>
+  <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td><td><code>Cat</code>, <code>cat</code></td></tr>
+  <tr><td><code>[0-9]</code></td><td>any digit — a range</td><td><code>7</code></td></tr>
+  <tr><td><code>[^0-9]</code></td><td><code>^</code> inside brackets means <em>not</em></td><td><code>a</code></td></tr>
+  <tr><td><code>.</code></td><td>any character at all</td><td><code>%</code></td></tr>
+  <tr><td><code>\d</code></td><td>shorthand for <code>[0-9]</code></td><td><code>7</code></td></tr>
+  <tr><td><code>\w</code></td><td>a "word character" — see the warning below</td><td><code>a</code></td></tr>
+  <tr><td><code>\s</code></td><td>a space, tab or newline</td><td> </td></tr>
+</table>
+
+<p>Then you say <em>how many times</em>:</p>
+
+<table>
+  <tr><th>Pattern</th><th>Means</th></tr>
+  <tr><td><code>a*</code></td><td>zero or more <code>a</code></td></tr>
+  <tr><td><code>a+</code></td><td>one or more <code>a</code></td></tr>
+  <tr><td><code>a?</code></td><td>zero or one <code>a</code> — "optional"</td></tr>
+  <tr><td><code>a{3}</code></td><td>exactly three</td></tr>
+  <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
+</table>
+
+<h3>A real example</h3>
+
+<p>Say you have this line of text and you want the facts out of it:</p>
+
+<pre><code>"Call +91 98765 43210 before 15/03/2026 or email admin@manipal.edu"</code></pre>
+
+<p>Three patterns, three facts:</p>
+
+<pre><code>date   \d{2}/\d{2}/\d{4}        →  15/03/2026
+phone  \+91 \d{5} \d{5}         →  +91 98765 43210
+email  [\w.]+@[\w.]+            →  admin@manipal.edu</code></pre>
+
+<p>Read the date pattern out loud: "two digits, a slash, two digits, a slash, four digits." That
+is all a regex is — a description of shape.</p>
+
+<p>Notice <code>\+</code> in the phone pattern. <code>+</code> normally means "one or more", so
+to match a literal plus sign you put a backslash in front. This is called
+<strong>escaping</strong>, and forgetting it is the most common regex bug there is.</p>
+
+<h3>Why not <code>re</code>? Try it on Kannada</h3>
+
+<p>Here is the reason for that install. Take one word — <strong>ಕನ್ನಡ</strong>, the word
+"Kannada" — and ask each library to find the words in it.</p>
+
+<pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"        # "Kannada language" — two words
+
+re.findall(r"\w+", text)      # ['ಕನ', 'ನಡ', 'ಭ', 'ಷ']     ← four!
+regex.findall(r"\w+", text)   # ['ಕನ್ನಡ', 'ಭಾಷೆ']            ← two</code></pre>
+
+<p><code>re</code> found <strong>four</strong> words where there are two. It broke both words in
+half.</p>
+
+<p>Why? Look inside <code>ಕನ್ನಡ</code>. It is five characters, and one of them is special:</p>
+
+<pre><code>ಕ   U+0C95   KANNADA LETTER KA        a letter
+ನ   U+0CA8   KANNADA LETTER NA        a letter
+್   U+0CCD   KANNADA SIGN VIRAMA      a combining mark  ←
+ನ   U+0CA8   KANNADA LETTER NA        a letter
+ಡ   U+0CA1   KANNADA LETTER DDA       a letter</code></pre>
+
+<p>The <strong>virama</strong> joins two consonants together. It is a mark, not a letter. And
+<code>re</code>'s definition of <code>\w</code> — "a word character" — accepts letters and digits
+but <strong>rejects combining marks</strong>. So when <code>re</code> reaches the virama it
+decides the word has ended.</p>
+
+<p>Every Indian script uses combining marks. So does Arabic, Hebrew, Thai. <code>re</code>'s
+idea of "a word" was built around English, and it quietly falls apart everywhere else.</p>
+
+<div class="callout warn">
+  <span class="label">Why this matters more than it looks</span>
+  <p>This is not a cosmetic bug. In Unit II you will count words to build Bag of Words, TF-IDF
+  and n-grams. <mark>If your word counts are doubled before you start, every number after that
+  is wrong</mark> — and nothing will crash to tell you.</p>
+  <p>The failure is silent. That is the worst kind.</p>
+</div>
+
+<div class="recall">
+  <span class="label">Try this before reading on</span>
+  <p>Write a pattern that matches a PIN code: exactly six digits.</p>
+  <p>Then a harder one: a roll number like <code>MSIS2026001</code> — four letters, then seven
+  digits.</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p>PIN code: <code>\d{6}</code></p>
+    <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
+    <p>If you wrote <code>\w{4}\d{7}</code> for the second one — close, but not tight enough.
+    <code>\w</code> matches letters <em>and</em> digits <em>and</em> underscore, so that pattern
+    also accepts <code>12345678901</code> and <code>msis2026001</code>. Neither is a roll
+    number.</p>
+    <p>Being exact about what you allow is most of the skill. A pattern that is too loose
+    quietly lets rubbish through, and you will not notice until the data is wrong.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What does <code>[^aeiou]</code> match?</p>
+  <div class="q-opts">
+    <button class="opt">A vowel found at the very start of the line</button>
+    <button class="opt">Any single character that is not a vowel</button>
+    <button class="opt">Any vowel repeated one or more times</button>
+    <button class="opt">The literal characters caret and vowels</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>any single character that is not a vowel</strong>.</p>
+    <p>The trap is <code>^</code>. It has <strong>two different meanings</strong> depending on
+    where it sits:</p>
+    <p>Inside square brackets, at the start: it means <em>not</em>. So <code>[^aeiou]</code> is
+    "anything except a vowel".</p>
+    <p>Outside brackets: it means <em>start of line</em>. So <code>^The</code> matches "The"
+    only at the beginning.</p>
+    <p>Same symbol, two jobs. Expect to get this wrong once, then never again.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Which pattern matches both <code>colour</code> and <code>color</code>?</p>
+  <div class="q-opts">
+    <button class="opt">Write the pattern as <code>colo*r</code> here</button>
+    <button class="opt">Write the pattern as <code>colo+r</code> here</button>
+    <button class="opt">Write the pattern as <code>colo.r</code> here</button>
+    <button class="opt">Write the pattern as <code>colou?r</code> here</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <code>colou?r</code>.</p>
+    <p>The <code>?</code> applies to the character just before it — <code>u</code> — and means
+    "zero or one of these". So the <code>u</code> becomes optional. That is exactly the
+    difference between the two spellings.</p>
+    <p>Why the others fail: <code>colo*r</code> makes the <strong>o</strong> optional, so it
+    matches <code>colr</code> and <code>colooor</code> but never <code>colour</code>.
+    <code>colo+r</code> has the same problem. <code>colo.r</code> needs exactly one character
+    there, so it matches <code>colour</code> and <code>coloXr</code>, but not
+    <code>color</code>.</p>
+    <p>The lesson: a quantifier attaches to the <em>one thing</em> immediately before it.</p>
+  </div>
+</div>
+
+<h2>What to remember</h2>
+
+<div class="callout">
+  <span class="label">The one thing</span>
+  <p>Language is ambiguous, and computers have no instinct for it. Everything in this course is
+  a way of handling that.</p>
+  <p>But not every problem needs a clever model. When the thing you want has a
+  <strong>shape</strong> — a date, a phone number, an ID — a regex will find it, and no amount
+  of machine learning will beat it.</p>
+</div>
+
+<h2>Read this next</h2>
+
+<p>Read <strong>§2.6, "Regular Expressions"</strong> in <a
+href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter 2 of <em>Speech and Language
+Processing</em></a> by Jurafsky and Martin. It is free.</p>
+
+<p><strong>Read §2.6 only this week.</strong> That chapter covers other topics as well, and some
+of them come later in this course. You are not missing anything by skipping them for now.</p>
+
+<p>Next session we finish regex: groups, alternatives, and the greedy matching trap. Then in
+session 3 we start on tokenization.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <span>Next — Session 02: <a href="0002-regex-groups-and-the-greedy-trap.html">Capturing,
+  choosing, and the greedy trap</a></span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

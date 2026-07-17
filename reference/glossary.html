@@ -1,0 +1,932 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NLP Glossary — canonical terms for AME 5003 / 5053</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+<style>
+  /* Glossary-specific: dense two-column reference, optimised for print + scan */
+  .wrap, .masthead { max-width: 100%; }
+  .gloss { columns: 2; column-gap: 2.4rem; margin-top: 1.4rem; }
+  .term { break-inside: avoid; margin-bottom: 1rem; }
+  .term dt {
+    font-weight: 600; font-size: .93rem; color: var(--accent);
+    font-family: var(--serif);
+  }
+  .term dt .sym { font-family: var(--mono); font-size: .8rem; color: var(--ink-faint); font-weight: 400; }
+  .term dd { margin: .15rem 0 0; font-size: .85rem; line-height: 1.45; color: var(--ink-soft); }
+  .term dd .unit {
+    font-family: var(--mono); font-size: .62rem; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--ink-faint);
+  }
+  .trap { border-left: 2px solid var(--warn); padding-left: .5rem; background: var(--warn-bg); }
+  h2 { column-span: all; font-size: 1.15rem; margin: 1.8rem 0 .3rem;
+       border-bottom: 1px solid var(--rule); padding-bottom: .25rem; }
+  @media (max-width: 800px) { .gloss { columns: 1; } }
+  @media print { .gloss { columns: 2; } body { font-size: 9pt; } }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 / 5053 · Reference</p>
+  <h1>NLP Glossary</h1>
+  <p class="subtitle">The canonical vocabulary for both courses. Once a term is defined here, every
+  lesson uses it this way — consistency is worth more than elegance.</p>
+</header>
+
+<div class="wrap">
+
+<div class="callout">
+  <span class="label">How to use this</span>
+  <p>Print it. Hand it out in week 1. Students who lack the nomenclature cannot ask good
+  questions, and NLP is unusually dense in near-synonyms that mean subtly different things
+  (<em>type</em> vs <em>token</em>, <em>lemma</em> vs <em>stem</em>). Terms marked
+  <span class="trap">like this</span> are ones students reliably confuse — and which examiners
+  reliably probe.</p>
+</div>
+
+<div class="gloss">
+
+<h2>The basics — used from week 1, taught properly from week 7</h2>
+
+<dl class="term">
+  <dt>Model</dt>
+  <dd>A program that learned its behaviour from <em>examples</em> rather than from rules someone
+  wrote. Opposite of a regex, where you type the rule out yourself. Keeps a set of numbers for
+  each word it knows, and adjusts them while learning. Built properly from
+  <strong>session 20</strong>.
+  <a href="https://developers.google.com/machine-learning/intro-to-ml/what-is-ml">Gentle intro</a>.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Training</dt>
+  <dd>Showing a model examples so it can work the patterns out. Done once, in advance. Contrast
+  <em>inference</em>: using the finished model on something new.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Parameters</dt>
+  <dd>The numbers inside a model that training adjusts. "A bigger model" means more of these.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Rules vs. learning</dt>
+  <dd>The spine of this whole course. <strong>Rules</strong>: a person writes down what to do —
+  regex (weeks 1–2), VADER's word list (lab 1). Precise, fast, and someone must think of every
+  case. <strong>Learning</strong>: show examples, the machine works it out — Naïve Bayes (week 6)
+  onward. Handles cases nobody listed, needs data and gives no guarantees. Nearly every
+  "why do we still teach the old way?" question is answered by this row.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Vocabulary</dt>
+  <dd>The fixed list of every token a model knows. Decided before training and frozen. One row of
+  parameters per entry, so vocabulary size drives model size. Anything not in it becomes
+  <code>&lt;UNK&gt;</code> — which is the problem subword tokenization exists to solve.</dd>
+</dl>
+
+<h2>Unit I — Text processing &amp; IR</h2>
+
+<dl class="term">
+  <dt>Corpus <span class="sym">pl. corpora</span></dt>
+  <dd>A body of text used for training or evaluation.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Type vs. Token</dt>
+  <dd>A <strong>token</strong> is an instance; a <strong>type</strong> is a distinct entry in the
+  vocabulary. "the cat sat on the mat" = 6 tokens, 5 types ("the" repeats). Vocabulary size
+  means <em>types</em>. <span class="unit">exam favourite</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Tokenization</dt>
+  <dd>Splitting raw text into tokens. Not a string operation — a modelling decision.
+  See <a href="../lessons/0003-tokenization-and-the-vocabulary-problem.html">Lesson 03</a>.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Normalization</dt>
+  <dd>Collapsing surface variants to one form: case-folding, Unicode normalization,
+  <code>U.S.A.</code> → <code>USA</code>. Deliberately destroys information you judge irrelevant.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Stemming vs. Lemmatization</dt>
+  <dd><strong>Stemming</strong> chops affixes by rule — fast, crude, output need not be a real
+  word (<code>studies</code> → <code>studi</code>). <strong>Lemmatization</strong> maps to the
+  dictionary headword using morphology + POS — slower, correct (<code>studies</code> →
+  <code>study</code>, <code>better</code> → <code>good</code>). <span class="unit">the single
+  most-confused pair in Unit I</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Lemma</dt>
+  <dd>The dictionary/citation form. <code>run</code> is the lemma of <code>ran</code>,
+  <code>running</code>, <code>runs</code>.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Stop words</dt>
+  <dd>High-frequency, low-content words (<em>the, is, of</em>) often removed. Note: harmful for
+  tasks where they matter — <em>"to be or not to be"</em> is entirely stop words.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Subword tokenization</dt>
+  <dd>Units smaller than words, so unseen words decompose instead of becoming
+  <code>&lt;UNK&gt;</code>. See BPE.</dd>
+</dl>
+
+<dl class="term">
+  <dt>BPE <span class="sym">Byte-Pair Encoding</span></dt>
+  <dd>Learns subword units by repeatedly merging the most frequent adjacent symbol pair.
+  Merge count <em>k</em> sets vocabulary size. Origin: a 1994 compression algorithm.</dd>
+</dl>
+
+<dl class="term">
+  <dt>WordPiece</dt>
+  <dd>BPE variant used by BERT: merges the pair that most increases training-data likelihood,
+  not the most frequent one. The <code>##</code> prefix marks "continues previous word".</dd>
+</dl>
+
+<dl class="term">
+  <dt><code>&lt;UNK&gt;</code></dt>
+  <dd>The out-of-vocabulary catch-all token. Its existence is the problem subword tokenization
+  solves.</dd>
+</dl>
+
+<dl class="term">
+  <dt>POS tagging <span class="sym">Part-of-Speech</span></dt>
+  <dd>Labelling each token with its grammatical category (noun, verb…). A sequence-labelling
+  task.</dd>
+</dl>
+
+<dl class="term">
+  <dt>NER <span class="sym">Named Entity Recognition</span></dt>
+  <dd>Finding and typing proper-name spans (PERSON, ORG, LOC). Span-based, so harder than POS:
+  entities cover multiple tokens.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Term-document incidence matrix</dt>
+  <dd>Binary matrix, terms × documents: 1 if term occurs in doc. Conceptually clean, hopelessly
+  sparse at scale — which motivates the inverted index.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Inverted index</dt>
+  <dd>Maps each term → <strong>postings list</strong> of documents containing it. "Inverted"
+  because the natural direction is doc → terms. The data structure behind every search engine.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Postings list</dt>
+  <dd>The list of doc IDs for one term, kept sorted so queries can be answered by merging lists.</dd>
+</dl>
+
+<h2>Unit II — LM, sentiment, embeddings</h2>
+
+<dl class="term">
+  <dt>Language model <span class="sym">LM</span></dt>
+  <dd>Assigns probability to a token sequence — equivalently, predicts the next token.</dd>
+</dl>
+
+<dl class="term">
+  <dt>N-gram</dt>
+  <dd>A contiguous run of <em>n</em> tokens. An n-gram LM applies the Markov assumption: only
+  the previous <em>n</em>−1 tokens matter.</dd>
+</dl>
+
+<dl class="term">
+  <dt>MLE <span class="sym">Maximum Likelihood Estimate</span></dt>
+  <dd>For n-grams: <em>P(w|context) = count(context,w) / count(context)</em>. Just counting and
+  dividing — and it assigns probability <strong>zero</strong> to anything unseen, which is why
+  smoothing exists.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Smoothing</dt>
+  <dd>Moving probability mass to unseen n-grams so nothing is impossible. Laplace/add-one is the
+  teaching example; Kneser-Ney is the good one.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Perplexity <span class="sym">PP</span></dt>
+  <dd>Standard intrinsic LM metric: the inverse probability of the test set, normalised by token
+  count — equivalently 2<sup>cross-entropy</sup>. Intuition: the model's average
+  <em>branching factor</em>. <strong>Lower is better.</strong> Students routinely get that
+  backwards. Only comparable across models with identical vocabularies.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Naïve Bayes</dt>
+  <dd>Generative classifier applying Bayes' rule with a conditional-independence assumption
+  across features. <span class="unit">SLP3 Appendix B — not ch 4</span></dd>
+</dl>
+
+<dl class="term trap">
+  <dt>The "naïve" assumption</dt>
+  <dd>That features (words) are conditionally independent given the class. It is <em>false</em>
+  for language — and the classifier works well anyway. Being able to say <em>why we tolerate a
+  known-false assumption</em> is the whole point of the topic.</dd>
+</dl>
+
+<dl class="term">
+  <dt>BoW <span class="sym">Bag of Words</span></dt>
+  <dd>Represent a document by word counts, discarding order. "Dog bites man" = "man bites dog".</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>TF-IDF</dt>
+  <dd>Weight = <strong>term frequency</strong> × <strong>inverse document frequency</strong>.
+  TF rewards words frequent <em>in this doc</em>; IDF (a log ratio) penalises words common
+  <em>across all docs</em>. Together: words that are distinctive here. The <em>log</em> in IDF
+  is the exam question — it damps the effect so rarity helps sub-linearly.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Cosine similarity</dt>
+  <dd>Similarity as the cosine of the angle between vectors: dot product over the product of
+  magnitudes. Ignores length, so a long and a short doc on the same topic still match.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Sparse vs. Dense vectors</dt>
+  <dd><strong>Sparse</strong> (BoW, TF-IDF): dimension = vocabulary size, mostly zeros, each
+  dimension is an interpretable word. <strong>Dense</strong> (Word2Vec, GloVe): a few hundred
+  dimensions, all non-zero, individually uninterpretable. The move from sparse to dense is the
+  central arc of Unit II.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Distributional hypothesis</dt>
+  <dd>"You shall know a word by the company it keeps" (Firth, 1957). Words in similar contexts
+  have similar meanings. The premise every embedding method rests on.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Embedding</dt>
+  <dd>A learned dense vector for a word/token. A lookup table — vocabulary × dimensions —
+  trained by gradient descent, not hand-built.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>CBOW vs. Skip-gram</dt>
+  <dd>The two Word2Vec architectures, and they are <strong>mirror images</strong>.
+  <strong>CBOW</strong>: context → predict the centre word. <strong>Skip-gram</strong>: centre
+  word → predict the context. Skip-gram is slower, better on rare words. Guaranteed exam
+  question; students flip them constantly.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Negative sampling</dt>
+  <dd>Word2Vec's efficiency trick: rather than a softmax over the whole vocabulary, discriminate
+  the true context word from a handful of random "negative" words. Turns an impossible
+  normalization into cheap binary classification.</dd>
+</dl>
+
+<dl class="term">
+  <dt>GloVe <span class="sym">Global Vectors</span></dt>
+  <dd>Embeddings from factorising a global word-word co-occurrence matrix. Contrast with
+  Word2Vec's local sliding window — <em>global counts vs. local prediction</em> is the
+  comparison to teach.</dd>
+</dl>
+
+<h2>Unit III — Deep learning</h2>
+
+<dl class="term">
+  <dt>RNN <span class="sym">Recurrent Neural Network</span></dt>
+  <dd>Processes a sequence one step at a time, carrying a hidden state. Weights shared across
+  timesteps.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Hidden state</dt>
+  <dd>The vector an RNN carries forward — its compressed memory of everything seen so far.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Vanishing gradient</dt>
+  <dd>Gradients shrink multiplicatively over long backprop paths, so plain RNNs cannot learn
+  long-range dependencies. The disease; LSTM is the treatment.</dd>
+</dl>
+
+<dl class="term">
+  <dt>LSTM <span class="sym">Long Short-Term Memory</span></dt>
+  <dd>RNN with a <strong>cell state</strong> and gates (forget, input, output). The cell state's
+  additive path lets gradients survive.</dd>
+</dl>
+
+<dl class="term">
+  <dt>GRU <span class="sym">Gated Recurrent Unit</span></dt>
+  <dd>Simplified LSTM: two gates (reset, update), no separate cell state. Fewer parameters,
+  usually comparable performance.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Seq2seq <span class="sym">encoder–decoder</span></dt>
+  <dd>Encoder reads input into a representation; decoder generates output. Enables mismatched
+  input/output lengths — hence machine translation.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Bottleneck problem</dt>
+  <dd>Vanilla seq2seq crushes the whole input into one fixed vector. The <em>motivation</em> for
+  attention. Teach the problem before the solution or attention looks arbitrary.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Attention</dt>
+  <dd>Lets the decoder look back at <em>all</em> encoder states, weighted by relevance, instead
+  of one summary vector. Originally Bahdanau et al., 2014 — <strong>pre-dates transformers</strong>.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Attention vs. Self-attention</dt>
+  <dd><strong>Attention</strong> (cross-): decoder attends to encoder — two sequences.
+  <strong>Self-attention</strong>: a sequence attends to <em>itself</em>, each token gathering
+  from every other — one sequence. The transformer's core is self-attention. Do not blur them.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Q, K, V <span class="sym">query, key, value</span></dt>
+  <dd>Three projections of each token. Query matches against keys to produce weights; weights
+  pool the values. A soft, differentiable dictionary lookup.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Scaled dot-product attention</dt>
+  <dd>softmax(QKᵀ / √d<sub>k</sub>)V. The <strong>√d<sub>k</sub></strong> is the exam question:
+  without it, dot products grow with dimension, pushing softmax into saturation where gradients
+  vanish.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Multi-head attention</dt>
+  <dd>Several attention operations in parallel on split projections, concatenated. Lets
+  different heads attend to different relation types at once.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Positional encoding</dt>
+  <dd>Self-attention is <strong>permutation-invariant</strong> — it cannot see order — so
+  position must be injected explicitly. Ask the class why an RNN needs no such thing.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Transformer</dt>
+  <dd>Architecture built from self-attention + feed-forward blocks, no recurrence. Parallelises
+  across the sequence, which is why it won. Vaswani et al., 2017.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Encoder-only vs. Decoder-only</dt>
+  <dd><strong>Encoder-only</strong> (BERT): bidirectional, sees the whole sequence, for
+  <em>understanding</em> — classification, NER. <strong>Decoder-only</strong> (GPT): causally
+  masked, cannot see the future, for <em>generation</em>. "What's the difference between BERT
+  and GPT?" is <em>the</em> question you will be asked. This row is the answer.</dd>
+</dl>
+
+<dl class="term">
+  <dt>MLM <span class="sym">Masked Language Modelling</span></dt>
+  <dd>BERT's pre-training task: mask ~15% of tokens, predict them from both sides. Bidirectional
+  context is only possible <em>because</em> the task is fill-in-the-blank, not next-token.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Pre-training vs. Fine-tuning</dt>
+  <dd><strong>Pre-training</strong>: expensive, once, self-supervised on unlabelled text.
+  <strong>Fine-tuning</strong>: cheap, per-task, supervised on a small labelled set. The
+  economics of this split is why modern NLP is accessible to your students at all.</dd>
+</dl>
+
+<dl class="term">
+  <dt>DistilBERT</dt>
+  <dd>BERT compressed by <strong>knowledge distillation</strong> — a small "student" trained to
+  imitate the large "teacher". ~40% smaller, ~60% faster, ~97% of performance. Named in your
+  syllabus (spelled "DitilBERT" — a typo).</dd>
+</dl>
+
+<dl class="term">
+  <dt>Transfer learning</dt>
+  <dd>Reusing representations learned on one task for another. The umbrella that pre-train →
+  fine-tune sits under.</dd>
+</dl>
+
+</div>
+</div>
+
+<div class="ask">
+  <strong>Missing a term?</strong> Ask your agent to add it — this glossary is meant to grow
+  across the semester, and every lesson links back here.
+</div>
+
+<nav class="footer-nav">
+  <a href="../index.html">Course home</a>
+  <a href="../lessons/0001-what-is-nlp-and-your-first-tool.html">Session 01</a>
+  <a href="../lessons/0002-regex-groups-and-the-greedy-trap.html">Session 02</a>
+  <a href="../lessons/0003-tokenization-and-the-vocabulary-problem.html">Session 03</a>
+</nav>
+
+
+
+</body>
+</html>
