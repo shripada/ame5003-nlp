@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 1 — Tokenization: how a computer splits text into words</title>
+<title>Lesson 4 — Cleaning up text: normalization and stop words</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,275 +504,239 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 03</p>
-  <h1>Tokenization</h1>
-  <p class="subtitle">How a computer splits text into words — and why that turns out to be a
-  hard problem.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 04</p>
+  <h1>Cleaning up text</h1>
+  <p class="subtitle">Normalization and stop words — deciding which differences in text do not
+  matter, and erasing them. The catch is that "does not matter" depends on the job.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>What tokenization is</h2>
+<h2>Where we are</h2>
 
-<p>Before a computer can do anything with text, it has to break the text into pieces. Those
-pieces are called <strong>tokens</strong>. This step is called <strong>tokenization</strong>.</p>
+<p>In session 3 you split text into <strong>tokens</strong>. So you now have a list of pieces.
+But look at these tokens:</p>
 
-<p>It sounds easy. Split on spaces, and you are done:</p>
+<pre><code>"US"   "us"   "U.S."   "Us"</code></pre>
 
-<pre><code>"the cat sat"   →   ["the", "cat", "sat"]</code></pre>
+<p>To you, some of these are the same and some are not. To the computer they are four different
+strings — nothing links them. Before you count words or search text, you usually want to
+collapse the differences that <em>do not matter</em> into one form.</p>
 
-<p>That works for this sentence. It stops working almost immediately.</p>
-
-<h2>Why splitting on spaces fails</h2>
-
-<p>Look at this sentence:</p>
-
-<pre><code>"Dr. O'Neill isn't in — he's at St. Mary's, re: the U.S.A. deal."</code></pre>
-
-<p>Split it on spaces and you get problems straight away:</p>
-
-<ul>
-  <li><code>Mary's,</code> keeps the comma stuck to it. That comma is not part of the name.</li>
-  <li><code>isn't</code> stays as one piece. But it is really two words: <em>is</em> and
-      <em>not</em>.</li>
-  <li><code>Dr.</code> and <code>U.S.A.</code> contain full stops. If you split on full stops to
-      fix the first problem, you break these.</li>
-</ul>
-
-<p>Every rule you add to fix one case breaks another. This is real, and it is worth seeing. But
-it is not the interesting problem. The interesting problem is underneath.</p>
-
-
-
-<h2>The real problem: the word list is fixed, but language is not</h2>
+<p>That collapsing is called <strong>normalization</strong>. Here is the definition to hold on
+to for the whole lesson:</p>
 
 <div class="callout">
-  <span class="label">First — what is a "model"?</span>
-  <p>This word is about to appear a lot, so let us pin it down. You do not need the details yet;
-  you need enough to follow the next page.</p>
-  <p>In sessions 1 and 2 you wrote <strong>rules by hand</strong>. You decided a date looks like
-  <code>\d{2}/\d{2}/\d{4}</code>, and you typed that out. The computer did what you said.</p>
-  <p>A <strong>model</strong> is the opposite. You do not write the rules. You show it a pile of
-  examples — this is called <strong>training</strong> — and it works out the patterns itself.
-  Afterwards you give it something new and it makes a guess.<span class="sidenote">If you want a
-  fuller answer now, the gentlest one on the internet is Google's <a
-  href="https://developers.google.com/machine-learning/intro-to-ml/what-is-ml">"What is Machine
-  Learning?"</a> — about 20 minutes, no mathematics. Their <a
-  href="https://developers.google.com/machine-learning/glossary#model">ML Glossary</a> is a good
-  place to look up any term that appears before we teach it. Neither is required reading. We
-  build all of this properly from <strong>session 20</strong> onward.</span></p>
-  <p>To do that, a model has to keep some numbers for each word it knows — a handful of numbers
-  per word, which it adjusts while it learns. That is all "a model" needs to mean today:
-  <mark>a program that learned from examples, and keeps some numbers for every word it
-  knows.</mark></p>
-  <p>You will build your first one in week 6. For now, just hold on to the numbers-per-word part
-  — the rest of this lesson turns on it.</p>
+  <span class="label">What normalization is</span>
+  <p><mark>Normalization deliberately destroys information you have judged irrelevant.</mark></p>
+  <p>That is not a side effect. It is the whole point. You are throwing away detail on purpose, so
+  that things you consider "the same" really do count as the same. The skill is deciding
+  <em>what</em> is safe to throw away — and that decision depends entirely on the task.</p>
 </div>
 
-<p>Every model in this course needs a <strong>vocabulary</strong>. That is a fixed list of every
-token the model knows. The model builds this list once, from its training text, and then it is
-fixed forever.</p>
+<h2>Case folding</h2>
 
-<p>It has to be fixed, because <strong>the model keeps a row of numbers for every token in that
-list</strong> — that is the "numbers per word" from the box above. Ten thousand words means ten
-thousand rows. So the size of the list decides the size of the model.</p>
+<p>The most common step: make everything lowercase.</p>
 
-<p>Here is the problem. Language does not have a fixed word list. People invent new words all
-the time — <code>doomscrolling</code>, <code>rizz</code>, <code>ChatGPT-ing</code>. No matter
-how much text you train on, you will meet new words later.</p>
+<pre><code>"AMAZING"   "Amazing"   "amazing"   →   "amazing"</code></pre>
 
-<p>So the model breaks:</p>
+<p>Three strings become one. Now every spelling of the word counts together when you count or
+search. For most Unit I work — counting words, searching documents — this is exactly what you
+want.</p>
 
-<pre><code>training:  vocabulary = every word seen in the training text
-later:     model sees "doomscrolling"  →  not in the list  →  &lt;UNK&gt;</code></pre>
+<p>But notice what you just lost:</p>
 
-<p><code>&lt;UNK&gt;</code> means "unknown word". Every word the model has not seen becomes this
-same token. So the model cannot tell <code>doomscrolling</code> apart from any other unknown
-word. They all look identical to it.</p>
+<ul>
+  <li><code>US</code> (the country) and <code>us</code> (the word) both become <code>us</code>.
+      They are now the same token.</li>
+  <li><code>Apple</code> (the company) and <code>apple</code> (the fruit) merge too.</li>
+  <li><code>Polish</code> (from Poland) and <code>polish</code> (for shoes) merge.</li>
+</ul>
 
-<p>That is bad enough. But look closer at <code>doomscrolling</code>. It contains
-<code>scroll</code>, a word the model knows well. The meaning is sitting right there in the
-letters. Splitting on spaces throws that away.</p>
+<p>Case was carrying real meaning, and lowercasing threw it away. For search that is usually a
+fair trade — a user typing <code>apple</code> probably wants the company too. For a task where
+the capital letter is the signal, it is a mistake. You have to decide.</p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>You have a fixed word list. Language keeps inventing new words. You are not allowed to use
-  <code>&lt;UNK&gt;</code>. What can you change?</p>
+  <p>You are building a system to pull <strong>company names</strong> out of news articles. Your
+  first step is to lowercase everything, out of habit. What did you just break?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>Make the pieces <strong>smaller than words</strong>.</p>
-    <p>If your list holds word <em>parts</em>, you can spell any new word out of parts you
-    already have. Take this to the extreme and a list of single letters can spell every word
-    that exists.</p>
-    <p>But single letters are useless on their own. The letter <em>s</em> means nothing. And
-    sentences become very long lists of letters.</p>
-    <p>So you have a trade-off: <strong>big pieces carry meaning but miss new words. Small
-    pieces cover everything but carry little meaning.</strong> The answer is to sit in the
-    middle. That is what the next section does.</p>
+    <p>You erased the main clue you had. In English, a capital letter in the middle of a sentence
+    is a strong hint that a word is a name — <code>Apple</code>, <code>Rao</code>,
+    <code>Manipal</code>. Lowercase everything and <code>Apple</code> becomes
+    <code>apple</code>, and the signal is gone.</p>
+    <p>This is the lesson in one example: a cleaning step that helps one task
+    (<em>searching</em>) hurts another (<em>finding names</em>). There is no "correct"
+    normalization. There is only "correct for this job".</p>
   </div>
 </div>
 
-<h2>Byte-Pair Encoding: let the data decide the pieces</h2>
+<h2>Unicode: when identical-looking text is not equal</h2>
 
-<p>We want word parts. But who decides where to split? A linguist could mark every prefix and
-suffix in English by hand. That would take years, and it would not work for other languages.</p>
+<p>Here is a trap that catches people who have never thought about it. Two strings can look
+<strong>exactly the same</strong> on screen and still not be equal, because Unicode sometimes
+stores the same character in more than one way.</p>
 
-<p><strong>Byte-Pair Encoding</strong> (BPE) has a better idea. It learns the pieces by counting.
-The rule is simple:</p>
+<pre><code>a = "café"     # é stored as ONE character
+b = "café"     # é stored as  e + a separate accent mark
 
-<ol>
-  <li>Start with a list of single characters.</li>
-  <li>Count every pair of neighbouring symbols in your text.</li>
-  <li>Take the pair that appears <strong>most often</strong>. Join it into one new symbol. Add
-      that symbol to the list.</li>
-  <li>Repeat <em>k</em> times.</li>
-</ol>
+a == b    →    False
+len(a)    →    4
+len(b)    →    5</code></pre>
 
-<p>That is the whole algorithm. <em>k</em> is a number you choose. It decides how big your final
-list is.</p>
+<p>They print identically. One stores <code>é</code> as a single character; the other stores a
+plain <code>e</code> followed by a floating accent mark that sits on top of it. If a user types
+one form and your stored text has the other, your lookup silently fails — no error, just a match
+that never happens.</p>
 
-<h3>Working through an example</h3>
+<p>The fix is <strong>Unicode normalization</strong>: force every string into one standard form
+before you compare. The common choice is called <strong>NFC</strong>.</p>
 
-<p>Here is a small set of words. The number on the left is how often each word appears. The
-<code>_</code> marks the end of a word.</p>
+<pre><code>normalize("NFC", a) == normalize("NFC", b)    →    True</code></pre>
 
-<pre><code>5  l o w _
-2  l o w e s t _
-6  n e w e r _
-3  w i d e r _
-2  n e w _
+<div class="callout warn">
+  <span class="label">This matters more here, not less</span>
+  <p>This is not a European-accent curiosity. Indian scripts are <em>built</em> from base letters
+  plus combining marks, so the same Kannada or Devanagari word can easily arrive in two encodings
+  that look the same and compare unequal.</p>
+  <p>It is the same family of problem as <a href="0002-regex-groups-and-the-greedy-trap.html">the
+  <code>regex</code>-not-<code>re</code> issue</a>: Indian text has structure that naive handling
+  gets wrong. A simple rule of thumb covers both: <strong>use <code>regex</code> to split,
+  and <code>NFC</code> to compare.</strong> Normalize text to NFC the moment it enters your
+  system, and this entire class of bug disappears.</p>
+</div>
 
-list:  _, d, e, i, l, n, o, r, s, t, w</code></pre>
+<h2>Punctuation, numbers, and the rest</h2>
 
-<p>Now count the pairs. The pair <code>e r</code> appears in <code>newer</code> (6 times) and in
-<code>wider</code> (3 times). That is <strong>9</strong> — more than any other pair. So we join
-it:</p>
+<p>The other normalization steps are smaller and more obvious, and all of them are the same kind
+of decision — keep it or drop it, depending on the task:</p>
 
-<pre><code>merge 1:  e + r  →  er
+<ul>
+  <li><strong>Punctuation.</strong> For counting words you usually strip it, so that
+      <code>cat,</code> and <code>cat</code> match. For finding sentence boundaries, or reading
+      emoticons in a review, you keep it.</li>
+  <li><strong>Numbers.</strong> Sometimes you replace every number with a single marker like
+      <code>&lt;NUM&gt;</code>, because the exact value does not matter. Sometimes — a price, a
+      date, an amount — it is the whole point.</li>
+  <li><strong>Accents and spelling.</strong> <code>résumé</code> → <code>resume</code>,
+      <code>colour</code> → <code>color</code>. Helpful for search, harmful if the difference
+      carries meaning.</li>
+</ul>
 
-5  l o w _
-2  l o w e s t _
-6  n e w er _
-3  w i d er _
-2  n e w _</code></pre>
+<p>There is no fixed recipe. Each of these is a small version of the same question: is this
+difference noise, or is it signal, <em>for the job I am doing</em>?</p>
 
-<p>Count again. Now <code>er _</code> appears 9 times. Join it. Then <code>n e</code> appears 8
-times (6 + 2). Join it. And so on:</p>
+<h2>Stop words</h2>
 
-<pre><code>merge 2:  er + _  →  er_
-merge 3:  n + e   →  ne
-merge 4:  ne + w  →  new
-merge 5:  l + o   →  lo
-merge 6:  lo + w  →  low
+<p><strong>Stop words</strong> are the very common, low-content words — <code>the</code>,
+<code>is</code>, <code>of</code>, <code>a</code>, <code>and</code>. They appear in almost every
+sentence, so on their own they say little about what a text is <em>about</em>. A long tradition
+in text search removes them, to let the content words stand out.</p>
 
-5  low _
-2  low e s t _
-6  new er_
-3  w i d er_
-2  new _</code></pre>
+<p>Ready-made lists exist. NLTK's English list has about 200 words. Removing them is a one-liner:
+keep only the tokens that are not on the list.</p>
+
+<pre><code>"this is one of the best phones I have ever bought"
+        ↓  remove stop words
+"best phones ever bought"</code></pre>
+
+<p>What remains — <code>best</code>, <code>phones</code>, <code>bought</code> — is the gist. For
+search and for finding the topic of a document (which is most of Unit I's information-retrieval
+work), that is a genuine win: less to store, and the words that matter stand out.</p>
+
+<h2>The obvious step that is often the mistake</h2>
+
+<p>Now look at what is actually <em>on</em> a standard stop-word list. NLTK's list includes these
+words:</p>
+
+<pre><code>not    no    nor    against    only    very</code></pre>
+
+<p>Every one of those changes the meaning of a sentence. And <code>not</code> — the single most
+important word for saying something is bad — is treated as noise and thrown away. Watch what that
+does to a product review:</p>
+
+<pre><code>"would not recommend"
+        ↓  remove stop words
+"would recommend"</code></pre>
+
+<p>Removing stop words turned the sentence into its <strong>exact opposite</strong>. A sentiment
+system fed the second line would read an angry review as a happy one. This is the same lesson as
+VADER failing on <em>nightmare</em> back in lab 1: the obvious, routine step is sometimes the one
+that destroys your meaning.</p>
 
 <div class="callout">
-  <span class="label">Look at what it learned</span>
-  <p>The algorithm created the symbol <code>er_</code>. In English, <em>-er</em> on the end of a
-  word means "more of something" — <em>wide</em> becomes <em>wider</em>. It is a real piece of
-  English grammar.</p>
-  <p><mark>Nobody told the algorithm any of this.</mark> It does not know what English is. It
-  only counted pairs. The grammar fell out of the counting.</p>
-  <p>It also learned that <code>low</code> and <code>new</code> are common enough to stay whole.
-  Common words stay in one piece. Rare words get split up.</p>
-</div>
-
-<h3>Why this fixes the problem</h3>
-
-<p>Take the word <code>lower</code>. It is <strong>not</strong> in our training list above. The
-old approach would call it <code>&lt;UNK&gt;</code> and give up.</p>
-
-<p>BPE splits it into <code>low</code> + <code>er_</code>. Both pieces are already in the list.
-The model knows <code>low</code>, and it knows what <code>er_</code> does to a word. So it can
-handle <code>lower</code> even though it has never seen it.</p>
-
-<p>No unknown words. That is the point of the whole method.</p>
-
-<div class="quiz" data-answer="2">
-  <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">What happens if you increase <em>k</em>, the number of merges?</p>
-  <div class="q-opts">
-    <button class="opt">Smaller list of symbols, and text becomes more tokens</button>
-    <button class="opt">Smaller list of symbols, and text becomes fewer tokens</button>
-    <button class="opt">Bigger list of symbols, and text becomes fewer tokens</button>
-    <button class="opt">Bigger list of symbols, and text becomes more tokens</button>
-  </div>
-  <div class="q-fb">
-    <p>Correct answer: <strong>bigger list, fewer tokens</strong>.</p>
-    <p>Each merge adds one new symbol to the list. So more merges means a bigger list.</p>
-    <p>And each merge replaces two symbols with one. So the same text needs fewer tokens to
-    write down.</p>
-    <p>This is the trade-off. A big list means short text, but the model gets big and slow. A
-    small list means a small model, but the text becomes long. You cannot have both. Real
-    systems usually pick somewhere around 30,000 to 50,000 merges.</p>
-  </div>
+  <span class="label">When to remove stop words, and when not to</span>
+  <p><strong>Remove them</strong> when you want the topic or keywords, and function words are just
+  noise — search and information retrieval. You will do exactly this in lab 4.</p>
+  <p><strong>Keep them</strong> when meaning depends on those words — sentiment, question
+  answering, anything where <em>not</em> matters. As the glossary puts it: <em>"to be or not to
+  be"</em> is entirely stop words.</p>
+  <p>Modern systems, in fact, tend to remove <em>fewer</em> stop words than older ones did —
+  because the models that read the text can now use those small words instead of tripping over
+  them.</p>
 </div>
 
 <div class="quiz" data-answer="1">
-  <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">Why does BPE mark the end of each word with <code>_</code>?</p>
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why does lowercasing a document count as <em>destroying</em> information?</p>
   <div class="q-opts">
-    <button class="opt">So the algorithm can remove spaces before it starts counting</button>
-    <button class="opt">So merges cannot run past the end of one word into another</button>
-    <button class="opt">So the rare words can be marked and split into characters</button>
-    <button class="opt">So the lines of training text stay separate while counting</button>
+    <button class="opt">Because lowercase letters take up less space to store on disk</button>
+    <button class="opt">Because case can carry meaning, and merging it cannot be undone</button>
+    <button class="opt">Because some languages have no lowercase form of their letters</button>
+    <button class="opt">Because the tokenizer runs again after every case-folding step</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>so merges cannot run past the end of one word</strong>.</p>
-    <p>Without the marker, BPE would count the last letter of one word and the first letter of
-    the next as a pair, just like any other. If that pair was common, it would join them. You
-    would get junk symbols that span two words.</p>
-    <p>It has a second use too. Because <code>er_</code> and <code>er</code> are different
-    symbols, you can always rebuild the original text exactly, spaces and all. That matters for
-    any model that has to <em>write</em> text, which you will meet in Unit III.</p>
+    <p>Correct answer: <strong>case can carry meaning, and merging it cannot be undone</strong>.</p>
+    <p>Once <code>US</code> and <code>us</code> have both become <code>us</code>, nothing in the
+    text tells you which was which. The distinction is gone for good. That is fine when the
+    distinction was noise for your task, and a real loss when it was signal. Normalization is
+    a one-way door — that is exactly why the choice matters.</p>
   </div>
 </div>
 
-<h2>Where this comes back</h2>
+<div class="quiz" data-answer="3">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">For which task is removing stop words most likely to be a
+  <strong>mistake</strong>?</p>
+  <div class="q-opts">
+    <button class="opt">Searching a large collection of documents by keyword</button>
+    <button class="opt">Finding which topic a long news article is about</button>
+    <button class="opt">Counting the most frequent content words in a book</button>
+    <button class="opt">Deciding whether a product review is positive or negative</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>deciding whether a review is positive or negative</strong>.</p>
+    <p>Sentiment lives in exactly the words a stop-word list throws away — <code>not</code>,
+    <code>no</code>, <code>very</code>. Strip them and <em>"would not recommend"</em> becomes
+    <em>"would recommend"</em>. The other three tasks care about content words, so removing the
+    function words helps them.</p>
+  </div>
+</div>
 
-<p>The models you meet later in this course use exactly this idea.</p>
-
-<table>
-  <tr><th>Model</th><th>What it uses</th><th>When you meet it</th></tr>
-  <tr><td>BERT, DistilBERT</td><td>WordPiece — a close cousin of BPE</td><td>Unit III</td></tr>
-  <tr><td>GPT models</td><td>BPE, working on bytes</td><td>Unit III</td></tr>
-  <tr><td>Word2Vec, GloVe</td><td>Whole words — so it still has the
-      <code>&lt;UNK&gt;</code> problem</td><td>Unit II</td></tr>
-</table>
-
-<p>When you use BERT later, you will see words come out looking like this:</p>
-
-<pre><code>"doomscrolling"  →  ["doom", "##scroll", "##ing"]</code></pre>
-
-<p>The <code>##</code> means "this joins to the piece before it". It does the same job as the
-<code>_</code> in our example, just written differently. You already understand it.</p>
+<h2>The one thing to remember</h2>
 
 <div class="callout">
-  <span class="label">The one thing to remember</span>
-  <p>Tokenization is not about splitting strings. It is about choosing the pieces your model is
-  allowed to think in. Choose whole words, and new words become unknown. Choose word parts, and
-  the model can handle anything.</p>
+  <span class="label">The whole lesson in two sentences</span>
+  <p>Every cleaning step — lowercasing, stripping punctuation, removing stop words — throws
+  information away on purpose. Whether that helps or hurts depends entirely on the job, so there
+  is no single correct way to clean text: you assemble the steps to fit the task in front of
+  you.</p>
 </div>
+
+<p>Next session takes the last cleaning step — cutting words down to a root form, with
+<strong>stemming and lemmatization</strong> — which is where <code>studies</code> becomes
+<code>studi</code> or <code>study</code> depending on which tool you reach for.</p>
 
 <h2>Read this next</h2>
 
-<p>The best source on this topic is <strong><a
-href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter 2, "Words and Tokens"</a></strong>
-from <em>Speech and Language Processing</em> by Jurafsky and Martin. It is free. Read the
-section on Byte-Pair Encoding.</p>
-
-<p>BPE came from a paper by <a href="https://aclanthology.org/P16-1162/">Sennrich, Haddow and
-Birch (2016)</a>. The title says what it does: <em>Neural Machine Translation of Rare Words with
-Subword Units</em>. It is readable, and it is short.</p>
-
-
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter
+2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
+Read section 2.3, "Word Normalization, Lemmatization and Stemming". It is short, and it covers
+this lesson and the next one together.</p>
 
 
 
@@ -785,8 +749,8 @@ Subword Units</em>. It is readable, and it is short.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0002-regex-groups-and-the-greedy-trap.html">← Session 02: Regular expressions</a>
-  <a href="0004-normalization-and-stop-words.html">Next — Session 04: cleaning up text →</a>
+  <a href="0003-tokenization-and-the-vocabulary-problem.html">← Session 03: Tokenization</a>
+  <span>Next — Session 05: stemming and lemmatization</span>
 </nav>
 
 <script>
