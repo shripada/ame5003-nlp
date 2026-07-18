@@ -15,6 +15,7 @@ Labs run in **Google Colab**. You need a Google account and a browser — nothin
 | Lab | | |
 |-----|---|---|
 | 1 | Refresher and setup | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb) |
+| 2 | Information extraction with regular expressions | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-02-information-extraction.ipynb) |
 
 **Two things that catch everyone out:**
 
