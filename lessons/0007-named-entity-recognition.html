@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 6 — Part-of-speech tagging: labelling words by their job</title>
+<title>Lesson 7 — Named entity recognition: finding the names in text</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,176 +504,204 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 06</p>
-  <h1>Part-of-speech tagging</h1>
-  <p class="subtitle">Labelling each word with its grammatical job — and why the same word needs a
-  different label depending on the words around it.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 07</p>
+  <h1>Named entity recognition</h1>
+  <p class="subtitle">Finding the names in text — people, places, companies — which is harder than
+  tagging words, because a single name can span several of them.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Why this comes right after lemmatization</h2>
+<h2>Where POS tagging ran out</h2>
 
-<p>Last session hit a wall: to lemmatize <code>meeting</code> correctly, you had to know whether it
-was a <strong>noun</strong> ("a meeting") or a <strong>verb</strong> ("they are meeting"). We said
-"a tool works out the part of speech for you". This is that tool.</p>
+<p>Session 6 labelled each word one at a time: this word is a noun, that one is a verb. That works
+because a word's grammatical job is a property of the single word. Names are not like that.</p>
 
-<p><strong>Part-of-speech tagging</strong> (POS tagging) labels every word in a sentence with its
-grammatical category — noun, verb, adjective, and so on:</p>
+<pre><code>The Reserve Bank of India raised rates.</code></pre>
 
-<pre><code>They    book    flights   daily
-PRON    VERB    NOUN      ADV</code></pre>
+<p><code>Reserve Bank of India</code> is <strong>one thing</strong> — an organization — spread
+across four words. Tagging each word on its own misses the point: the name is the whole span, not
+the pieces. That is the new problem this session solves.</p>
 
-<h2>The word classes</h2>
+<h2>What named entity recognition is</h2>
 
-<p>Words fall into a small number of grammatical classes. You already know most of them from
-school; here are the ones that matter, with what each does:</p>
+<p><strong>Named entity recognition</strong> (NER) finds the spans of text that are proper names,
+and labels each with its type. Run it on a sentence and you get back the names, typed:</p>
+
+<pre><code>"The Reserve Bank of India raised rates in Mumbai on Monday."
+
+  The Reserve Bank of India   →  ORG    (an organization)
+  Mumbai                      →  GPE    (a place)
+  Monday                      →  DATE</code></pre>
+
+<p>The common entity types are these:</p>
 
 <table>
-  <tr><th>Class</th><th>Job</th><th>Examples</th></tr>
-  <tr><td>Noun</td><td>a thing, person, place, idea</td><td><code>phone</code>, <code>Manipal</code>, <code>idea</code></td></tr>
-  <tr><td>Verb</td><td>an action or state</td><td><code>run</code>, <code>book</code>, <code>is</code></td></tr>
-  <tr><td>Adjective</td><td>describes a noun</td><td><code>old</code>, <code>blurry</code>, <code>best</code></td></tr>
-  <tr><td>Adverb</td><td>describes a verb or adjective</td><td><code>daily</code>, <code>very</code>, <code>quickly</code></td></tr>
-  <tr><td>Pronoun</td><td>stands in for a noun</td><td><code>I</code>, <code>they</code>, <code>it</code></td></tr>
-  <tr><td>Determiner</td><td>introduces a noun</td><td><code>the</code>, <code>a</code>, <code>this</code></td></tr>
-  <tr><td>Preposition</td><td>relates a noun to the rest</td><td><code>on</code>, <code>in</code>, <code>to</code></td></tr>
+  <tr><th>Type</th><th>What it covers</th><th>Example</th></tr>
+  <tr><td>PERSON</td><td>people, real or fictional</td><td><code>Rao</code></td></tr>
+  <tr><td>ORG</td><td>companies, agencies, institutions</td><td><code>Infosys</code></td></tr>
+  <tr><td>GPE</td><td>countries, cities, states</td><td><code>Mumbai</code></td></tr>
+  <tr><td>LOC</td><td>places that are not GPEs — rivers, mountains</td><td><code>Himalayas</code></td></tr>
+  <tr><td>DATE</td><td>dates and periods, exact or relative</td><td><code>Monday</code>, <code>last week</code></td></tr>
+  <tr><td>MONEY</td><td>amounts, with the unit</td><td><code>$2 billion</code></td></tr>
 </table>
 
-<p>There is a useful split here. <strong>Nouns, verbs, adjectives and adverbs are "open"
-classes</strong> — new ones get invented all the time (<code>to google</code>,
-<code>selfie</code>). <strong>Determiners, pronouns and prepositions are "closed"</strong> — the
-list barely changes in a lifetime. No one invents a new word for <code>the</code>. That is also,
-not by coincidence, the same set of little words that a stop-word list removes.</p>
+<div class="callout">
+  <span class="label">This is the tool lab 2 was missing</span>
+  <p>In <a href="../labs/lab-02-information-extraction.ipynb">lab 2</a>, regex pulled dates and
+  rupee amounts out of bank messages perfectly — because those have a fixed shape. But it could not
+  reliably get the <em>merchant name</em>, because names have no fixed shape:
+  <code>SWIGGY</code>, <code>Reserve Bank of India</code> and <code>Rao</code> share no pattern a
+  regex can match.</p>
+  <p><mark>NER is the method for exactly that job.</mark> Instead of a hand-written pattern, it
+  learns from examples what a name looks like — the same shift from rules to learning you saw when
+  VADER failed on <em>nightmare</em> in lab 1.</p>
+</div>
 
-<h2>The real problem: the same word has no fixed class</h2>
+<h2>The span problem, and how BIO solves it</h2>
 
-<p>If every word had one grammatical class, tagging would be a dictionary lookup. It is not,
-because <strong>a word's class depends on how it is used</strong>. Look at <code>book</code>:</p>
+<p>Here is the difficulty. A POS tagger gives <strong>one tag per word</strong>, which is
+convenient — you met a machine for that in session 6. But an entity can cover several words. How do
+you mark a multi-word span using a system that only tags one word at a time?</p>
 
-<pre><code>"Give me the book."        book  →  NOUN   (a thing)
-"I can book a flight."     book  →  VERB   (an action)
-"They book flights daily." book  →  VERB   (an action)</code></pre>
+<p>The trick is a clever tagging scheme called <strong>BIO</strong>. Every word gets one of three
+kinds of tag:</p>
 
-<p>Same four letters, different job each time. No dictionary can tell you which is which —
-<strong>only the surrounding words can.</strong> <code>the book</code> must be a noun (a
-determiner is followed by a noun); <code>can book</code> must be a verb (a word like
-<code>can</code> is followed by one). The tagger reads the whole sentence and uses each word's
-neighbours to decide.</p>
+<ul>
+  <li><strong>B-</strong> — this word <strong>begins</strong> an entity of this type</li>
+  <li><strong>I-</strong> — this word is <strong>inside</strong> (continues) the same entity</li>
+  <li><strong>O</strong> — this word is <strong>outside</strong> any entity</li>
+</ul>
 
-<p>This is why POS tagging is called a <strong>sequence-labelling</strong> task: you do not tag a
-word on its own, you tag it in the sequence it sits in. The context is not a nice-to-have; it is
-the only thing that resolves the ambiguity.</p>
+<p>Now the same one-tag-per-word machine can mark a span. Here is the Reserve Bank sentence in BIO:</p>
+
+<pre><code>The       B-ORG      ← the name starts here
+Reserve   I-ORG      ← still inside it
+Bank      I-ORG
+of        I-ORG
+India     I-ORG      ← still inside it
+raised    O          ← outside — the name has ended
+rates     O
+.         O</code></pre>
+
+<p>Reading the tags back, the run of one <code>B-ORG</code> followed by four <code>I-ORG</code>
+reconstructs the whole span <code>The Reserve Bank of India</code>. This is the key idea:
+<mark>BIO turns "find the spans" back into "tag each word", so a sequence labeller can do the
+job.</mark></p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Here is a sentence that is famously hard: <code>"The old man the boat."</code> It <em>is</em>
-  a correct English sentence. What grammatical job is each word doing?</p>
+  <p>Why do we need a separate <strong>B-</strong> tag? Why not just tag every word of a company
+  name <code>ORG</code> and every word outside <code>O</code>?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>The old</code> means "the old people" — <code>old</code> is standing in as a noun.
-    <code>man</code> is the <strong>verb</strong>: to <em>man</em> a boat means to staff it. So it
-    reads "the old people staff the boat".</p>
-    <p>You almost certainly first read <code>man</code> as a noun and hit a dead end — that is why
-    it is called a "garden-path" sentence. And here is the honest part:
-    <mark>a modern tagger gets this wrong too.</mark> spaCy tags <code>man</code> as a noun,
-    exactly the mistake a human first makes. Taggers are about 97% accurate, but genuinely
-    ambiguous sentences still beat them.</p>
+    <p>Because two names of the same type can sit <strong>side by side</strong>, and you need to
+    know where one ends and the next begins. Take <code>"... met Google Microsoft ..."</code> as a
+    list of two companies. Tag every word just <code>ORG</code> and you get:</p>
+    <pre><code>Google   ORG
+Microsoft ORG</code></pre>
+    <p>— which reads as <em>one</em> two-word company, "Google Microsoft". With BIO you get
+    <code>B-ORG</code>, <code>B-ORG</code>: two <em>separate</em> names, because a second
+    <code>B-</code> means "a new entity starts here". The <code>B-</code> tag exists precisely to
+    put a boundary between touching entities of the same type.</p>
   </div>
 </div>
 
-<h2>Tagsets: how fine-grained do you want to be?</h2>
+<h2>Why NER is genuinely hard</h2>
 
-<p>How many labels are there? It depends which <strong>tagset</strong> you choose — and there are
-two common levels of detail.</p>
+<p>Two reasons, beyond the span problem.</p>
 
-<p>The <strong>Universal POS tagset</strong> is coarse: about 17 tags, the broad classes above —
-<code>NOUN</code>, <code>VERB</code>, <code>ADJ</code>, <code>ADV</code>, <code>DET</code>, and so
-on. Easy to read, and the same across languages.</p>
+<p><strong>The same name has different types.</strong> <code>Washington</code> is a person, a city,
+a state, and a football team, depending on the sentence. <code>Apple</code> is a company or a
+fruit. Only the context decides — the same lesson as POS ambiguity, one level up.</p>
 
-<p>The <strong>Penn Treebank tagset</strong> is fine: about 45 tags. It splits each broad class
-into detailed ones — a noun can be <code>NN</code> (singular) or <code>NNS</code> (plural); a verb
-can be <code>VB</code> (base form), <code>VBZ</code> (3rd-person singular), <code>VBP</code>
-(other present), and more.</p>
+<p><strong>And taggers fail on names they were not trained on.</strong> Watch a real one trip on an
+Indian sentence:</p>
 
-<p>The tool gives you both at once. Here is one sentence with both tagsets:</p>
+<pre><code>"Rao paid Infosys 5000 rupees last week."
 
-<table>
-  <tr><th>Word</th><th>Universal</th><th>Penn Treebank</th></tr>
-  <tr><td><code>They</code></td><td>PRON</td><td>PRP (personal pronoun)</td></tr>
-  <tr><td><code>book</code></td><td>VERB</td><td>VBP (present, not 3rd-sing)</td></tr>
-  <tr><td><code>flights</code></td><td>NOUN</td><td>NNS (plural noun)</td></tr>
-  <tr><td><code>daily</code></td><td>ADV</td><td>RB (adverb)</td></tr>
-</table>
+  spaCy finds:
+    Rao            →  PERSON     ✓
+    Infosys 5000   →  PRODUCT    ✗   (it merged the company and the amount, and mislabelled it)
+    last week      →  DATE       ✓
+  and it misses "5000 rupees" as money entirely.</code></pre>
 
-<p>Use the coarse tagset when you only need "is this a noun or a verb" — for example, to feed the
-lemmatizer from session 5. Use the fine one when the detail matters, such as telling singular from
-plural. Neither is more correct; they are different zoom levels on the same thing.</p>
+<p>It got the common English-shaped name (<code>Rao</code>, <code>last week</code>) right and
+mangled the part that looks unlike its training data. This is not a reason to avoid NER — it is the
+honest state of it. A model trained mostly on Western news text is weakest on exactly the names an
+Indian application cares about, which is worth knowing before you trust its output.</p>
 
-<h2>Where POS tagging is used</h2>
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What makes NER harder than the POS tagging from last session?</p>
+  <div class="q-opts">
+    <button class="opt">An entity can span several words, while a POS tag is one word</button>
+    <button class="opt">There are far more entity types than there are parts of speech</button>
+    <button class="opt">NER cannot use the surrounding words, but POS tagging can</button>
+    <button class="opt">Entities must be looked up in a dictionary and POS tags need not</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>an entity can span several words</strong>.</p>
+    <p>A POS tag is a property of a single word, so one-tag-per-word fits perfectly. A name like
+    <code>Reserve Bank of India</code> is one entity across four words, so you need a scheme — BIO —
+    to mark where the span starts and ends. Both tasks use context; the span is the extra
+    difficulty.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="3">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">In the BIO scheme, what does <code>I-ORG</code> mean?</p>
+  <div class="q-opts">
+    <button class="opt">The most important word of an organization's name</button>
+    <button class="opt">An incorrect organization tag, flagged for review</button>
+    <button class="opt">The first word of an organization's name</button>
+    <button class="opt">A word inside an organization name that began earlier</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>a word inside an organization name that began earlier</strong>.</p>
+    <p><code>I-</code> means "inside" — this word continues an entity that a <code>B-</code> tag
+    already started. So <code>B-ORG</code> then <code>I-ORG I-ORG</code> is a single three-word
+    organization. The first word is <code>B-ORG</code>; the continuation words are
+    <code>I-ORG</code>.</p>
+  </div>
+</div>
+
+<h2>Where NER is used</h2>
 
 <ul>
-  <li><strong>Lemmatization</strong> — the session-5 payoff. The lemmatizer needs the part of
-      speech, and this is where it comes from.</li>
-  <li><strong>Named entity recognition</strong> — next session. Knowing the nouns is a strong
-      first clue to where the names are.</li>
-  <li><strong>Parsing and downstream tasks</strong> — most classical NLP pipelines tag first,
-      because so much later work leans on knowing each word's job.</li>
+  <li><strong>Information extraction</strong> — the lab-2 job done properly: pull the people,
+      companies and places out of documents, contracts, news.</li>
+  <li><strong>Search</strong> — a query for "Apple" can be steered to the company or the fruit once
+      you know which the user means.</li>
+  <li><strong>Redaction</strong> — find and hide every PERSON in a document to protect privacy.</li>
+  <li><strong>Question answering</strong> — many questions ("who", "where", "when") are answered by
+      an entity, so finding them is step one. You meet this in Unit III.</li>
 </ul>
-
-<div class="quiz" data-answer="1">
-  <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why can POS tagging not be done as a simple dictionary lookup?</p>
-  <div class="q-opts">
-    <button class="opt">Because dictionaries are too large to fit in memory at tagging time</button>
-    <button class="opt">Because a word's grammatical class depends on the words around it</button>
-    <button class="opt">Because new words are invented faster than dictionaries update</button>
-    <button class="opt">Because most words in English do not appear in any dictionary</button>
-  </div>
-  <div class="q-fb">
-    <p>Correct answer: <strong>a word's class depends on the words around it</strong>.</p>
-    <p><code>book</code> is a noun in "the book" and a verb in "can book". A dictionary would have
-    to list both and could not choose between them — only the context decides. That is the whole
-    reason POS tagging is a sequence-labelling task and not a lookup.</p>
-  </div>
-</div>
-
-<div class="quiz" data-answer="2">
-  <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">You need to know only whether each word is a noun, verb, or adjective, to feed
-  a lemmatizer. Which tagset fits best?</p>
-  <div class="q-opts">
-    <button class="opt">The Penn Treebank tagset, because more detail is always safer</button>
-    <button class="opt">Neither — lemmatization does not use the part of speech at all</button>
-    <button class="opt">The Universal tagset, because you only need the broad classes</button>
-    <button class="opt">Both at once, because the lemmatizer needs them cross-checked</button>
-  </div>
-  <div class="q-fb">
-    <p>Correct answer: <strong>the Universal tagset</strong>.</p>
-    <p>The lemmatizer only needs the broad class — noun vs verb vs adjective — so the coarse
-    17-tag set is exactly right. The fine Penn distinctions (singular vs plural noun, which present
-    tense) are detail the lemmatizer does not use here. Match the tagset to what the task needs.</p>
-  </div>
-</div>
 
 <h2>The one thing to remember</h2>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>Part-of-speech tagging labels each word with its grammatical job, and it needs the whole
-  sentence because the same word can be a noun in one place and a verb in another. That reliance on
-  context — not a dictionary — is what makes it a real task, and it is the same reason the next
-  step, finding names, is harder still.</p>
+  <p>Named entity recognition finds and types the name spans in text, and its central trick is BIO
+  tagging, which turns "find the spans" into "tag each word" so a sequence labeller can do it. It is
+  the learned answer to the job regex could not finish in lab 2 — and, like any learned model, it is
+  weakest on the names least like its training data.</p>
 </div>
+
+<p>That closes Unit I's language-analysis run — <a href="0006-part-of-speech-tagging.html">tag the
+words</a>, then find the names. Next session changes gear from analysing one text to
+<strong>searching a whole collection</strong> of them, which is where the second half of Unit I
+begins.</p>
 
 <h2>Read this next</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/17.pdf">Chapter
-17 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
-It is titled "Sequence Labeling for Parts of Speech and Named Entities", and it covers this lesson
-and the next one together. Read the sections on word classes and the Penn Treebank tagset.</p>
+17 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online,
+"Sequence Labeling for Parts of Speech and Named Entities". Read the sections on named entities and
+on the BIO tagging scheme.</p>
 
 
 
@@ -686,8 +714,8 @@ and the next one together. Read the sections on word classes and the Penn Treeba
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0005-stemming-and-lemmatization.html">← Session 05: Stemming and lemmatization</a>
-  <a href="0007-named-entity-recognition.html">Next — Session 07: named entity recognition →</a>
+  <a href="0006-part-of-speech-tagging.html">← Session 06: Part-of-speech tagging</a>
+  <span>Next — Session 08: searching text with the incidence matrix</span>
 </nav>
 
 <script>
