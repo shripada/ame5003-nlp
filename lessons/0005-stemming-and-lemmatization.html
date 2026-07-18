@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 4 — Cleaning up text: normalization and stop words</title>
+<title>Lesson 5 — Stemming and lemmatization: cutting words to a root</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,10 +504,10 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 04</p>
-  <h1>Cleaning up text</h1>
-  <p class="subtitle">Normalization and stop words — deciding which differences in text do not
-  matter, and erasing them. The catch is that "does not matter" depends on the job.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 05</p>
+  <h1>Stemming and lemmatization</h1>
+  <p class="subtitle">Cutting a word down to a root form — the fast crude way, and the slow correct
+  way — and knowing which one your task needs.</p>
 </header>
 
 <div class="wrap">
@@ -516,204 +516,178 @@ th {
 
 <h2>Where we are</h2>
 
-<p>In session 3 you split text into <strong>tokens</strong>. So you now have a list of pieces.
-But look at these tokens:</p>
+<p>In <a href="0004-normalization-and-stop-words.html">session 4</a> you collapsed harmless
+differences — case, accents, punctuation. There is one more difference worth collapsing, and it
+is the biggest: <strong>the same word wears different endings.</strong></p>
 
-<pre><code>"US"   "us"   "U.S."   "Us"</code></pre>
+<pre><code>study    studies    studying    studied</code></pre>
 
-<p>To you, some of these are the same and some are not. To the computer they are four different
-strings — nothing links them. Before you count words or search text, you usually want to
-collapse the differences that <em>do not matter</em> into one form.</p>
+<p>These are one idea in four coats. For counting and for search you usually want them to count
+as the same thing — someone searching <code>studying</code> should find a page that said
+<code>studies</code>. So you cut each word down to a shared <strong>root</strong>.</p>
 
-<p>That collapsing is called <strong>normalization</strong>. Here is the definition to hold on
-to for the whole lesson:</p>
+<p>There are two ways to do this, and the whole lesson is about how they differ and when to reach
+for each.</p>
 
-<div class="callout">
-  <span class="label">What normalization is</span>
-  <p><mark>Normalization deliberately destroys information you have judged irrelevant.</mark></p>
-  <p>That is not a side effect. It is the whole point. You are throwing away detail on purpose, so
-  that things you consider "the same" really do count as the same. The skill is deciding
-  <em>what</em> is safe to throw away — and that decision depends entirely on the task.</p>
-</div>
+<h2>Stemming: chop the endings by rule</h2>
 
-<h2>Case folding</h2>
+<p><strong>Stemming</strong> is the crude, fast way. It chops recognizable endings off a word by
+a fixed set of rules. The classic tool is the <strong>Porter stemmer</strong>, a list of rules
+like "if a word ends in <code>-ing</code>, remove it" applied in order.</p>
 
-<p>The most common step: make everything lowercase.</p>
+<p>Run the <code>study</code> family through it and they all land on the same string:</p>
 
-<pre><code>"AMAZING"   "Amazing"   "amazing"   →   "amazing"</code></pre>
+<pre><code>study      →  studi
+studies    →  studi
+studying   →  studi
+studied    →  studi</code></pre>
 
-<p>Three strings become one. Now every spelling of the word counts together when you count or
-search. For most Unit I work — counting words, searching documents — this is exactly what you
-want.</p>
+<p>Notice <code>studi</code> is <strong>not a real word</strong>. That is not a bug. The stemmer
+has exactly one job — make related words land on the <em>same</em> string — and it does that.
+Nobody ever reads <code>studi</code>; it is just an internal key. For search, this is perfect:
+all four spellings now match each other.</p>
 
-<p>But notice what you just lost:</p>
+<p>Here is another family, all collapsing cleanly:</p>
+
+<pre><code>argue  argued  argues  arguing    →    all become  argu</code></pre>
+
+<h3>Where stemming shows its crudeness</h3>
+
+<p>Because it only chops by rule and knows nothing about meaning, it makes mistakes. Watch:</p>
+
+<pre><code>organization   →  organ      (the meaning is gone entirely)
+was            →  wa         (just gibberish)
+mice           →  mice       (unchanged — see below)
+better         →  better     (no idea it relates to "good")</code></pre>
 
 <ul>
-  <li><code>US</code> (the country) and <code>us</code> (the word) both become <code>us</code>.
-      They are now the same token.</li>
-  <li><code>Apple</code> (the company) and <code>apple</code> (the fruit) merge too.</li>
-  <li><code>Polish</code> (from Poland) and <code>polish</code> (for shoes) merge.</li>
+  <li><code>organization → organ</code> — the rule stripped too much, and changed the meaning.
+      This is called <strong>over-stemming</strong>.</li>
+  <li><code>was → wa</code> — a rule fired that should not have, leaving nonsense.</li>
+  <li><code>mice → mice</code> — the stemmer can only remove <em>endings</em>. An irregular plural
+      like <code>mice</code> has nothing to chop, so it cannot reach <code>mouse</code>.</li>
 </ul>
 
-<p>Case was carrying real meaning, and lowercasing threw it away. For search that is usually a
-fair trade — a user typing <code>apple</code> probably wants the company too. For a task where
-the capital letter is the signal, it is a mistake. You have to decide.</p>
+<p>Stemming is fast and needs no dictionary, and for search it is often good enough. But it makes
+non-words and it mangles irregular ones. When you need a root that is a <em>real word</em>, you
+need the other method.</p>
+
+<h2>Lemmatization: look up the real root</h2>
+
+<p><strong>Lemmatization</strong> also reduces a word to a root — but a real dictionary root,
+called the <strong>lemma</strong>. Instead of chopping, it looks the word up, so it can handle
+the cases stemming cannot:</p>
+
+<pre><code>mice     →  mouse       (irregular plural — correct)
+was      →  be          (irregular verb — correct)
+better   →  good        (knows the words are related)
+studies  →  study       (a real word, not "studi")</code></pre>
+
+<p>Every output is a word you could find in a dictionary. That is the difference from stemming in
+one line: <mark>a stem is just a shared key; a lemma is the real base word.</mark></p>
+
+<h3>The catch: lemmatization needs the part of speech</h3>
+
+<p>Here is the subtle part, and it is the whole reason lemmatization is harder than it looks. The
+root of a word can <strong>depend on how the word is used</strong>. Take <code>meeting</code>:</p>
+
+<pre><code>"we had a meeting"       meeting is a NOUN  →  lemma is  meeting
+"they are meeting now"   meeting is a VERB  →  lemma is  meet</code></pre>
+
+<p>Same spelling, two different roots — and the only thing that tells them apart is the
+<strong>part of speech</strong>: is <code>meeting</code> a noun or a verb here? A lemmatizer that
+is not told the part of speech has to guess, and it usually guesses "noun". When the guess is
+wrong, it fails:</p>
+
+<pre><code>lemmatize("was")            →  wa      (guessed noun — wrong, and no better than stemming)
+lemmatize("was", verb)      →  be      (told it is a verb — correct)
+
+lemmatize("better")         →  better  (guessed noun — wrong)
+lemmatize("better", adj)    →  good    (told it is an adjective — correct)</code></pre>
+
+<p>So lemmatization is only as good as the part-of-speech information you feed it. Who provides
+that? You do not want to label every word by hand. A tool like <strong>spaCy</strong> works out
+the part of speech for you automatically and lemmatizes in one step — which is why it is the easy
+choice for real work. (Working out the part of speech is its own topic:
+<strong>session 6</strong>.)</p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>You are building a system to pull <strong>company names</strong> out of news articles. Your
-  first step is to lowercase everything, out of habit. What did you just break?</p>
+  <p>You are building a search engine over a few million documents. It has to be fast, and the
+  roots are never shown to a user — they are only used internally to match a query against a
+  document. Stem, or lemmatize?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>You erased the main clue you had. In English, a capital letter in the middle of a sentence
-    is a strong hint that a word is a name — <code>Apple</code>, <code>Rao</code>,
-    <code>Manipal</code>. Lowercase everything and <code>Apple</code> becomes
-    <code>apple</code>, and the signal is gone.</p>
-    <p>This is the lesson in one example: a cleaning step that helps one task
-    (<em>searching</em>) hurts another (<em>finding names</em>). There is no "correct"
-    normalization. There is only "correct for this job".</p>
+    <p><strong>Stem.</strong> Speed matters, nobody sees the roots, and non-words like
+    <code>studi</code> are completely fine because they are only used as internal match keys. A
+    dictionary lookup per word would be slower and buys you nothing here.</p>
+    <p>Flip the task — you are showing the root words back to a user, or feeding clean words into
+    a model — and the answer flips to <strong>lemmatize</strong>, because now <code>studi</code>
+    and <code>wa</code> would be an embarrassment. Same idea as lesson 4: the right choice depends
+    on the job.</p>
   </div>
 </div>
 
-<h2>Unicode: when identical-looking text is not equal</h2>
+<h2>Side by side</h2>
 
-<p>Here is a trap that catches people who have never thought about it. Two strings can look
-<strong>exactly the same</strong> on screen and still not be equal, because Unicode sometimes
-stores the same character in more than one way.</p>
+<p>The one table to remember from today:</p>
 
-<pre><code>a = "café"     # é stored as ONE character
-b = "café"     # é stored as  e + a separate accent mark
+<table>
+  <tr><th>Word</th><th>Stem (Porter)</th><th>Lemma</th></tr>
+  <tr><td><code>studies</code></td><td><code>studi</code></td><td><code>study</code></td></tr>
+  <tr><td><code>organization</code></td><td><code>organ</code></td><td><code>organization</code></td></tr>
+  <tr><td><code>was</code></td><td><code>wa</code></td><td><code>be</code></td></tr>
+  <tr><td><code>mice</code></td><td><code>mice</code></td><td><code>mouse</code></td></tr>
+  <tr><td><code>better</code></td><td><code>better</code></td><td><code>good</code></td></tr>
+</table>
 
-a == b    →    False
-len(a)    →    4
-len(b)    →    5</code></pre>
+<table>
+  <tr><th></th><th>Stemming</th><th>Lemmatization</th></tr>
+  <tr><td>How</td><td>Chops endings by rule</td><td>Looks up the dictionary root</td></tr>
+  <tr><td>Output</td><td>Need not be a real word</td><td>Always a real word</td></tr>
+  <tr><td>Speed</td><td>Very fast</td><td>Slower</td></tr>
+  <tr><td>Needs part of speech?</td><td>No</td><td>Yes</td></tr>
+  <tr><td>Best for</td><td>Search, information retrieval</td><td>Real words, model input, display</td></tr>
+</table>
 
-<p>They print identically. One stores <code>é</code> as a single character; the other stores a
-plain <code>e</code> followed by a floating accent mark that sits on top of it. If a user types
-one form and your stored text has the other, your lookup silently fails — no error, just a match
-that never happens.</p>
-
-<p>The fix is <strong>Unicode normalization</strong>: force every string into one standard form
-before you compare. The common choice is called <strong>NFC</strong>.</p>
-
-<pre><code>normalize("NFC", a) == normalize("NFC", b)    →    True</code></pre>
-
-<div class="callout warn">
-  <span class="label">This matters more here, not less</span>
-  <p>This is not a European-accent curiosity. Indian scripts are <em>built</em> from base letters
-  plus combining marks, so the same Kannada or Devanagari word can easily arrive in two encodings
-  that look the same and compare unequal.</p>
-  <p>It is the same family of problem as <a href="0002-regex-groups-and-the-greedy-trap.html">the
-  <code>regex</code>-not-<code>re</code> issue</a>: Indian text has structure that naive handling
-  gets wrong. A simple rule of thumb covers both: <strong>use <code>regex</code> to split,
-  and <code>NFC</code> to compare.</strong> Normalize text to NFC the moment it enters your
-  system, and this entire class of bug disappears.</p>
-</div>
-
-<h2>Punctuation, numbers, and the rest</h2>
-
-<p>The other normalization steps are smaller and more obvious, and all of them are the same kind
-of decision — keep it or drop it, depending on the task:</p>
-
-<ul>
-  <li><strong>Punctuation.</strong> For counting words you usually strip it, so that
-      <code>cat,</code> and <code>cat</code> match. For finding sentence boundaries, or reading
-      emoticons in a review, you keep it.</li>
-  <li><strong>Numbers.</strong> Sometimes you replace every number with a single marker like
-      <code>&lt;NUM&gt;</code>, because the exact value does not matter. Sometimes — a price, a
-      date, an amount — it is the whole point.</li>
-  <li><strong>Accents and spelling.</strong> <code>résumé</code> → <code>resume</code>,
-      <code>colour</code> → <code>color</code>. Helpful for search, harmful if the difference
-      carries meaning.</li>
-</ul>
-
-<p>There is no fixed recipe. Each of these is a small version of the same question: is this
-difference noise, or is it signal, <em>for the job I am doing</em>?</p>
-
-<h2>Stop words</h2>
-
-<p><strong>Stop words</strong> are the very common, low-content words — <code>the</code>,
-<code>is</code>, <code>of</code>, <code>a</code>, <code>and</code>. They appear in almost every
-sentence, so on their own they say little about what a text is <em>about</em>. A long tradition
-in text search removes them, to let the content words stand out.</p>
-
-<p>Ready-made lists exist. NLTK's English list has about 200 words. Removing them is a one-liner:
-keep only the tokens that are not on the list.</p>
-
-<pre><code>"this is one of the best phones I have ever bought"
-        ↓  remove stop words
-"best phones ever bought"</code></pre>
-
-<p>What remains — <code>best</code>, <code>phones</code>, <code>bought</code> — is the gist. For
-search and for finding the topic of a document (which is most of Unit I's information-retrieval
-work), that is a genuine win: less to store, and the words that matter stand out.</p>
-
-<h2>The obvious step that is often the mistake</h2>
-
-<p>Now look at what is actually <em>on</em> a standard stop-word list. NLTK's list includes these
-words:</p>
-
-<pre><code>not    no    nor    against    only    very</code></pre>
-
-<p>Every one of those changes the meaning of a sentence. And <code>not</code> — the single most
-important word for saying something is bad — is treated as noise and thrown away. Watch what that
-does to a product review:</p>
-
-<pre><code>"would not recommend"
-        ↓  remove stop words
-"would recommend"</code></pre>
-
-<p>Removing stop words turned the sentence into its <strong>exact opposite</strong>. A sentiment
-system fed the second line would read an angry review as a happy one. This is the same lesson as
-VADER failing on <em>nightmare</em> back in lab 1: the obvious, routine step is sometimes the one
-that destroys your meaning.</p>
-
-<div class="callout">
-  <span class="label">When to remove stop words, and when not to</span>
-  <p><strong>Remove them</strong> when you want the topic or keywords, and function words are just
-  noise — search and information retrieval. You will do exactly this in lab 4.</p>
-  <p><strong>Keep them</strong> when meaning depends on those words — sentiment, question
-  answering, anything where <em>not</em> matters. As the glossary puts it: <em>"to be or not to
-  be"</em> is entirely stop words.</p>
-  <p>Modern systems, in fact, tend to remove <em>fewer</em> stop words than older ones did —
-  because the models that read the text can now use those small words instead of tripping over
-  them.</p>
-</div>
-
-<div class="quiz" data-answer="1">
+<div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why does lowercasing a document count as <em>destroying</em> information?</p>
+  <p class="q-text">The Porter stemmer turns <code>organization</code> into <code>organ</code>.
+  Why is this not necessarily a problem?</p>
   <div class="q-opts">
-    <button class="opt">Because lowercase letters take up less space to store on disk</button>
-    <button class="opt">Because case can carry meaning, and merging it cannot be undone</button>
-    <button class="opt">Because some languages have no lowercase form of their letters</button>
-    <button class="opt">Because the tokenizer runs again after every case-folding step</button>
+    <button class="opt">Because <code>organ</code> is a real English word the model can use</button>
+    <button class="opt">Because the stemmer will correct it on a second pass</button>
+    <button class="opt">Because for search, all that matters is that related words share a key</button>
+    <button class="opt">Because <code>organization</code> is too rare to appear in real text</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>case can carry meaning, and merging it cannot be undone</strong>.</p>
-    <p>Once <code>US</code> and <code>us</code> have both become <code>us</code>, nothing in the
-    text tells you which was which. The distinction is gone for good. That is fine when the
-    distinction was noise for your task, and a real loss when it was signal. Normalization is
-    a one-way door — that is exactly why the choice matters.</p>
+    <p>Correct answer: <strong>for search, all that matters is that related words share a
+    key</strong>.</p>
+    <p>A stem is only an internal match key — nobody reads it. If <code>organization</code> and
+    <code>organizations</code> both become <code>organ</code>, a search for one finds the other,
+    which is the goal. It <em>does</em> become a real problem if <code>organ</code> (the instrument
+    or body part) also stems to <code>organ</code> and gets wrongly matched — that over-collapsing
+    is the price of stemming's crudeness. For a task that needs meaning, use a lemma.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="3">
+<div class="quiz" data-answer="0">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">For which task is removing stop words most likely to be a
-  <strong>mistake</strong>?</p>
+  <p class="q-text">Why can a lemmatizer turn <code>was</code> into <code>be</code>, when the Porter
+  stemmer only manages <code>wa</code>?</p>
   <div class="q-opts">
-    <button class="opt">Searching a large collection of documents by keyword</button>
-    <button class="opt">Finding which topic a long news article is about</button>
-    <button class="opt">Counting the most frequent content words in a book</button>
-    <button class="opt">Deciding whether a product review is positive or negative</button>
+    <button class="opt">The lemmatizer looks the word up, so it knows irregular forms</button>
+    <button class="opt">The lemmatizer chops more letters off than the stemmer does</button>
+    <button class="opt">The stemmer only works on nouns, and <code>was</code> is a verb</button>
+    <button class="opt">The lemmatizer runs the stemmer twice and keeps the shorter result</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>deciding whether a review is positive or negative</strong>.</p>
-    <p>Sentiment lives in exactly the words a stop-word list throws away — <code>not</code>,
-    <code>no</code>, <code>very</code>. Strip them and <em>"would not recommend"</em> becomes
-    <em>"would recommend"</em>. The other three tasks care about content words, so removing the
-    function words helps them.</p>
+    <p>Correct answer: <strong>the lemmatizer looks the word up, so it knows irregular
+    forms</strong>.</p>
+    <p>Stemming only chops endings, so an irregular form like <code>was → be</code> or
+    <code>mice → mouse</code> is out of its reach — there is no ending to remove. Lemmatization
+    uses a dictionary of forms, so it can map any inflection to its base word. The cost is that it
+    needs to know the part of speech, and it is slower.</p>
   </div>
 </div>
 
@@ -721,22 +695,23 @@ that destroys your meaning.</p>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>Every cleaning step — lowercasing, stripping punctuation, removing stop words — throws
-  information away on purpose. Whether that helps or hurts depends entirely on the job, so there
-  is no single correct way to clean text: you assemble the steps to fit the task in front of
-  you.</p>
+  <p>Stemming chops endings by rule — fast, no dictionary, output need not be a real word — and it
+  is the right tool for search. Lemmatization looks up the real dictionary root — correct, needs
+  the part of speech, slower — and it is the right tool when you need real words.</p>
 </div>
 
-<p>Next session takes the last cleaning step — cutting words down to a root form, with
-<strong>stemming and lemmatization</strong> — which is where <code>studies</code> becomes
-<code>studi</code> or <code>study</code> depending on which tool you reach for.</p>
+<p>That closes the text-cleaning arc: <a href="0003-tokenization-and-the-vocabulary-problem.html">tokenize</a>,
+<a href="0004-normalization-and-stop-words.html">normalize and remove stop words</a>, and now cut
+to a root. Next session we start working <em>with</em> the cleaned words, beginning with
+<strong>part-of-speech tagging</strong> — the very thing lemmatization was asking for.</p>
 
 <h2>Read this next</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter
 2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
-Read section 2.3, "Word Normalization, Lemmatization and Stemming". It is short, and it covers
-this lesson and the next one together.</p>
+Section 2.3, "Word Normalization, Lemmatization and Stemming", covers this lesson and the last one
+together. The Porter stemmer's original rules are in Martin Porter's 1980 paper, still readable
+and still in use.</p>
 
 
 
@@ -749,8 +724,8 @@ this lesson and the next one together.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0003-tokenization-and-the-vocabulary-problem.html">← Session 03: Tokenization</a>
-  <a href="0005-stemming-and-lemmatization.html">Next — Session 05: stemming and lemmatization →</a>
+  <a href="0004-normalization-and-stop-words.html">← Session 04: Normalization and stop words</a>
+  <span>Next — Session 06: part-of-speech tagging</span>
 </nav>
 
 <script>
