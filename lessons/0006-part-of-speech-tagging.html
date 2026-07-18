@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 5 — Stemming and lemmatization: cutting words to a root</title>
+<title>Lesson 6 — Part-of-speech tagging: labelling words by their job</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,190 +504,157 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 05</p>
-  <h1>Stemming and lemmatization</h1>
-  <p class="subtitle">Cutting a word down to a root form — the fast crude way, and the slow correct
-  way — and knowing which one your task needs.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 06</p>
+  <h1>Part-of-speech tagging</h1>
+  <p class="subtitle">Labelling each word with its grammatical job — and why the same word needs a
+  different label depending on the words around it.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where we are</h2>
+<h2>Why this comes right after lemmatization</h2>
 
-<p>In <a href="0004-normalization-and-stop-words.html">session 4</a> you collapsed harmless
-differences — case, accents, punctuation. There is one more difference worth collapsing, and it
-is the biggest: <strong>the same word wears different endings.</strong></p>
+<p>Last session hit a wall: to lemmatize <code>meeting</code> correctly, you had to know whether it
+was a <strong>noun</strong> ("a meeting") or a <strong>verb</strong> ("they are meeting"). We said
+"a tool works out the part of speech for you". This is that tool.</p>
 
-<pre><code>study    studies    studying    studied</code></pre>
+<p><strong>Part-of-speech tagging</strong> (POS tagging) labels every word in a sentence with its
+grammatical category — noun, verb, adjective, and so on:</p>
 
-<p>These are one idea in four coats. For counting and for search you usually want them to count
-as the same thing — someone searching <code>studying</code> should find a page that said
-<code>studies</code>. So you cut each word down to a shared <strong>root</strong>.</p>
+<pre><code>They    book    flights   daily
+PRON    VERB    NOUN      ADV</code></pre>
 
-<p>There are two ways to do this, and the whole lesson is about how they differ and when to reach
-for each.</p>
+<h2>The word classes</h2>
 
-<h2>Stemming: chop the endings by rule</h2>
+<p>Words fall into a small number of grammatical classes. You already know most of them from
+school; here are the ones that matter, with what each does:</p>
 
-<p><strong>Stemming</strong> is the crude, fast way. It chops recognizable endings off a word by
-a fixed set of rules. The classic tool is the <strong>Porter stemmer</strong>, a list of rules
-like "if a word ends in <code>-ing</code>, remove it" applied in order.</p>
+<table>
+  <tr><th>Class</th><th>Job</th><th>Examples</th></tr>
+  <tr><td>Noun</td><td>a thing, person, place, idea</td><td><code>phone</code>, <code>Manipal</code>, <code>idea</code></td></tr>
+  <tr><td>Verb</td><td>an action or state</td><td><code>run</code>, <code>book</code>, <code>is</code></td></tr>
+  <tr><td>Adjective</td><td>describes a noun</td><td><code>old</code>, <code>blurry</code>, <code>best</code></td></tr>
+  <tr><td>Adverb</td><td>describes a verb or adjective</td><td><code>daily</code>, <code>very</code>, <code>quickly</code></td></tr>
+  <tr><td>Pronoun</td><td>stands in for a noun</td><td><code>I</code>, <code>they</code>, <code>it</code></td></tr>
+  <tr><td>Determiner</td><td>introduces a noun</td><td><code>the</code>, <code>a</code>, <code>this</code></td></tr>
+  <tr><td>Preposition</td><td>relates a noun to the rest</td><td><code>on</code>, <code>in</code>, <code>to</code></td></tr>
+</table>
 
-<p>Run the <code>study</code> family through it and they all land on the same string:</p>
+<p>There is a useful split here. <strong>Nouns, verbs, adjectives and adverbs are "open"
+classes</strong> — new ones get invented all the time (<code>to google</code>,
+<code>selfie</code>). <strong>Determiners, pronouns and prepositions are "closed"</strong> — the
+list barely changes in a lifetime. No one invents a new word for <code>the</code>. That is also,
+not by coincidence, the same set of little words that a stop-word list removes.</p>
 
-<pre><code>study      →  studi
-studies    →  studi
-studying   →  studi
-studied    →  studi</code></pre>
+<h2>The real problem: the same word has no fixed class</h2>
 
-<p>Notice <code>studi</code> is <strong>not a real word</strong>. That is not a bug. The stemmer
-has exactly one job — make related words land on the <em>same</em> string — and it does that.
-Nobody ever reads <code>studi</code>; it is just an internal key. For search, this is perfect:
-all four spellings now match each other.</p>
+<p>If every word had one grammatical class, tagging would be a dictionary lookup. It is not,
+because <strong>a word's class depends on how it is used</strong>. Look at <code>book</code>:</p>
 
-<p>Here is another family, all collapsing cleanly:</p>
+<pre><code>"Give me the book."        book  →  NOUN   (a thing)
+"I can book a flight."     book  →  VERB   (an action)
+"They book flights daily." book  →  VERB   (an action)</code></pre>
 
-<pre><code>argue  argued  argues  arguing    →    all become  argu</code></pre>
+<p>Same four letters, different job each time. No dictionary can tell you which is which —
+<strong>only the surrounding words can.</strong> <code>the book</code> must be a noun (a
+determiner is followed by a noun); <code>can book</code> must be a verb (a word like
+<code>can</code> is followed by one). The tagger reads the whole sentence and uses each word's
+neighbours to decide.</p>
 
-<h3>Where stemming shows its crudeness</h3>
-
-<p>Because it only chops by rule and knows nothing about meaning, it makes mistakes. Watch:</p>
-
-<pre><code>organization   →  organ      (the meaning is gone entirely)
-was            →  wa         (just gibberish)
-mice           →  mice       (unchanged — see below)
-better         →  better     (no idea it relates to "good")</code></pre>
-
-<ul>
-  <li><code>organization → organ</code> — the rule stripped too much, and changed the meaning.
-      This is called <strong>over-stemming</strong>.</li>
-  <li><code>was → wa</code> — a rule fired that should not have, leaving nonsense.</li>
-  <li><code>mice → mice</code> — the stemmer can only remove <em>endings</em>. An irregular plural
-      like <code>mice</code> has nothing to chop, so it cannot reach <code>mouse</code>.</li>
-</ul>
-
-<p>Stemming is fast and needs no dictionary, and for search it is often good enough. But it makes
-non-words and it mangles irregular ones. When you need a root that is a <em>real word</em>, you
-need the other method.</p>
-
-<h2>Lemmatization: look up the real root</h2>
-
-<p><strong>Lemmatization</strong> also reduces a word to a root — but a real dictionary root,
-called the <strong>lemma</strong>. Instead of chopping, it looks the word up, so it can handle
-the cases stemming cannot:</p>
-
-<pre><code>mice     →  mouse       (irregular plural — correct)
-was      →  be          (irregular verb — correct)
-better   →  good        (knows the words are related)
-studies  →  study       (a real word, not "studi")</code></pre>
-
-<p>Every output is a word you could find in a dictionary. That is the difference from stemming in
-one line: <mark>a stem is just a shared key; a lemma is the real base word.</mark></p>
-
-<h3>The catch: lemmatization needs the part of speech</h3>
-
-<p>Here is the subtle part, and it is the whole reason lemmatization is harder than it looks. The
-root of a word can <strong>depend on how the word is used</strong>. Take <code>meeting</code>:</p>
-
-<pre><code>"we had a meeting"       meeting is a NOUN  →  lemma is  meeting
-"they are meeting now"   meeting is a VERB  →  lemma is  meet</code></pre>
-
-<p>Same spelling, two different roots — and the only thing that tells them apart is the
-<strong>part of speech</strong>: is <code>meeting</code> a noun or a verb here? A lemmatizer that
-is not told the part of speech has to guess, and it usually guesses "noun". When the guess is
-wrong, it fails:</p>
-
-<pre><code>lemmatize("was")            →  wa      (guessed noun — wrong, and no better than stemming)
-lemmatize("was", verb)      →  be      (told it is a verb — correct)
-
-lemmatize("better")         →  better  (guessed noun — wrong)
-lemmatize("better", adj)    →  good    (told it is an adjective — correct)</code></pre>
-
-<p>So lemmatization is only as good as the part-of-speech information you feed it. Who provides
-that? You do not want to label every word by hand. A tool like <strong>spaCy</strong> works out
-the part of speech for you automatically and lemmatizes in one step — which is why it is the easy
-choice for real work. (Working out the part of speech is its own topic:
-<strong>session 6</strong>.)</p>
+<p>This is why POS tagging is called a <strong>sequence-labelling</strong> task: you do not tag a
+word on its own, you tag it in the sequence it sits in. The context is not a nice-to-have; it is
+the only thing that resolves the ambiguity.</p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>You are building a search engine over a few million documents. It has to be fast, and the
-  roots are never shown to a user — they are only used internally to match a query against a
-  document. Stem, or lemmatize?</p>
+  <p>Here is a sentence that is famously hard: <code>"The old man the boat."</code> It <em>is</em>
+  a correct English sentence. What grammatical job is each word doing?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Stem.</strong> Speed matters, nobody sees the roots, and non-words like
-    <code>studi</code> are completely fine because they are only used as internal match keys. A
-    dictionary lookup per word would be slower and buys you nothing here.</p>
-    <p>Flip the task — you are showing the root words back to a user, or feeding clean words into
-    a model — and the answer flips to <strong>lemmatize</strong>, because now <code>studi</code>
-    and <code>wa</code> would be an embarrassment. Same idea as lesson 4: the right choice depends
-    on the job.</p>
+    <p><code>The old</code> means "the old people" — <code>old</code> is standing in as a noun.
+    <code>man</code> is the <strong>verb</strong>: to <em>man</em> a boat means to staff it. So it
+    reads "the old people staff the boat".</p>
+    <p>You almost certainly first read <code>man</code> as a noun and hit a dead end — that is why
+    it is called a "garden-path" sentence. And here is the honest part:
+    <mark>a modern tagger gets this wrong too.</mark> spaCy tags <code>man</code> as a noun,
+    exactly the mistake a human first makes. Taggers are about 97% accurate, but genuinely
+    ambiguous sentences still beat them.</p>
   </div>
 </div>
 
-<h2>Side by side</h2>
+<h2>Tagsets: how fine-grained do you want to be?</h2>
 
-<p>The one table to remember from today:</p>
+<p>How many labels are there? It depends which <strong>tagset</strong> you choose — and there are
+two common levels of detail.</p>
+
+<p>The <strong>Universal POS tagset</strong> is coarse: about 17 tags, the broad classes above —
+<code>NOUN</code>, <code>VERB</code>, <code>ADJ</code>, <code>ADV</code>, <code>DET</code>, and so
+on. Easy to read, and the same across languages.</p>
+
+<p>The <strong>Penn Treebank tagset</strong> is fine: about 45 tags. It splits each broad class
+into detailed ones — a noun can be <code>NN</code> (singular) or <code>NNS</code> (plural); a verb
+can be <code>VB</code> (base form), <code>VBZ</code> (3rd-person singular), <code>VBP</code>
+(other present), and more.</p>
+
+<p>The tool gives you both at once. Here is one sentence with both tagsets:</p>
 
 <table>
-  <tr><th>Word</th><th>Stem (Porter)</th><th>Lemma</th></tr>
-  <tr><td><code>studies</code></td><td><code>studi</code></td><td><code>study</code></td></tr>
-  <tr><td><code>organization</code></td><td><code>organ</code></td><td><code>organization</code></td></tr>
-  <tr><td><code>was</code></td><td><code>wa</code></td><td><code>be</code></td></tr>
-  <tr><td><code>mice</code></td><td><code>mice</code></td><td><code>mouse</code></td></tr>
-  <tr><td><code>better</code></td><td><code>better</code></td><td><code>good</code></td></tr>
+  <tr><th>Word</th><th>Universal</th><th>Penn Treebank</th></tr>
+  <tr><td><code>They</code></td><td>PRON</td><td>PRP (personal pronoun)</td></tr>
+  <tr><td><code>book</code></td><td>VERB</td><td>VBP (present, not 3rd-sing)</td></tr>
+  <tr><td><code>flights</code></td><td>NOUN</td><td>NNS (plural noun)</td></tr>
+  <tr><td><code>daily</code></td><td>ADV</td><td>RB (adverb)</td></tr>
 </table>
 
-<table>
-  <tr><th></th><th>Stemming</th><th>Lemmatization</th></tr>
-  <tr><td>How</td><td>Chops endings by rule</td><td>Looks up the dictionary root</td></tr>
-  <tr><td>Output</td><td>Need not be a real word</td><td>Always a real word</td></tr>
-  <tr><td>Speed</td><td>Very fast</td><td>Slower</td></tr>
-  <tr><td>Needs part of speech?</td><td>No</td><td>Yes</td></tr>
-  <tr><td>Best for</td><td>Search, information retrieval</td><td>Real words, model input, display</td></tr>
-</table>
+<p>Use the coarse tagset when you only need "is this a noun or a verb" — for example, to feed the
+lemmatizer from session 5. Use the fine one when the detail matters, such as telling singular from
+plural. Neither is more correct; they are different zoom levels on the same thing.</p>
+
+<h2>Where POS tagging is used</h2>
+
+<ul>
+  <li><strong>Lemmatization</strong> — the session-5 payoff. The lemmatizer needs the part of
+      speech, and this is where it comes from.</li>
+  <li><strong>Named entity recognition</strong> — next session. Knowing the nouns is a strong
+      first clue to where the names are.</li>
+  <li><strong>Parsing and downstream tasks</strong> — most classical NLP pipelines tag first,
+      because so much later work leans on knowing each word's job.</li>
+</ul>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why can POS tagging not be done as a simple dictionary lookup?</p>
+  <div class="q-opts">
+    <button class="opt">Because dictionaries are too large to fit in memory at tagging time</button>
+    <button class="opt">Because a word's grammatical class depends on the words around it</button>
+    <button class="opt">Because new words are invented faster than dictionaries update</button>
+    <button class="opt">Because most words in English do not appear in any dictionary</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>a word's class depends on the words around it</strong>.</p>
+    <p><code>book</code> is a noun in "the book" and a verb in "can book". A dictionary would have
+    to list both and could not choose between them — only the context decides. That is the whole
+    reason POS tagging is a sequence-labelling task and not a lookup.</p>
+  </div>
+</div>
 
 <div class="quiz" data-answer="2">
-  <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">The Porter stemmer turns <code>organization</code> into <code>organ</code>.
-  Why is this not necessarily a problem?</p>
-  <div class="q-opts">
-    <button class="opt">Because <code>organ</code> is a real English word the model can use</button>
-    <button class="opt">Because the stemmer will correct it on a second pass</button>
-    <button class="opt">Because for search, all that matters is that related words share a key</button>
-    <button class="opt">Because <code>organization</code> is too rare to appear in real text</button>
-  </div>
-  <div class="q-fb">
-    <p>Correct answer: <strong>for search, all that matters is that related words share a
-    key</strong>.</p>
-    <p>A stem is only an internal match key — nobody reads it. If <code>organization</code> and
-    <code>organizations</code> both become <code>organ</code>, a search for one finds the other,
-    which is the goal. It <em>does</em> become a real problem if <code>organ</code> (the instrument
-    or body part) also stems to <code>organ</code> and gets wrongly matched — that over-collapsing
-    is the price of stemming's crudeness. For a task that needs meaning, use a lemma.</p>
-  </div>
-</div>
-
-<div class="quiz" data-answer="0">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">Why can a lemmatizer turn <code>was</code> into <code>be</code>, when the Porter
-  stemmer only manages <code>wa</code>?</p>
+  <p class="q-text">You need to know only whether each word is a noun, verb, or adjective, to feed
+  a lemmatizer. Which tagset fits best?</p>
   <div class="q-opts">
-    <button class="opt">The lemmatizer looks the word up, so it knows irregular forms</button>
-    <button class="opt">The lemmatizer chops more letters off than the stemmer does</button>
-    <button class="opt">The stemmer only works on nouns, and <code>was</code> is a verb</button>
-    <button class="opt">The lemmatizer runs the stemmer twice and keeps the shorter result</button>
+    <button class="opt">The Penn Treebank tagset, because more detail is always safer</button>
+    <button class="opt">Neither — lemmatization does not use the part of speech at all</button>
+    <button class="opt">The Universal tagset, because you only need the broad classes</button>
+    <button class="opt">Both at once, because the lemmatizer needs them cross-checked</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>the lemmatizer looks the word up, so it knows irregular
-    forms</strong>.</p>
-    <p>Stemming only chops endings, so an irregular form like <code>was → be</code> or
-    <code>mice → mouse</code> is out of its reach — there is no ending to remove. Lemmatization
-    uses a dictionary of forms, so it can map any inflection to its base word. The cost is that it
-    needs to know the part of speech, and it is slower.</p>
+    <p>Correct answer: <strong>the Universal tagset</strong>.</p>
+    <p>The lemmatizer only needs the broad class — noun vs verb vs adjective — so the coarse
+    17-tag set is exactly right. The fine Penn distinctions (singular vs plural noun, which present
+    tense) are detail the lemmatizer does not use here. Match the tagset to what the task needs.</p>
   </div>
 </div>
 
@@ -695,23 +662,18 @@ choice for real work. (Working out the part of speech is its own topic:
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>Stemming chops endings by rule — fast, no dictionary, output need not be a real word — and it
-  is the right tool for search. Lemmatization looks up the real dictionary root — correct, needs
-  the part of speech, slower — and it is the right tool when you need real words.</p>
+  <p>Part-of-speech tagging labels each word with its grammatical job, and it needs the whole
+  sentence because the same word can be a noun in one place and a verb in another. That reliance on
+  context — not a dictionary — is what makes it a real task, and it is the same reason the next
+  step, finding names, is harder still.</p>
 </div>
-
-<p>That closes the text-cleaning arc: <a href="0003-tokenization-and-the-vocabulary-problem.html">tokenize</a>,
-<a href="0004-normalization-and-stop-words.html">normalize and remove stop words</a>, and now cut
-to a root. Next session we start working <em>with</em> the cleaned words, beginning with
-<strong>part-of-speech tagging</strong> — the very thing lemmatization was asking for.</p>
 
 <h2>Read this next</h2>
 
-<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter
-2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
-Section 2.3, "Word Normalization, Lemmatization and Stemming", covers this lesson and the last one
-together. The Porter stemmer's original rules are in Martin Porter's 1980 paper, still readable
-and still in use.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/17.pdf">Chapter
+17 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
+It is titled "Sequence Labeling for Parts of Speech and Named Entities", and it covers this lesson
+and the next one together. Read the sections on word classes and the Penn Treebank tagset.</p>
 
 
 
@@ -724,8 +686,8 @@ and still in use.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0004-normalization-and-stop-words.html">← Session 04: Normalization and stop words</a>
-  <a href="0006-part-of-speech-tagging.html">Next — Session 06: part-of-speech tagging →</a>
+  <a href="0005-stemming-and-lemmatization.html">← Session 05: Stemming and lemmatization</a>
+  <span>Next — Session 07: named entity recognition</span>
 </nav>
 
 <script>
