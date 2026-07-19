@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 7 — Named entity recognition: finding the names in text</title>
+<title>Lesson 8 — Searching a collection: the term-document incidence matrix</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,204 +504,201 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 07</p>
-  <h1>Named entity recognition</h1>
-  <p class="subtitle">Finding the names in text — people, places, companies — which is harder than
-  tagging words, because a single name can span several of them.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 08</p>
+  <h1>Searching a collection</h1>
+  <p class="subtitle">The term-document incidence matrix, and answering Boolean queries with it —
+  a clean idea that works, right up until it does not fit in memory.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where POS tagging ran out</h2>
+<h2>A change of gear</h2>
 
-<p>Session 6 labelled each word one at a time: this word is a noun, that one is a verb. That works
-because a word's grammatical job is a property of the single word. Names are not like that.</p>
+<p>Everything so far — tokenizing, tagging, finding names — worked on <em>one</em> piece of text.
+Now the question changes: given a whole <strong>collection</strong> of documents, which ones match
+what I am looking for? This is <strong>information retrieval</strong>, and it is what a search
+engine does.</p>
 
-<pre><code>The Reserve Bank of India raised rates.</code></pre>
+<p>Start with the simplest useful kind of search: <strong>Boolean queries</strong>. You ask for
+documents using <code>AND</code>, <code>OR</code> and <code>NOT</code> — for example, over the
+plays of Shakespeare:</p>
 
-<p><code>Reserve Bank of India</code> is <strong>one thing</strong> — an organization — spread
-across four words. Tagging each word on its own misses the point: the name is the whole span, not
-the pieces. That is the new problem this session solves.</p>
+<pre><code>Brutus AND Caesar AND NOT Calpurnia</code></pre>
 
-<h2>What named entity recognition is</h2>
+<p>"Find the plays that contain both <em>Brutus</em> and <em>Caesar</em>, but not
+<em>Calpurnia</em>." How would you answer that over a large collection, quickly?</p>
 
-<p><strong>Named entity recognition</strong> (NER) finds the spans of text that are proper names,
-and labels each with its type. Run it on a sentence and you get back the names, typed:</p>
+<h2>The obvious way, and why it is not enough</h2>
 
-<pre><code>"The Reserve Bank of India raised rates in Mumbai on Monday."
+<p>You could scan every document for the words, like <code>Ctrl-F</code> or the Unix
+<code>grep</code> tool. For one file that is fine. For a big collection it is far too slow — you
+re-read every document on every query. And it does not handle <code>NOT</code> or complex
+combinations cleanly, nor let you rank results later. We need the collection organised <em>in
+advance</em> so queries are fast.</p>
 
-  The Reserve Bank of India   →  ORG    (an organization)
-  Mumbai                      →  GPE    (a place)
-  Monday                      →  DATE</code></pre>
+<h2>The term-document incidence matrix</h2>
 
-<p>The common entity types are these:</p>
+<p>Here is the first idea. Build a big table. One <strong>row per term</strong> (word), one
+<strong>column per document</strong>. Put a <strong>1</strong> where the term appears in that
+document, and a <strong>0</strong> where it does not.</p>
+
+<p>For a handful of terms across six Shakespeare plays, it looks like this
+(<code>1</code> = "the play contains this word"):</p>
 
 <table>
-  <tr><th>Type</th><th>What it covers</th><th>Example</th></tr>
-  <tr><td>PERSON</td><td>people, real or fictional</td><td><code>Rao</code></td></tr>
-  <tr><td>ORG</td><td>companies, agencies, institutions</td><td><code>Infosys</code></td></tr>
-  <tr><td>GPE</td><td>countries, cities, states</td><td><code>Mumbai</code></td></tr>
-  <tr><td>LOC</td><td>places that are not GPEs — rivers, mountains</td><td><code>Himalayas</code></td></tr>
-  <tr><td>DATE</td><td>dates and periods, exact or relative</td><td><code>Monday</code>, <code>last week</code></td></tr>
-  <tr><td>MONEY</td><td>amounts, with the unit</td><td><code>$2 billion</code></td></tr>
+  <tr>
+    <th>term</th>
+    <th>Antony &amp;<br>Cleopatra</th><th>Julius<br>Caesar</th><th>The<br>Tempest</th>
+    <th>Hamlet</th><th>Othello</th><th>Macbeth</th>
+  </tr>
+  <tr><td><code>Antony</code></td>    <td>1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
+  <tr><td><code>Brutus</code></td>    <td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
+  <tr><td><code>Caesar</code></td>    <td>1</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td></tr>
+  <tr><td><code>Calpurnia</code></td> <td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td><code>Cleopatra</code></td> <td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+  <tr><td><code>mercy</code></td>     <td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
+  <tr><td><code>worser</code></td>    <td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
 </table>
 
-<div class="callout">
-  <span class="label">This is the tool lab 2 was missing</span>
-  <p>In <a href="../labs/lab-02-information-extraction.ipynb">lab 2</a>, regex pulled dates and
-  rupee amounts out of bank messages perfectly — because those have a fixed shape. But it could not
-  reliably get the <em>merchant name</em>, because names have no fixed shape:
-  <code>SWIGGY</code>, <code>Reserve Bank of India</code> and <code>Rao</code> share no pattern a
-  regex can match.</p>
-  <p><mark>NER is the method for exactly that job.</mark> Instead of a hand-written pattern, it
-  learns from examples what a name looks like — the same shift from rules to learning you saw when
-  VADER failed on <em>nightmare</em> in lab 1.</p>
-</div>
+<p>Each row is now a string of 0s and 1s — a <strong>bit vector</strong> — that says exactly which
+plays contain that word. Read the <code>Caesar</code> row: <code>1 1 0 1 1 1</code> — it appears in
+every play except <em>The Tempest</em>.</p>
 
-<h2>The span problem, and how BIO solves it</h2>
+<h2>Answering the query with bitwise operations</h2>
 
-<p>Here is the difficulty. A POS tagger gives <strong>one tag per word</strong>, which is
-convenient — you met a machine for that in session 6. But an entity can cover several words. How do
-you mark a multi-word span using a system that only tags one word at a time?</p>
+<p>Once each term is a row of bits, a Boolean query is just <strong>bitwise arithmetic</strong> on
+those rows. Take the query back:</p>
 
-<p>The trick is a clever tagging scheme called <strong>BIO</strong>. Every word gets one of three
-kinds of tag:</p>
+<pre><code>Brutus AND Caesar AND NOT Calpurnia</code></pre>
 
-<ul>
-  <li><strong>B-</strong> — this word <strong>begins</strong> an entity of this type</li>
-  <li><strong>I-</strong> — this word is <strong>inside</strong> (continues) the same entity</li>
-  <li><strong>O</strong> — this word is <strong>outside</strong> any entity</li>
-</ul>
+<p>Pull out the three rows and combine them column by column. <code>AND</code> keeps a 1 only where
+both have a 1; <code>NOT</code> flips every bit:</p>
 
-<p>Now the same one-tag-per-word machine can mark a span. Here is the Reserve Bank sentence in BIO:</p>
+<pre><code>Brutus            1 1 0 1 0 0
+Caesar            1 1 0 1 1 1
+NOT Calpurnia     1 0 1 1 1 1     ← Calpurnia was 0 1 0 0 0 0, flipped
 
-<pre><code>The       B-ORG      ← the name starts here
-Reserve   I-ORG      ← still inside it
-Bank      I-ORG
-of        I-ORG
-India     I-ORG      ← still inside it
-raised    O          ← outside — the name has ended
-rates     O
-.         O</code></pre>
+Brutus AND Caesar             →   1 1 0 1 0 0
+        AND NOT Calpurnia     →   1 0 0 1 0 0</code></pre>
 
-<p>Reading the tags back, the run of one <code>B-ORG</code> followed by four <code>I-ORG</code>
-reconstructs the whole span <code>The Reserve Bank of India</code>. This is the key idea:
-<mark>BIO turns "find the spans" back into "tag each word", so a sequence labeller can do the
-job.</mark></p>
+<p>The final vector is <code>1 0 0 1 0 0</code>. The 1s are in columns 1 and 4, so the answer is:</p>
+
+<pre><code>Antony and Cleopatra     Hamlet</code></pre>
+
+<p>That is the whole method. Every Boolean query becomes a few bitwise operations on the rows of
+the matrix — and bitwise operations are about as fast as a computer gets. It is genuinely elegant.</p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Why do we need a separate <strong>B-</strong> tag? Why not just tag every word of a company
-  name <code>ORG</code> and every word outside <code>O</code>?</p>
+  <p>Using the matrix above, answer <code>Antony AND mercy</code>. Which plays come back?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>Because two names of the same type can sit <strong>side by side</strong>, and you need to
-    know where one ends and the next begins. Take <code>"... met Google Microsoft ..."</code> as a
-    list of two companies. Tag every word just <code>ORG</code> and you get:</p>
-    <pre><code>Google   ORG
-Microsoft ORG</code></pre>
-    <p>— which reads as <em>one</em> two-word company, "Google Microsoft". With BIO you get
-    <code>B-ORG</code>, <code>B-ORG</code>: two <em>separate</em> names, because a second
-    <code>B-</code> means "a new entity starts here". The <code>B-</code> tag exists precisely to
-    put a boundary between touching entities of the same type.</p>
+    <p>Take the two rows and <code>AND</code> them column by column:</p>
+    <pre><code>Antony   1 1 0 0 0 1
+mercy    1 0 1 1 1 1
+AND      1 0 0 0 0 1</code></pre>
+    <p>1s in columns 1 and 6 → <strong>Antony and Cleopatra</strong> and <strong>Macbeth</strong>.
+    Both words appear together only in those two plays.</p>
   </div>
 </div>
 
-<h2>Why NER is genuinely hard</h2>
+<h2>Why this does not scale</h2>
 
-<p>Two reasons, beyond the span problem.</p>
-
-<p><strong>The same name has different types.</strong> <code>Washington</code> is a person, a city,
-a state, and a football team, depending on the sentence. <code>Apple</code> is a company or a
-fruit. Only the context decides — the same lesson as POS ambiguity, one level up.</p>
-
-<p><strong>And taggers fail on names they were not trained on.</strong> Watch a real one trip on an
-Indian sentence:</p>
-
-<pre><code>"Rao paid Infosys 5000 rupees last week."
-
-  spaCy finds:
-    Rao            →  PERSON     ✓
-    Infosys 5000   →  PRODUCT    ✗   (it merged the company and the amount, and mislabelled it)
-    last week      →  DATE       ✓
-  and it misses "5000 rupees" as money entirely.</code></pre>
-
-<p>It got the common English-shaped name (<code>Rao</code>, <code>last week</code>) right and
-mangled the part that looks unlike its training data. This is not a reason to avoid NER — it is the
-honest state of it. A model trained mostly on Western news text is weakest on exactly the names an
-Indian application cares about, which is worth knowing before you trust its output.</p>
-
-<div class="quiz" data-answer="0">
-  <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">What makes NER harder than the POS tagging from last session?</p>
-  <div class="q-opts">
-    <button class="opt">An entity can span several words, while a POS tag is one word</button>
-    <button class="opt">There are far more entity types than there are parts of speech</button>
-    <button class="opt">NER cannot use the surrounding words, but POS tagging can</button>
-    <button class="opt">Entities must be looked up in a dictionary and POS tags need not</button>
-  </div>
-  <div class="q-fb">
-    <p>Correct answer: <strong>an entity can span several words</strong>.</p>
-    <p>A POS tag is a property of a single word, so one-tag-per-word fits perfectly. A name like
-    <code>Reserve Bank of India</code> is one entity across four words, so you need a scheme — BIO —
-    to mark where the span starts and ends. Both tasks use context; the span is the extra
-    difficulty.</p>
-  </div>
-</div>
-
-<div class="quiz" data-answer="3">
-  <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">In the BIO scheme, what does <code>I-ORG</code> mean?</p>
-  <div class="q-opts">
-    <button class="opt">The most important word of an organization's name</button>
-    <button class="opt">An incorrect organization tag, flagged for review</button>
-    <button class="opt">The first word of an organization's name</button>
-    <button class="opt">A word inside an organization name that began earlier</button>
-  </div>
-  <div class="q-fb">
-    <p>Correct answer: <strong>a word inside an organization name that began earlier</strong>.</p>
-    <p><code>I-</code> means "inside" — this word continues an entity that a <code>B-</code> tag
-    already started. So <code>B-ORG</code> then <code>I-ORG I-ORG</code> is a single three-word
-    organization. The first word is <code>B-ORG</code>; the continuation words are
-    <code>I-ORG</code>.</p>
-  </div>
-</div>
-
-<h2>Where NER is used</h2>
+<p>The method is clean. The problem is the size of the table. Terms go down the side, documents
+across the top — so the matrix grows with <em>both</em>. Use the numbers from a realistic
+collection:</p>
 
 <ul>
-  <li><strong>Information extraction</strong> — the lab-2 job done properly: pull the people,
-      companies and places out of documents, contracts, news.</li>
-  <li><strong>Search</strong> — a query for "Apple" can be steered to the company or the fruit once
-      you know which the user means.</li>
-  <li><strong>Redaction</strong> — find and hide every PERSON in a document to protect privacy.</li>
-  <li><strong>Question answering</strong> — many questions ("who", "where", "when") are answered by
-      an entity, so finding them is step one. You meet this in Unit III.</li>
+  <li><strong>1 million</strong> documents (columns)</li>
+  <li>about <strong>500,000</strong> distinct terms (rows)</li>
 </ul>
+
+<p>That is 500,000 × 1,000,000 = <strong>500 billion</strong> cells. Half a trillion 0s and 1s to
+store.</p>
+
+<p>Now the killer detail. Each document contains maybe a thousand distinct words, so each column
+has about a thousand 1s and 499,000 zeros. Across the whole matrix there are <strong>at most about
+a billion 1s</strong> — which means:</p>
+
+<div class="callout warn">
+  <span class="label">The matrix is almost entirely zeros</span>
+  <p>Out of 500 billion cells, at most about 1 billion are 1s. <mark>That is 99.8% zeros.</mark></p>
+  <p>You would be spending almost all of your memory storing the fact that words are <em>absent</em>
+  from documents — which is nearly always true and almost never what you asked about. It will not
+  fit, and even if it did, it would be a colossal waste.</p>
+</div>
+
+<p>So the incidence matrix is the right <em>idea</em> — organise the collection in advance so
+queries are fast — carried out the wrong way. The fix almost writes itself once you have seen the
+problem.</p>
+
+<div class="recall">
+  <span class="label">One more before the next session</span>
+  <p>Almost every cell in the matrix is a 0, and the 0s carry no information you care about. What
+  is the obvious thing to change?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><strong>Stop storing the zeros. Record only the 1s.</strong></p>
+    <p>For each term, instead of a full row of mostly-zero bits, just keep a <em>list of the
+    documents it actually appears in</em>. That list is short, because a word is in few documents.
+    No space wasted on absence.</p>
+    <p>That structure is called an <strong>inverted index</strong>, and it is the whole of session
+    9 — and the thing you will build in lab 4.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">In a term-document incidence matrix, what does a single row represent?</p>
+  <div class="q-opts">
+    <button class="opt">One document, as the list of words that appear in it</button>
+    <button class="opt">One query, ready to be matched against the documents</button>
+    <button class="opt">One term, as which documents it appears in, in 0s and 1s</button>
+    <button class="opt">One bitwise operation applied across the whole collection</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>one term, as which documents it appears in</strong>.</p>
+    <p>Rows are terms, columns are documents. The <code>Caesar</code> row <code>1 1 0 1 1 1</code>
+    says <em>Caesar</em> appears in every play but the third. A Boolean query then combines these
+    rows with bitwise <code>AND</code>, <code>OR</code> and <code>NOT</code>.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">What is the main problem with the incidence matrix at real scale?</p>
+  <div class="q-opts">
+    <button class="opt">Bitwise <code>AND</code> is too slow when there are many terms</button>
+    <button class="opt">It is almost all zeros, so it wastes nearly all its space</button>
+    <button class="opt">It cannot represent <code>NOT</code> queries, only <code>AND</code></button>
+    <button class="opt">Terms have to be re-tokenized every time a query runs</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>it is almost all zeros, so it wastes nearly all its space</strong>.</p>
+    <p>A million documents by half a million terms is 500 billion cells, of which at most a billion
+    are 1s — about 99.8% zeros. The bitwise operations are fast; it is storing all that absence that
+    sinks it. Recording only the 1s is the fix, and that is the inverted index.</p>
+  </div>
+</div>
 
 <h2>The one thing to remember</h2>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>Named entity recognition finds and types the name spans in text, and its central trick is BIO
-  tagging, which turns "find the spans" into "tag each word" so a sequence labeller can do it. It is
-  the learned answer to the job regex could not finish in lab 2 — and, like any learned model, it is
-  weakest on the names least like its training data.</p>
+  <p>A term-document incidence matrix turns Boolean search into fast bitwise operations on rows of
+  0s and 1s, which is elegant and correct. But at real scale it is 99.8% zeros and cannot fit, so
+  the practical answer is to keep only the 1s — the inverted index of the next session.</p>
 </div>
-
-<p>That closes Unit I's language-analysis run — <a href="0006-part-of-speech-tagging.html">tag the
-words</a>, then find the names. Next session changes gear from analysing one text to
-<strong>searching a whole collection</strong> of them, which is where the second half of Unit I
-begins.</p>
 
 <h2>Read this next</h2>
 
-<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/17.pdf">Chapter
-17 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online,
-"Sequence Labeling for Parts of Speech and Named Entities". Read the sections on named entities and
-on the BIO tagging scheme.</p>
+<p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
+Information Retrieval</a></strong> by Manning, Raghavan and Schütze — free online. Read
+<strong>Chapter 1</strong>, "Boolean retrieval". This is where the Shakespeare example comes from,
+and it carries straight into the next lesson. Note the switch of textbook: for the search half of
+Unit I, this book is the primary source, not Jurafsky and Martin.</p>
 
 
 
@@ -714,8 +711,8 @@ on the BIO tagging scheme.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0006-part-of-speech-tagging.html">← Session 06: Part-of-speech tagging</a>
-  <a href="0008-incidence-matrix-and-boolean-search.html">Next — Session 08: searching a collection →</a>
+  <a href="0007-named-entity-recognition.html">← Session 07: Named entity recognition</a>
+  <span>Next — Session 09: the inverted index</span>
 </nav>
 
 <script>
