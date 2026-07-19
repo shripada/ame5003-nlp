@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 9 — The inverted index: store only the ones</title>
+<title>Lesson 10 — Ranking results with TF-IDF</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,160 +504,170 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 09</p>
-  <h1>The inverted index</h1>
-  <p class="subtitle">Keep only the ones. For each word, a list of the documents it appears in — and
-  a fast way to answer a query by walking two lists at once.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 10</p>
+  <h1>Ranking results with TF-IDF</h1>
+  <p class="subtitle">Not just which documents match, but which match <em>best</em> — and why the
+  score needs a logarithm in two different places.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Picking up where session 8 stopped</h2>
+<h2>Where Boolean search ran out</h2>
 
-<p>The incidence matrix was 99.8% zeros, and those zeros carried no information we cared about. The
-fix we arrived at was: <strong>stop storing the zeros; keep only the ones.</strong> This session
-turns that one sentence into the data structure that runs real search engines.</p>
+<p>The inverted index answered "which documents match?" — and gave back an unordered
+<strong>set</strong>. A document either matched or it did not. That is fine for six plays. Type a
+query into a web search and it matches <em>millions</em> of pages. An unordered set of a million
+results is useless. You need the <strong>best</strong> ones first.</p>
 
-<h2>Building the inverted index</h2>
+<p>So we move from matching to <strong>ranking</strong>: give each matching document a
+<strong>score</strong> for the query, then sort by score. The classic scoring recipe, still the
+baseline everywhere, is <strong>TF-IDF</strong>. It is built from two ideas, and we build it the
+same way.</p>
 
-<p>An <strong>inverted index</strong> has two parts:</p>
+<h2>Idea 1 — term frequency: how often the word appears</h2>
 
-<ul>
-  <li>A <strong>dictionary</strong> — every term in the collection.</li>
-  <li>For each term, a <strong>postings list</strong> — the document IDs where that term appears,
-      kept in <strong>sorted order</strong>.</li>
-</ul>
+<p>A document that says <code>car</code> ten times is probably more about cars than one that says it
+once. So the first idea is simple: score a document by how many times the query term appears in it.
+This count is the <strong>term frequency</strong> (TF).</p>
 
-<p>It is called <em>inverted</em> because it flips the natural direction. A document normally points
-to the words in it; here each word points to the documents it is in. Built from the same six
-Shakespeare plays as last session (numbered 1–6), it looks like this:</p>
+<h3>Why the raw count is wrong</h3>
 
-<pre><code>Antony     →  1 → 2 → 6
-Brutus     →  1 → 2 → 4
-Caesar     →  1 → 2 → 4 → 5 → 6
-Calpurnia  →  2
-Cleopatra  →  1
-mercy      →  1 → 3 → 4 → 5 → 6
-worser     →  1 → 3 → 4 → 5</code></pre>
+<p>Raw count over-rewards repetition. Is a document with <code>car</code> 100 times really 100
+times more relevant than one with it once? No. It is more relevant — but nowhere near 100 times.
+Relevance grows with count, but it grows <strong>slower and slower</strong>. The tenth mention adds
+much less than the second.</p>
 
-<p>Compare this with the matrix row for <code>Caesar</code>, which was <code>1 1 0 1 1 1</code> —
-six cells to say the same thing the postings list <code>1 2 4 5 6</code> says with five short
-numbers, and no wasted zero. A word that appears in three documents needs a list of three, whether
-the collection has six documents or six billion. <mark>The size of a postings list depends on the
-word, not on the size of the collection.</mark> That is the whole saving.</p>
+<p>The fix is a <strong>logarithm</strong>, which is exactly the function that grows fast at first
+and then flattens. We use a log-weighted term frequency:</p>
 
-<h2>Answering a query: merge two postings lists</h2>
+<pre><code>weight = 1 + log₁₀(tf)      (when tf &gt; 0)</code></pre>
 
-<p>Now the query. Take one <code>AND</code> from last session's example:</p>
+<p>Watch what it does to the count:</p>
 
-<pre><code>Brutus AND mercy</code></pre>
+<table>
+  <tr><th>appears (tf)</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr>
+  <tr><td>weight</td><td>1.0</td><td>2.0</td><td>3.0</td><td>4.0</td></tr>
+</table>
 
-<p>You need the documents that appear in <em>both</em> postings lists — their
-<strong>intersection</strong>. The clever part is <em>how</em>. Because both lists are sorted, you
-do not compare every pair. You walk both lists at the same time with two pointers, and at each step
-you advance the one pointing at the <strong>smaller</strong> document ID:</p>
+<p>Every <em>tenfold</em> increase in the count adds just <strong>1</strong> to the weight. Going
+from 1 mention to 10 matters as much as going from 10 to 100. <mark>That is where the first
+logarithm comes from: it turns "diminishing returns" into arithmetic.</mark></p>
 
-<pre><code>Brutus:  1 → 2 → 4
-mercy:   1 → 3 → 4 → 5 → 6
+<h2>Idea 2 — inverse document frequency: how rare the word is</h2>
 
-step 1:  1 vs 1   equal   → keep 1, advance both
-step 2:  2 vs 3   2 < 3   → advance Brutus (2 can't be in mercy now)
-step 3:  4 vs 3   4 > 3   → advance mercy
-step 4:  4 vs 4   equal   → keep 4, advance both
-         Brutus is finished → stop
+<p>Term frequency alone has a worse problem. Consider the query <code>the best car</code>. The word
+<code>the</code> appears many times in <em>every</em> document, so by term frequency it scores
+enormously — and it tells you nothing about which document is a good match. A common word is a bad
+discriminator; a rare word is a good one. If two documents share the word <code>insurance</code>,
+that is a far stronger signal than sharing <code>the</code>.</p>
 
-result:  1 → 4      (Antony and Cleopatra, Hamlet)</code></pre>
+<p>So we want to <strong>down-weight common words and up-weight rare ones</strong>. Measure how
+common a word is by its <strong>document frequency</strong> (df) — the number of documents that
+contain it. Then weight by the <strong>inverse</strong>, squashed with a log again:</p>
 
-<p>Each pointer only ever moves forward, so you pass through each list <strong>once</strong>. If the
-lists have lengths <em>x</em> and <em>y</em>, the work is about <em>x + y</em> — you never do
-<em>x</em> × <em>y</em> comparisons. That linear cost is the reason search feels instant, and it is
-only possible <strong>because the lists are sorted</strong>. Keeping postings sorted at build time
-is what buys you the fast query.</p>
+<pre><code>idf = log₁₀(N / df)        N = total number of documents</code></pre>
+
+<p>Here are real values from a collection of N = 806,791 documents:</p>
+
+<table>
+  <tr><th>term</th><th>in how many docs (df)</th><th>idf</th></tr>
+  <tr><td><code>auto</code></td>      <td>6,723</td>  <td>2.08</td></tr>
+  <tr><td><code>car</code></td>       <td>18,165</td> <td>1.65</td></tr>
+  <tr><td><code>insurance</code></td> <td>19,241</td> <td>1.62</td></tr>
+  <tr><td><code>best</code></td>      <td>25,235</td> <td>1.50</td></tr>
+</table>
+
+<p>The rarer the word, the higher its idf: <code>auto</code> (in fewer documents) outranks
+<code>best</code> (in more). And the important edge case:</p>
 
 <div class="callout">
-  <span class="label">Why sorting is the whole trick</span>
-  <p>When you see <code>2</code> in one list is smaller than <code>3</code> in the other, you know
-  <code>2</code> cannot appear later in the second list — everything ahead is bigger. So you skip it
-  and move on, with no going back. Unsorted lists give you no such guarantee, and you are forced
-  back to checking every pair against every pair.</p>
+  <span class="label">Stop words down-weight themselves</span>
+  <p>A word in <em>every</em> document has df = N, so its idf is <code>log₁₀(N/N) = log₁₀(1) =
+  0</code>. Its weight is <strong>zero</strong>.</p>
+  <p>Remember the stop-word problem from <a href="0004-normalization-and-stop-words.html">session
+  4</a>? IDF handles it for free. You do not need a hand-written list to kill <code>the</code> — it
+  appears everywhere, so its idf is near zero, and it contributes almost nothing to any score.
+  <mark>The maths does what the stop-word list was trying to do, without the list.</mark></p>
 </div>
 
-<h2>Finishing the real query</h2>
+<h2>Putting them together</h2>
 
-<p>The full query was <code>Brutus AND Caesar AND NOT Calpurnia</code>. Same tool, applied in turn:</p>
+<p>The <strong>TF-IDF weight</strong> of a term in a document multiplies the two ideas:</p>
 
-<pre><code>Brutus  1 2 4   INTERSECT   Caesar  1 2 4 5 6     →   1 2 4
-        1 2 4   AND NOT     Calpurnia  2           →   1 4</code></pre>
+<pre><code>tf-idf  =  (1 + log₁₀ tf)  ×  log₁₀(N / df)
+             how often it appears          how rare it is
+             IN THIS document              ACROSS all documents</code></pre>
 
-<p><code>NOT Calpurnia</code> just means "drop any document that is in Calpurnia's list" — remove
-<code>2</code>, leaving <code>1 4</code>: <strong>Antony and Cleopatra</strong> and
-<strong>Hamlet</strong>. The same answer as the matrix gave in session 8, reached without storing a
-single zero.</p>
+<p>This is high in exactly the right case: a term that appears <strong>often in this document</strong>
+but is <strong>rare across the collection</strong> — in other words, a word that is distinctive to
+this document. It is low for a word that is rare here, and near zero for a word that is everywhere.</p>
+
+<p>To score a whole document for a query, add up the tf-idf weights of the query terms, then sort
+the matching documents by that total. The document with the highest score comes first. That is
+ranked retrieval.</p>
 
 <div class="callout">
-  <span class="label">One optimisation worth knowing</span>
-  <p>For <code>Brutus AND Caesar AND Calpurnia</code>, start with the <strong>shortest</strong>
-  postings list. <code>Calpurnia</code> is in just one document, so intersecting it first leaves at
-  most one candidate to check against the others. Process terms from rarest to commonest, and you do
-  the least work. This is a standard query-optimisation, and a likely viva question.</p>
+  <span class="label">The two logarithms, side by side</span>
+  <p>Both logs are there to <strong>squash a big range into a manageable one</strong>, but for
+  different reasons:</p>
+  <ul>
+    <li>On <strong>TF</strong>: because relevance has diminishing returns — the 100th mention barely
+    adds to the 10th.</li>
+    <li>On <strong>DF</strong>: because word rarity spans a huge range — from a word in ten documents
+    to one in a million — and a raw ratio would let rare words dominate wildly.</li>
+  </ul>
 </div>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Using the index above, work the merge for <code>Brutus AND Antony</code> by hand.
-  <code>Brutus</code> is <code>1 2 4</code>; <code>Antony</code> is <code>1 2 6</code>. Which
-  documents come back?</p>
+  <p>Two documents both match the query <code>car insurance</code>. Document A says
+  <code>insurance</code> 9 times; document B says <code>the</code> 50 times and
+  <code>insurance</code> once. By TF-IDF, which ranks higher — and why is that the right answer?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-<pre><code>Brutus:  1 → 2 → 4
-Antony:  1 → 2 → 6
-
-1 vs 1   equal   → keep 1, advance both
-2 vs 2   equal   → keep 2, advance both
-4 vs 6   4 < 6   → advance Brutus
-         Brutus finished → stop
-
-result:  1 → 2</code></pre>
-    <p><strong>Antony and Cleopatra</strong> and <strong>Julius Caesar</strong>. The
-    <code>4</code> and the <code>6</code> never match, and the two-pointer walk skips straight past
-    them without ever comparing <code>4</code> to <code>1</code> or <code>2</code>.</p>
+    <p><strong>Document A.</strong> Its <code>insurance</code> weight is
+    <code>(1 + log 9) × 1.62 ≈ 1.95 × 1.62 ≈ 3.2</code>. Document B's <code>the</code> contributes
+    almost nothing — its idf is near zero, no matter that it appears 50 times — and its single
+    <code>insurance</code> scores <code>1 × 1.62 = 1.62</code>.</p>
+    <p>So A wins, which is correct: A is genuinely more about insurance, while B just happens to use
+    a common word a lot. This is TF-IDF doing its whole job in one comparison — rewarding the
+    distinctive word, ignoring the common one.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="2">
+<div class="quiz" data-answer="1">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">What does a postings list contain?</p>
+  <p class="q-text">Why is the term frequency put through a logarithm instead of used raw?</p>
   <div class="q-opts">
-    <button class="opt">Every word that appears in one particular document</button>
-    <button class="opt">The 0s and 1s of one row of the incidence matrix</button>
-    <button class="opt">The sorted IDs of the documents that contain one term</button>
-    <button class="opt">The list of queries a given document has matched</button>
+    <button class="opt">Because logarithms make the numbers smaller and faster to store</button>
+    <button class="opt">Because relevance grows with count, but less and less each time</button>
+    <button class="opt">Because a raw count cannot be negative and a log can</button>
+    <button class="opt">Because the document frequency must be on the same scale</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>the sorted IDs of the documents that contain one term</strong>.</p>
-    <p>The dictionary holds the terms; each term points to its postings list — the documents it
-    appears in, in sorted order. <code>Caesar → 1 2 4 5 6</code>. Sorted, because that is what makes
-    the merge fast.</p>
+    <p>Correct answer: <strong>relevance grows with count, but less and less each time</strong>.</p>
+    <p>A word appearing 100 times does not make a document 100 times more relevant than one where it
+    appears once. The log captures those diminishing returns: each tenfold rise in the count adds
+    the same fixed amount (1) to the weight.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="0">
+<div class="quiz" data-answer="3">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">Why can two postings lists be intersected in roughly <em>x + y</em> steps
-  instead of <em>x</em> × <em>y</em>?</p>
+  <p class="q-text">A word appears in every single document in the collection. What is its idf?</p>
   <div class="q-opts">
-    <button class="opt">Because both lists are sorted, so each pointer only moves forward</button>
-    <button class="opt">Because postings lists are always short enough to fit in memory</button>
-    <button class="opt">Because the shorter list is always checked against the longer one</button>
-    <button class="opt">Because bitwise <code>AND</code> compares all documents at once</button>
+    <button class="opt">Very high, because it appears so many times overall</button>
+    <button class="opt">Equal to the total number of documents, N</button>
+    <button class="opt">Undefined, because you cannot take the log of a fraction</button>
+    <button class="opt">Zero, so it contributes nothing to any score</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>both lists are sorted, so each pointer only moves forward</strong>.</p>
-    <p>Sorted order means that when one ID is smaller than the other, it cannot appear later in the
-    other list, so you skip it and never look back. Each list is traversed once — about
-    <em>x + y</em> steps total. Lose the sorting and you are back to checking every pair.</p>
+    <p>Correct answer: <strong>zero, so it contributes nothing to any score</strong>.</p>
+    <p>If df = N then idf = log(N/N) = log(1) = 0. A word that is everywhere cannot distinguish
+    between documents, and IDF gives it exactly zero weight — which is why TF-IDF suppresses stop
+    words without needing a stop-word list.</p>
   </div>
 </div>
 
@@ -665,22 +675,24 @@ result:  1 → 2</code></pre>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>An inverted index stores, for each term, a sorted list of the documents that contain it — only
-  the ones, never the zeros. Queries are answered by merging these sorted lists with a two-pointer
-  walk that runs in linear time, which is exactly why web-scale search returns in milliseconds.</p>
+  <p>TF-IDF scores a term high when it appears often in this document but rarely across the
+  collection — frequent-here times rare-everywhere — so distinctive words drive the ranking and
+  common words fall away. The two logarithms are there to tame diminishing returns on the count and
+  to compress the huge range of word rarity into a usable weight.</p>
 </div>
 
-<p>But so far a document either matches or it does not — the result is an unordered set. Real search
-puts the <em>best</em> document first. Ranking is the next session, and it is where numbers replace
-the plain 0s and 1s.</p>
+<p>That closes Unit I. You can now take raw text, clean it, analyse it, search a collection, and
+rank the results. Unit II changes the question entirely: instead of finding text, can a machine
+predict and generate it? That starts with <strong>language models</strong> next session — and
+TF-IDF itself comes back in Unit II, as the way to turn a document into a vector of numbers.</p>
 
 <h2>Read this next</h2>
 
 <p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong> by Manning, Raghavan and Schütze — free online.
-<strong>Chapter 1</strong> covers building the inverted index and the postings-merge algorithm.
-Read the section titled "Processing Boolean queries" and follow the merge pseudocode; it is the
-same walk you did by hand above.</p>
+Information Retrieval</a></strong>, <strong>Chapter 6</strong> ("Scoring, term weighting and the
+vector space model") — free online, and the source of the numbers above.
+<a href="https://web.stanford.edu/~jurafsky/slp3/">SLP3 chapter 5</a> covers the same TF-IDF
+weighting from the language side. Read the IIR section on inverse document frequency.</p>
 
 
 
@@ -693,8 +705,8 @@ same walk you did by hand above.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0008-incidence-matrix-and-boolean-search.html">← Session 08: The incidence matrix</a>
-  <a href="0010-ranking-with-tf-idf.html">Next — Session 10: ranking results with TF-IDF →</a>
+  <a href="0009-the-inverted-index.html">← Session 09: The inverted index</a>
+  <span>Next — Session 11: language models and n-grams (Unit II)</span>
 </nav>
 
 <script>
