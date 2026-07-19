@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 8 — Searching a collection: the term-document incidence matrix</title>
+<title>Lesson 9 — The inverted index: store only the ones</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,182 +504,160 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 08</p>
-  <h1>Searching a collection</h1>
-  <p class="subtitle">The term-document incidence matrix, and answering Boolean queries with it —
-  a clean idea that works, right up until it does not fit in memory.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 09</p>
+  <h1>The inverted index</h1>
+  <p class="subtitle">Keep only the ones. For each word, a list of the documents it appears in — and
+  a fast way to answer a query by walking two lists at once.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>A change of gear</h2>
+<h2>Picking up where session 8 stopped</h2>
 
-<p>Everything so far — tokenizing, tagging, finding names — worked on <em>one</em> piece of text.
-Now the question changes: given a whole <strong>collection</strong> of documents, which ones match
-what I am looking for? This is <strong>information retrieval</strong>, and it is what a search
-engine does.</p>
+<p>The incidence matrix was 99.8% zeros, and those zeros carried no information we cared about. The
+fix we arrived at was: <strong>stop storing the zeros; keep only the ones.</strong> This session
+turns that one sentence into the data structure that runs real search engines.</p>
 
-<p>Start with the simplest useful kind of search: <strong>Boolean queries</strong>. You ask for
-documents using <code>AND</code>, <code>OR</code> and <code>NOT</code> — for example, over the
-plays of Shakespeare:</p>
+<h2>Building the inverted index</h2>
 
-<pre><code>Brutus AND Caesar AND NOT Calpurnia</code></pre>
+<p>An <strong>inverted index</strong> has two parts:</p>
 
-<p>"Find the plays that contain both <em>Brutus</em> and <em>Caesar</em>, but not
-<em>Calpurnia</em>." How would you answer that over a large collection, quickly?</p>
+<ul>
+  <li>A <strong>dictionary</strong> — every term in the collection.</li>
+  <li>For each term, a <strong>postings list</strong> — the document IDs where that term appears,
+      kept in <strong>sorted order</strong>.</li>
+</ul>
 
-<h2>The obvious way, and why it is not enough</h2>
+<p>It is called <em>inverted</em> because it flips the natural direction. A document normally points
+to the words in it; here each word points to the documents it is in. Built from the same six
+Shakespeare plays as last session (numbered 1–6), it looks like this:</p>
 
-<p>You could scan every document for the words, like <code>Ctrl-F</code> or the Unix
-<code>grep</code> tool. For one file that is fine. For a big collection it is far too slow — you
-re-read every document on every query. And it does not handle <code>NOT</code> or complex
-combinations cleanly, nor let you rank results later. We need the collection organised <em>in
-advance</em> so queries are fast.</p>
+<pre><code>Antony     →  1 → 2 → 6
+Brutus     →  1 → 2 → 4
+Caesar     →  1 → 2 → 4 → 5 → 6
+Calpurnia  →  2
+Cleopatra  →  1
+mercy      →  1 → 3 → 4 → 5 → 6
+worser     →  1 → 3 → 4 → 5</code></pre>
 
-<h2>The term-document incidence matrix</h2>
+<p>Compare this with the matrix row for <code>Caesar</code>, which was <code>1 1 0 1 1 1</code> —
+six cells to say the same thing the postings list <code>1 2 4 5 6</code> says with five short
+numbers, and no wasted zero. A word that appears in three documents needs a list of three, whether
+the collection has six documents or six billion. <mark>The size of a postings list depends on the
+word, not on the size of the collection.</mark> That is the whole saving.</p>
 
-<p>Here is the first idea. Build a big table. One <strong>row per term</strong> (word), one
-<strong>column per document</strong>. Put a <strong>1</strong> where the term appears in that
-document, and a <strong>0</strong> where it does not.</p>
+<h2>Answering a query: merge two postings lists</h2>
 
-<p>For a handful of terms across six Shakespeare plays, it looks like this
-(<code>1</code> = "the play contains this word"):</p>
+<p>Now the query. Take one <code>AND</code> from last session's example:</p>
 
-<table>
-  <tr>
-    <th>term</th>
-    <th>Antony &amp;<br>Cleopatra</th><th>Julius<br>Caesar</th><th>The<br>Tempest</th>
-    <th>Hamlet</th><th>Othello</th><th>Macbeth</th>
-  </tr>
-  <tr><td><code>Antony</code></td>    <td>1</td><td>1</td><td>0</td><td>0</td><td>0</td><td>1</td></tr>
-  <tr><td><code>Brutus</code></td>    <td>1</td><td>1</td><td>0</td><td>1</td><td>0</td><td>0</td></tr>
-  <tr><td><code>Caesar</code></td>    <td>1</td><td>1</td><td>0</td><td>1</td><td>1</td><td>1</td></tr>
-  <tr><td><code>Calpurnia</code></td> <td>0</td><td>1</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-  <tr><td><code>Cleopatra</code></td> <td>1</td><td>0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
-  <tr><td><code>mercy</code></td>     <td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>1</td></tr>
-  <tr><td><code>worser</code></td>    <td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
-</table>
+<pre><code>Brutus AND mercy</code></pre>
 
-<p>Each row is now a string of 0s and 1s — a <strong>bit vector</strong> — that says exactly which
-plays contain that word. Read the <code>Caesar</code> row: <code>1 1 0 1 1 1</code> — it appears in
-every play except <em>The Tempest</em>.</p>
+<p>You need the documents that appear in <em>both</em> postings lists — their
+<strong>intersection</strong>. The clever part is <em>how</em>. Because both lists are sorted, you
+do not compare every pair. You walk both lists at the same time with two pointers, and at each step
+you advance the one pointing at the <strong>smaller</strong> document ID:</p>
 
-<h2>Answering the query with bitwise operations</h2>
+<pre><code>Brutus:  1 → 2 → 4
+mercy:   1 → 3 → 4 → 5 → 6
 
-<p>Once each term is a row of bits, a Boolean query is just <strong>bitwise arithmetic</strong> on
-those rows. Take the query back:</p>
+step 1:  1 vs 1   equal   → keep 1, advance both
+step 2:  2 vs 3   2 < 3   → advance Brutus (2 can't be in mercy now)
+step 3:  4 vs 3   4 > 3   → advance mercy
+step 4:  4 vs 4   equal   → keep 4, advance both
+         Brutus is finished → stop
 
-<pre><code>Brutus AND Caesar AND NOT Calpurnia</code></pre>
+result:  1 → 4      (Antony and Cleopatra, Hamlet)</code></pre>
 
-<p>Pull out the three rows and combine them column by column. <code>AND</code> keeps a 1 only where
-both have a 1; <code>NOT</code> flips every bit:</p>
+<p>Each pointer only ever moves forward, so you pass through each list <strong>once</strong>. If the
+lists have lengths <em>x</em> and <em>y</em>, the work is about <em>x + y</em> — you never do
+<em>x</em> × <em>y</em> comparisons. That linear cost is the reason search feels instant, and it is
+only possible <strong>because the lists are sorted</strong>. Keeping postings sorted at build time
+is what buys you the fast query.</p>
 
-<pre><code>Brutus            1 1 0 1 0 0
-Caesar            1 1 0 1 1 1
-NOT Calpurnia     1 0 1 1 1 1     ← Calpurnia was 0 1 0 0 0 0, flipped
+<div class="callout">
+  <span class="label">Why sorting is the whole trick</span>
+  <p>When you see <code>2</code> in one list is smaller than <code>3</code> in the other, you know
+  <code>2</code> cannot appear later in the second list — everything ahead is bigger. So you skip it
+  and move on, with no going back. Unsorted lists give you no such guarantee, and you are forced
+  back to checking every pair against every pair.</p>
+</div>
 
-Brutus AND Caesar             →   1 1 0 1 0 0
-        AND NOT Calpurnia     →   1 0 0 1 0 0</code></pre>
+<h2>Finishing the real query</h2>
 
-<p>The final vector is <code>1 0 0 1 0 0</code>. The 1s are in columns 1 and 4, so the answer is:</p>
+<p>The full query was <code>Brutus AND Caesar AND NOT Calpurnia</code>. Same tool, applied in turn:</p>
 
-<pre><code>Antony and Cleopatra     Hamlet</code></pre>
+<pre><code>Brutus  1 2 4   INTERSECT   Caesar  1 2 4 5 6     →   1 2 4
+        1 2 4   AND NOT     Calpurnia  2           →   1 4</code></pre>
 
-<p>That is the whole method. Every Boolean query becomes a few bitwise operations on the rows of
-the matrix — and bitwise operations are about as fast as a computer gets. It is genuinely elegant.</p>
+<p><code>NOT Calpurnia</code> just means "drop any document that is in Calpurnia's list" — remove
+<code>2</code>, leaving <code>1 4</code>: <strong>Antony and Cleopatra</strong> and
+<strong>Hamlet</strong>. The same answer as the matrix gave in session 8, reached without storing a
+single zero.</p>
+
+<div class="callout">
+  <span class="label">One optimisation worth knowing</span>
+  <p>For <code>Brutus AND Caesar AND Calpurnia</code>, start with the <strong>shortest</strong>
+  postings list. <code>Calpurnia</code> is in just one document, so intersecting it first leaves at
+  most one candidate to check against the others. Process terms from rarest to commonest, and you do
+  the least work. This is a standard query-optimisation, and a likely viva question.</p>
+</div>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Using the matrix above, answer <code>Antony AND mercy</code>. Which plays come back?</p>
+  <p>Using the index above, work the merge for <code>Brutus AND Antony</code> by hand.
+  <code>Brutus</code> is <code>1 2 4</code>; <code>Antony</code> is <code>1 2 6</code>. Which
+  documents come back?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>Take the two rows and <code>AND</code> them column by column:</p>
-    <pre><code>Antony   1 1 0 0 0 1
-mercy    1 0 1 1 1 1
-AND      1 0 0 0 0 1</code></pre>
-    <p>1s in columns 1 and 6 → <strong>Antony and Cleopatra</strong> and <strong>Macbeth</strong>.
-    Both words appear together only in those two plays.</p>
-  </div>
-</div>
+<pre><code>Brutus:  1 → 2 → 4
+Antony:  1 → 2 → 6
 
-<h2>Why this does not scale</h2>
+1 vs 1   equal   → keep 1, advance both
+2 vs 2   equal   → keep 2, advance both
+4 vs 6   4 < 6   → advance Brutus
+         Brutus finished → stop
 
-<p>The method is clean. The problem is the size of the table. Terms go down the side, documents
-across the top — so the matrix grows with <em>both</em>. Use the numbers from a realistic
-collection:</p>
-
-<ul>
-  <li><strong>1 million</strong> documents (columns)</li>
-  <li>about <strong>500,000</strong> distinct terms (rows)</li>
-</ul>
-
-<p>That is 500,000 × 1,000,000 = <strong>500 billion</strong> cells. Half a trillion 0s and 1s to
-store.</p>
-
-<p>Now the killer detail. Each document contains maybe a thousand distinct words, so each column
-has about a thousand 1s and 499,000 zeros. Across the whole matrix there are <strong>at most about
-a billion 1s</strong> — which means:</p>
-
-<div class="callout warn">
-  <span class="label">The matrix is almost entirely zeros</span>
-  <p>Out of 500 billion cells, at most about 1 billion are 1s. <mark>That is 99.8% zeros.</mark></p>
-  <p>You would be spending almost all of your memory storing the fact that words are <em>absent</em>
-  from documents — which is nearly always true and almost never what you asked about. It will not
-  fit, and even if it did, it would be a colossal waste.</p>
-</div>
-
-<p>So the incidence matrix is the right <em>idea</em> — organise the collection in advance so
-queries are fast — carried out the wrong way. The fix almost writes itself once you have seen the
-problem.</p>
-
-<div class="recall">
-  <span class="label">One more before the next session</span>
-  <p>Almost every cell in the matrix is a 0, and the 0s carry no information you care about. What
-  is the obvious thing to change?</p>
-  <button class="reveal">Show answer</button>
-  <div class="answer">
-    <p><strong>Stop storing the zeros. Record only the 1s.</strong></p>
-    <p>For each term, instead of a full row of mostly-zero bits, just keep a <em>list of the
-    documents it actually appears in</em>. That list is short, because a word is in few documents.
-    No space wasted on absence.</p>
-    <p>That structure is called an <strong>inverted index</strong>, and it is the whole of session
-    9 — and the thing you will build in lab 4.</p>
+result:  1 → 2</code></pre>
+    <p><strong>Antony and Cleopatra</strong> and <strong>Julius Caesar</strong>. The
+    <code>4</code> and the <code>6</code> never match, and the two-pointer walk skips straight past
+    them without ever comparing <code>4</code> to <code>1</code> or <code>2</code>.</p>
   </div>
 </div>
 
 <div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">In a term-document incidence matrix, what does a single row represent?</p>
+  <p class="q-text">What does a postings list contain?</p>
   <div class="q-opts">
-    <button class="opt">One document, as the list of words that appear in it</button>
-    <button class="opt">One query, ready to be matched against the documents</button>
-    <button class="opt">One term, as which documents it appears in, in 0s and 1s</button>
-    <button class="opt">One bitwise operation applied across the whole collection</button>
+    <button class="opt">Every word that appears in one particular document</button>
+    <button class="opt">The 0s and 1s of one row of the incidence matrix</button>
+    <button class="opt">The sorted IDs of the documents that contain one term</button>
+    <button class="opt">The list of queries a given document has matched</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>one term, as which documents it appears in</strong>.</p>
-    <p>Rows are terms, columns are documents. The <code>Caesar</code> row <code>1 1 0 1 1 1</code>
-    says <em>Caesar</em> appears in every play but the third. A Boolean query then combines these
-    rows with bitwise <code>AND</code>, <code>OR</code> and <code>NOT</code>.</p>
+    <p>Correct answer: <strong>the sorted IDs of the documents that contain one term</strong>.</p>
+    <p>The dictionary holds the terms; each term points to its postings list — the documents it
+    appears in, in sorted order. <code>Caesar → 1 2 4 5 6</code>. Sorted, because that is what makes
+    the merge fast.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="1">
+<div class="quiz" data-answer="0">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">What is the main problem with the incidence matrix at real scale?</p>
+  <p class="q-text">Why can two postings lists be intersected in roughly <em>x + y</em> steps
+  instead of <em>x</em> × <em>y</em>?</p>
   <div class="q-opts">
-    <button class="opt">Bitwise <code>AND</code> is too slow when there are many terms</button>
-    <button class="opt">It is almost all zeros, so it wastes nearly all its space</button>
-    <button class="opt">It cannot represent <code>NOT</code> queries, only <code>AND</code></button>
-    <button class="opt">Terms have to be re-tokenized every time a query runs</button>
+    <button class="opt">Because both lists are sorted, so each pointer only moves forward</button>
+    <button class="opt">Because postings lists are always short enough to fit in memory</button>
+    <button class="opt">Because the shorter list is always checked against the longer one</button>
+    <button class="opt">Because bitwise <code>AND</code> compares all documents at once</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>it is almost all zeros, so it wastes nearly all its space</strong>.</p>
-    <p>A million documents by half a million terms is 500 billion cells, of which at most a billion
-    are 1s — about 99.8% zeros. The bitwise operations are fast; it is storing all that absence that
-    sinks it. Recording only the 1s is the fix, and that is the inverted index.</p>
+    <p>Correct answer: <strong>both lists are sorted, so each pointer only moves forward</strong>.</p>
+    <p>Sorted order means that when one ID is smaller than the other, it cannot appear later in the
+    other list, so you skip it and never look back. Each list is traversed once — about
+    <em>x + y</em> steps total. Lose the sorting and you are back to checking every pair.</p>
   </div>
 </div>
 
@@ -687,18 +665,22 @@ problem.</p>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>A term-document incidence matrix turns Boolean search into fast bitwise operations on rows of
-  0s and 1s, which is elegant and correct. But at real scale it is 99.8% zeros and cannot fit, so
-  the practical answer is to keep only the 1s — the inverted index of the next session.</p>
+  <p>An inverted index stores, for each term, a sorted list of the documents that contain it — only
+  the ones, never the zeros. Queries are answered by merging these sorted lists with a two-pointer
+  walk that runs in linear time, which is exactly why web-scale search returns in milliseconds.</p>
 </div>
+
+<p>But so far a document either matches or it does not — the result is an unordered set. Real search
+puts the <em>best</em> document first. Ranking is the next session, and it is where numbers replace
+the plain 0s and 1s.</p>
 
 <h2>Read this next</h2>
 
 <p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong> by Manning, Raghavan and Schütze — free online. Read
-<strong>Chapter 1</strong>, "Boolean retrieval". This is where the Shakespeare example comes from,
-and it carries straight into the next lesson. Note the switch of textbook: for the search half of
-Unit I, this book is the primary source, not Jurafsky and Martin.</p>
+Information Retrieval</a></strong> by Manning, Raghavan and Schütze — free online.
+<strong>Chapter 1</strong> covers building the inverted index and the postings-merge algorithm.
+Read the section titled "Processing Boolean queries" and follow the merge pseudocode; it is the
+same walk you did by hand above.</p>
 
 
 
@@ -711,8 +693,8 @@ Unit I, this book is the primary source, not Jurafsky and Martin.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0007-named-entity-recognition.html">← Session 07: Named entity recognition</a>
-  <a href="0009-the-inverted-index.html">Next — Session 09: the inverted index →</a>
+  <a href="0008-incidence-matrix-and-boolean-search.html">← Session 08: The incidence matrix</a>
+  <span>Next — Session 10: ranking results with TF-IDF</span>
 </nav>
 
 <script>
