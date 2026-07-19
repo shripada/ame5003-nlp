@@ -17,6 +17,7 @@ Labs run in **Google Colab**. You need a Google account and a browser — nothin
 | 1 | Refresher and setup | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb) |
 | 2 | Information extraction with regular expressions | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-02-information-extraction.ipynb) |
 | 3 | Cleaning text: tokenize, normalize, stem, remove stop words | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-03-text-preprocessing.ipynb) |
+| 4 | Boolean retrieval: incidence matrix and inverted index | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-04-boolean-retrieval.ipynb) |
 
 **Two things that catch everyone out:**
 
