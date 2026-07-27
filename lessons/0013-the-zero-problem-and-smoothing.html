@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 10 — Ranking results with TF-IDF</title>
+<title>Lesson 13 — The zero problem and smoothing</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,170 +504,245 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 10</p>
-  <h1>Ranking results with TF-IDF</h1>
-  <p class="subtitle">Not just which documents match, but which match <em>best</em> — and why the
-  score needs a logarithm in two different places.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 13</p>
+  <h1>The zero problem and smoothing</h1>
+  <p class="subtitle">Counting says an unseen sentence is impossible. It is not. Fixing that means
+  taking probability away from what we saw and giving it to what we did not.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where Boolean search ran out</h2>
+<h2>Where we stopped</h2>
 
-<p>The inverted index answered "which documents match?" — and gave back an unordered
-<strong>set</strong>. A document either matched or it did not. That is fine for six plays. Type a
-query into a web search and it matches <em>millions</em> of pages. An unordered set of a million
-results is useless. You need the <strong>best</strong> ones first.</p>
+<p>Last session ended on a broken model. Our four-sentence corpus, scoring an ordinary sentence:</p>
 
-<p>So we move from matching to <strong>ranking</strong>: give each matching document a
-<strong>score</strong> for the query, then sort by score. The classic scoring recipe, still the
-baseline everywhere, is <strong>TF-IDF</strong>. It is built from two ideas, and we build it the
-same way.</p>
+<pre><code>P(I want to eat Indian pizza)  =  0</code></pre>
 
-<h2>Idea 1 — term frequency: how often the word appears</h2>
+<p>Not unlikely. Zero. One pair the corpus never happened to contain drove the whole product to
+nothing.</p>
 
-<p>A document that says <code>car</code> ten times is probably more about cars than one that says it
-once. So the first idea is simple: score a document by how many times the query term appears in it.
-This count is the <strong>term frequency</strong> (TF).</p>
+<p>And this is not a toy-corpus problem that goes away with more data. It gets <em>worse</em>. A
+vocabulary of 50,000 words has 2.5 billion possible bigrams, and no corpus contains more than a
+small fraction of them. So most sentences you will ever test contain at least one unseen pair, and a
+model that calls most valid sentences impossible is worthless.</p>
 
-<h3>Why the raw count is wrong</h3>
-
-<p>Raw count over-rewards repetition. Is a document with <code>car</code> 100 times really 100
-times more relevant than one with it once? No. It is more relevant — but nowhere near 100 times.
-Relevance grows with count, but it grows <strong>slower and slower</strong>. The tenth mention adds
-much less than the second.</p>
-
-<p>The fix is a <strong>logarithm</strong>, which is exactly the function that grows fast at first
-and then flattens. We use a log-weighted term frequency:</p>
-
-<pre><code>weight = 1 + log₁₀(tf)      (when tf &gt; 0)</code></pre>
-
-<p>Watch what it does to the count:</p>
-
-<table>
-  <tr><th>appears (tf)</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr>
-  <tr><td>weight</td><td>1.0</td><td>2.0</td><td>3.0</td><td>4.0</td></tr>
-</table>
-
-<p>Every <em>tenfold</em> increase in the count adds just <strong>1</strong> to the weight. Going
-from 1 mention to 10 matters as much as going from 10 to 100. <mark>That is where the first
-logarithm comes from: it turns "diminishing returns" into arithmetic.</mark></p>
-
-<h2>Idea 2 — inverse document frequency: how rare the word is</h2>
-
-<p>Term frequency alone has a worse problem. Consider the query <code>the best car</code>. The word
-<code>the</code> appears many times in <em>every</em> document, so by term frequency it scores
-enormously — and it tells you nothing about which document is a good match. A common word is a bad
-discriminator; a rare word is a good one. If two documents share the word <code>insurance</code>,
-that is a far stronger signal than sharing <code>the</code>.</p>
-
-<p>So we want to <strong>down-weight common words and up-weight rare ones</strong>. Measure how
-common a word is by its <strong>document frequency</strong> (df) — the number of documents that
-contain it. Then weight by the <strong>inverse</strong>, squashed with a log again:</p>
-
-<pre><code>idf = log₁₀(N / df)        N = total number of documents</code></pre>
-
-<p>Here are real values from a collection of N = 806,791 documents:</p>
-
-<table>
-  <tr><th>term</th><th>in how many docs (df)</th><th>idf</th></tr>
-  <tr><td><code>auto</code></td>      <td>6,723</td>  <td>2.08</td></tr>
-  <tr><td><code>car</code></td>       <td>18,165</td> <td>1.65</td></tr>
-  <tr><td><code>insurance</code></td> <td>19,241</td> <td>1.62</td></tr>
-  <tr><td><code>best</code></td>      <td>25,235</td> <td>1.50</td></tr>
-</table>
-
-<p>The rarer the word, the higher its idf: <code>auto</code> (in fewer documents) outranks
-<code>best</code> (in more). And the important edge case:</p>
+<p>The cure is called <strong>smoothing</strong>: shave a little probability off the things we did
+see, and share it out among the things we did not.</p>
 
 <div class="callout">
-  <span class="label">Stop words down-weight themselves</span>
-  <p>A word in <em>every</em> document has df = N, so its idf is <code>log₁₀(N/N) = log₁₀(1) =
-  0</code>. Its weight is <strong>zero</strong>.</p>
-  <p>Remember the stop-word problem from <a href="0004-normalization-and-stop-words.html">session
-  4</a>? IDF handles it for free. You do not need a hand-written list to kill <code>the</code> — it
-  appears everywhere, so its idf is near zero, and it contributes almost nothing to any score.
-  <mark>The maths does what the stop-word list was trying to do, without the list.</mark></p>
+  <span class="label">Why it is called smoothing</span>
+  <p>Picture the probabilities as a bar chart over next words: a few tall bars for the words we saw,
+  and a flat row of zeros for everything else. Smoothing pushes the tall bars down slightly and
+  lifts the zeros just off the floor. The jagged shape becomes smoother — hence the name.</p>
+  <p>The total must still add up to 1. So every bit of probability given to an unseen word has to be
+  taken from a seen one. There is no free probability.</p>
 </div>
 
-<h2>Putting them together</h2>
+<h2>Add-one smoothing</h2>
 
-<p>The <strong>TF-IDF weight</strong> of a term in a document multiplies the two ideas:</p>
+<p>The simplest possible fix, and the one to understand first: <strong>pretend you saw everything
+one more time than you did</strong>. Also called Laplace smoothing.</p>
 
-<pre><code>tf-idf  =  (1 + log₁₀ tf)  ×  log₁₀(N / df)
-             how often it appears          how rare it is
-             IN THIS document              ACROSS all documents</code></pre>
+<pre><code>MLE       P(w₂ | w₁)  =   count(w₁ w₂)      /  count(w₁)
 
-<p>This is high in exactly the right case: a term that appears <strong>often in this document</strong>
-but is <strong>rare across the collection</strong> — in other words, a word that is distinctive to
-this document. It is low for a word that is rare here, and near zero for a word that is everywhere.</p>
+add-one   P(w₂ | w₁)  =  (count(w₁ w₂) + 1) / (count(w₁) + V)</code></pre>
 
-<p>To score a whole document for a query, add up the tf-idf weights of the query terms, then sort
-the matching documents by that total. The document with the highest score comes first. That is
-ranked retrieval.</p>
+<p>The <code>+1</code> on top is the whole idea — no count is zero any more, because everything got
+one free sighting. The denominator has to grow too, or the numbers stop adding to 1. It grows by
+<strong>V</strong>, the vocabulary size, because we added 1 to each of V possible next words.</p>
+
+<p>In our corpus there are <strong>10</strong> tokens a model might predict — the nine words
+(<code>I</code>, <code>want</code>, <code>to</code>, <code>eat</code>, <code>Indian</code>,
+<code>Chinese</code>, <code>food</code>, <code>she</code>, <code>wants</code>) plus
+<code>&lt;/s&gt;</code>. So V = 10. Take the context <code>eat</code>, which occurs 3 times: the
+denominator becomes 3 + 10 = 13.</p>
+
+<table>
+  <tr><th>next word after <code>eat</code></th><th>count</th><th>MLE</th><th>add-one</th></tr>
+  <tr><td><code>Indian</code></td>  <td>2</td><td>2/3 = 0.667</td><td>3/13 = 0.231</td></tr>
+  <tr><td><code>Chinese</code></td> <td>1</td><td>1/3 = 0.333</td><td>2/13 = 0.154</td></tr>
+  <tr><td><code>food</code></td>    <td>0</td><td>0 — impossible</td><td>1/13 = 0.077</td></tr>
+  <tr><td>each other word</td>      <td>0</td><td>0 — impossible</td><td>1/13 = 0.077</td></tr>
+</table>
+
+<p>It works. Nothing is zero, so no single unseen pair can wipe out a sentence. And the ordering
+survives — <code>Indian</code> still beats <code>Chinese</code>, which still beats the unseen
+words.</p>
+
+<h3>But look at what it cost</h3>
+
+<p><code>P(Indian | eat)</code> fell from 0.667 to 0.231. Two-thirds of the evidence we actually
+collected was given away to words that never once followed <code>eat</code>. That is a lot of
+probability to move on no evidence at all.</p>
+
+<p>And with a realistic vocabulary it stops being "a lot" and becomes absurd. Here is
+<code>P(food | Indian)</code> — a pair seen 3 times out of 3 — as V grows:</p>
+
+<table>
+  <tr><th>vocabulary size V</th><th>add-one estimate</th></tr>
+  <tr><td>10 (our toy corpus)</td><td>4/13 = 0.308</td></tr>
+  <tr><td>1,000</td><td>4/1003 = 0.004</td></tr>
+  <tr><td>50,000 (realistic)</td><td>4/50003 = 0.00008</td></tr>
+</table>
+
+<div class="callout warn">
+  <span class="label">Add-one is a teaching tool, not a working method</span>
+  <p>At a realistic vocabulary size, add-one takes a bigram we observed every single time and rates
+  it at eight-thousandths of a percent. The 50,000 words that <em>never</em> followed
+  <code>Indian</code> collectively soak up almost all the probability.</p>
+  <p><mark>The flaw is that add-one treats every unseen word as equally likely.</mark> It has no way
+  to know that <code>curry</code> is a plausible thing to follow <code>Indian</code> and
+  <code>the</code> is not. It gives them the same weight, and there are so many implausible words
+  that they drown out the evidence.</p>
+  <p>So add-one is genuinely used — but for problems with small vocabularies, like the Naïve Bayes
+  classifier in session 16. For language models it is the method that shows what a real method has
+  to do better.</p>
+</div>
+
+<h2>The better idea: ask a shorter question</h2>
+
+<p>Add-one's mistake is falling back on <em>nothing</em> — a flat guess spread evenly. But we are
+never actually out of information. If we have never seen <code>she wants Indian</code>, we may still
+have seen <code>wants Indian</code>. And if not that, we certainly know how common
+<code>Indian</code> is on its own.</p>
+
+<p>So when the evidence runs out, do not guess flat — <strong>ask the same question with less
+context</strong>. Two ways to do this.</p>
+
+<h3>Backoff: use the shorter n-gram only when you must</h3>
+
+<p><strong>Backoff</strong> tries the longest n-gram first. If its count is zero, it drops to the
+next shorter one, and keeps dropping until it finds something it has seen.</p>
+
+<p>Take <code>P(Indian | she wants)</code> in our corpus:</p>
+
+<table>
+  <tr><th>try</th><th>counts</th><th>result</th></tr>
+  <tr><td>trigram — <code>she wants Indian</code></td><td>0 / 1</td><td>zero, back off</td></tr>
+  <tr><td>bigram — <code>wants Indian</code></td><td>0 / 1</td><td>zero, back off</td></tr>
+  <tr><td>unigram — <code>Indian</code></td><td>3 / 26</td><td><strong>0.115</strong> — use this</td></tr>
+</table>
+
+<p>We never saw that phrase, but <code>Indian</code> is a reasonably common word here, so the answer
+is a reasonable non-zero number. Compare that with add-one, which would have handed
+<code>Indian</code> the same value as a word that appears once.</p>
+
+<p>One catch: the shorter n-gram's probabilities already add to 1 on their own, so borrowing them
+raw would push the total above 1. Real backoff scales the borrowed values down by a discount factor
+to keep the books balanced. The idea is what matters here; the bookkeeping is in the reading.</p>
+
+<h3>Interpolation: always mix all of them</h3>
+
+<p><strong>Interpolation</strong> does not wait for a zero. It always blends the trigram, bigram and
+unigram estimates together, with weights (written λ, lambda) that add to 1:</p>
+
+<pre><code>P(w₃ | w₁ w₂)  =  λ₁ · P(w₃ | w₁ w₂)     ← trigram
+               +  λ₂ · P(w₃ | w₂)         ← bigram
+               +  λ₃ · P(w₃)              ← unigram
+
+               λ₁ + λ₂ + λ₃ = 1</code></pre>
+
+<p>Worked through for <code>P(Indian | I want)</code>, using λ = 0.5, 0.3, 0.2:</p>
+
+<table>
+  <tr><th>model</th><th>estimate</th><th>weight</th></tr>
+  <tr><td>trigram <code>P(Indian | I want)</code></td><td>1/3 = 0.333</td><td>0.5</td></tr>
+  <tr><td>bigram <code>P(Indian | want)</code></td><td>1/3 = 0.333</td><td>0.3</td></tr>
+  <tr><td>unigram <code>P(Indian)</code></td><td>3/26 = 0.115</td><td>0.2</td></tr>
+</table>
+
+<pre><code>0.5 × 0.333  +  0.3 × 0.333  +  0.2 × 0.115  =  0.290</code></pre>
+
+<p>Because the unigram term is always in the mix and is never zero, the blended result is never
+zero. The long context leads when it is trustworthy; the short one quietly holds the floor up.</p>
+
+<p>(In this example the trigram and bigram happen to give the same value, 1/3 — an accident of a
+four-sentence corpus, where almost every context occurs only once or twice. The thing to take from
+the arithmetic is the <strong>unigram floor</strong>: whatever the longer contexts say, including
+nothing at all, the mix cannot fall to zero.)</p>
+
+<p>Where do the λ values come from? Not from guesswork and not from the training corpus — you would
+just relearn the training data. You set aside a separate slice of text, the <strong>held-out
+set</strong>, and pick the λ values that score it best. Measuring "best" properly is next
+session.</p>
 
 <div class="callout">
-  <span class="label">The two logarithms, side by side</span>
-  <p>Both logs are there to <strong>squash a big range into a manageable one</strong>, but for
-  different reasons:</p>
-  <ul>
-    <li>On <strong>TF</strong>: because relevance has diminishing returns — the 100th mention barely
-    adds to the 10th.</li>
-    <li>On <strong>DF</strong>: because word rarity spans a huge range — from a word in ten documents
-    to one in a million — and a raw ratio would let rare words dominate wildly.</li>
-  </ul>
+  <span class="label">Backoff vs. interpolation in one line</span>
+  <p><strong>Backoff</strong> uses the shorter n-gram <em>only when the longer one fails</em>.
+  <strong>Interpolation</strong> uses all of them <em>every time</em>, weighted. Interpolation is
+  usually the better performer and is simpler to implement, which is why it is the more common
+  choice.</p>
 </div>
+
+<h2>The other kind of zero</h2>
+
+<p>Everything above fixes an unseen <em>pair of known words</em>. But lesson 12's failure was
+<code>Indian pizza</code>, and <code>pizza</code> is not in our vocabulary at all. Smoothing cannot
+help: the word has no count to smooth, and it is not among the V words the probability was shared
+out over.</p>
+
+<p>The standard fix is to make a slot for it. Before training, replace rare words in the corpus — say
+every word appearing only once — with a single special token, <strong><code>&lt;UNK&gt;</code></strong>.
+Then train normally. <code>&lt;UNK&gt;</code> becomes an ordinary vocabulary item with real counts,
+and at test time any word the model has never seen is swapped for <code>&lt;UNK&gt;</code> and gets
+that probability.</p>
+
+<p>So the model no longer says "impossible". It says "a word I do not know", which is both true and
+useful.</p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Two documents both match the query <code>car insurance</code>. Document A says
-  <code>insurance</code> 9 times; document B says <code>the</code> 50 times and
-  <code>insurance</code> once. By TF-IDF, which ranks higher — and why is that the right answer?</p>
+  <p>Someone suggests: instead of adding 1 to every count, add 0.01. Does that fix add-one's problem
+  with a 50,000-word vocabulary?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Document A.</strong> Its <code>insurance</code> weight is
-    <code>(1 + log 9) × 1.62 ≈ 1.95 × 1.62 ≈ 3.2</code>. Document B's <code>the</code> contributes
-    almost nothing — its idf is near zero, no matter that it appears 50 times — and its single
-    <code>insurance</code> scores <code>1 × 1.62 = 1.62</code>.</p>
-    <p>So A wins, which is correct: A is genuinely more about insurance, while B just happens to use
-    a common word a lot. This is TF-IDF doing its whole job in one comparison — rewarding the
-    distinctive word, ignoring the common one.</p>
+    <p><strong>It helps a lot, and it is a real method</strong> — add-k smoothing. The denominator
+    becomes count(w₁) + 0.01V, so with V = 50,000 that is 500 rather than 50,000, and observed
+    bigrams keep far more of their probability.</p>
+    <p><strong>But it does not fix the real flaw.</strong> Every unseen word still gets exactly the
+    same share. The model still cannot tell that <code>curry</code> is a better guess after
+    <code>Indian</code> than <code>the</code> is — it has only made the wrong guess smaller.</p>
+    <p>That is why backoff and interpolation are different in kind, not just in degree: they use
+    evidence about the words themselves instead of spreading a flat amount. Tuning k is adjusting the
+    mistake; backing off is not making it.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="1">
+<div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why is the term frequency put through a logarithm instead of used raw?</p>
+  <p class="q-text">Why does add-one smoothing add V to the denominator?</p>
   <div class="q-opts">
-    <button class="opt">Because logarithms make the numbers smaller and faster to store</button>
-    <button class="opt">Because relevance grows with count, but less and less each time</button>
-    <button class="opt">Because a raw count cannot be negative and a log can</button>
-    <button class="opt">Because the document frequency must be on the same scale</button>
+    <button class="opt">Because V is the number of sentences the training corpus contains</button>
+    <button class="opt">Because larger vocabularies need bigger probabilities to stay useful</button>
+    <button class="opt">Because 1 was added to each of V possible next words, so V was added</button>
+    <button class="opt">Because dividing by the vocabulary size converts a count into a rate</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>relevance grows with count, but less and less each time</strong>.</p>
-    <p>A word appearing 100 times does not make a document 100 times more relevant than one where it
-    appears once. The log captures those diminishing returns: each tenfold rise in the count adds
-    the same fixed amount (1) to the weight.</p>
+    <p>Correct answer: <strong>1 was added to each of V possible next words, so V was added</strong>.</p>
+    <p>The probabilities over all next words must still sum to 1. We handed out V extra counts in
+    total — one per possible next word — so the denominator has to grow by exactly V to match.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="3">
+<div class="quiz" data-answer="0">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">A word appears in every single document in the collection. What is its idf?</p>
+  <p class="q-text">What is the main advantage of backoff over add-one smoothing?</p>
   <div class="q-opts">
-    <button class="opt">Very high, because it appears so many times overall</button>
-    <button class="opt">Equal to the total number of documents, N</button>
-    <button class="opt">Undefined, because you cannot take the log of a fraction</button>
-    <button class="opt">Zero, so it contributes nothing to any score</button>
+    <button class="opt">It uses evidence about the word instead of one flat share for all</button>
+    <button class="opt">It never assigns a probability of zero, whereas add-one sometimes does</button>
+    <button class="opt">It needs no training corpus, so it works on text never seen before</button>
+    <button class="opt">It keeps the arithmetic simpler by avoiding very large denominators</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>zero, so it contributes nothing to any score</strong>.</p>
-    <p>If df = N then idf = log(N/N) = log(1) = 0. A word that is everywhere cannot distinguish
-    between documents, and IDF gives it exactly zero weight — which is why TF-IDF suppresses stop
-    words without needing a stop-word list.</p>
+    <p>Correct answer: <strong>it uses evidence about the word instead of one flat share for
+    all</strong>.</p>
+    <p>Both methods avoid the unseen-<em>pair</em> zero, so that is not the difference. (Neither
+    rescues a word that is missing from the vocabulary altogether — that is what
+    <code>&lt;UNK&gt;</code> is for.) The real difference: add-one gives every unseen word the same
+    probability, while backoff drops to a shorter n-gram, so a common word gets more than a rare one.
+    It is guessing with evidence rather than guessing evenly.</p>
   </div>
 </div>
 
@@ -675,24 +750,25 @@ ranked retrieval.</p>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>TF-IDF scores a term high when it appears often in this document but rarely across the
-  collection — frequent-here times rare-everywhere — so distinctive words drive the ranking and
-  common words fall away. The two logarithms are there to tame diminishing returns on the count and
-  to compress the huge range of word rarity into a usable weight.</p>
+  <p>Counting assigns zero to everything it never saw, which is most of language, so smoothing moves
+  probability from the seen to the unseen — and since the total must stay 1, that probability always
+  comes out of the observed counts. Add-one does it by spreading a flat share over every word, which
+  is far too blunt at real vocabulary sizes; backoff and interpolation do it by falling back on a
+  shorter context, so the fallback still carries evidence about which words are actually likely.</p>
 </div>
 
-<p>That closes Unit I. You can now take raw text, clean it, analyse it, search a collection, and
-rank the results. Unit II changes the question entirely: instead of finding text, can a machine
-predict and generate it? That starts with <strong>language models</strong> next session — and
-TF-IDF itself comes back in Unit II, as the way to turn a document into a vector of numbers.</p>
+<p>That is the n-gram language model complete: count, assume a short history, smooth. One question is
+left, and it is the one that decides everything else — is a given model any <em>good</em>? Bigram or
+trigram? Which λ values? You cannot answer any of it without a way to measure. Next session:
+perplexity.</p>
 
 <h2>Read this next</h2>
 
-<p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong>, <strong>Chapter 6</strong> ("Scoring, term weighting and the
-vector space model") — free online, and the source of the numbers above.
-<a href="https://web.stanford.edu/~jurafsky/slp3/">SLP3 chapter 5</a> covers the same TF-IDF
-weighting from the language side. Read the IIR section on inverse document frequency.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
+Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
+("N-gram Language Models") — free online — for the smoothing sections and unknown words.
+<strong>Appendix C</strong> of the same book covers the stronger methods that follow from these ideas,
+including Good-Turing and Kneser-Ney. Read chapter 3 first; the appendix is optional depth.</p>
 
 
 
@@ -705,8 +781,8 @@ weighting from the language side. Read the IIR section on inverse document frequ
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0009-the-inverted-index.html">← Session 09: The inverted index</a>
-  <a href="0011-language-models-and-n-grams.html">Next — Session 11: language models and n-grams (Unit II) →</a>
+  <a href="0012-n-gram-probabilities-and-the-markov-assumption.html">← Session 12: N-gram probabilities</a>
+  <span>Next — Session 14: evaluation and perplexity</span>
 </nav>
 
 <script>

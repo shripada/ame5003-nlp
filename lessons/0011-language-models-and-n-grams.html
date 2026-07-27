@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 10 — Ranking results with TF-IDF</title>
+<title>Lesson 11 — Language models and n-grams</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,170 +504,235 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 10</p>
-  <h1>Ranking results with TF-IDF</h1>
-  <p class="subtitle">Not just which documents match, but which match <em>best</em> — and why the
-  score needs a logarithm in two different places.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 11</p>
+  <h1>Language models and n-grams</h1>
+  <p class="subtitle">A model that guesses the next word. It is the same idea ChatGPT runs on — and
+  the simplest version of it is just looking at the last word or two.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where Boolean search ran out</h2>
+<h2>A different question</h2>
 
-<p>The inverted index answered "which documents match?" — and gave back an unordered
-<strong>set</strong>. A document either matched or it did not. That is fine for six plays. Type a
-query into a web search and it matches <em>millions</em> of pages. An unordered set of a million
-results is useless. You need the <strong>best</strong> ones first.</p>
+<p>Unit I was about <strong>finding</strong> text. You cleaned it, tagged it, indexed it, and ranked
+it. Every technique assumed the text already existed and your job was to locate the right piece
+of it.</p>
 
-<p>So we move from matching to <strong>ranking</strong>: give each matching document a
-<strong>score</strong> for the query, then sort by score. The classic scoring recipe, still the
-baseline everywhere, is <strong>TF-IDF</strong>. It is built from two ideas, and we build it the
-same way.</p>
+<p>Unit II asks something else: can a machine <strong>predict</strong> text? Given the words so far,
+what word comes next?</p>
 
-<h2>Idea 1 — term frequency: how often the word appears</h2>
+<pre><code>I want to eat Indian ____</code></pre>
 
-<p>A document that says <code>car</code> ten times is probably more about cars than one that says it
-once. So the first idea is simple: score a document by how many times the query term appears in it.
-This count is the <strong>term frequency</strong> (TF).</p>
+<p>You filled that in without effort — probably <code>food</code>. Maybe <code>curry</code>. Almost
+certainly not <code>helicopter</code>. You did not look anything up. You used what you know about how
+English sentences usually go. A <strong>language model</strong> is a machine that does the same
+thing.</p>
 
-<h3>Why the raw count is wrong</h3>
+<h2>What a language model actually is</h2>
 
-<p>Raw count over-rewards repetition. Is a document with <code>car</code> 100 times really 100
-times more relevant than one with it once? No. It is more relevant — but nowhere near 100 times.
-Relevance grows with count, but it grows <strong>slower and slower</strong>. The tenth mention adds
-much less than the second.</p>
-
-<p>The fix is a <strong>logarithm</strong>, which is exactly the function that grows fast at first
-and then flattens. We use a log-weighted term frequency:</p>
-
-<pre><code>weight = 1 + log₁₀(tf)      (when tf &gt; 0)</code></pre>
-
-<p>Watch what it does to the count:</p>
-
-<table>
-  <tr><th>appears (tf)</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr>
-  <tr><td>weight</td><td>1.0</td><td>2.0</td><td>3.0</td><td>4.0</td></tr>
-</table>
-
-<p>Every <em>tenfold</em> increase in the count adds just <strong>1</strong> to the weight. Going
-from 1 mention to 10 matters as much as going from 10 to 100. <mark>That is where the first
-logarithm comes from: it turns "diminishing returns" into arithmetic.</mark></p>
-
-<h2>Idea 2 — inverse document frequency: how rare the word is</h2>
-
-<p>Term frequency alone has a worse problem. Consider the query <code>the best car</code>. The word
-<code>the</code> appears many times in <em>every</em> document, so by term frequency it scores
-enormously — and it tells you nothing about which document is a good match. A common word is a bad
-discriminator; a rare word is a good one. If two documents share the word <code>insurance</code>,
-that is a far stronger signal than sharing <code>the</code>.</p>
-
-<p>So we want to <strong>down-weight common words and up-weight rare ones</strong>. Measure how
-common a word is by its <strong>document frequency</strong> (df) — the number of documents that
-contain it. Then weight by the <strong>inverse</strong>, squashed with a log again:</p>
-
-<pre><code>idf = log₁₀(N / df)        N = total number of documents</code></pre>
-
-<p>Here are real values from a collection of N = 806,791 documents:</p>
-
-<table>
-  <tr><th>term</th><th>in how many docs (df)</th><th>idf</th></tr>
-  <tr><td><code>auto</code></td>      <td>6,723</td>  <td>2.08</td></tr>
-  <tr><td><code>car</code></td>       <td>18,165</td> <td>1.65</td></tr>
-  <tr><td><code>insurance</code></td> <td>19,241</td> <td>1.62</td></tr>
-  <tr><td><code>best</code></td>      <td>25,235</td> <td>1.50</td></tr>
-</table>
-
-<p>The rarer the word, the higher its idf: <code>auto</code> (in fewer documents) outranks
-<code>best</code> (in more). And the important edge case:</p>
+<p>The definition is short:</p>
 
 <div class="callout">
-  <span class="label">Stop words down-weight themselves</span>
-  <p>A word in <em>every</em> document has df = N, so its idf is <code>log₁₀(N/N) = log₁₀(1) =
-  0</code>. Its weight is <strong>zero</strong>.</p>
-  <p>Remember the stop-word problem from <a href="0004-normalization-and-stop-words.html">session
-  4</a>? IDF handles it for free. You do not need a hand-written list to kill <code>the</code> — it
-  appears everywhere, so its idf is near zero, and it contributes almost nothing to any score.
-  <mark>The maths does what the stop-word list was trying to do, without the list.</mark></p>
+  <span class="label">Definition</span>
+  <p>A <strong>language model</strong> assigns a <strong>probability</strong> to a sequence of words.
+  Equivalently, it predicts the probability of the <strong>next word</strong> given the words that
+  came before.</p>
 </div>
 
-<h2>Putting them together</h2>
+<p>Those two sound like different jobs but they are one job. If you can score how likely each next
+word is, you can score a whole sentence by working through it word by word. And if you can score a
+whole sentence, you can compare sentences:</p>
 
-<p>The <strong>TF-IDF weight</strong> of a term in a document multiplies the two ideas:</p>
+<table>
+  <tr><th>sentence</th><th>probability</th></tr>
+  <tr><td>I want to eat Indian food</td><td>high</td></tr>
+  <tr><td>I want to eat Indian helicopter</td><td>very low</td></tr>
+  <tr><td>eat Indian I food want to</td><td>near zero</td></tr>
+</table>
 
-<pre><code>tf-idf  =  (1 + log₁₀ tf)  ×  log₁₀(N / df)
-             how often it appears          how rare it is
-             IN THIS document              ACROSS all documents</code></pre>
+<p>Notice what the model is <em>not</em> doing. It is not deciding whether the sentence is true, or
+polite, or a good idea. It only says how likely those words are to appear in that order, in the kind
+of text it learned from. That is the whole job.</p>
 
-<p>This is high in exactly the right case: a term that appears <strong>often in this document</strong>
-but is <strong>rare across the collection</strong> — in other words, a word that is distinctive to
-this document. It is low for a word that is rare here, and near zero for a word that is everywhere.</p>
+<h3>Why anyone wants this</h3>
 
-<p>To score a whole document for a query, add up the tf-idf weights of the query terms, then sort
-the matching documents by that total. The document with the highest score comes first. That is
-ranked retrieval.</p>
+<p>Prediction turns out to be useful almost everywhere:</p>
+
+<ul>
+  <li><strong>Autocomplete and phone keyboards</strong> — the three words above your keyboard are a
+  language model's top three guesses.</li>
+  <li><strong>Speech recognition</strong> — the microphone heard something between "recognise speech"
+  and "wreck a nice beach". The sounds are nearly identical; the language model picks the sequence
+  that is far more likely.</li>
+  <li><strong>Spelling and grammar correction</strong> — "their are two" scores badly, "there are two"
+  scores well.</li>
+  <li><strong>Machine translation</strong> — of several legal translations, pick the one that reads
+  like real language.</li>
+  <li><strong>Generating text</strong> — predict a word, add it, predict again. Repeat.</li>
+</ul>
+
+<p>That last one deserves its own heading, because it is where this course is going.</p>
+
+<h2>Yes — this is what ChatGPT is</h2>
+
+<p>It is worth being direct about this now rather than at the end of the unit. <strong>A large
+language model is a language model.</strong> Same definition, no asterisk: it takes the words so
+far and produces a probability for every possible next word. Then it picks one, appends it, and runs
+again. That loop is how a page of text appears one word at a time.</p>
+
+<p>So what is different? Not the <em>question</em> — the question is identical. What differs is
+<strong>how the probabilities are worked out</strong>:</p>
+
+<table>
+  <tr><th></th><th>n-gram model (this unit)</th><th>large language model</th></tr>
+  <tr><td>How it decides</td><td>counts of word sequences in a corpus</td><td>a trained neural network</td></tr>
+  <tr><td>How much context</td><td>the last word or two</td><td>thousands of words</td></tr>
+  <tr><td>Size</td><td>a table you can read end to end</td><td>billions of parameters</td></tr>
+  <tr><td>Can you inspect it?</td><td>yes, completely</td><td>not really</td></tr>
+</table>
+
+<p>The rest of this course is, in a real sense, one long walk down that middle column — from counting
+to neural networks, ending at transformers in Unit III. <mark>Starting with n-grams is not learning
+an obsolete thing before the real thing. It is learning the real thing in the one form where you can
+see every moving part.</mark> Every idea you meet later — context, prediction, the trouble with rare
+words, measuring how good a model is — shows up first here, in a version small enough to check by
+hand.</p>
+
+<h2>The hard part: context is too long</h2>
+
+<p>To predict the next word properly you would want to use <em>everything</em> before it. That is the
+honest version of the problem:</p>
+
+<pre><code>P(food | I want to eat Indian)</code></pre>
+
+<p>Read that as "the probability of <code>food</code> given <code>I want to eat Indian</code>". Fine
+for five words. But a model has to handle any history at all — and most sentences of eight or more
+words have never been written down before, anywhere. You cannot learn from examples you do not have.
+The longer the history you insist on, the more certain it is that you have never seen it.</p>
+
+<p>So we make a trade. Instead of the whole history, use only the <strong>last few words</strong>:</p>
+
+<pre><code>P(food | I want to eat Indian)   ← everything (impossible)
+P(food | Indian)                 ← just the last word (easy)</code></pre>
+
+<p>Short histories repeat constantly. <code>Indian food</code> appears everywhere. That trade — throw
+away the distant past, keep a small window — is the idea behind n-grams.</p>
+
+<h2>What an n-gram is</h2>
 
 <div class="callout">
-  <span class="label">The two logarithms, side by side</span>
-  <p>Both logs are there to <strong>squash a big range into a manageable one</strong>, but for
-  different reasons:</p>
-  <ul>
-    <li>On <strong>TF</strong>: because relevance has diminishing returns — the 100th mention barely
-    adds to the 10th.</li>
-    <li>On <strong>DF</strong>: because word rarity spans a huge range — from a word in ten documents
-    to one in a million — and a raw ratio would let rare words dominate wildly.</li>
-  </ul>
+  <span class="label">Definition</span>
+  <p>An <strong>n-gram</strong> is a run of <strong>n</strong> words next to each other in the
+  text.</p>
 </div>
+
+<p>You get them by sliding a window of width n along the sentence, one step at a time. Take the
+sentence <code>I want to eat Indian food</code>:</p>
+
+<table>
+  <tr><th>n</th><th>name</th><th>the n-grams</th><th>how many</th></tr>
+  <tr><td>1</td><td>unigram</td>
+      <td><code>I</code> · <code>want</code> · <code>to</code> · <code>eat</code> ·
+          <code>Indian</code> · <code>food</code></td><td>6</td></tr>
+  <tr><td>2</td><td>bigram</td>
+      <td><code>I want</code> · <code>want to</code> · <code>to eat</code> ·
+          <code>eat Indian</code> · <code>Indian food</code></td><td>5</td></tr>
+  <tr><td>3</td><td>trigram</td>
+      <td><code>I want to</code> · <code>want to eat</code> · <code>to eat Indian</code> ·
+          <code>eat Indian food</code></td><td>4</td></tr>
+</table>
+
+<p>A sentence of <strong>T</strong> words gives <strong>T − n + 1</strong> n-grams. The windows
+overlap — every word except the ones at the ends belongs to several n-grams. That overlap is the
+point: it is how the model sees each word in more than one context.</p>
+
+<p>An <strong>n-gram language model</strong> predicts the next word using the previous
+<strong>n − 1</strong> words as its context:</p>
+
+<table>
+  <tr><th>model</th><th>context it looks at</th><th>question it asks</th></tr>
+  <tr><td>unigram</td><td>nothing at all</td><td>how common is this word?</td></tr>
+  <tr><td>bigram</td><td>the previous 1 word</td><td>what usually follows <code>Indian</code>?</td></tr>
+  <tr><td>trigram</td><td>the previous 2 words</td><td>what usually follows <code>eat Indian</code>?</td></tr>
+</table>
+
+<p>A unigram model has no context, so it just guesses common words — it would happily produce "the of
+and to a". A bigram model at least keeps neighbours together. A trigram model sounds noticeably more
+like language. More context, better predictions.</p>
+
+<h3>So why not use a very large n?</h3>
+
+<p>Because the number of possible n-grams explodes. With a vocabulary of 50,000 words:</p>
+
+<table>
+  <tr><th>model</th><th>possible sequences</th></tr>
+  <tr><td>unigram</td><td>50,000</td></tr>
+  <tr><td>bigram</td><td>2,500,000,000</td></tr>
+  <tr><td>trigram</td><td>125,000,000,000,000</td></tr>
+  <tr><td>4-gram</td><td>6,250,000,000,000,000,000</td></tr>
+</table>
+
+<p>Each step up multiplies by the whole vocabulary. There is not enough text in the world to have
+seen most trigrams even once, let alone often enough to learn from. So the counts you need get
+thinner and thinner as n grows.</p>
+
+<p><mark>This is the central tension of n-gram models: more context predicts better, but more context
+means less data to learn it from.</mark> In practice people settle around trigrams to 5-grams. Later
+in this unit, neural models get around the tension entirely — that is precisely why they took
+over.</p>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Two documents both match the query <code>car insurance</code>. Document A says
-  <code>insurance</code> 9 times; document B says <code>the</code> 50 times and
-  <code>insurance</code> once. By TF-IDF, which ranks higher — and why is that the right answer?</p>
+  <p>A bigram model is asked to continue: <code>the students opened their</code>. It predicts using
+  only <code>their</code>. What information has it thrown away, and what kind of mistake does that
+  invite?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Document A.</strong> Its <code>insurance</code> weight is
-    <code>(1 + log 9) × 1.62 ≈ 1.95 × 1.62 ≈ 3.2</code>. Document B's <code>the</code> contributes
-    almost nothing — its idf is near zero, no matter that it appears 50 times — and its single
-    <code>insurance</code> scores <code>1 × 1.62 = 1.62</code>.</p>
-    <p>So A wins, which is correct: A is genuinely more about insurance, while B just happens to use
-    a common word a lot. This is TF-IDF doing its whole job in one comparison — rewarding the
-    distinctive word, ignoring the common one.</p>
+    <p>It has thrown away <code>the students opened</code> — the part that tells you the answer is
+    probably <code>books</code>, <code>laptops</code>, or <code>notes</code>. All the model sees is
+    <code>their</code>, which is followed by almost any noun in English: <code>hands</code>,
+    <code>car</code>, <code>parents</code>.</p>
+    <p>So it will produce something grammatical but off-topic. That is the signature n-gram failure:
+    locally fine, globally nonsense. The word that decides the answer — <code>opened</code> — sat just
+    outside the window.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="1">
+<div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why is the term frequency put through a logarithm instead of used raw?</p>
+  <p class="q-text">What does a language model do?</p>
   <div class="q-opts">
-    <button class="opt">Because logarithms make the numbers smaller and faster to store</button>
-    <button class="opt">Because relevance grows with count, but less and less each time</button>
-    <button class="opt">Because a raw count cannot be negative and a log can</button>
-    <button class="opt">Because the document frequency must be on the same scale</button>
+    <button class="opt">It decides whether a given sentence is factually true or false</button>
+    <button class="opt">It stores every sentence it reads so it can retrieve them later</button>
+    <button class="opt">It gives a probability to a word sequence, to predict the next word</button>
+    <button class="opt">It converts each word of a sentence into its part of speech</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>relevance grows with count, but less and less each time</strong>.</p>
-    <p>A word appearing 100 times does not make a document 100 times more relevant than one where it
-    appears once. The log captures those diminishing returns: each tenfold rise in the count adds
-    the same fixed amount (1) to the weight.</p>
+    <p>Correct answer: <strong>it gives a probability to a word sequence, so it can predict the next
+    word</strong>.</p>
+    <p>Scoring a sequence and predicting the next word are the same ability seen from two sides.
+    Nothing about truth is involved — a language model will happily rate a confident false sentence as
+    very likely, because likely means "reads like real language", not "is correct".</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="3">
+<div class="quiz" data-answer="0">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">A word appears in every single document in the collection. What is its idf?</p>
+  <p class="q-text">Why do n-gram models not simply use a large n, such as 10?</p>
   <div class="q-opts">
-    <button class="opt">Very high, because it appears so many times overall</button>
-    <button class="opt">Equal to the total number of documents, N</button>
-    <button class="opt">Undefined, because you cannot take the log of a fraction</button>
-    <button class="opt">Zero, so it contributes nothing to any score</button>
+    <button class="opt">Because longer sequences almost never repeat, so there is too little data</button>
+    <button class="opt">Because a window longer than five words breaks the sliding-window method</button>
+    <button class="opt">Because longer windows are slower to slide across a long body of text</button>
+    <button class="opt">Because English sentences are rarely longer than about ten words anyway</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>zero, so it contributes nothing to any score</strong>.</p>
-    <p>If df = N then idf = log(N/N) = log(1) = 0. A word that is everywhere cannot distinguish
-    between documents, and IDF gives it exactly zero weight — which is why TF-IDF suppresses stop
-    words without needing a stop-word list.</p>
+    <p>Correct answer: <strong>longer sequences almost never repeat, so there is too little
+    data</strong>.</p>
+    <p>The number of possible n-grams is the vocabulary size raised to the power n, so it explodes.
+    Most 10-word runs have never been written down even once, and a model that learns from counts
+    cannot learn from a run it has never seen.</p>
   </div>
 </div>
 
@@ -675,24 +740,23 @@ ranked retrieval.</p>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>TF-IDF scores a term high when it appears often in this document but rarely across the
-  collection — frequent-here times rare-everywhere — so distinctive words drive the ranking and
-  common words fall away. The two logarithms are there to tame diminishing returns on the count and
-  to compress the huge range of word rarity into a usable weight.</p>
+  <p>A language model gives a probability to a sequence of words, which is the same as predicting the
+  next word — and that single ability is behind autocomplete, speech recognition, translation, and
+  ChatGPT alike. An n-gram model does it the simplest possible way: forget the far history and look
+  only at the previous n − 1 words, trading accuracy for having enough data to work with.</p>
 </div>
 
-<p>That closes Unit I. You can now take raw text, clean it, analyse it, search a collection, and
-rank the results. Unit II changes the question entirely: instead of finding text, can a machine
-predict and generate it? That starts with <strong>language models</strong> next session — and
-TF-IDF itself comes back in Unit II, as the way to turn a document into a vector of numbers.</p>
+<p>Next session we make this concrete. Where do the probabilities actually come from? The answer is
+counting — count how often <code>Indian food</code> appears, compare it with how often
+<code>Indian</code> appears, and you have a real number. That brings in the chain rule and the
+assumption that lets us throw the far history away.</p>
 
 <h2>Read this next</h2>
 
-<p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong>, <strong>Chapter 6</strong> ("Scoring, term weighting and the
-vector space model") — free online, and the source of the numbers above.
-<a href="https://web.stanford.edu/~jurafsky/slp3/">SLP3 chapter 5</a> covers the same TF-IDF
-weighting from the language side. Read the IIR section on inverse document frequency.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
+Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
+("N-gram Language Models") — free online. Read the opening sections, up to where it starts computing
+probabilities; that part is next session's material.</p>
 
 
 
@@ -705,8 +769,8 @@ weighting from the language side. Read the IIR section on inverse document frequ
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0009-the-inverted-index.html">← Session 09: The inverted index</a>
-  <a href="0011-language-models-and-n-grams.html">Next — Session 11: language models and n-grams (Unit II) →</a>
+  <a href="0010-ranking-with-tf-idf.html">← Session 10: Ranking with TF-IDF</a>
+  <a href="0012-n-gram-probabilities-and-the-markov-assumption.html">Next — Session 12: n-gram probabilities and the Markov assumption →</a>
 </nav>
 
 <script>

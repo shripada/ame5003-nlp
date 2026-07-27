@@ -696,6 +696,21 @@ th {
 </dl>
 
 <dl class="term">
+  <dt>Chain rule</dt>
+  <dd>Breaks the probability of a whole sequence into a product of next-token probabilities, each
+  conditioned on everything before it. <strong>Exact</strong> — but the long histories it needs are
+  almost never seen often enough to count. Still how an LLM factorises a sequence.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Markov assumption</dt>
+  <dd>Only the last few tokens matter; the rest of the history is discarded. Knowingly false —
+  language has long-range dependencies — but it turns the chain rule's uncountable histories into
+  countable ones. Compare <em>the "naïve" assumption</em>: both are simplifications adopted because
+  the honest version cannot be estimated.</dd>
+</dl>
+
+<dl class="term">
   <dt>MLE <span class="sym">Maximum Likelihood Estimate</span></dt>
   <dd>For n-grams: <em>P(w|context) = count(context,w) / count(context)</em>. Just counting and
   dividing — and it assigns probability <strong>zero</strong> to anything unseen, which is why
@@ -705,7 +720,22 @@ th {
 <dl class="term">
   <dt>Smoothing</dt>
   <dd>Moving probability mass to unseen n-grams so nothing is impossible. Laplace/add-one is the
-  teaching example; Kneser-Ney is the good one.</dd>
+  teaching example; Kneser-Ney is the good one. The total stays 1, so whatever the unseen gain, the
+  seen lose.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Backoff</dt>
+  <dd>When an n-gram has a zero count, drop to the (<em>n</em>−1)-gram and try again, repeating until
+  something has been seen. Unlike add-one, the fallback still carries evidence — a common word gets
+  more than a rare one.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Interpolation</dt>
+  <dd>Always blend trigram, bigram and unigram estimates with weights λ summing to 1, rather than
+  waiting for a zero. The unigram term is never zero, so the mix never is either. λ is tuned on a
+  <em>held-out set</em>, not on the training data.</dd>
 </dl>
 
 <dl class="term trap">

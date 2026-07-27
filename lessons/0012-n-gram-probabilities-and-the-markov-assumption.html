@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 10 — Ranking results with TF-IDF</title>
+<title>Lesson 12 — N-gram probabilities and the Markov assumption</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,170 +504,263 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 10</p>
-  <h1>Ranking results with TF-IDF</h1>
-  <p class="subtitle">Not just which documents match, but which match <em>best</em> — and why the
-  score needs a logarithm in two different places.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 12</p>
+  <h1>N-gram probabilities and the Markov assumption</h1>
+  <p class="subtitle">Where the numbers come from. The exact answer is easy to write down and
+  impossible to use — so we deliberately use the wrong one.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where Boolean search ran out</h2>
+<h2>The question we left open</h2>
 
-<p>The inverted index answered "which documents match?" — and gave back an unordered
-<strong>set</strong>. A document either matched or it did not. That is fine for six plays. Type a
-query into a web search and it matches <em>millions</em> of pages. An unordered set of a million
-results is useless. You need the <strong>best</strong> ones first.</p>
+<p>Last session defined a language model: something that gives a probability to a sequence of words.
+We said an n-gram model looks only at the last word or two. What we never said is where the actual
+<em>numbers</em> come from.</p>
 
-<p>So we move from matching to <strong>ranking</strong>: give each matching document a
-<strong>score</strong> for the query, then sort by score. The classic scoring recipe, still the
-baseline everywhere, is <strong>TF-IDF</strong>. It is built from two ideas, and we build it the
-same way.</p>
+<p>They come from counting. That is genuinely all. This hour is about which things to count, and
+about one assumption we make on purpose even though it is false.</p>
 
-<h2>Idea 1 — term frequency: how often the word appears</h2>
+<h2>A corpus small enough to check by hand</h2>
 
-<p>A document that says <code>car</code> ten times is probably more about cars than one that says it
-once. So the first idea is simple: score a document by how many times the query term appears in it.
-This count is the <strong>term frequency</strong> (TF).</p>
+<p>Everything below is computed from these four sentences:</p>
 
-<h3>Why the raw count is wrong</h3>
+<pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
+&lt;s&gt; I want to eat Chinese food &lt;/s&gt;
+&lt;s&gt; I want Indian food &lt;/s&gt;
+&lt;s&gt; she wants to eat Indian food &lt;/s&gt;</code></pre>
 
-<p>Raw count over-rewards repetition. Is a document with <code>car</code> 100 times really 100
-times more relevant than one with it once? No. It is more relevant — but nowhere near 100 times.
-Relevance grows with count, but it grows <strong>slower and slower</strong>. The tenth mention adds
-much less than the second.</p>
+<h3>The two extra symbols</h3>
 
-<p>The fix is a <strong>logarithm</strong>, which is exactly the function that grows fast at first
-and then flattens. We use a log-weighted term frequency:</p>
+<p><code>&lt;s&gt;</code> and <code>&lt;/s&gt;</code> mark the start and end of a sentence. They are
+not decoration — they are counted as tokens, like any word, and each one earns its place:</p>
 
-<pre><code>weight = 1 + log₁₀(tf)      (when tf &gt; 0)</code></pre>
+<ul>
+  <li><code>&lt;s&gt;</code> gives the <strong>first word something to condition on</strong>. Without
+  it you cannot ask "how likely is <code>I</code> at the start?", because there is no previous word to
+  look at.</li>
+  <li><code>&lt;/s&gt;</code> is how the model knows <strong>when to stop</strong>. This one is less
+  obvious and more important. A model that generates text picks a word, then another, then another —
+  something has to make it end. <code>&lt;/s&gt;</code> is a word it can predict, and predicting it
+  means "the sentence is over".</li>
+</ul>
 
-<p>Watch what it does to the count:</p>
+<h2>The exact answer: the chain rule</h2>
 
-<table>
-  <tr><th>appears (tf)</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr>
-  <tr><td>weight</td><td>1.0</td><td>2.0</td><td>3.0</td><td>4.0</td></tr>
-</table>
+<p>We want the probability of a whole sentence. The rule for breaking a joint probability into a
+chain of conditional ones is standard probability — the <strong>chain rule</strong>. For a sentence
+it reads left to right: the probability of the sentence is the probability of the first word, times
+the probability of the second <em>given</em> the first, times the third given the first two, and so
+on.</p>
 
-<p>Every <em>tenfold</em> increase in the count adds just <strong>1</strong> to the weight. Going
-from 1 mention to 10 matters as much as going from 10 to 100. <mark>That is where the first
-logarithm comes from: it turns "diminishing returns" into arithmetic.</mark></p>
+<pre><code>P(I want to eat Indian food)
+  = P(I | &lt;s&gt;)
+  × P(want | I)
+  × P(to | I want)
+  × P(eat | I want to)
+  × P(Indian | I want to eat)
+  × P(food | I want to eat Indian)
+  × P(&lt;/s&gt; | I want to eat Indian food)</code></pre>
 
-<h2>Idea 2 — inverse document frequency: how rare the word is</h2>
+<p>This is <strong>exact</strong>. No approximation anywhere. And to estimate any one of those terms
+you just count — the number of times the full sequence appears, divided by the number of times the
+history appears:</p>
 
-<p>Term frequency alone has a worse problem. Consider the query <code>the best car</code>. The word
-<code>the</code> appears many times in <em>every</em> document, so by term frequency it scores
-enormously — and it tells you nothing about which document is a good match. A common word is a bad
-discriminator; a rare word is a good one. If two documents share the word <code>insurance</code>,
-that is a far stronger signal than sharing <code>the</code>.</p>
+<pre><code>P(food | I want to eat Indian)  =  count(I want to eat Indian food)
+                                   ─────────────────────────────────
+                                   count(I want to eat Indian)</code></pre>
 
-<p>So we want to <strong>down-weight common words and up-weight rare ones</strong>. Measure how
-common a word is by its <strong>document frequency</strong> (df) — the number of documents that
-contain it. Then weight by the <strong>inverse</strong>, squashed with a log again:</p>
+<p>In our corpus that is <code>1 / 1 = 1.0</code>. Which looks like a great result and is actually the
+whole problem.</p>
 
-<pre><code>idf = log₁₀(N / df)        N = total number of documents</code></pre>
-
-<p>Here are real values from a collection of N = 806,791 documents:</p>
-
-<table>
-  <tr><th>term</th><th>in how many docs (df)</th><th>idf</th></tr>
-  <tr><td><code>auto</code></td>      <td>6,723</td>  <td>2.08</td></tr>
-  <tr><td><code>car</code></td>       <td>18,165</td> <td>1.65</td></tr>
-  <tr><td><code>insurance</code></td> <td>19,241</td> <td>1.62</td></tr>
-  <tr><td><code>best</code></td>      <td>25,235</td> <td>1.50</td></tr>
-</table>
-
-<p>The rarer the word, the higher its idf: <code>auto</code> (in fewer documents) outranks
-<code>best</code> (in more). And the important edge case:</p>
-
-<div class="callout">
-  <span class="label">Stop words down-weight themselves</span>
-  <p>A word in <em>every</em> document has df = N, so its idf is <code>log₁₀(N/N) = log₁₀(1) =
-  0</code>. Its weight is <strong>zero</strong>.</p>
-  <p>Remember the stop-word problem from <a href="0004-normalization-and-stop-words.html">session
-  4</a>? IDF handles it for free. You do not need a hand-written list to kill <code>the</code> — it
-  appears everywhere, so its idf is near zero, and it contributes almost nothing to any score.
-  <mark>The maths does what the stop-word list was trying to do, without the list.</mark></p>
+<div class="callout warn">
+  <span class="label">Why the exact answer is useless</span>
+  <p>That estimate rests on a denominator of <strong>one</strong>. One observation is not evidence;
+  it is a coincidence. And it gets worse: ask about a history the corpus has never seen —
+  <code>we want to eat Indian</code> — and the denominator is <strong>zero</strong>. The probability
+  is not small, it is <strong>undefined</strong>.</p>
+  <p>This is the wall from last session, in its exact form. Long histories almost never repeat, so
+  the counts you need are either absent or too thin to trust. <mark>The chain rule is perfectly
+  correct and completely unusable.</mark></p>
 </div>
 
-<h2>Putting them together</h2>
+<h2>The fix: assume the far past does not matter</h2>
 
-<p>The <strong>TF-IDF weight</strong> of a term in a document multiplies the two ideas:</p>
-
-<pre><code>tf-idf  =  (1 + log₁₀ tf)  ×  log₁₀(N / df)
-             how often it appears          how rare it is
-             IN THIS document              ACROSS all documents</code></pre>
-
-<p>This is high in exactly the right case: a term that appears <strong>often in this document</strong>
-but is <strong>rare across the collection</strong> — in other words, a word that is distinctive to
-this document. It is low for a word that is rare here, and near zero for a word that is everywhere.</p>
-
-<p>To score a whole document for a query, add up the tf-idf weights of the query terms, then sort
-the matching documents by that total. The document with the highest score comes first. That is
-ranked retrieval.</p>
+<p>Since we cannot condition on the whole history, we approximate it with a short one. That step has
+a name:</p>
 
 <div class="callout">
-  <span class="label">The two logarithms, side by side</span>
-  <p>Both logs are there to <strong>squash a big range into a manageable one</strong>, but for
-  different reasons:</p>
-  <ul>
-    <li>On <strong>TF</strong>: because relevance has diminishing returns — the 100th mention barely
-    adds to the 10th.</li>
-    <li>On <strong>DF</strong>: because word rarity spans a huge range — from a word in ten documents
-    to one in a million — and a raw ratio would let rare words dominate wildly.</li>
-  </ul>
+  <span class="label">The Markov assumption</span>
+  <p>The probability of the next word depends only on the <strong>last few words</strong>, not on the
+  entire history.</p>
+  <p>For a <strong>bigram</strong> model, "last few" means <strong>one</strong>:</p>
+  <pre><code>P(food | I want to eat Indian)  ≈  P(food | Indian)</code></pre>
+</div>
+
+<p>Be clear about what just happened: this assumption is <strong>false</strong>. Language obviously
+has long-range dependencies — the subject at the start of a sentence controls the verb at the end.
+We are not claiming otherwise. We are trading correctness for something we can actually measure.
+<mark>A short history is wrong but countable; a long history is right but uncountable. Countable
+wins.</mark></p>
+
+<p>Put the assumption into the chain rule and every term shrinks to one previous word:</p>
+
+<pre><code>P(I want to eat Indian food)
+  ≈  P(I | &lt;s&gt;) × P(want | I) × P(to | want) × P(eat | to)
+     × P(Indian | eat) × P(food | Indian) × P(&lt;/s&gt; | food)</code></pre>
+
+<h2>Estimating a bigram probability by counting</h2>
+
+<p>Each of those terms is now a count of a <em>pair</em> divided by a count of a <em>single word</em>:</p>
+
+<pre><code>P(w₂ | w₁)  =  count(w₁ w₂)  /  count(w₁)</code></pre>
+
+<p>This is called the <strong>maximum likelihood estimate</strong> (MLE). The name sounds heavier
+than the idea: it means the estimate that best fits the data we saw, which for counting problems is
+simply the observed proportion. Nothing is being adjusted or assumed — the corpus said
+<code>eat</code> was followed by <code>Indian</code> in 2 of 3 cases, so the estimate is 2/3.</p>
+
+<p>Here are the counts from our four sentences. Note <code>count(eat) = 3</code> and
+<code>count(&lt;s&gt;) = 4</code>:</p>
+
+<table>
+  <tr><th>bigram</th><th>count(w₁ w₂)</th><th>count(w₁)</th><th>P(w₂ | w₁)</th></tr>
+  <tr><td><code>&lt;s&gt; I</code></td>     <td>3</td><td>4</td><td>3/4 = 0.75</td></tr>
+  <tr><td><code>&lt;s&gt; she</code></td>   <td>1</td><td>4</td><td>1/4 = 0.25</td></tr>
+  <tr><td><code>want to</code></td>         <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
+  <tr><td><code>want Indian</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+  <tr><td><code>eat Indian</code></td>      <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
+  <tr><td><code>eat Chinese</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+  <tr><td><code>I want</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+  <tr><td><code>to eat</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+  <tr><td><code>Indian food</code></td>     <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+  <tr><td><code>food &lt;/s&gt;</code></td> <td>4</td><td>4</td><td>4/4 = 1.0</td></tr>
+</table>
+
+<p>Every bigram used in the calculations below is in that table, so you can follow each one through
+by hand.</p>
+
+<p>Look at the pairs that share a first word. After <code>eat</code>, the model gives
+<code>Indian</code> twice the probability of <code>Chinese</code> — and those two add to 1, because
+they are the only things that ever followed <code>eat</code>. Same for <code>want</code>. That is the
+model working: a distribution over what comes next, learned purely from counts.</p>
+
+<div class="callout warn">
+  <span class="label">Do not read 1.0 as certainty</span>
+  <p>Several rows above are exactly <code>1.0</code>, and that is an <strong>artefact of a toy
+  corpus</strong>, not a claim about English. <code>P(food | Indian) = 1.0</code> only because these
+  four sentences never put anything else after <code>Indian</code>.</p>
+  <p>In a real corpus, <code>Indian</code> would be followed by hundreds of different words and the
+  largest probability might be a few percent. The numbers here are tiny so the arithmetic stays
+  checkable by hand. Trust the <em>method</em>, not these particular values.</p>
+</div>
+
+<h2>Scoring a whole sentence</h2>
+
+<p>Multiply the bigram probabilities straight through:</p>
+
+<pre><code>P(I want to eat Indian food)
+  ≈ 3/4 × 3/3 × 2/3 × 3/3 × 2/3 × 3/3 × 4/4
+  = 1/3  ≈ 0.333</code></pre>
+
+<p>And now the model can be used for its actual job — comparing sentences:</p>
+
+<table>
+  <tr><th>sentence</th><th>bigram probability</th></tr>
+  <tr><td>I want to eat Indian food</td><td>1/3 ≈ 0.333</td></tr>
+  <tr><td>I want to eat Chinese food</td><td>1/6 ≈ 0.167</td></tr>
+  <tr><td>she wants to eat Indian food</td><td>1/6 ≈ 0.167</td></tr>
+</table>
+
+<p>The first is rated twice as likely as the others, and it should be: the corpus prefers
+<code>Indian</code> over <code>Chinese</code> after <code>eat</code>, and starts with <code>I</code>
+more often than <code>she</code>. The model has no idea what any of these words mean. It ranked them
+correctly anyway, from counts alone.</p>
+
+<div class="callout">
+  <span class="label">The chain rule survives; the assumption does not</span>
+  <p>A modern large language model factorises a sentence left to right with the <strong>same chain
+  rule</strong> — one word at a time, each conditioned on what came before. That part never went
+  away.</p>
+  <p>What it drops is the <strong>Markov assumption</strong>. It conditions on thousands of previous
+  words instead of one, because a neural network can handle a long history without needing to have
+  counted it. So the Markov assumption is not a permanent fact about language modelling. It is the
+  compromise you must make when your only tool is counting — and most of the progress in this field
+  has been about removing it.</p>
 </div>
 
 <div class="recall">
   <span class="label">Think about this before reading on</span>
-  <p>Two documents both match the query <code>car insurance</code>. Document A says
-  <code>insurance</code> 9 times; document B says <code>the</code> 50 times and
-  <code>insurance</code> once. By TF-IDF, which ranks higher — and why is that the right answer?</p>
+  <p>Using the table above, work out the bigram probability of <code>I want Indian food</code>. The
+  bigrams you need are <code>&lt;s&gt; I</code>, <code>I want</code>, <code>want Indian</code>,
+  <code>Indian food</code>, and <code>food &lt;/s&gt;</code> (which is 4/4).</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Document A.</strong> Its <code>insurance</code> weight is
-    <code>(1 + log 9) × 1.62 ≈ 1.95 × 1.62 ≈ 3.2</code>. Document B's <code>the</code> contributes
-    almost nothing — its idf is near zero, no matter that it appears 50 times — and its single
-    <code>insurance</code> scores <code>1 × 1.62 = 1.62</code>.</p>
-    <p>So A wins, which is correct: A is genuinely more about insurance, while B just happens to use
-    a common word a lot. This is TF-IDF doing its whole job in one comparison — rewarding the
-    distinctive word, ignoring the common one.</p>
+    <p><code>3/4 × 3/3 × 1/3 × 3/3 × 4/4 = 1/4 = 0.25</code></p>
+    <p>Lower than <code>I want to eat Indian food</code> (0.333), because <code>want</code> is
+    followed by <code>Indian</code> in only 1 of 3 cases but by <code>to</code> in 2 of 3.</p>
+    <p>Worth noticing: this sentence is <em>shorter</em> and still scores lower — only because so
+    many probabilities in this toy corpus are exactly 1.0, which costs the longer sentence nothing.
+    In real data every extra word multiplies in another probability well below 1, so longer sentences
+    score lower almost automatically. That makes raw probability a poor way to compare sentences of
+    different lengths — a problem session 14 solves.</p>
   </div>
 </div>
 
+<h2>Then it breaks</h2>
+
+<p>Score one more sentence — a perfectly reasonable English sentence:</p>
+
+<pre><code>P(I want to eat Indian pizza)
+  ≈ 3/4 × 3/3 × 2/3 × 3/3 × 2/3 × P(pizza | Indian) × …
+
+  count(Indian pizza) = 0    →    P(pizza | Indian) = 0/3 = 0
+
+  ⇒  P(I want to eat Indian pizza) = 0</code></pre>
+
+<p>Not "unlikely". <strong>Zero.</strong> One unseen pair anywhere in the sentence multiplies the
+whole thing to nothing, no matter how ordinary the other six words were. And the model is claiming
+something absurd — that this sentence is <em>impossible</em>, when all that happened is that four
+sentences of training text did not happen to contain it.</p>
+
+<p>Any real corpus has this problem badly. Most bigrams that could occur never do, so most sentences
+you test will contain at least one unseen pair and score exactly zero. A model that says "impossible"
+about most valid sentences is not usable.</p>
+
 <div class="quiz" data-answer="1">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why is the term frequency put through a logarithm instead of used raw?</p>
+  <p class="q-text">Why do we make the Markov assumption when it is clearly false?</p>
   <div class="q-opts">
-    <button class="opt">Because logarithms make the numbers smaller and faster to store</button>
-    <button class="opt">Because relevance grows with count, but less and less each time</button>
-    <button class="opt">Because a raw count cannot be negative and a log can</button>
-    <button class="opt">Because the document frequency must be on the same scale</button>
+    <button class="opt">Because long-range links between words do not exist in real language</button>
+    <button class="opt">Because long histories are too rare to count, and short ones are not</button>
+    <button class="opt">Because the chain rule is only valid for sequences of two or three words</button>
+    <button class="opt">Because shorter contexts always give more accurate probability estimates</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>relevance grows with count, but less and less each time</strong>.</p>
-    <p>A word appearing 100 times does not make a document 100 times more relevant than one where it
-    appears once. The log captures those diminishing returns: each tenfold rise in the count adds
-    the same fixed amount (1) to the weight.</p>
+    <p>Correct answer: <strong>long histories are too rare to count, and short ones are not</strong>.</p>
+    <p>The chain rule is exact but needs counts of long word sequences, which almost never repeat —
+    often the denominator is 1, or 0 and undefined. Cutting the history to one or two words gives up
+    real information in exchange for counts big enough to trust. It is a trade, made knowingly.</p>
   </div>
 </div>
 
 <div class="quiz" data-answer="3">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">A word appears in every single document in the collection. What is its idf?</p>
+  <p class="q-text">In the corpus, <code>eat</code> occurs 3 times and <code>eat Indian</code> twice.
+  What is P(Indian | eat)?</p>
   <div class="q-opts">
-    <button class="opt">Very high, because it appears so many times overall</button>
-    <button class="opt">Equal to the total number of documents, N</button>
-    <button class="opt">Undefined, because you cannot take the log of a fraction</button>
-    <button class="opt">Zero, so it contributes nothing to any score</button>
+    <button class="opt">3/2, because you divide the word count by the pair count</button>
+    <button class="opt">2/30, because you divide the pair count by all the tokens</button>
+    <button class="opt">2/4, because you divide the pair count by the sentence count</button>
+    <button class="opt">2/3, because you divide the pair count by the word count</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>zero, so it contributes nothing to any score</strong>.</p>
-    <p>If df = N then idf = log(N/N) = log(1) = 0. A word that is everywhere cannot distinguish
-    between documents, and IDF gives it exactly zero weight — which is why TF-IDF suppresses stop
-    words without needing a stop-word list.</p>
+    <p>Correct answer: <strong>2/3, because you divide the pair count by the word count</strong>.</p>
+    <p>The maximum likelihood estimate is count(w₁ w₂) / count(w₁) — of the 3 times
+    <code>eat</code> appeared, 2 were followed by <code>Indian</code>. The denominator is always the
+    count of the history word alone, never the corpus size.</p>
   </div>
 </div>
 
@@ -675,24 +768,23 @@ ranked retrieval.</p>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>TF-IDF scores a term high when it appears often in this document but rarely across the
-  collection — frequent-here times rare-everywhere — so distinctive words drive the ranking and
-  common words fall away. The two logarithms are there to tame diminishing returns on the count and
-  to compress the huge range of word rarity into a usable weight.</p>
+  <p>The chain rule gives the exact probability of a sentence but needs counts of long word
+  sequences that almost never repeat, so we make the Markov assumption — knowingly false — and
+  condition on just the last word or two, which we can count. Each probability is then a plain
+  division, count of the pair over count of the first word, and multiplying them through scores a
+  whole sentence.</p>
 </div>
 
-<p>That closes Unit I. You can now take raw text, clean it, analyse it, search a collection, and
-rank the results. Unit II changes the question entirely: instead of finding text, can a machine
-predict and generate it? That starts with <strong>language models</strong> next session — and
-TF-IDF itself comes back in Unit II, as the way to turn a document into a vector of numbers.</p>
+<p>Except that it scores far too many good sentences at exactly zero. Every unseen pair kills a
+sentence outright, and in real data unseen pairs are everywhere. Next session is entirely about
+that: how to take probability away from what we did see and hand it to what we did not.</p>
 
 <h2>Read this next</h2>
 
-<p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong>, <strong>Chapter 6</strong> ("Scoring, term weighting and the
-vector space model") — free online, and the source of the numbers above.
-<a href="https://web.stanford.edu/~jurafsky/slp3/">SLP3 chapter 5</a> covers the same TF-IDF
-weighting from the language side. Read the IIR section on inverse document frequency.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
+Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
+("N-gram Language Models") — free online. Read the sections on n-gram probability estimation, up to
+where it introduces the zero-count problem; that is next session.</p>
 
 
 
@@ -705,8 +797,8 @@ weighting from the language side. Read the IIR section on inverse document frequ
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0009-the-inverted-index.html">← Session 09: The inverted index</a>
-  <a href="0011-language-models-and-n-grams.html">Next — Session 11: language models and n-grams (Unit II) →</a>
+  <a href="0011-language-models-and-n-grams.html">← Session 11: Language models and n-grams</a>
+  <a href="0013-the-zero-problem-and-smoothing.html">Next — Session 13: the zero problem and smoothing →</a>
 </nav>
 
 <script>
