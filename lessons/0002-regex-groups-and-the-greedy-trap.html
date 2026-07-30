@@ -753,6 +753,86 @@ loops.</p>
 <p>This is the kind of thing you will do constantly in Unit I — cleaning text into a consistent
 shape before anything else touches it.</p>
 
+<h2>Putting it together: a small extractor</h2>
+
+<p>Everything so far has been one pattern at a time. Real
+<strong>information extraction</strong> — the name for this whole job, from session 1 — means
+pulling several fields out of every line and handing back something a program can use.</p>
+
+<p>Here are three lines from an invoice log. Same fields every time, but the formatting wobbles:</p>
+
+<pre><code>INV-2291  15/03/2026  Rs 12,500  paid
+INV-2292  16-03-2026  Rs 900     due
+INV-2293  17/03/2026  Rs 1,05,000 due</code></pre>
+
+<p>Four fields: an invoice number, a date, an amount, a status. Build the pattern one field at a
+time and say each piece out loud:</p>
+
+<pre><code>INV-\d{4}              invoice: three letters, a dash, four digits
+\d{2}[/-]\d{2}[/-]\d{4}   date: either separator — from the alternation section
+Rs\s[\d,]+             amount: digits and commas, so 1,05,000 survives
+paid|due               status: one word or the other</code></pre>
+
+<p>Now join them with <code>\s+</code> for the gaps between fields. There is one new trick:
+instead of counting groups, <strong>give each one a name</strong> with
+<code>(?P&lt;name&gt;...)</code>.</p>
+
+<pre><code>pattern = (r"(?P&lt;invoice&gt;INV-\d{4})\s+"
+           r"(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+"
+           r"Rs\s(?P&lt;amount&gt;[\d,]+)\s+"
+           r"(?P&lt;status&gt;paid|due)")
+
+for line in lines:
+    m = regex.search(pattern, line)
+    print(m.group("invoice"), m.group("date"), m.group("amount"), m.group("status"))
+
+# INV-2291 15/03/2026 12,500 paid
+# INV-2292 16-03-2026 900 due
+# INV-2293 17/03/2026 1,05,000 due</code></pre>
+
+<p>Named groups are worth the extra characters. <code>m.group("amount")</code> still reads
+correctly six months later; <code>m.group(3)</code> does not, and it breaks silently the moment
+you add a field in the middle.</p>
+
+<p>There is a shortcut for the whole lot at once:</p>
+
+<pre><code>regex.search(pattern, lines[0]).groupdict()
+
+# {'invoice': 'INV-2291', 'date': '15/03/2026',
+#  'amount': '12,500', 'status': 'paid'}</code></pre>
+
+<p>That dictionary is the point of the exercise. Text went in; structured data came out.</p>
+
+<div class="callout">
+  <span class="label">Extraction is not the last step</span>
+  <p><code>'12,500'</code> is still a <em>string</em>, and the two dates are still in two
+  different formats. Extraction gets you the pieces; you almost always have to clean them
+  afterwards:</p>
+  <pre><code>int(m.group("amount").replace(",", ""))     # 12500 — a number at last
+
+regex.sub(r"(\d{2})[/-](\d{2})[/-](\d{4})",
+          r"\3-\2-\1", m.group("date"))     # '2026-03-15' — one format</code></pre>
+  <p>Find, extract, then normalise. That order comes up in every lab in this unit.</p>
+</div>
+
+<div class="recall">
+  <span class="label">Try this before the lab</span>
+  <p>Add a fifth field to the pattern. The log gains a customer code at the end, like
+  <code>[CUST-4471]</code> — square brackets included.</p>
+  <p>Two things to get right: the brackets are literal characters, and you do not want them in
+  the captured value.</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
+    <p>Escape both brackets — <code>\[</code> and <code>\]</code> — because <code>[</code> starts
+    a character class. Forget the backslash and the pattern either breaks or matches something
+    strange.</p>
+    <p>Put the named group <em>inside</em> the escaped brackets and the brackets stay out of the
+    captured text: you get <code>CUST-4471</code>, not <code>[CUST-4471]</code>. Where you place
+    the group decides what you get back.</p>
+  </div>
+</div>
+
 <h2>What to remember</h2>
 
 <div class="callout">
@@ -786,7 +866,7 @@ the greedy grab happening. Ten minutes there is worth an hour of reading.</p>
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
   <a href="0001-what-is-nlp-and-your-first-tool.html">← Session 01: What NLP is</a>
-  <span>Next — Session 03: <a href="0003-tokenization-and-the-vocabulary-problem.html">Tokenization</a></span>
+  <a href="0003-tokenization-and-the-vocabulary-problem.html">Next — Session 03: tokenization →</a>
 </nav>
 
 <script>

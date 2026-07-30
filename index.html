@@ -197,34 +197,34 @@ footer {
 <h3 class="unit">Unit I — Text processing and information retrieval</h3>
 
 <a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb">
-  <span class="n">Lab 01 · Week 1 · opens in Colab</span>
-  <span class="t">Refresher and Setup **MSIS · AME 5053 · Week 1 · 3 hours** Welcome to the NLP lab. Today you will not do any NLP. Today you get set up, and you refresh the parts of Python this course actually leans on. That sounds dull. It is not. The Python we cover today — strings, dictionaries and counting — is the Python you will use in every lab after this one. Unit II in particular is mostly counting, and people who are comfortable with it find the rest of this course much easier. **By the end of this lab you will have:** 1. Colab working, with every library this course needs 2. A refresher on strings, dictionaries and counting 3. Seen a working sentiment classifier — and seen it fail Work through the cells in order. Run every one.</span>
+  <span class="n">Lab 01 · Week 1</span>
+  <span class="t">Refresher and setup</span>
   <span class="d">Get Colab working, and refresh the Python this course leans on.</span>
 </a>
 
 <a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-02-information-extraction.ipynb">
-  <span class="n">Lab 02 · Week 2 · opens in Colab</span>
-  <span class="t">Information Extraction with Regular Expressions **MSIS · AME 5053 · Week 2 · 3 hours** Last week you set up Colab and refreshed Python. Today you do your first real NLP job: **information extraction** — pulling structured facts out of messy, unstructured text. You will work on one realistic mess all lab: a pile of bank SMS messages. By the end you will have turned lines like > `Rs.2,500.00 debited from a/c XX3481 on 05-04-2026 to SWIGGY. Avl Bal Rs.18,340.55` into tidy records a program can use: > `{amount: 2500.00, account: XX3481, date: 05-04-2026, merchant: SWIGGY}` And you will see exactly where regular expressions stop being the right tool — which is the whole reason the rest of this course exists. **By the end of this lab you will be able to:** 1. Find every match of a pattern, with `regex.findall` and `regex.finditer` 2. Pull out the piece you want using **capturing groups**, named for readability 3. Avoid the **greedy trap** that catches everyone once 4. Handle Kannada and other Indian-language text correctly — where the built-in `re` silently corrupts your results 5. Say clearly what regex *cannot* do, and what comes next Run every cell, in order.</span>
+  <span class="n">Lab 02 · Week 2</span>
+  <span class="t">Information extraction with regular expressions</span>
   <span class="d">Pull amounts, dates and accounts out of messy bank SMS — and find where regex stops working.</span>
 </a>
 
 <a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-03-text-preprocessing.ipynb">
-  <span class="n">Lab 03 · Week 3 · opens in Colab</span>
-  <span class="t">Cleaning Text: Tokenize, Normalize, Stem, Remove Stop Words **MSIS · AME 5053 · Week 3 · 3 hours** Before you can count words, search text, or train any model, you have to **clean the text up** — turn a raw string into a tidy list of units you can work with. That cleaning is called **preprocessing**, and almost every NLP system starts with it. Today you build the standard preprocessing steps, in order: 1. **Tokenize** — split text into words (harder than it looks) 2. **Normalize** — case, Unicode, punctuation 3. **Stem** and **lemmatize** — cut words back to a root form 4. **Remove stop words** — drop the very common words And, as always, you will see where each step **helps** and where it quietly **destroys your meaning** — because the biggest mistake in preprocessing is doing a step you should have skipped. **Tools today:** **NLTK** and **spaCy**, the two workhorse libraries. You met the idea of tokens in session 3 and stemming in session 5; today you run them for real. Work through every cell, in order.</span>
+  <span class="n">Lab 03 · Week 3</span>
+  <span class="t">Tokenize, normalize, stem, remove stop words</span>
   <span class="d">The standard preprocessing steps — and when each one quietly destroys your meaning.</span>
 </a>
 
 <a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-04-boolean-retrieval.ipynb">
-  <span class="n">Lab 04 · Week 4 · opens in Colab</span>
-  <span class="t">Searching a Collection: Incidence Matrix and Inverted Index **MSIS · AME 5053 · Week 4 · 3 hours** In the last three labs you cleaned up single pieces of text. Today you build a tiny **search engine**. Given a collection of documents and a Boolean query like `cat AND NOT dog`, you will return exactly the documents that match — two ways: 1. The **term-document incidence matrix** (sessions 8), with NumPy. 2. The **inverted index** (session 9), in plain Python — the structure real search engines actually use. You will build both, check they give the same answers, and see with your own numbers why the second one is the one that scales. **By the end of this lab you will be able to:** 1. Tokenize a collection and build its vocabulary 2. Build an incidence matrix and answer Boolean queries with bitwise operations 3. Build an inverted index of postings lists 4. Intersect two sorted postings lists with the two-pointer merge 5. Say why the inverted index wins at scale Run every cell, in order.</span>
+  <span class="n">Lab 04 · Week 4</span>
+  <span class="t">Incidence matrix and inverted index</span>
   <span class="d">Build a tiny search engine two ways, and see why the inverted index is the one that scales.</span>
 </a>
 
 <h3 class="unit">Unit II — Language models, sentiment, word vectors</h3>
 
 <a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-05-ngram-language-models.ipynb">
-  <span class="n">Lab 05 · Week 5 · opens in Colab</span>
-  <span class="t">N-grams and N-gram Probabilities **MSIS · AME 5053 · Week 5 · 3 hours** Unit I was about finding text. This lab is the first one where you build something that **predicts** text. You will build an n-gram language model twice. First by hand, on the four-sentence corpus from sessions 11–13, small enough that you can check every number against the lesson. Then on a real book, where you will watch the same code produce English. **By the end of this lab you will be able to:** 1. Count unigrams and bigrams from a corpus 2. Turn those counts into probabilities with the MLE formula 3. Score a whole sentence, and see an unseen pair drive it to zero 4. Apply add-one smoothing, and measure what it costs 5. Generate text by sampling from the model 6. Check your work against NLTK's own language model Run every cell, in order.</span>
+  <span class="n">Lab 05 · Week 5</span>
+  <span class="t">N-grams and n-gram probabilities</span>
   <span class="d">Build a language model by counting, watch one unseen pair score a good sentence at zero, then make it write English.</span>
 </a>
 

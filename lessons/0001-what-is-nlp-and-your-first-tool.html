@@ -590,6 +590,16 @@ href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">SLP3 chapter 2</a>, <strong
 Note the section number — that chapter covers several topics and regex is not the first one.</span></p>
 
 <div class="callout">
+  <span class="label">The name for this job</span>
+  <p>Pulling structured facts — dates, amounts, names, IDs — out of text that was not written to
+  be structured is called <strong>information extraction</strong>. You will see the phrase in the
+  syllabus and in exam questions, so learn it now.</p>
+  <p>Regex is the oldest way to do it, and often still the best one. Sessions 1 and 2 are
+  information extraction with regular expressions, start to finish, and Lab 2 is where you build
+  a real one.</p>
+</div>
+
+<div class="callout">
   <span class="label">In this course we use <code>regex</code>, not <code>re</code></span>
   <p>Python ships with a regex library called <code>re</code>. We will not use it. Install this
   instead:</p>
@@ -643,6 +653,12 @@ is all a regex is — a description of shape.</p>
 <p>Notice <code>\+</code> in the phone pattern. <code>+</code> normally means "one or more", so
 to match a literal plus sign you put a backslash in front. This is called
 <strong>escaping</strong>, and forgetting it is the most common regex bug there is.</p>
+
+<p>The email pattern is <strong>deliberately loose</strong>. <code>[\w.]+@[\w.]+</code> also
+accepts <code>..@..</code> and <code>admin@manipal</code> with no <code>.edu</code> on the end.
+It is good enough for this one line of text, and no more. Matching email addresses exactly is
+famously hard — the pattern that really does it is hundreds of characters long. Loose on purpose
+is fine, as long as you know it is loose.</p>
 
 <h3>Why not <code>re</code>? Try it on Kannada</h3>
 
@@ -724,10 +740,10 @@ idea of "a word" was built around English, and it quietly falls apart everywhere
   <span class="q-num">Question 2 of 2</span>
   <p class="q-text">Which pattern matches both <code>colour</code> and <code>color</code>?</p>
   <div class="q-opts">
-    <button class="opt">Write the pattern as <code>colo*r</code> here</button>
-    <button class="opt">Write the pattern as <code>colo+r</code> here</button>
-    <button class="opt">Write the pattern as <code>colo.r</code> here</button>
-    <button class="opt">Write the pattern as <code>colou?r</code> here</button>
+    <button class="opt">The pattern <code>colo*r</code></button>
+    <button class="opt">The pattern <code>colo+r</code></button>
+    <button class="opt">The pattern <code>colo.r</code></button>
+    <button class="opt">The pattern <code>colou?r</code></button>
   </div>
   <div class="q-fb">
     <p>Correct answer: <code>colou?r</code>.</p>
@@ -777,8 +793,8 @@ session 3 we start on tokenization.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <span>Next — Session 02: <a href="0002-regex-groups-and-the-greedy-trap.html">Capturing,
-  choosing, and the greedy trap</a></span>
+  <a href="0002-regex-groups-and-the-greedy-trap.html">Next — Session 02: capturing, choosing,
+  and the greedy trap →</a>
 </nav>
 
 <script>

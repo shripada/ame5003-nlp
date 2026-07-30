@@ -545,6 +545,103 @@ th {
 
 <div class="gloss">
 
+<h2>Text and patterns — sessions 1–3</h2>
+
+<dl class="term">
+  <dt>Ambiguity</dt>
+  <dd>The same words having more than one valid reading — <em>"The old man the boat."</em> You
+  resolve it with world knowledge, instantly and without noticing. A computer has none. Nearly
+  every technique in this course is a way of coping with it. <span class="unit">Session 1</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Information extraction</dt>
+  <dd>Pulling structured facts — dates, amounts, IDs, names — out of text that was not written to
+  be structured. The syllabus name for what sessions 1–2 and Lab 2 do. Regex is the oldest tool
+  for it and often still the best. <span class="unit">Session 1 · T1.1</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Regular expression <span class="sym">regex</span></dt>
+  <dd>A small language for describing the <em>shape</em> of text, so a program can find every
+  piece that has that shape. Describes shape, never meaning: it cannot tell you whether a review
+  is positive. <span class="unit">Sessions 1–2 · SLP3 §2.6</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Character class <span class="sym">[...]</span></dt>
+  <dd>"Any one character from this set." <code>[Cc]at</code> matches either spelling;
+  <code>[0-9]</code> is a range. A leading <code>^</code> <em>inside</em> the brackets inverts it:
+  <code>[^0-9]</code> is "any one non-digit". <span class="unit">Session 1</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Quantifier <span class="sym">* + ? {n,m}</span></dt>
+  <dd>How many times the thing before it may repeat: zero or more, one or more, optional, or a
+  counted range. It attaches to the <em>one</em> item immediately before it — which is why
+  <code>colo*r</code> does not match <code>colour</code>. <span class="unit">Session 1</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Escaping <span class="sym">\</span></dt>
+  <dd>A backslash before a character that would otherwise be special, so it is treated literally:
+  <code>\+</code> for a real plus sign, <code>\.</code> for a real full stop. Forgetting it is the
+  most common regex bug there is. <span class="unit">Session 1</span></dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Greedy vs. lazy</dt>
+  <dd><strong>Greedy</strong> (the default) takes as much as it can, giving characters back only
+  if the rest of the pattern cannot otherwise match — so <code>&lt;.*&gt;</code> swallows a whole
+  line of HTML. <strong>Lazy</strong> (<code>*?</code>, <code>+?</code>) takes as little as
+  possible. When a match is far bigger than you expected, this is almost always why. Better still,
+  write a pattern that cannot overshoot: <code>&lt;[^&gt;]*&gt;</code>.
+  <span class="unit">Session 2</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Capture group <span class="sym">( )</span></dt>
+  <dd>Round brackets that make the engine remember what matched inside them, so you can pull the
+  pieces out separately. Numbered left to right by opening bracket; group 0 is the whole match.
+  <strong>Trap:</strong> once a pattern has groups, <code>findall</code> returns the groups instead
+  of the whole match. <span class="unit">Session 2</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Non-capturing group <span class="sym">(?:...)</span></dt>
+  <dd>Brackets used only to hold a pattern together — for alternation, or to attach a quantifier —
+  without capturing anything. Use it when you want the grouping but not the extra value in your
+  results. <span class="unit">Session 2</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Named group <span class="sym">(?P&lt;name&gt;...)</span></dt>
+  <dd>A capture group with a name, read back as <code>m.group("date")</code> instead of
+  <code>m.group(2)</code>. Worth the extra characters: it still reads correctly six months later,
+  and it does not break when you add a field in the middle. <code>.groupdict()</code> returns them
+  all at once. <span class="unit">Session 2</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Word boundary <span class="sym">\b</span></dt>
+  <dd>A zero-width <em>position</em> — not a character — at the edge of a run of word characters.
+  <code>\bcat\b</code> refuses to match inside <code>concatenate</code> but still matches
+  <code>cat.</code>, because a full stop is not a word character. Our first, crude answer to
+  "where does a word end?" <span class="unit">Session 2</span></dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Combining mark <span class="sym">\p{M}</span></dt>
+  <dd>A character that attaches to the one before it rather than standing alone — a vowel sign, or
+  the Kannada <strong>virama</strong> (U+0CCD) that joins two consonants. Python's built-in
+  <code>re</code> excludes marks from <code>\w</code>, so it <em>splits Indic words at the
+  virama</em>: <code>re.findall(r"\w+", "ಕನ್ನಡ ಭಾಷೆ")</code> finds four words where there are two,
+  and <code>\b</code> inherits the same error. This course uses the <code>regex</code> library,
+  which gets it right. Note that <code>\p{L}</code> alone is <em>not</em> the fix — letters only;
+  you need <code>[\p{L}\p{M}]+</code> or <code>\w</code>.
+  <span class="unit">Sessions 1–2, 4 · SLP3 §2.3</span></dd>
+</dl>
+
 <h2>The basics — used from week 1, taught properly from week 7</h2>
 
 <dl class="term">
@@ -601,6 +698,16 @@ th {
   <dt>Tokenization</dt>
   <dd>Splitting raw text into tokens. Not a string operation — a modelling decision.
   See <a href="../lessons/0003-tokenization-and-the-vocabulary-problem.html">Lesson 03</a>.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Rule-based tokenizer <span class="sym">Penn Treebank</span></dt>
+  <dd>Word tokenization done with a hand-written set of regular expressions, patiently grown until
+  it handles ordinary English: keeps <code>Dr.</code> and <code>U.S.A.</code> intact, splits
+  <code>isn't</code> into <code>is</code> + <code>n't</code>, makes punctuation its own token. The
+  Penn Treebank rules are the best-known set; <code>nltk.word_tokenize</code> and spaCy's tokenizer
+  are the ones you call. Solves the punctuation problem, not the vocabulary problem.
+  <span class="unit">Session 3 · SLP3 §2.8</span></dd>
 </dl>
 
 <dl class="term">

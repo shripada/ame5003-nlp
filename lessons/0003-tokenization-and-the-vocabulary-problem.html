@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 1 — Tokenization: how a computer splits text into words</title>
+<title>Session 3 — Tokenization: how a computer splits text into words</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -541,10 +541,65 @@ pieces are called <strong>tokens</strong>. This step is called <strong>tokenizat
       fix the first problem, you break these.</li>
 </ul>
 
-<p>Every rule you add to fix one case breaks another. This is real, and it is worth seeing. But
-it is not the interesting problem. The interesting problem is underneath.</p>
+<p>Every rule you add to fix one case breaks another. Play this game for a while and you start to
+think the whole idea is hopeless.</p>
+
+<p>It is not. Careful rules do win in the end, and the next section shows the ones everybody
+uses. But they only settle the punctuation. Underneath there is a second problem that no amount
+of rule-writing touches, and that one is the reason this session matters.</p>
 
 
+
+<h2>What people actually use: a careful set of rules</h2>
+
+<p>Whack-a-mole sounds hopeless, but it is not. If you play it patiently for long enough — and
+people did, for years — you end up with a rule set that handles almost everything in ordinary
+English text. The best known one is the <strong>Penn Treebank</strong> tokenizer. It is a pile of
+regular expressions, written by hand, in the spirit of sessions 1 and 2.<span class="sidenote">
+Jurafsky &amp; Martin, <a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">SLP3</a>
+<strong>§2.8</strong>, "rule-based tokenization". §2.7 shows the same job done with plain Unix
+tools, which is worth ten minutes of your time.</span></p>
+
+<p>You do not write it yourself. You call it. This is NLTK's version, on the same awkward
+sentence:</p>
+
+<pre><code>from nltk.tokenize import word_tokenize
+
+word_tokenize("Dr. O'Neill isn't in — he's at St. Mary's, re: the U.S.A. deal.")
+
+['Dr.', "O'Neill", 'is', "n't", 'in', '—', 'he', "'s", 'at', 'St.',
+ 'Mary', "'s", ',', 're', ':', 'the', 'U.S.A.', 'deal', '.']</code></pre>
+
+<p>Go through the list against the three problems from the last section. It got all of them:</p>
+
+<ul>
+  <li><code>Dr.</code> and <code>U.S.A.</code> kept their full stops — it knows abbreviations.</li>
+  <li>The final <code>.</code> came off as its own token, because that one <em>is</em>
+      punctuation.</li>
+  <li><code>isn't</code> became <code>is</code> + <code>n't</code> — split, and the negation is
+      still visible.</li>
+  <li><code>Mary's</code> became <code>Mary</code> + <code>'s</code>, and the comma is a separate
+      token.</li>
+</ul>
+
+<p>Punctuation becomes its own token rather than being deleted, which is the right default: a
+question mark is a real signal, and you can always drop it later.</p>
+
+<div class="callout">
+  <span class="label">Use the library</span>
+  <p>For English text, a good rule-based tokenizer is a solved problem. Do not hand-roll one.
+  <code>word_tokenize</code> in NLTK, or spaCy's tokenizer, has absorbed decades of
+  counter-examples you have not thought of yet. You will use both in Lab 3.</p>
+  <p>What you <em>do</em> need is to know what it did, because the tokens it hands back are what
+  every count in Unit II is counting.</p>
+</div>
+
+<p>So: where does a word end? For English prose, "here, mostly, and a library knows the
+exceptions." That is a genuinely useful answer, and for the whole of Unit I it is the answer we
+use.</p>
+
+<p>But it does not survive contact with Unit III, and the reason has nothing to do with
+punctuation.</p>
 
 <h2>The real problem: the word list is fixed, but language is not</h2>
 
@@ -647,8 +702,7 @@ list is.</p>
 list:  _, d, e, i, l, n, o, r, s, t, w</code></pre>
 
 <p>Now count the pairs. The pair <code>e r</code> appears in <code>newer</code> (6 times) and in
-<code>wider</code> (3 times). That is <strong>9</strong> — more than any other pair. So we join
-it:</p>
+<code>wider</code> (3 times). That is <strong>9</strong>, and no pair beats it. So we join it:</p>
 
 <pre><code>merge 1:  e + r  →  er
 
@@ -658,8 +712,21 @@ it:</p>
 3  w i d er _
 2  n e w _</code></pre>
 
-<p>Count again. Now <code>er _</code> appears 9 times. Join it. Then <code>n e</code> appears 8
-times (6 + 2). Join it. And so on:</p>
+<p>Count again. Now <code>er _</code> appears 9 times, and this time nothing ties with it. Join it.
+Then <code>n e</code> appears 8 times (6 + 2). Join it. And so on:</p>
+
+<div class="callout">
+  <span class="label">If you recount and get something different, you are not wrong</span>
+  <p>Sometimes two pairs tie for first place, and it happens three times in this small example:</p>
+  <pre><code>merge 1   e r  and  r _   both 9
+merge 3   n e  and  e w   both 8
+merge 5   l o  and  o w   both 7</code></pre>
+  <p>We picked the left-hand one each time.</p>
+  <p>"Take the most frequent pair" does not say what to do then, and it does not matter — a real
+  implementation just picks by some fixed rule so the same input always gives the same output.
+  Either choice leads somewhere sensible. If your hand-worked trace diverges from ours at a tie,
+  check the counts and then carry on with yours.</p>
+</div>
 
 <pre><code>merge 2:  er + _  →  er_
 merge 3:  n + e   →  ne
@@ -693,7 +760,16 @@ old approach would call it <code>&lt;UNK&gt;</code> and give up.</p>
 The model knows <code>low</code>, and it knows what <code>er_</code> does to a word. So it can
 handle <code>lower</code> even though it has never seen it.</p>
 
-<p>No unknown words. That is the point of the whole method.</p>
+<p>No unknown <em>words</em>. That is the point of the whole method: any word you meet later can
+be spelled out of pieces you already have, all the way down to single characters if it comes to
+that.</p>
+
+<p>Unknown <strong>characters</strong> are a different matter. If a character never appeared in
+training — a script the model has never seen, a new emoji — it is not in the list either, and
+<code>&lt;UNK&gt;</code> comes back. That is a real gap, and it is why GPT models run BPE over
+<em>bytes</em> instead of characters: there are only 256 possible bytes, all of them are in the
+list from the start, so nothing can ever be unknown again. Same algorithm, one level lower
+down.</p>
 
 <div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
@@ -710,8 +786,10 @@ handle <code>lower</code> even though it has never seen it.</p>
     <p>And each merge replaces two symbols with one. So the same text needs fewer tokens to
     write down.</p>
     <p>This is the trade-off. A big list means short text, but the model gets big and slow. A
-    small list means a small model, but the text becomes long. You cannot have both. Real
-    systems usually pick somewhere around 30,000 to 50,000 merges.</p>
+    small list means a small model, but the text becomes long. You cannot have both. Real systems
+    usually end up with a vocabulary of about 30,000 to 50,000 tokens — BERT has 30,522 and GPT-2
+    has 50,257. (The <em>merge</em> count is a little lower than that, because the starting
+    characters are in the list before any merging happens.)</p>
   </div>
 </div>
 
@@ -751,8 +829,11 @@ handle <code>lower</code> even though it has never seen it.</p>
 
 <pre><code>"doomscrolling"  →  ["doom", "##scroll", "##ing"]</code></pre>
 
-<p>The <code>##</code> means "this joins to the piece before it". It does the same job as the
-<code>_</code> in our example, just written differently. You already understand it.</p>
+<p>The <code>##</code> means "this joins to the piece before it". It carries the same information
+as the <code>_</code> in our example, but marks the opposite end: our <code>_</code> flags where a
+word <em>finishes</em>, while <code>##</code> flags a piece that is a <em>continuation</em> of the
+one before. Either way you can tell word boundaries from word insides, which is the only thing
+that matters. Once you know which convention you are looking at, you already understand it.</p>
 
 <div class="callout">
   <span class="label">The one thing to remember</span>
@@ -765,8 +846,24 @@ handle <code>lower</code> even though it has never seen it.</p>
 
 <p>The best source on this topic is <strong><a
 href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter 2, "Words and Tokens"</a></strong>
-from <em>Speech and Language Processing</em> by Jurafsky and Martin. It is free. Read the
-section on Byte-Pair Encoding.</p>
+from <em>Speech and Language Processing</em> by Jurafsky and Martin. It is free.</p>
+
+<p><strong>Read two sections, and only these two:</strong></p>
+
+<ul>
+  <li><strong>§2.4 — Byte-Pair Encoding.</strong> This is the one that matters. It is the same
+      algorithm we worked through by hand, with the same <code>low / lowest / newer / wider /
+      new</code> example, so you will recognise it immediately.</li>
+  <li><strong>§2.8 — rule-based tokenization.</strong> The Penn Treebank rules from earlier in
+      this lesson, written out properly.</li>
+</ul>
+
+<p>If you want a third, <strong>§2.7</strong> does tokenization with plain Unix commands. It is
+short and it is a good trick to own.</p>
+
+<p>Two warnings about this chapter. Its sections are <em>not</em> in our order — BPE (§2.4) comes
+before the regex you read in week 1 (§2.6), so do not read straight through. And skip §2.3
+(Unicode) for now; that is next session.</p>
 
 <p>BPE came from a paper by <a href="https://aclanthology.org/P16-1162/">Sennrich, Haddow and
 Birch (2016)</a>. The title says what it does: <em>Neural Machine Translation of Rare Words with
