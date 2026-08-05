@@ -845,12 +845,40 @@ th {
   <em>held-out set</em>, not on the training data.</dd>
 </dl>
 
+<dl class="term">
+  <dt>Intrinsic vs. extrinsic evaluation</dt>
+  <dd><strong>Extrinsic</strong> — put the model inside a real application and measure the
+  application. The only evaluation that answers the question you care about, and usually too
+  expensive to run often. <strong>Intrinsic</strong> — score the model on its own, no application
+  attached. Perplexity is the standard intrinsic metric for LMs. A gain in one does not guarantee
+  a gain in the other.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Training / development / test set</dt>
+  <dd>Three disjoint slices of the data. <strong>Training</strong> gives the counts.
+  <strong>Development</strong> (devset) is where you compare models and tune hyperparameters such
+  as λ or <em>k</em> — a <em>held-out set</em> is this. <strong>Test</strong> is opened
+  <strong>once</strong>, at the end, for the number you report.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Training on the test set <span class="sym">data contamination</span></dt>
+  <dd>Test text leaking into the training corpus. Does not produce an obvious error — it produces
+  a flatteringly good result, so it is invisible unless you look for it. Suspiciously low
+  perplexity is the usual symptom.</dd>
+</dl>
+
 <dl class="term trap">
   <dt>Perplexity <span class="sym">PP</span></dt>
   <dd>Standard intrinsic LM metric: the inverse probability of the test set, normalised by token
-  count — equivalently 2<sup>cross-entropy</sup>. Intuition: the model's average
-  <em>branching factor</em>. <strong>Lower is better</strong> — easy to get
-  backwards, so check yourself. Only comparable across models with identical vocabularies.</dd>
+  count — <em>PP(W) = P(W)<sup>−1/N</sup></em>, where N counts predicted tokens
+  (includes <code>&lt;/s&gt;</code>, excludes <code>&lt;s&gt;</code>). Equivalently
+  2<sup>cross-entropy</sup>, the log form the textbook uses — same quantity; logs are taught in
+  session 16. Intuition: the model's average <em>branching factor</em>.
+  <strong>Lower is better</strong> — easy to get backwards, so check yourself. Only comparable
+  across models with identical vocabularies, on the same test set. Infinite for an unsmoothed
+  model, since one unseen n-gram makes P(W) = 0.</dd>
 </dl>
 
 <dl class="term">
