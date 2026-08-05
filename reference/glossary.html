@@ -466,6 +466,39 @@ th {
   color: var(--ink-soft);
 }
 
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
 /* ---- Narrow screens: margin notes fold into the text ---- */
 @media (max-width: 1100px) {
   body { padding: 2rem 1.2rem 4rem; }
@@ -939,7 +972,26 @@ th {
 
 <dl class="term">
   <dt>BoW <span class="sym">Bag of Words</span></dt>
-  <dd>Represent a document by word counts, discarding order. "Dog bites man" = "man bites dog".</dd>
+  <dd>Represent a document by word counts, discarding order. "Dog bites man" = "man bites dog".
+  The loss is permanent — nothing downstream can recover an order destroyed at representation
+  time. Accepted because word identity carries most of the signal and order costs far more than
+  it repays.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Vector space model</dt>
+  <dd>Treat each document as a <strong>point in a space with one dimension per vocabulary
+  word</strong>. Documents close together use words in similar proportions, so they are about
+  similar things — <em>meaning becomes position</em>. The move that makes similarity, search and
+  clustering possible; a term-document matrix read as geometry rather than as a lookup table.
+  <span class="unit">SLP3 §11.1 — not ch 5</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Document vector vs. word vector</dt>
+  <dd>In a term-document matrix, a <strong>column</strong> is a document (placed by the words it
+  uses) and a <strong>row</strong> is a word (placed by the documents it appears in). Both are
+  vectors; they are the two ways of reading one table. Word vectors are the seed of embeddings.</dd>
 </dl>
 
 <dl class="term trap">

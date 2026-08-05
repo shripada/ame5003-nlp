@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Session 1 — What NLP is, and your first tool</title>
+<title>Lesson 17 — Bag of Words and the vector space model</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -537,283 +537,266 @@ figcaption {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 01</p>
-  <h1>What NLP is, and your first tool</h1>
-  <p class="subtitle">Why language is hard for computers — and how to pull facts out of text with
-  a pattern.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 17</p>
+  <h1>Bag of Words and the vector space model</h1>
+  <p class="subtitle">You built this table in session 8 and used it as a lookup. Change the 0s and
+  1s to counts, read the columns instead of the rows, and it becomes a map with documents as
+  places on it.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>You already use this every day</h2>
+<h2>The thing we have been using without naming</h2>
 
-<p>Natural Language Processing (NLP) is getting computers to work with human language. You have
-used it several times today without noticing:</p>
-
-<ul>
-  <li>Your phone predicted the next word as you typed.</li>
-  <li>Your email put a message in the spam folder.</li>
-  <li>A search engine found a page that did not contain your exact words.</li>
-  <li>Something translated a sentence for you.</li>
-  <li>You asked a chatbot a question and got a sensible answer back.</li>
-</ul>
-
-<p>Every one of these is in this course. By the end you will have built simplified versions of
-most of them.</p>
-
-<h2>So why is it hard?</h2>
-
-<p>Computers are good at exact things. Numbers, dates, IDs. Language is not exact. It is full of
-sentences that have more than one correct reading, and you resolve them without noticing.</p>
-
-<p>Read this sentence:</p>
-
-<pre><code>The old man the boat.</code></pre>
-
-<p>Most people read it, stop, and read it again. It looks broken. It is not. Here
-<strong>man</strong> is a verb — it means "to staff". The sentence says: <em>the old people are
-staffing the boat</em>.</p>
-
-<p>Your brain assumed "old man" was a noun phrase, then hit "the boat" and had to reverse. A
-computer has the same problem, and no instinct to fall back on.</p>
-
-<p>Another:</p>
-
-<pre><code>I saw a man on a hill with a telescope.</code></pre>
-
-<p>Who has the telescope? You? The man? Is the telescope on the hill? All three readings are
-valid English. Nothing in the words tells you which is meant.</p>
+<p>Last session we classified a film review, and to do it we threw away the word order and kept a
+count for each word. We never gave that a name. It has one:</p>
 
 <div class="callout">
-  <span class="label">The point</span>
-  <p>Language is <strong>ambiguous</strong>: the same words can mean different things. You
-  resolve ambiguity using knowledge of the world, and you do it so fast you never notice.</p>
-  <p>A computer has no world knowledge. Everything it knows must come from the text itself, or
-  from what we build into it. <mark>Almost every technique in this course is a way of dealing
-  with ambiguity.</mark></p>
+  <span class="label">Bag of words</span>
+  <p>Represent a document by <strong>which words it contains and how often</strong>, discarding
+  the order entirely. A bag, not a list — you can see what is in it, but not what came first.</p>
 </div>
 
-<h2>Where this course goes</h2>
+<p>The name is doing honest work. A bag really does lose something, and it is worth being blunt
+about how much:</p>
 
-<p>Three units, and each one answers a question left open by the one before.</p>
+<pre><code>"the film was good, not bad"      →   the·1  film·1  was·1  good·1  not·1  bad·1
+"the film was bad, not good"      →   the·1  film·1  was·1  good·1  not·1  bad·1</code></pre>
+
+<p>Opposite meanings, <strong>identical representations</strong>. No amount of cleverness later can
+recover a distinction that was destroyed here. We accept it anyway, for the reason session 15 gave:
+word identity carries most of the signal, word order costs far more to model than it repays. But
+know what you traded.</p>
+
+<h2>You have already built this</h2>
+
+<p>In session 8 we made a table for Boolean search: one row per term, one column per document, a
+1 where the term appears and a 0 where it does not. The <strong>term-document incidence
+matrix</strong>.</p>
+
+<p>Now make one change. Instead of "does this word appear?", record <strong>how many times</strong>
+it appears. Here are four Shakespeare plays and four
+words:<span class="sidenote">SLP3 3rd ed., §11.1, Fig. 11.3. Counts read from the live chapter,
+August 2026. Note these are four <em>different</em> plays from session 8's six — only
+<em>Julius Caesar</em> is in both — because these are the ones with published counts.</span></p>
 
 <table>
-  <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
-  <tr><td>1</td><td>How do we turn messy text into clean pieces, and find things in it?</td>
-      <td>A working search engine</td></tr>
-  <tr><td>2</td><td>How do we turn words into numbers, so maths can work on them?</td>
-      <td>A sentiment classifier, and word vectors</td></tr>
-  <tr><td>3</td><td>How do we get a machine to understand context and generate language?</td>
-      <td>Neural models, up to fine-tuning BERT</td></tr>
+  <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
+  <tr><td><code>battle</code></td><td>1</td><td>0</td><td>7</td><td>13</td></tr>
+  <tr><td><code>good</code></td>  <td>114</td><td>80</td><td>62</td><td>89</td></tr>
+  <tr><td><code>fool</code></td>  <td>36</td><td>58</td><td>1</td><td>4</td></tr>
+  <tr><td><code>wit</code></td>   <td>20</td><td>15</td><td>2</td><td>3</td></tr>
 </table>
 
-<p>We start at the bottom. Before anything clever, you need to get facts out of raw text.</p>
+<p>Small change, and it buys a lot. A 1 said <em>this play contains the word</em>. A 58 says
+<em>this play is substantially about fools</em>. We have gone from <strong>contains</strong> to
+<strong>how much about</strong>.</p>
 
-<h2>Your first tool: regular expressions</h2>
+<h2>The move: a column is a vector</h2>
 
-<p>A <strong>regular expression</strong> (regex) is a small language for describing patterns in
-text. You write a pattern; the computer finds every piece of text that matches it.</p>
+<p>Session 8 read this table in <strong>rows</strong> — each row a string of bits saying which
+plays contain a word, which is what Boolean queries need.</p>
 
-<p>It is the oldest tool in NLP and still one of the most used. When you need to pull dates,
-phone numbers, or IDs out of documents, a regex is often the whole answer — no machine learning
-needed.<span class="sidenote">Jurafsky &amp; Martin, <a
-href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">SLP3 chapter 2</a>, <strong>§2.6</strong>.
-Note the section number — that chapter covers several topics and regex is not the first one.</span></p>
+<p>Read it in <strong>columns</strong> instead. Take <em>As You Like It</em>:</p>
+
+<pre><code>As You Like It   =   [ 1, 114, 36, 20 ]
+                       ↑   ↑    ↑   ↑
+                    battle good fool wit</code></pre>
+
+<p>That is a list of four numbers. A list of numbers is a <strong>vector</strong>. And a vector of
+length four is a <strong>point in four-dimensional space</strong> — one axis per word, and the
+document's position along each axis is how often it uses that word.</p>
 
 <div class="callout">
-  <span class="label">The name for this job</span>
-  <p>Pulling structured facts — dates, amounts, names, IDs — out of text that was not written to
-  be structured is called <strong>information extraction</strong>. You will see the phrase in the
-  syllabus and in exam questions, so learn it now.</p>
-  <p>Regex is the oldest way to do it, and often still the best one. Sessions 1 and 2 are
-  information extraction with regular expressions, start to finish, and Lab 2 is where you build
-  a real one.</p>
+  <span class="label">This is the whole idea of the hour</span>
+  <p>Every document becomes a <strong>point in a space with one dimension per vocabulary
+  word</strong>. The collection becomes a cloud of points.</p>
+  <p>And once documents are points, <mark>documents that are close together use words in similar
+  proportions — which is to say, they are about similar things.</mark> Meaning has become
+  position.</p>
+  <p>This is called the <strong>vector space model</strong>, and everything in the rest of this
+  course lives inside it.</p>
 </div>
 
-<div class="callout">
-  <span class="label">In this course we use <code>regex</code>, not <code>re</code></span>
-  <p>Python ships with a regex library called <code>re</code>. We will not use it. Install this
-  instead:</p>
-  <pre><code>pip install regex</code></pre>
-  <p>Then <code>import regex</code> and use it exactly as you would <code>re</code> — same
-  functions, same patterns. You lose nothing.</p>
-  <p>Why: <code>re</code> does not handle Indian scripts correctly. You will see this for
-  yourself later in this lesson.</p>
-</div>
+<p>Session 8's matrix could answer one kind of question: does this document contain these words?
+Useful, and limited. The vector space model answers a different kind: <em>which of these documents
+resemble each other?</em> Nothing in Unit I could do that.</p>
 
-<h3>The pieces you need today</h3>
+<h3>Seeing it</h3>
 
-<table>
-  <tr><th>Pattern</th><th>Means</th><th>Example match</th></tr>
-  <tr><td><code>cat</code></td><td>exactly those letters</td><td><code>cat</code></td></tr>
-  <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td><td><code>Cat</code>, <code>cat</code></td></tr>
-  <tr><td><code>[0-9]</code></td><td>any digit — a range</td><td><code>7</code></td></tr>
-  <tr><td><code>[^0-9]</code></td><td><code>^</code> inside brackets means <em>not</em></td><td><code>a</code></td></tr>
-  <tr><td><code>.</code></td><td>any character at all</td><td><code>%</code></td></tr>
-  <tr><td><code>\d</code></td><td>shorthand for <code>[0-9]</code></td><td><code>7</code></td></tr>
-  <tr><td><code>\w</code></td><td>a "word character" — see the warning below</td><td><code>a</code></td></tr>
-  <tr><td><code>\s</code></td><td>a space, tab or newline</td><td> </td></tr>
-</table>
+<p>Four dimensions cannot be drawn, so take two of them — <code>battle</code> and <code>fool</code>
+— and plot the four plays on those axes alone:</p>
 
-<p>Then you say <em>how many times</em>:</p>
+<figure>
+  <svg viewBox="0 0 520 340" role="img" aria-labelledby="figtitle figdesc">
+    <title id="figtitle">Four Shakespeare plays plotted by their counts of "battle" and "fool"</title>
+    <desc id="figdesc">The two comedies sit high on the fool axis and low on battle; the two
+    histories sit low on fool and high on battle, forming two separate groups.</desc>
 
-<table>
-  <tr><th>Pattern</th><th>Means</th></tr>
-  <tr><td><code>a*</code></td><td>zero or more <code>a</code></td></tr>
-  <tr><td><code>a+</code></td><td>one or more <code>a</code></td></tr>
-  <tr><td><code>a?</code></td><td>zero or one <code>a</code> — "optional"</td></tr>
-  <tr><td><code>a{3}</code></td><td>exactly three</td></tr>
-  <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
-</table>
+    <!-- axes -->
+    <path class="fig-axis" d="M 90 40 L 90 300 L 480 300"></path>
 
-<h3>A real example</h3>
+    <!-- x ticks -->
+    <line class="fig-tick" x1="90"  y1="300" x2="90"  y2="305"></line>
+    <line class="fig-tick" x1="217" y1="300" x2="217" y2="305"></line>
+    <line class="fig-tick" x1="343" y1="300" x2="343" y2="305"></line>
+    <line class="fig-tick" x1="470" y1="300" x2="470" y2="305"></line>
+    <text class="fig-label" x="90"  y="320" text-anchor="middle">0</text>
+    <text class="fig-label" x="217" y="320" text-anchor="middle">5</text>
+    <text class="fig-label" x="343" y="320" text-anchor="middle">10</text>
+    <text class="fig-label" x="470" y="320" text-anchor="middle">15</text>
 
-<p>Say you have this line of text and you want the facts out of it:</p>
+    <!-- y ticks -->
+    <line class="fig-tick" x1="85" y1="300" x2="90" y2="300"></line>
+    <line class="fig-tick" x1="85" y1="217" x2="90" y2="217"></line>
+    <line class="fig-tick" x1="85" y1="133" x2="90" y2="133"></line>
+    <line class="fig-tick" x1="85" y1="50"  x2="90" y2="50"></line>
+    <text class="fig-label" x="78" y="304" text-anchor="end">0</text>
+    <text class="fig-label" x="78" y="221" text-anchor="end">20</text>
+    <text class="fig-label" x="78" y="137" text-anchor="end">40</text>
+    <text class="fig-label" x="78" y="54"  text-anchor="end">60</text>
 
-<pre><code>"Call +91 98765 43210 before 15/03/2026 or email admin@manipal.edu"</code></pre>
+    <!-- axis names -->
+    <text class="fig-axname" x="285" y="337" text-anchor="middle">battle →</text>
+    <text class="fig-axname" x="30" y="170" text-anchor="middle" transform="rotate(-90 30 170)">fool →</text>
 
-<p>Three patterns, three facts:</p>
+    <!-- grouping rings -->
+    <ellipse class="fig-group fig-group-a" cx="103" cy="104" rx="52" ry="76"></ellipse>
+    <ellipse class="fig-group fig-group-b" cx="343" cy="290" rx="112" ry="34"></ellipse>
 
-<pre><code>date   \d{2}/\d{2}/\d{4}        →  15/03/2026
-phone  \+91 \d{5} \d{5}         →  +91 98765 43210
-email  [\w.]+@[\w.]+            →  admin@manipal.edu</code></pre>
+    <!-- points -->
+    <circle class="fig-pt"   cx="115" cy="150" r="5"></circle>
+    <circle class="fig-pt"   cx="90"  cy="58"  r="5"></circle>
+    <circle class="fig-pt-b" cx="267" cy="296" r="5"></circle>
+    <circle class="fig-pt-b" cx="419" cy="283" r="5"></circle>
 
-<p>Read the date pattern out loud: "two digits, a slash, two digits, a slash, four digits." That
-is all a regex is — a description of shape.</p>
+    <!-- point labels -->
+    <text class="fig-ptname" x="128" y="154">As You Like It</text>
+    <text class="fig-ptname" x="103" y="62">Twelfth Night</text>
+    <text class="fig-ptname" x="262" y="280" text-anchor="middle">Julius Caesar</text>
+    <text class="fig-ptname" x="424" y="267" text-anchor="middle">Henry V</text>
+  </svg>
+  <figcaption>The four plays positioned by how often they use <code>battle</code> and
+  <code>fool</code>. Nobody told the model which plays are comedies. The two comedies landed
+  together in the top left and the two histories landed together along the bottom, purely from
+  word counts.</figcaption>
+</figure>
 
-<p>Notice <code>\+</code> in the phone pattern. <code>+</code> normally means "one or more", so
-to match a literal plus sign you put a backslash in front. This is called
-<strong>escaping</strong>, and forgetting it is the most common regex bug there is.</p>
+<p>That picture is the payoff. <em>As You Like It</em> and <em>Twelfth Night</em> are comedies;
+<em>Julius Caesar</em> and <em>Henry V</em> are histories. The grouping was not put there by
+anyone — it fell out of counting two words.</p>
 
-<p>The email pattern is <strong>deliberately loose</strong>. <code>[\w.]+@[\w.]+</code> also
-accepts <code>..@..</code> and <code>admin@manipal</code> with no <code>.edu</code> on the end.
-It is good enough for this one line of text, and no more. Matching email addresses exactly is
-famously hard — the pattern that really does it is hundreds of characters long. Loose on purpose
-is fine, as long as you know it is loose.</p>
+<p>Real vectors have tens of thousands of dimensions rather than two, so we cannot draw them. But
+the closeness is still there, and it can still be measured. <strong>How</strong> to measure it is
+session 19.</p>
 
-<h3>Why not <code>re</code>? Try it on Kannada</h3>
+<h3>The rows are vectors too</h3>
 
-<p>Here is the reason for that install. Take one word — <strong>ಕನ್ನಡ</strong>, the word
-"Kannada" — and ask each library to find the words in it.</p>
+<p>We turned the columns into document vectors. The rows work the same way: <code>fool</code> is
+<code>[36, 58, 1, 4]</code> — a word represented by the documents it appears in.</p>
 
-<pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"        # "Kannada language" — two words
+<p>That is a smaller idea here and an enormous one shortly. If a word can be a vector, then words
+have positions, and words with similar positions are used in similar contexts — which is most of
+the way to what a word <em>means</em>. That is where sessions 21 and 22 go, and it starts here.</p>
 
-re.findall(r"\w+", text)      # ['ಕನ', 'ನಡ', 'ಭ', 'ಷ']     ← four!
-regex.findall(r"\w+", text)   # ['ಕನ್ನಡ', 'ಭಾಷೆ']            ← two</code></pre>
+<h2>The price: almost everything is zero</h2>
 
-<p><code>re</code> found <strong>four</strong> words where there are two. It broke both words in
-half.</p>
+<p>Our table had four words. A real vocabulary has 50,000, so every document vector has 50,000
+numbers in it — and a 200-word review can be non-zero in at most 200 of them. Over 99% of every
+vector is zero.</p>
 
-<p>Why? Look inside <code>ಕನ್ನಡ</code>. It is five characters, and one of them is special:</p>
+<p>Such a vector is called <strong>sparse</strong>, and storing it literally would be absurd: a
+million documents by 50,000 words is fifty billion cells, almost all of them 0.</p>
 
-<pre><code>ಕ   U+0C95   KANNADA LETTER KA        a letter
-ನ   U+0CA8   KANNADA LETTER NA        a letter
-್   U+0CCD   KANNADA SIGN VIRAMA      a combining mark  ←
-ನ   U+0CA8   KANNADA LETTER NA        a letter
-ಡ   U+0CA1   KANNADA LETTER DDA       a letter</code></pre>
-
-<p>The <strong>virama</strong> joins two consonants together. It is a mark, not a letter. And
-<code>re</code>'s definition of <code>\w</code> — "a word character" — accepts letters and digits
-but <strong>rejects combining marks</strong>. So when <code>re</code> reaches the virama it
-decides the word has ended.</p>
-
-<p>Every Indian script uses combining marks. So does Arabic, Hebrew, Thai. <code>re</code>'s
-idea of "a word" was built around English, and it quietly falls apart everywhere else.</p>
-
-<div class="callout warn">
-  <span class="label">Why this matters more than it looks</span>
-  <p>This is not a cosmetic bug. In Unit II you will count words to build Bag of Words, TF-IDF
-  and n-grams. <mark>If your word counts are doubled before you start, every number after that
-  is wrong</mark> — and nothing will crash to tell you.</p>
-  <p>The failure is silent. That is the worst kind.</p>
-</div>
+<p>Which is exactly why session 9 built the <strong>inverted index</strong> — a structure that
+stores only the non-zero entries. The vector space model is how we <em>think</em> about documents;
+the inverted index is how we <em>store</em> them. Same information, and the storage question was
+solved before we needed it.</p>
 
 <div class="recall">
-  <span class="label">Try this before reading on</span>
-  <p>Write a pattern that matches a PIN code: exactly six digits.</p>
-  <p>Then a harder one: a roll number like <code>MSIS2026001</code> — four letters, then seven
-  digits.</p>
+  <span class="label">Think about this before reading on</span>
+  <p>Look at the table again. <code>good</code> has the largest counts by far — 114, 80, 62, 89 —
+  in every single play. If you had to drop one of the four words from the representation, which
+  should go, and why?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>PIN code: <code>\d{6}</code></p>
-    <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
-    <p>If you wrote <code>\w{4}\d{7}</code> for the second one — close, but not tight enough.
-    <code>\w</code> matches letters <em>and</em> digits <em>and</em> underscore, so that pattern
-    also accepts <code>12345678901</code> and <code>msis2026001</code>. Neither is a roll
-    number.</p>
-    <p>Being exact about what you allow is most of the skill. A pattern that is too loose
-    quietly lets rubbish through, and you will not notice until the data is wrong.</p>
+    <p><strong>Drop <code>good</code></strong>, despite it having the biggest numbers by a wide
+    margin.</p>
+    <p>It appears a lot in <em>all four</em> plays, so it never helps you tell them apart. On the
+    plot it would push every play far along the same axis and separate nothing. Meanwhile
+    <code>battle</code> — whose counts are tiny — cleanly splits the histories from the comedies.</p>
+    <p><mark>A word is useful in proportion to how well it distinguishes documents, not how often
+    it occurs.</mark> Raw counts get this backwards, and they get it worst for exactly the words
+    that are most common.</p>
   </div>
 </div>
 
 <div class="quiz" data-answer="1">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">What does <code>[^aeiou]</code> match?</p>
+  <p class="q-text">In the vector space model, what does a single <em>column</em> of the
+  term-document matrix represent?</p>
   <div class="q-opts">
-    <button class="opt">A vowel found at the very start of the line</button>
-    <button class="opt">Any single character that is not a vowel</button>
-    <button class="opt">Any vowel repeated one or more times</button>
-    <button class="opt">The literal characters caret and vowels</button>
+    <button class="opt">One word, placed by how often each document happens to use it</button>
+    <button class="opt">One document, placed by how often it uses each word in turn</button>
+    <button class="opt">One query, placed by the words a user typed into the search box</button>
+    <button class="opt">One topic, placed by the words that best summarise what it covers</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>any single character that is not a vowel</strong>.</p>
-    <p>The trap is <code>^</code>. It has <strong>two different meanings</strong> depending on
-    where it sits:</p>
-    <p>Inside square brackets, at the start: it means <em>not</em>. So <code>[^aeiou]</code> is
-    "anything except a vowel".</p>
-    <p>Outside brackets: it means <em>start of line</em>. So <code>^The</code> matches "The"
-    only at the beginning.</p>
-    <p>Same symbol, two jobs. Expect to get this wrong once, then never again.</p>
+    <p>Correct answer: <strong>one document, placed by how often it uses each word</strong>.</p>
+    <p>Columns are documents, rows are words — so a column is a document vector with one dimension
+    per vocabulary word. The first option describes a <em>row</em>, which is also a useful vector
+    (it represents a word) and is where word embeddings come from in sessions 21–22.</p>
   </div>
 </div>
 
 <div class="quiz" data-answer="3">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">Which pattern matches both <code>colour</code> and <code>color</code>?</p>
+  <p class="q-text">Why can bag of words not tell "dog bites man" from "man bites dog"?</p>
   <div class="q-opts">
-    <button class="opt">The pattern <code>colo*r</code></button>
-    <button class="opt">The pattern <code>colo+r</code></button>
-    <button class="opt">The pattern <code>colo.r</code></button>
-    <button class="opt">The pattern <code>colou?r</code></button>
+    <button class="opt">Because the two sentences contain a different total number of words</button>
+    <button class="opt">Because rare words such as bites are dropped before the count is made</button>
+    <button class="opt">Because counts are stored as whole numbers, which loses fine detail</button>
+    <button class="opt">Because it records which words occur and how often, not the order</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <code>colou?r</code>.</p>
-    <p>The <code>?</code> applies to the character just before it — <code>u</code> — and means
-    "zero or one of these". So the <code>u</code> becomes optional. That is exactly the
-    difference between the two spellings.</p>
-    <p>Why the others fail: <code>colo*r</code> makes the <strong>o</strong> optional, so it
-    matches <code>colr</code> and <code>colooor</code> but never <code>colour</code>.
-    <code>colo+r</code> has the same problem. <code>colo.r</code> needs exactly one character
-    there, so it matches <code>colour</code> and <code>coloXr</code>, but not
-    <code>color</code>.</p>
-    <p>The lesson: a quantifier attaches to the <em>one thing</em> immediately before it.</p>
+    <p>Correct answer: <strong>it records only which words occur and how often, not their
+    order</strong>.</p>
+    <p>Both sentences contain the same three words once each, so both produce exactly the same
+    vector. The information was destroyed at representation time and nothing downstream can recover
+    it. That is the cost of the model, accepted deliberately — not a bug to be fixed later.</p>
   </div>
 </div>
 
-<h2>What to remember</h2>
+<h2>The one thing to remember</h2>
 
 <div class="callout">
-  <span class="label">The one thing</span>
-  <p>Language is ambiguous, and computers have no instinct for it. Everything in this course is
-  a way of handling that.</p>
-  <p>But not every problem needs a clever model. When the thing you want has a
-  <strong>shape</strong> — a date, a phone number, an ID — a regex will find it, and no amount
-  of machine learning will beat it.</p>
+  <span class="label">The whole lesson in two sentences</span>
+  <p>Bag of words represents a document by its word counts with the order thrown away, which turns
+  each document into a vector — a point in a space with one dimension per vocabulary word. Once
+  documents are points, documents that sit close together use words in similar proportions and are
+  therefore about similar things, and that single idea is what makes search, similarity and every
+  embedding in this course possible.</p>
 </div>
+
+<p>One problem is already visible, and the recall box above is it. <code>good</code> has the
+biggest counts in the table and is the least informative word in it. Raw counts reward words for
+being common, when what we actually want is words that are <em>distinctive</em>.</p>
+
+<p>You have met the fix already — session 10 used TF-IDF to rank search results. Next session puts
+it inside the vector instead of inside a score, and then re-draws the picture above to show what
+changes.</p>
 
 <h2>Read this next</h2>
 
-<p>Read <strong>§2.6, "Regular Expressions"</strong> in <a
-href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter 2 of <em>Speech and Language
-Processing</em></a> by Jurafsky and Martin. It is free.</p>
-
-<p><strong>Read §2.6 only this week.</strong> That chapter covers other topics as well, and some
-of them come later in this course. You are not missing anything by skipping them for now.</p>
-
-<p>Next session we finish regex: groups, alternatives, and the greedy matching trap. Then in
-session 3 we start on tokenization.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
+Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>§11.1</strong>
+("The Vector Space Model", inside the Information Retrieval chapter) — free online, and the source
+of the Shakespeare counts. <strong>Note this is chapter 11, not chapter 5</strong> — chapter 5 in
+this edition covers word embeddings and explicitly leaves this material to chapter 11.
+<a href="https://nlp.stanford.edu/IR-book/">Introduction to Information Retrieval</a> chapter 6
+covers the same model from the search side.</p>
 
 
 
@@ -826,8 +809,8 @@ session 3 we start on tokenization.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0002-regex-groups-and-the-greedy-trap.html">Next — Session 02: capturing, choosing,
-  and the greedy trap →</a>
+  <a href="0016-naive-bayes-for-sentiment.html">← Session 16: Naïve Bayes for sentiment</a>
+  <span>Next — Session 18: the TF-IDF vector model</span>
 </nav>
 
 <script>
