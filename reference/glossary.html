@@ -882,16 +882,50 @@ th {
 </dl>
 
 <dl class="term">
+  <dt>Supervised classification</dt>
+  <dd>Learn to map a document to one label from a fixed set, using training documents a human has
+  already labelled. The alternative to writing rules by hand — and the cost is the labelling.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Prior · likelihood · posterior</dt>
+  <dd><strong>Prior</strong> <em>P(c)</em> — how common the class is before reading anything.
+  <strong>Likelihood</strong> <em>P(d|c)</em> — how likely this document is if the class were c.
+  <strong>Posterior</strong> <em>P(c|d)</em> — how likely the class is now the document is read.
+  The posterior is what you want and cannot count; the other two are what you can.
+  <strong>The thing before the bar is what you are asking about</strong> — read them backwards and
+  the whole topic collapses.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Bayes' rule</dt>
+  <dd><em>P(x|y) = P(y|x)·P(x) / P(y)</em> — flips a conditional probability round. Useful exactly
+  when one direction has data behind it and the other does not. For classification the denominator
+  drops out, since it is identical for every class and only the ranking is needed — which is also
+  why the outputs are scores, not probabilities.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Generative vs. discriminative</dt>
+  <dd><strong>Generative</strong> (Naïve Bayes) models how a class would produce a document, then
+  asks which class most likely produced this one. <strong>Discriminative</strong> (logistic
+  regression) skips the story and learns only what separates the classes. Discriminative is usually
+  more accurate; generative is cheaper and needs less data.</dd>
+</dl>
+
+<dl class="term">
   <dt>Naïve Bayes</dt>
   <dd>Generative classifier applying Bayes' rule with a conditional-independence assumption
-  across features. <span class="unit">SLP3 Appendix B — not ch 4</span></dd>
+  across features. Training is counting and dividing — no optimisation, no iteration.
+  <span class="unit">SLP3 Appendix B — not ch 4</span></dd>
 </dl>
 
 <dl class="term trap">
   <dt>The "naïve" assumption</dt>
   <dd>That features (words) are conditionally independent given the class. It is <em>false</em>
   for language — and the classifier works well anyway. Being able to say <em>why a known-false assumption still works</em> is the whole point of the
-  topic.</dd>
+  topic. <strong>Not the same as bag of words</strong>, which Naïve Bayes assumes separately: bag
+  of words is about <em>order</em>, this is about <em>dependence</em>.</dd>
 </dl>
 
 <dl class="term">

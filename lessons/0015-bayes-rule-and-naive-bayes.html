@@ -1,0 +1,918 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 15 — Bayes' rule and the Naïve Bayes classifier</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 15</p>
+  <h1>Bayes' rule and the Naïve Bayes classifier</h1>
+  <p class="subtitle">The question we want to ask cannot be counted. So we turn it into two
+  questions that can — and then tell two deliberate lies to make the second one countable too.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Remember <code>nightmare</code>?</h2>
+
+<p>In lab 1 we ran VADER, a sentiment analyser built from a hand-written lexicon, over a few
+sentences. It handled the hard ones well — it got <em>brilliant</em> and <em>terrible</em> right,
+and even scored <em>"not bad at all"</em> as mildly positive. Then it read this:</p>
+
+<pre><code>"this course is going to be a nightmare"   →   0.0   (neutral)</code></pre>
+
+<p>Not a subtle failure. The reason was simple: <code>nightmare</code> is not in VADER's
+7,502-word lexicon. Nobody wrote it down.</p>
+
+<p>You could add it. But <code>shambles</code> is missing too — and so is whatever word people
+start using next year. A hand-written list is always one word short, for ever, and it needs a human
+to notice each gap.</p>
+
+<div class="callout">
+  <span class="label">The move this session makes</span>
+  <p>Stop writing the rules. Instead, show a program a pile of documents that people have already
+  labelled — this review is positive, that one is negative — and let it work out for itself which
+  words matter.</p>
+  <p>This is <strong>supervised machine learning</strong>, and it is the first time in this course
+  we ask a model to learn a task rather than compute a definition. The method we use is called
+  <strong>Naïve Bayes</strong>.</p>
+</div>
+
+<h2>The task</h2>
+
+<p><strong>Classification</strong> is: given a document, choose one label from a fixed set. We
+care about <strong>sentiment analysis</strong> — is this review positive or negative? — but the
+machinery is not specific to sentiment. The same classifier does spam detection (spam / not spam),
+language identification (which language is this?), and topic labelling, unchanged.</p>
+
+<p>What "supervised" means in practice: you need <strong>labelled training data</strong>, a set of
+documents each already marked with the right answer. That is the price of not writing rules, and
+it is a real price — somebody had to label them.</p>
+
+<h2>The question we want, and why we cannot count it</h2>
+
+<p>Written down, the goal is almost embarrassingly direct. Out of all the classes, return the one
+that is most probable given the document:</p>
+
+<pre><code>best class  =  argmax  P(c | d)
+                c in C</code></pre>
+
+<p><code>argmax</code> just means "the thing that makes this biggest" — we want the class itself,
+not the probability. Read the line aloud: <em>of all the classes, give me the one most likely for
+this document.</em> That is exactly the job.</p>
+
+<p>Now try to estimate it the way we have estimated everything so far in this course — by
+counting:</p>
+
+<pre><code>P(positive | "predictable with no fun")
+
+   =   count(that exact document, labelled positive)
+       ─────────────────────────────────────────────
+       count(that exact document)</code></pre>
+
+<p>The denominator is <strong>1</strong> if that document happens to be in your training set, and
+<strong>0</strong> if it is not — which it will not be, because it is a new document. That is the
+whole point of a classifier.</p>
+
+<div class="callout warn">
+  <span class="label">We have hit this exact wall before</span>
+  <p>Session 12: the chain rule gave the exact probability of a sentence, and was useless because
+  the long histories it needed almost never repeat. Same shape here. <mark>The quantity we want is
+  perfectly well defined and cannot be counted, because the thing we would count is unique.</mark></p>
+  <p>Last time the fix was to ask a shorter question. This time it is different, and better: we
+  keep the question and change who answers it.</p>
+</div>
+
+<h2>A short probability refresher</h2>
+
+<p>Three names, because the rest of the hour uses them constantly.</p>
+
+<p>A <strong>conditional probability</strong> <code>P(A | B)</code> is the probability of A given
+that B is known to be true. That is all the notation means: the bar is "given".</p>
+
+<table>
+  <tr><th>name</th><th>written</th><th>in our problem</th></tr>
+  <tr><td><strong>prior</strong></td><td><code>P(c)</code></td><td>how common this class is, before looking at the document</td></tr>
+  <tr><td><strong>likelihood</strong></td><td><code>P(d | c)</code></td><td>how likely this document is, if the class were c</td></tr>
+  <tr><td><strong>posterior</strong></td><td><code>P(c | d)</code></td><td>how likely this class is, now that we have read the document</td></tr>
+</table>
+
+<p><em>Prior</em> and <em>posterior</em> mean before and after — before and after seeing the
+evidence. The posterior is what we want and cannot count. Hold on to that.</p>
+
+<h2>Bayes' rule</h2>
+
+<p><strong>Bayes' rule</strong> relates the two conditional probabilities that point in opposite
+directions. In general form:</p>
+
+<pre><code>P(x | y)  =  P(y | x) · P(x)  /  P(y)</code></pre>
+
+<p>Applied to our problem, it turns the posterior into the other three:</p>
+
+<pre><code>                          P(d | c) · P(c)
+best class  =  argmax     ───────────────
+                c in C          P(d)</code></pre>
+
+<p>Look at what changed. We wanted <code>P(c | d)</code> — the probability of a class given a
+unique, never-before-seen document. We now need <code>P(d | c)</code> and <code>P(c)</code>
+instead.</p>
+
+<p><code>P(c)</code> is easy: of the labelled documents, what fraction were positive? That is a
+count over documents, and there are plenty of documents. <code>P(d | c)</code> is still hard, and
+we deal with it in a moment. But the direction of travel is right — we swapped one impossible
+question for one easy one and one hard one.</p>
+
+<div class="callout">
+  <span class="label">Why flipping the question helps at all</span>
+  <p>It feels like a trick the first time. The reason it works: <strong>the two directions are not
+  equally hard to count.</strong></p>
+  <p>"How often is <em>this exact document</em> positive?" has no data behind it — the document is
+  unique. "How often does a positive review use the word <em>fun</em>?" has plenty of data, because
+  thousands of positive reviews exist and lots of them say <em>fun</em>. Bayes' rule lets us answer
+  the first question using the second.</p>
+</div>
+
+<h3>Throwing away the denominator</h3>
+
+<p><code>P(d)</code> is the awkward-looking term, and it disappears for free. We are comparing
+classes for <strong>one fixed document</strong>. Whatever <code>P(d)</code> is, it is the same
+number in every class we compare — so it cannot change which class comes out largest.</p>
+
+<p>And we do not need a real probability. We need <em>which class wins</em>. So drop it:</p>
+
+<pre><code>best class  =  argmax   P(d | c) · P(c)
+                c in C
+
+                        likelihood   prior</code></pre>
+
+<div class="callout">
+  <span class="label">Reading the formula as a story</span>
+  <p>That line has a natural reading: to produce a document, first pick a class, then produce words
+  appropriate to that class. Classification runs the story backwards — given the words, which class
+  most likely produced them?</p>
+  <p>Because it describes how a document could be <em>generated</em>, Naïve Bayes is called a
+  <strong>generative</strong> model. You could genuinely use it to write text, badly. The
+  alternative family, <strong>discriminative</strong> models, skips the story and learns only what
+  separates the classes.</p>
+</div>
+
+<h2>The last problem, and two lies to fix it</h2>
+
+<p>We are still stuck on <code>P(d | c)</code>: the probability of a <em>whole document</em> given
+a class. A document is a specific sequence of specific words in a specific order, so counting it
+runs into exactly the same uniqueness problem as before. Nothing has been solved yet — it has been
+moved.</p>
+
+<p>Naïve Bayes escapes by making two assumptions. Both are false. Say that plainly, because their
+falseness is the interesting part.</p>
+
+<h3>Assumption 1 — bag of words</h3>
+
+<p><strong>Position does not matter.</strong> Keep which words appeared and how often; throw away
+the order. The document becomes an unordered bag:</p>
+
+<pre><code>"the film was fun, not boring"      →   {the, film, was, fun, not, boring}
+"the film was boring, not fun"      →   {the, film, was, boring, not, fun}</code></pre>
+
+<p>Those two reviews mean opposite things and the model cannot tell them apart. That is a real
+loss, and it is accepted anyway, because word <em>identity</em> carries most of the signal for
+sentiment and word <em>order</em> costs far too much to model. We come back to bag of words
+properly in session 17, where it becomes a way of turning a document into a vector.</p>
+
+<h3>Assumption 2 — the naïve assumption</h3>
+
+<p>This is the one the method is named after. <strong>Given the class, the words are
+independent</strong> — knowing one word tells you nothing about the others. Which lets us multiply
+them:</p>
+
+<pre><code>P(d | c)  =  P(w₁ | c) · P(w₂ | c) · … · P(wₙ | c)</code></pre>
+
+<p>Obviously untrue. In a positive review, seeing <code>special</code> makes
+<code>effects</code> far more likely than it otherwise would be, and <code>San</code> all but
+guarantees <code>Francisco</code>. Words travel together. The assumption says they do not.</p>
+
+<div class="callout warn">
+  <span class="label">The third time we have made this trade</span>
+  <p>The pattern is now unmistakable, so name it:</p>
+  <ul>
+    <li><strong>Session 12</strong> — the Markov assumption: only the last word or two matters.
+    False.</li>
+    <li><strong>Now</strong> — bag of words: order does not matter. False.</li>
+    <li><strong>Now</strong> — the naïve assumption: words are independent. False.</li>
+  </ul>
+  <p><mark>Each one replaces a quantity we cannot estimate with one we can, and each is adopted
+  knowingly.</mark> The test of such an assumption is never "is it true?" — it is "does the model
+  built on it work?" Naïve Bayes is wrong about language in an obvious way and classifies text
+  well. Both facts are true at once, and being comfortable with that is most of applied machine
+  learning.</p>
+</div>
+
+<h2>The classifier</h2>
+
+<p>Put the pieces together and the whole method is one line:</p>
+
+<pre><code>best class  =  argmax   P(c) · Π P(w | c)
+                c in C          w in d</code></pre>
+
+<p>In words, and this is the version worth remembering: <strong>for each class, multiply how
+common that class is by how typical each of the document's words is for it. Pick the winner.</strong></p>
+
+<p>Two quantities are needed, and both are plain counts on labelled data:</p>
+
+<table>
+  <tr><th>quantity</th><th>what it asks</th></tr>
+  <tr><td><code>P(c)</code></td><td>what fraction of the training documents are in class c?</td></tr>
+  <tr><td><code>P(w | c)</code></td><td>of all the words in class c's documents, what fraction are this word?</td></tr>
+</table>
+
+<p>No optimisation, no iteration, no training loop. You count, you divide, you are done — which is
+why Naïve Bayes is still worth teaching in an age of enormous models. It is the cheapest thing that
+works.</p>
+
+<div class="recall">
+  <span class="label">Think about this before reading on</span>
+  <p>We dropped <code>P(d)</code> from the formula. But <code>P(d)</code> is a real quantity — the
+  probability of that document. Why is it safe to throw away, and what do we lose?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><strong>Safe because it is identical for every class.</strong> We compare
+    <code>P(d|+)P(+)/P(d)</code> against <code>P(d|−)P(−)/P(d)</code> for the same document d.
+    Dividing both by the same number cannot change which is larger. The ranking is untouched.</p>
+    <p><strong>What we lose is the scale.</strong> The numbers that come out are no longer real
+    probabilities and will not add to 1 — they are scores. So you can say "positive beats negative",
+    but you cannot say "70% confident" without putting the denominator back.</p>
+    <p>The general principle is worth keeping: <strong>when you only need an ordering, any factor
+    shared by everything you are ranking can be dropped.</strong> It turns up constantly, and it is
+    almost always the cheapest simplification available.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why can we not just count <code>P(c | d)</code> from the training data
+  directly?</p>
+  <div class="q-opts">
+    <button class="opt">Because probabilities conditioned on a class cannot be counted</button>
+    <button class="opt">Because a document has too many words for the count to be exact</button>
+    <button class="opt">Because the exact document is unique, so its count is 0 or 1</button>
+    <button class="opt">Because the classes overlap, so a document may fall into both</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the exact document is unique, so its count is 0 or 1</strong>.</p>
+    <p>You would be counting how often that precise document appeared with each label, and a new
+    document has never appeared at all. It is session 12's wall again: the quantity is well defined
+    and there is no data behind it. Bayes' rule turns it into questions about single words, which
+    do have data behind them.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">What exactly does the "naïve" assumption claim?</p>
+  <div class="q-opts">
+    <button class="opt">That every class is equally likely before the document is read</button>
+    <button class="opt">That given the class, each word is independent of the others</button>
+    <button class="opt">That a word means the same thing in every document it appears in</button>
+    <button class="opt">That the training documents were labelled without any human error</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>given the class, each word is independent of the others</strong>.</p>
+    <p>That is what lets us multiply the individual <code>P(w|c)</code> values together instead of
+    estimating the probability of the whole word combination. It is plainly false — <code>special</code>
+    and <code>effects</code> are not independent — and the classifier works anyway. Note that the
+    <em>separate</em> bag-of-words assumption is the one about order.</p>
+  </div>
+</div>
+
+<h2>The one thing to remember</h2>
+
+<div class="callout">
+  <span class="label">The whole lesson in two sentences</span>
+  <p>We want the most likely class given the document, which cannot be counted because the document
+  is unique — so Bayes' rule flips it into the likelihood of the document given the class times the
+  prior of the class, and the denominator drops out because we only need a ranking. That likelihood
+  is still uncountable, so two knowingly false assumptions cut it down: order does not matter, and
+  words are independent, leaving a classifier that is nothing but counting and multiplying.</p>
+</div>
+
+<p>We now have the formula and not a single number in it. Next session we train it on real labelled
+reviews and classify one.</p>
+
+<p>Although you can probably see what is waiting. The formula multiplies one
+<code>P(w | c)</code> for every word in the document. So what happens the first time a word in a
+new review never appeared in the training documents of that class? The count is zero, the product
+is zero, and the class is ruled out entirely on the strength of one word.</p>
+
+<p>We have met that before, and we know what it is called.</p>
+
+<h2>Read this next</h2>
+
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
+Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>Appendix B</strong>
+("Naive Bayes, Text Classification, and Sentiment") — free online. Read <strong>§B.1</strong>, up
+to where it starts training the classifier; that is next session. <strong>It is Appendix B, not
+chapter 4</strong> — chapter 4 in this edition is a different method, and older reading lists get
+this wrong.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0014-evaluation-and-perplexity.html">← Session 14: judging a language model</a>
+  <span>Next — Session 16: Naïve Bayes for sentiment, worked through</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>
