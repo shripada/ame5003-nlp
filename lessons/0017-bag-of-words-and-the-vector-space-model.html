@@ -498,6 +498,14 @@ figcaption {
 .fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
 .fig-group-a { stroke: var(--accent); }
 .fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
 
 /* ---- Narrow screens: margin notes fold into the text ---- */
 @media (max-width: 1100px) {
@@ -785,8 +793,8 @@ biggest counts in the table and is the least informative word in it. Raw counts 
 being common, when what we actually want is words that are <em>distinctive</em>.</p>
 
 <p>You have met the fix already — session 10 used TF-IDF to rank search results. Next session puts
-it inside the vector instead of inside a score, and then re-draws the picture above to show what
-changes.</p>
+it inside the vector instead of inside a score, and re-weights this exact table. What comes out is
+not what you would guess from the plot above.</p>
 
 <h2>Read this next</h2>
 
@@ -810,7 +818,7 @@ covers the same model from the search side.</p>
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
   <a href="0016-naive-bayes-for-sentiment.html">← Session 16: Naïve Bayes for sentiment</a>
-  <span>Next — Session 18: the TF-IDF vector model</span>
+  <a href="0018-the-tf-idf-vector-model.html">Session 18: the TF-IDF vector model →</a>
 </nav>
 
 <script>

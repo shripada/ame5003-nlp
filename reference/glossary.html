@@ -498,6 +498,14 @@ figcaption {
 .fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
 .fig-group-a { stroke: var(--accent); }
 .fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
 
 /* ---- Narrow screens: margin notes fold into the text ---- */
 @media (max-width: 1100px) {
@@ -971,6 +979,37 @@ figcaption {
 </dl>
 
 <dl class="term">
+  <dt>Precision</dt>
+  <dd>Of the items the classifier labelled as class <em>c</em>, what fraction really were
+  <em>c</em>. High precision means few false alarms for that class.
+  <span class="unit">Lab 6 · enrichment</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Recall</dt>
+  <dd>Of the items that really are class <em>c</em>, what fraction the classifier found. High
+  recall means few missed cases for that class. Precision and recall pull against each other —
+  a single accuracy number can hide that trade-off.
+  <span class="unit">Lab 6 · enrichment</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>F1</dt>
+  <dd>The harmonic mean of precision and recall for a class:
+  <em>2 · precision · recall / (precision + recall)</em>. One number when you need one; still
+  per-class, so it does not replace looking at both.
+  <span class="unit">Lab 6 · enrichment</span></dd>
+</dl>
+
+<dl class="term">
+  <dt>Confusion matrix</dt>
+  <dd>A table of true class against predicted class. The diagonal is correct; off-diagonal cells
+  are the specific mistakes. Precision and recall are just ratios of those cells — the matrix is
+  the primary object, the report is a summary.
+  <span class="unit">Lab 6 · enrichment</span></dd>
+</dl>
+
+<dl class="term">
   <dt>BoW <span class="sym">Bag of Words</span></dt>
   <dd>Represent a document by word counts, discarding order. "Dog bites man" = "man bites dog".
   The loss is permanent — nothing downstream can recover an order destroyed at representation
@@ -999,13 +1038,24 @@ figcaption {
   <dd>Weight = <strong>term frequency</strong> × <strong>inverse document frequency</strong>.
   TF rewards words frequent <em>in this doc</em>; IDF (a log ratio) penalises words common
   <em>across all docs</em>. Together: words that are distinctive here. Know why there is a <em>log</em> in IDF: it damps the effect, so being rare helps, but less
-  and less as a word gets rarer.</dd>
+  and less as a word gets rarer. A word in <em>every</em> document has idf
+  <code>log(N/N) = 0</code> exactly, so its weight is zero no matter how often it occurs.
+  <strong>IDF is a property of the collection, not of the document</strong> — score the same text
+  against a different collection and every weight changes. A word can be highly distinctive in one
+  collection and worthless in another: <code>fool</code> separates comedies from histories in
+  general, and is near-useless across Shakespeare's 37 plays because he uses it in 36 of them.</dd>
 </dl>
 
 <dl class="term">
   <dt>Cosine similarity</dt>
-  <dd>Similarity as the cosine of the angle between vectors: dot product over the product of
-  magnitudes. Ignores length, so a long and a short doc on the same topic still match.</dd>
+  <dd>Similarity as the cosine of the angle between vectors: <code>(a·b) / (|a||b|)</code> — the dot
+  product over the product of magnitudes. Easiest read: shrink both vectors to length 1
+  (<em>unit vectors</em>), then take their dot product — so it compares direction and throws length
+  away. A document and the same document printed twice score exactly 1. For count, tf or tf-idf
+  vectors the range is <strong>0 to 1</strong>, because counts are never negative and such vectors
+  can be at most 90° apart; for embeddings, which do have negative components, the range is the full
+  <strong>−1 to 1</strong>. It fixes a length problem, not a feature problem — uninformative features
+  stay uninformative however you measure the angle. Session 19.</dd>
 </dl>
 
 <dl class="term trap">

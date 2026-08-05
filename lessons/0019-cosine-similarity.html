@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 19 — Cosine similarity</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 19</p>
+  <h1>Cosine similarity</h1>
+  <p class="subtitle">Last session left a number on the board and refused to explain it. Today we
+  derive it — and then use it to get session 17's clustering back.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>The number we did not explain</h2>
+
+<p>Here is the board from the end of last session, exactly as we left it. <em>Julius Caesar</em>'s
+raw column, and a document that is the same play printed twice:</p>
+
+<pre><code>d   =  [ 7,  62, 1, 2]     length  62.43
+2d  =  [14, 124, 2, 4]     length 124.87
+
+Euclidean distance   62.43   →  "completely different documents"
+cosine                1.0000 →  "identical documents"</code></pre>
+
+<p>Two measurements, same pair of vectors, opposite verdicts. One of them says the same play printed
+twice is as far apart as anything in our whole collection. The other says the two are the same
+thing.</p>
+
+<p>The second one is right, and by the end of the hour you will have derived it.</p>
+
+<h2>Distance measures the tips. We want the direction.</h2>
+
+<p>Draw the vectors instead of listing them. Every document vector starts at the origin and ends at
+a point. Euclidean distance measures the gap between the two <em>tips</em>. That is a perfectly good
+question to ask — it is just not the question we have.</p>
+
+<p>Doubling a document does not swing it round. It pushes the tip further out <em>along the very
+same line</em>. The direction is untouched. So if we measure the angle between two vectors instead
+of the gap between their tips, doubling a document changes nothing at all.</p>
+
+<figure>
+  <svg viewBox="0 0 560 300" role="img" aria-labelledby="figtitle figdesc">
+    <title id="figtitle">Two document vectors from the origin, with the angle between them, and one
+    of them doubled along the same line</title>
+    <desc id="figdesc">A plot with fool counts on the horizontal axis and battle counts on the
+    vertical. As You Like It is a long vector lying almost flat along the fool axis. Julius Caesar
+    is a short vector pointing steeply upward, at about eighty degrees from the first. A dashed
+    vector twice as long lies exactly on top of the Julius Caesar line, reaching twice as far in the
+    same direction, so the angle between it and As You Like It is identical.</desc>
+
+    <!-- axes -->
+    <path class="fig-axis" d="M 70 76 L 70 255 L 515 255"></path>
+    <text class="fig-axname" x="515" y="277" text-anchor="end">fool →</text>
+    <text class="fig-axname" x="70" y="68" text-anchor="middle">battle ↑</text>
+    <text class="fig-label" x="62" y="270" text-anchor="end">0</text>
+
+    <!-- ticks: x at fool = 10, 20, 30, 40 (10.5 px per unit) -->
+    <line class="fig-tick" x1="175" y1="255" x2="175" y2="260"></line>
+    <line class="fig-tick" x1="280" y1="255" x2="280" y2="260"></line>
+    <line class="fig-tick" x1="385" y1="255" x2="385" y2="260"></line>
+    <line class="fig-tick" x1="490" y1="255" x2="490" y2="260"></line>
+    <text class="fig-label" x="175" y="272" text-anchor="middle">10</text>
+    <text class="fig-label" x="280" y="272" text-anchor="middle">20</text>
+    <text class="fig-label" x="385" y="272" text-anchor="middle">30</text>
+    <text class="fig-label" x="490" y="272" text-anchor="middle">40</text>
+
+    <!-- ticks: y at battle = 5, 10, 15 -->
+    <line class="fig-tick" x1="65" y1="202.5" x2="70" y2="202.5"></line>
+    <line class="fig-tick" x1="65" y1="150"   x2="70" y2="150"></line>
+    <line class="fig-tick" x1="65" y1="97.5"  x2="70" y2="97.5"></line>
+    <text class="fig-label" x="60" y="207" text-anchor="end">5</text>
+    <text class="fig-label" x="60" y="154" text-anchor="end">10</text>
+    <text class="fig-label" x="60" y="102" text-anchor="end">15</text>
+
+    <!-- 2 x Julius Caesar: dashed, collinear, drawn first so the solid one sits on top -->
+    <line class="fig-vec-d" x1="70" y1="255" x2="91" y2="108"></line>
+    <polygon class="fig-head-b" points="91,108 93.55,118.47 85.63,117.33"></polygon>
+
+    <!-- Julius Caesar -->
+    <line class="fig-vec-b" x1="70" y1="255" x2="80.5" y2="181.5"></line>
+    <polygon class="fig-head-b" points="80.5,181.5 83.05,191.96 75.13,190.83"></polygon>
+
+    <!-- As You Like It -->
+    <line class="fig-vec" x1="70" y1="255" x2="448" y2="244.5"></line>
+    <polygon class="fig-head" points="448,244.5 438.11,248.78 437.89,240.78"></polygon>
+
+    <!-- the angle arc, radius 55, from 1.59 degrees to 81.87 degrees -->
+    <path class="fig-arc" d="M 124.98 253.47 A 55 55 0 0 0 77.80 200.56"></path>
+    <text class="fig-label" x="133" y="219">80.3°</text>
+
+    <!-- the tip-to-tip gap between JC and 2JC, drawn offset to the right so it is
+         visible rather than hidden under the dashed 2d vector itself -->
+    <path class="fig-gap" d="M 91.5 184.5 L 102 111"></path>
+    <line class="fig-gap" x1="80.5" y1="181.5" x2="91.5" y2="184.5"></line>
+    <line class="fig-gap" x1="91" y1="108" x2="102" y2="111"></line>
+    <text class="fig-label" x="106" y="152">7.07 apart</text>
+
+    <!-- point labels -->
+    <text class="fig-ptname" x="440" y="232" text-anchor="end">As You Like It (36, 1)</text>
+    <text class="fig-ptname" x="101" y="112">2 × Julius Caesar (2, 14)</text>
+    <text class="fig-ptname" x="91" y="178">Julius Caesar (1, 7)</text>
+  </svg>
+  <figcaption>Two of session 17's plays in the <code>fool</code>–<code>battle</code> plane, with
+  both axes on the same scale so the drawn angle is the real one. <em>Julius Caesar</em> doubled
+  (dashed) lies exactly on its own line: its tip has moved 7.07 units away, but the angle to
+  <em>As You Like It</em> is <strong>80.3° either way</strong>. Euclidean distance sees a change.
+  The angle does not.</figcaption>
+</figure>
+
+<div class="callout">
+  <span class="label">The whole idea, before any formula</span>
+  <p>Document length is mostly a fact about <em>how much someone wrote</em>. It is not what we
+  wanted to measure. <mark>Compare direction, not magnitude</mark> — and a long document and a short
+  document on the same subject will come out similar, which is exactly what we would want.</p>
+</div>
+
+<h2>Start with the dot product</h2>
+
+<p>The dot product of two vectors multiplies them component by component and adds up the results:</p>
+
+<pre><code>a · b  =  Σ aᵢbᵢ  =  a₁b₁ + a₂b₂ + ... + aₙbₙ</code></pre>
+
+<p>It is already a rough similarity score. It is large when the two vectors have big values in the
+<em>same</em> positions, and it is exactly zero when they have no position where both are non-zero —
+two documents with no words in common.</p>
+
+<p>But it has the flaw we are trying to remove, and it has it badly. Take our two vectors:</p>
+
+<pre><code>d · d   =  7×7 + 62×62 + 1×1 + 2×2      =  3898
+d · 2d  =  7×14 + 62×124 + 1×2 + 2×4    =  7796</code></pre>
+
+<p>The dot product of the doubled document with itself is twice as large — not because it is twice
+as relevant, but because it is twice as long. A frequent word, or a long document, wins on the dot
+product for no reason but size.</p>
+
+<h2>Divide the length away</h2>
+
+<p>So divide each vector by its own length. That is the whole fix:</p>
+
+<pre><code>            a · b
+cos(a, b) = ───────
+            |a| |b|          where  |a| = √(Σ aᵢ²)</code></pre>
+
+<p>Read the denominator as an instruction rather than as algebra. Dividing a vector by its own
+length turns it into a <strong>unit vector</strong> — same direction, length exactly 1. So:</p>
+
+<div class="callout">
+  <span class="label">The framing worth keeping</span>
+  <p><mark>Cosine similarity is just the dot product of two unit vectors.</mark></p>
+  <p>Shrink both vectors down to length 1, which throws away everything except which way they point,
+  and <em>then</em> compare them. Nothing about triangles or the unit circle is needed to use
+  this.<span class="sidenote">The name comes from a fact of linear algebra:
+  <code>a · b = |a||b| cos θ</code>, so dividing by the two lengths leaves exactly
+  <code>cos θ</code>, the cosine of the angle between them. Useful to know, never needed to
+  compute.</span></p>
+</div>
+
+<h2>Now finish the board</h2>
+
+<p>Take the formula to <code>d</code> and <code>2d</code> and watch what happens to the 2:</p>
+
+<pre><code>d · 2d  =  Σ dᵢ(2dᵢ)  =  2 Σ dᵢ²  =  2 |d|²        =  7796
+|d|                                                =  62.434
+|2d|    =  √(Σ (2dᵢ)²)  =  √(4 Σ dᵢ²)  =  2|d|     =  124.868
+
+              2 |d|²        2 |d|²
+cos(d, 2d) = ─────────── = ───────── = 1
+             |d| · 2|d|     2 |d|²</code></pre>
+
+<p>The 2 appears once in the numerator and once in the denominator and cancels. The answer is not
+0.9999-something. It is <strong>exactly 1</strong>, and it would be exactly 1 for any multiple —
+tripled, halved, times a thousand.</p>
+
+<p>And nothing in that derivation was about our particular numbers. <mark>Scaling a vector cannot
+change its cosine with anything.</mark> That is the property we went looking for, and it is now
+proved rather than asserted.</p>
+
+<div class="recall">
+  <span class="label">Work this out before reading on — no calculator</span>
+  <p>Two documents, two dimensions each:</p>
+  <pre><code>a = [ 3, 0]
+b = [30, 0]</code></pre>
+  <p>What is the Euclidean distance between them? What is the cosine?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p>Euclidean distance: <code>√((30−3)² + 0²) = <strong>27</strong></code>.</p>
+    <p>Cosine: <code>(3×30 + 0×0) / (3 × 30) = 90/90 = <strong>1</strong></code>.</p>
+    <p>The two measurements disagree as loudly as they possibly can, on a pair of vectors small
+    enough to check in your head. <code>b</code> is <code>a</code> ten times over — same direction,
+    ten times the length. Distance reports 27. Cosine reports identical.</p>
+    <p>This is the doubling demo with the arithmetic stripped out. If the 1.0000 above felt like it
+    depended on <em>Julius Caesar</em>'s particular counts, this shows it does not.</p>
+  </div>
+</div>
+
+<h2>What the numbers can be</h2>
+
+<p>Cosine runs from <strong>1</strong>, for vectors pointing the same way, through <strong>0</strong>
+for vectors at right angles, down to <strong>−1</strong> for vectors pointing in opposite
+directions.</p>
+
+<p>But for the vectors we have been building throughout this unit — counts, tf, tf-idf —
+<strong>the range is only 0 to 1</strong>. Here is why, and it is worth a moment because it is a
+fact about our data rather than about the formula:</p>
+
+<div class="callout">
+  <span class="label">Why a count vector's cosine is never negative</span>
+  <p>Counts are never negative. A word occurs three times, or zero times; it cannot occur −3 times.
+  So every component of every document vector is <code>≥ 0</code>, and every document vector lives in
+  the one corner of the space where nothing is negative.</p>
+  <p>The dot product <code>Σ aᵢbᵢ</code> is then a sum of products of non-negative numbers, which
+  cannot be negative. Lengths are always positive. So the whole fraction is <code>≥ 0</code>.</p>
+  <p>Read geometrically: two vectors in the same corner can be at most 90° apart. They can never
+  point <em>away</em> from each other, so the cosine bottoms out at 0.</p>
+</div>
+
+<p>⚠️ Say that as "for count vectors", because it stops being true soon. The word embeddings in
+sessions 21–22 have negative components, their vectors point in every direction, and their cosines
+genuinely reach −1. Same formula, wider range.</p>
+
+<p>For now: <strong>1 means same direction, 0 means no words in common.</strong></p>
+
+<h2>Back to Shakespeare — and this is the payoff</h2>
+
+<p>Session 18 ended badly on purpose. After tf-idf weighting, <em>As You Like It</em> was closer to
+<em>Julius Caesar</em> (a history) than to <em>Twelfth Night</em> (its fellow comedy). Session 17's
+tidy clustering had fallen apart.</p>
+
+<p>So: does cosine rescue it? Take session 18's tf-idf vectors, unchanged, and measure the angle
+instead of the distance:<span class="sidenote">Every cosine on this page was computed from the
+matrices in sessions 17 and 18, not copied from anywhere.</span></p>
+
+<table>
+  <tr><th>pair (tf-idf vectors, session 18)</th><th>cosine</th></tr>
+  <tr><td><em>As You Like It</em> ↔ <em>Julius Caesar</em> &nbsp;— comedy ↔ history</td><td><strong>0.971</strong></td></tr>
+  <tr><td><em>As You Like It</em> ↔ <em>Twelfth Night</em> &nbsp;— comedy ↔ comedy</td><td><strong>0.343</strong></td></tr>
+  <tr><td><em>Julius Caesar</em> ↔ <em>Henry V</em> &nbsp;— history ↔ history</td><td>0.9999</td></tr>
+  <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.110</td></tr>
+</table>
+
+<p>No. It is still wrong, and wrong in the same direction — a comedy sitting closer to a history than
+to a comedy. That is not a disappointment, it is the point:</p>
+
+<p>It is worth seeing exactly <em>why</em> those four numbers came out so strangely, because the
+reason is visible in the weighted vectors themselves:</p>
+
+<table>
+  <tr><th>play</th><th><code>battle</code></th><th><code>good</code></th><th><code>fool</code></th><th><code>wit</code></th></tr>
+  <tr><td><em>As You Like It</em></td><td>0.246</td><td>0</td><td>0.030</td><td>0.085</td></tr>
+  <tr><td><em>Twelfth Night</em></td><td><strong>0</strong></td><td>0</td><td>0.033</td><td>0.080</td></tr>
+  <tr><td><em>Julius Caesar</em></td><td>0.454</td><td>0</td><td>0.012</td><td>0.048</td></tr>
+  <tr><td><em>Henry V</em></td><td>0.520</td><td>0</td><td>0.019</td><td>0.054</td></tr>
+</table>
+
+<p><code>battle</code> is the only weight with any size left. So for the three plays that
+<em>have</em> a <code>battle</code> count, direction is set almost entirely by that one word, and
+they end up pointing nearly the same way — which is why <em>As You Like It</em> ↔ <em>Julius
+Caesar</em> is 0.971. They are not similar; they are just both dominated by the same surviving
+feature.</p>
+
+<p><em>Twelfth Night</em> is the interesting one. It never uses <code>battle</code> at all, so its
+weighted vector is <code>[0, 0, 0.033, 0.080]</code> — it has <mark>no component at all on the one
+axis that still matters</mark>, and it is left pointing off on the leftovers. That is where 0.343
+and 0.110 come from. Not "a bit less similar": <em>almost at right angles to everything else</em>.</p>
+
+<div class="callout">
+  <span class="label">The sentence that holds this hour together</span>
+  <p><mark>Cosine fixes a length problem, not a feature problem.</mark></p>
+  <p>Session 18's trouble was never that the vectors were the wrong length. It was that after
+  weighting, <code>good</code> was exactly zero and <code>fool</code> and <code>wit</code> were down
+  to hundredths, so <code>battle</code> was the only feature left with any size to it — and
+  <em>direction is then decided almost entirely by how much</em> <code>battle</code> <em>a play
+  has</em>. Measuring the angle between bad features gives you the angle between bad features. No
+  similarity measure can recover information that is not in the vector.</p>
+</div>
+
+<p>Now change the vectors instead of the measure. Go back to session 17's matrix, keep the log
+damping on the counts, and leave idf out entirely — no reweighting, just <code>1 + log₁₀(count)</code>:</p>
+
+<table>
+  <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
+  <tr><td><code>battle</code></td><td>1.000</td><td>0</td>    <td>1.845</td><td>2.114</td></tr>
+  <tr><td><code>good</code></td>  <td>3.057</td><td>2.903</td><td>2.792</td><td>2.949</td></tr>
+  <tr><td><code>fool</code></td>  <td>2.556</td><td>2.763</td><td>1.000</td><td>1.602</td></tr>
+  <tr><td><code>wit</code></td>   <td>2.301</td><td>2.176</td><td>1.301</td><td>1.477</td></tr>
+</table>
+
+<p>All six cosines between those four columns:</p>
+
+<table>
+  <tr><th>pair (log-tf vectors, no idf)</th><th>cosine</th></tr>
+  <tr><td><em>As You Like It</em> ↔ <em>Twelfth Night</em> &nbsp;— comedy ↔ comedy</td><td><strong>0.975</strong></td></tr>
+  <tr><td><em>Julius Caesar</em> ↔ <em>Henry V</em> &nbsp;— history ↔ history</td><td><strong>0.993</strong></td></tr>
+  <tr><td><em>As You Like It</em> ↔ <em>Henry V</em></td><td>0.934</td></tr>
+  <tr><td><em>As You Like It</em> ↔ <em>Julius Caesar</em></td><td>0.908</td></tr>
+  <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.839</td></tr>
+  <tr><td><em>Twelfth Night</em> ↔ <em>Julius Caesar</em></td><td>0.806</td></tr>
+</table>
+
+<p>Read the first two rows against the last four. <strong>Every play's nearest neighbour is now its
+own genre-mate</strong> — the comedies pair at 0.975, the histories at 0.993, and all four
+cross-genre pairs come in below both. Session 17's clustering is back.</p>
+
+<p>Worth comparing against raw counts, and worth being exact about it. On the unlogged counts the
+ranking actually comes out right too — but look at the margin. <em>As You Like It</em> ↔
+<em>Twelfth Night</em> is 0.9499, and <em>As You Like It</em> ↔ <em>Henry V</em> is 0.9490. The
+comedy pair does win, <mark>by nine ten-thousandths</mark>.</p>
+
+<p>That is not a result, it is a coin landing on its edge. <code>good</code>'s enormous counts
+dominate every vector and drag all four plays into pointing very nearly the same way, so every
+cosine is crushed up against 1 and the genre signal survives only in the fourth decimal place. The
+log damping is what pulls those numbers apart — 0.975 against 0.934 is a gap you could defend to
+somebody.</p>
+
+<div class="callout">
+  <span class="label">The three-way result, in one place</span>
+  <p><strong>Raw counts + cosine</strong> — technically right, practically useless. The genre pairs
+  do come out on top, by less than a thousandth, because one common word dominates and everything
+  looks alike.</p>
+  <p><strong>tf-idf + cosine</strong> — worse. On <em>this</em> collection idf zeroed the words that
+  carried the genre signal.</p>
+  <p><strong>log-tf + cosine</strong> — the genres separate cleanly.</p>
+  <p>Which is not "idf is bad". idf answers a different question — <em>how distinctive is this word
+  in this collection</em> — and across 37 Shakespeare plays, <code>fool</code> and <code>wit</code>
+  honestly are not. Everything session 18 concluded still stands. What today adds is that
+  <mark>the weighting and the similarity measure are two separate choices, and both of them
+  show up in the answer.</mark></p>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why can the cosine between two raw word-count vectors never be negative?</p>
+  <div class="q-opts">
+    <button class="opt">Because the cosine formula takes an absolute value in its numerator, so a
+    negative result cannot survive it</button>
+    <button class="opt">Because counts are never negative, so two document vectors can never be
+    more than 90° apart in the first place</button>
+    <button class="opt">Because dividing by the two vector lengths forces any result into the
+    range 0 to 1, whatever went in</button>
+    <button class="opt">Because two documents always share at least some words, so their dot
+    product is always greater than zero</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>because counts are never negative</strong>.</p>
+    <p>This is a fact about the <em>data</em>, not about the formula. <code>Σ aᵢbᵢ</code> is a sum of
+    products of non-negative numbers, so it cannot come out negative, and the lengths in the
+    denominator are always positive.</p>
+    <p>The formula itself is perfectly happy to return −1 — no absolute value, and the division by
+    lengths only guarantees the range −1 to 1, not 0 to 1. That matters in a few weeks:
+    <mark>word embeddings have negative components, and their cosines really do go down to
+    −1.</mark> The last option is wrong for a different reason — two documents sharing no words at
+    all give a dot product of exactly 0, which is a perfectly ordinary answer.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Cosine did not repair session 18's tf-idf Shakespeare vectors — a comedy is
+  still closer to a history than to the other comedy. Why not?</p>
+  <div class="q-opts">
+    <button class="opt">Because cosine needs vectors of the same length, and the four plays are
+    all different lengths</button>
+    <button class="opt">Because tf-idf weights are decimals rather than whole counts, and cosine
+    is designed for counts</button>
+    <button class="opt">Because cosine removes a length effect, and the problem was features
+    carrying no information</button>
+    <button class="opt">Because four documents are far too few for a cosine to mean anything
+    reliable at all</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>cosine removes a length effect, and length was not the problem</strong>.</p>
+    <p>After tf-idf weighting, <code>good</code> was exactly zero and <code>fool</code> and
+    <code>wit</code> were down to hundredths, so only <code>battle</code> still carried anything.
+    Three of the four plays then point in nearly the same direction because one surviving word
+    decides it, and <em>Twelfth Night</em> — which never uses <code>battle</code> — is left
+    pointing off at almost a right angle to them. Neither of those is a fact about length, so
+    switching from distance to angle cannot touch it.</p>
+    <p><mark>Nothing about direction can recover information the weighting removed.</mark> The fix
+    was not a better similarity measure — it was different features, or in our case dropping the
+    reweighting that had destroyed the ones we had.</p>
+  </div>
+</div>
+
+<h2>A second example, with word vectors</h2>
+
+<p>Everything so far has compared <em>documents</em>. The same formula compares <em>words</em>, and
+this is SLP3's own example — counts of how often each word appears near <code>pie</code>,
+<code>data</code> and <code>computer</code> in a corpus:</p>
+
+<table>
+  <tr><th></th><th><code>pie</code></th><th><code>data</code></th><th><code>computer</code></th></tr>
+  <tr><td><code>cherry</code></td>     <td>442</td><td>8</td>   <td>2</td></tr>
+  <tr><td><code>digital</code></td>    <td>5</td>  <td>1683</td><td>1670</td></tr>
+  <tr><td><code>information</code></td><td>5</td>  <td>3982</td><td>3325</td></tr>
+</table>
+
+<pre><code>cos(cherry, information)      =  0.018
+cos(digital, information)     =  0.996</code></pre>
+
+<p><code>information</code> is far closer to <code>digital</code> than to <code>cherry</code>, which
+is obviously right — and notice nobody told the model anything about meaning. It only counted which
+words turn up nearby.</p>
+
+<p>Notice also that <code>information</code>'s vector is much longer than <code>digital</code>'s
+(5188 against 2371) because it is simply a more frequent word. The raw dot product would have made
+every comparison with <code>information</code> look strong for that reason alone. Cosine divides
+that away and asks only about direction.</p>
+
+<p>Hold on to this table. <strong>A word represented as a vector of the company it keeps</strong> is
+the whole idea behind sessions 21–22, and cosine is how those vectors get compared.</p>
+
+<h2>Where this goes</h2>
+
+<p>This is the most-used formula in the course, and it is worth naming the places you will meet it
+again.</p>
+
+<ul>
+  <li><strong>Search.</strong> Session 10 ranked documents by summing tf-idf scores. What a real
+  engine does is turn the query into a vector too and rank every document by its cosine with the
+  query. SLP3 works a tiny example: for the query <code>sweet love</code>, a document containing both
+  words scores 0.747 and one containing only <code>sweet</code> scores 0.0779 — same formula, one
+  vector of which happens to be a query.</li>
+  <li><strong>Embeddings, sessions 21–22.</strong> Every "which words are similar to this one"
+  question is a cosine. Every nearest-neighbour list is sorted by cosine.</li>
+  <li><strong>Everything built on embeddings after that.</strong> Retrieval, clustering,
+  recommendation, duplicate detection. When a modern system says two things are similar, it has
+  almost always taken a cosine.</li>
+</ul>
+
+<h2>The one thing to remember</h2>
+
+<div class="callout">
+  <span class="label">The whole lesson in three sentences</span>
+  <p>Cosine similarity is <code>(a·b) / (|a||b|)</code> — the dot product of the two vectors after
+  each has been shrunk to length 1, which is to say a comparison of direction with length thrown
+  away. Because scaling a vector cancels out of numerator and denominator, a document and the same
+  document printed twice have a cosine of exactly 1 <em>when the vectors are raw counts</em>, and
+  for count vectors the whole range is 0 to 1.
+  But cosine only removes the length effect: on Shakespeare it recovered the genre clustering from
+  log-tf vectors and could do nothing at all for session 18's tf-idf ones, because bad features stay
+  bad however you measure the angle between them.</p>
+</div>
+
+<h2>Read this next</h2>
+
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
+Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>§5.4</strong>
+("Cosine for measuring similarity") — free online, and the source of the
+<code>cherry</code>/<code>digital</code>/<code>information</code> table. <strong>§11.1.3</strong>
+of the same book shows cosine used for document ranking, which is the search application above.
+<a href="https://nlp.stanford.edu/IR-book/">Introduction to Information Retrieval</a> §6.3 covers
+the same ground from the search-engine side.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0018-the-tf-idf-vector-model.html">← Session 18: The TF-IDF vector model</a>
+  <span>Next — Session 20</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>
