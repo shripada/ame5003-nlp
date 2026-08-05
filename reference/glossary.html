@@ -928,6 +928,15 @@ th {
   of words is about <em>order</em>, this is about <em>dependence</em>.</dd>
 </dl>
 
+<dl class="term trap">
+  <dt>Log space <span class="sym">underflow</span></dt>
+  <dd>Multiplying hundreds of small probabilities gives <strong>exactly zero</strong> in ordinary
+  floating point (<code>0.01<sup>200</sup></code> is 0.0, not "very small"). So add logs instead of
+  multiplying: <em>log(a·b) = log a + log b</em>. The winner never changes, because log is
+  <strong>monotonic</strong>. Base is irrelevant — it scales everything by a constant. Costs you
+  the readable scale: log scores are not probabilities.</dd>
+</dl>
+
 <dl class="term">
   <dt>BoW <span class="sym">Bag of Words</span></dt>
   <dd>Represent a document by word counts, discarding order. "Dog bites man" = "man bites dog".</dd>

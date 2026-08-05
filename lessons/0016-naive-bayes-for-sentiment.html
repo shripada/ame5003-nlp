@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Lesson 15 — Bayes' rule and the Naïve Bayes classifier</title>
+<title>Lesson 16 — Naïve Bayes for sentiment, worked through</title>
 <style>
 /* Shared lesson stylesheet — MSIS NLP teaching workspace.
    Quiet academic document: narrow measure, margin notes, restrained palette.
@@ -504,284 +504,289 @@ th {
 <body>
 
 <header class="masthead">
-  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 15</p>
-  <h1>Bayes' rule and the Naïve Bayes classifier</h1>
-  <p class="subtitle">The question we want to ask cannot be counted. So we turn it into two
-  questions that can — and then tell two deliberate lies to make the second one countable too.</p>
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 16</p>
+  <h1>Naïve Bayes for sentiment, worked through</h1>
+  <p class="subtitle">Five short reviews, one new sentence, and every number done by hand. The
+  training is nothing but counting — and the first honest attempt fails completely.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Remember <code>nightmare</code>?</h2>
+<h2>Where we stopped</h2>
 
-<p>In lab 1 we ran VADER, a sentiment analyser built from a hand-written lexicon, over a few
-sentences. It handled the hard ones well — it got <em>brilliant</em> and <em>terrible</em> right,
-and even scored <em>"not bad at all"</em> as mildly positive. Then it read this:</p>
-
-<pre><code>"this course is going to be a nightmare"   →   0.0   (neutral)</code></pre>
-
-<p>Not a subtle failure. The reason was simple: <code>nightmare</code> is not in VADER's
-7,502-word lexicon. Nobody wrote it down.</p>
-
-<p>You could add it. But <code>shambles</code> is missing too — and so is whatever word people
-start using next year. A hand-written list is always one word short, for ever, and it needs a human
-to notice each gap.</p>
-
-<div class="callout">
-  <span class="label">The move this session makes</span>
-  <p>Stop writing the rules. Instead, show a program a pile of documents that people have already
-  labelled — this review is positive, that one is negative — and let it work out for itself which
-  words matter.</p>
-  <p>This is <strong>supervised machine learning</strong>, and it is the first time in this course
-  we ask a model to learn a task rather than compute a definition. The method we use is called
-  <strong>Naïve Bayes</strong>.</p>
-</div>
-
-<h2>The task</h2>
-
-<p><strong>Classification</strong> is: given a document, choose one label from a fixed set. We
-care about <strong>sentiment analysis</strong> — is this review positive or negative? — but the
-machinery is not specific to sentiment. The same classifier does spam detection (spam / not spam),
-language identification (which language is this?), and topic labelling, unchanged.</p>
-
-<p>What "supervised" means in practice: you need <strong>labelled training data</strong>, a set of
-documents each already marked with the right answer. That is the price of not writing rules, and
-it is a real price — somebody had to label them.</p>
-
-<h2>The question we want, and why we cannot count it</h2>
-
-<p>Written down, the goal is almost embarrassingly direct. Out of all the classes, return the one
-that is most probable given the document:</p>
-
-<pre><code>best class  =  argmax  P(c | d)
-                c in C</code></pre>
-
-<p><code>argmax</code> just means "the thing that makes this biggest" — we want the class itself,
-not the probability. Read the line aloud: <em>of all the classes, give me the one most likely for
-this document.</em> That is exactly the job.</p>
-
-<p>Now try to estimate it the way we have estimated everything so far in this course — by
-counting:</p>
-
-<pre><code>P(positive | "predictable with no fun")
-
-   =   count(that exact document, labelled positive)
-       ─────────────────────────────────────────────
-       count(that exact document)</code></pre>
-
-<p>The denominator is <strong>1</strong> if that document happens to be in your training set, and
-<strong>0</strong> if it is not — which it will not be, because it is a new document. That is the
-whole point of a classifier.</p>
-
-<div class="callout warn">
-  <span class="label">We have hit this exact wall before</span>
-  <p>Session 12: the chain rule gave the exact probability of a sentence, and was useless because
-  the long histories it needed almost never repeat. Same shape here. <mark>The quantity we want is
-  perfectly well defined and cannot be counted, because the thing we would count is unique.</mark></p>
-  <p>Last time the fix was to ask a shorter question. This time it is different, and better: we
-  keep the question and change who answers it.</p>
-</div>
-
-<h2>A short probability refresher</h2>
-
-<p>Three names, because the rest of the hour uses them constantly.</p>
-
-<p>A <strong>conditional probability</strong> <code>P(A | B)</code> is the probability of A given
-that B is known to be true. That is all the notation means: the bar is "given".</p>
-
-<table>
-  <tr><th>name</th><th>written</th><th>in our problem</th></tr>
-  <tr><td><strong>prior</strong></td><td><code>P(c)</code></td><td>how common this class is, before looking at the document</td></tr>
-  <tr><td><strong>likelihood</strong></td><td><code>P(d | c)</code></td><td>how likely this document is, if the class were c</td></tr>
-  <tr><td><strong>posterior</strong></td><td><code>P(c | d)</code></td><td>how likely this class is, now that we have read the document</td></tr>
-</table>
-
-<p><em>Prior</em> and <em>posterior</em> mean before and after — before and after seeing the
-evidence. The posterior is what we want and cannot count. Hold on to that.</p>
-
-<h2>Bayes' rule</h2>
-
-<p><strong>Bayes' rule</strong> relates the two conditional probabilities that point in opposite
-directions. In general form:</p>
-
-<pre><code>P(x | y)  =  P(y | x) · P(x)  /  P(y)</code></pre>
-
-<p>Applied to our problem, it turns the posterior into the other three:</p>
-
-<pre><code>                          P(d | c) · P(c)
-best class  =  argmax     ───────────────
-                c in C          P(d)</code></pre>
-
-<p>Look at what changed. We wanted <code>P(c | d)</code> — the probability of a class given a
-unique, never-before-seen document. We now need <code>P(d | c)</code> and <code>P(c)</code>
-instead.</p>
-
-<p><code>P(c)</code> is easy: of the labelled documents, what fraction were positive? That is a
-count over documents, and there are plenty of documents. <code>P(d | c)</code> is still hard, and
-we deal with it in a moment. But the direction of travel is right — we swapped one impossible
-question for one easy one and one hard one.</p>
-
-<div class="callout">
-  <span class="label">Why flipping the question helps at all</span>
-  <p>It feels like a trick the first time. The reason it works: <strong>the two directions are not
-  equally hard to count.</strong></p>
-  <p>"How often is <em>this exact document</em> positive?" has no data behind it — the document is
-  unique. "How often does a positive review use the word <em>fun</em>?" has plenty of data, because
-  thousands of positive reviews exist and lots of them say <em>fun</em>. Bayes' rule lets us answer
-  the first question using the second.</p>
-</div>
-
-<h3>Throwing away the denominator</h3>
-
-<p><code>P(d)</code> is the awkward-looking term, and it disappears for free. We are comparing
-classes for <strong>one fixed document</strong>. Whatever <code>P(d)</code> is, it is the same
-number in every class we compare — so it cannot change which class comes out largest.</p>
-
-<p>And we do not need a real probability. We need <em>which class wins</em>. So drop it:</p>
-
-<pre><code>best class  =  argmax   P(d | c) · P(c)
-                c in C
-
-                        likelihood   prior</code></pre>
-
-<div class="callout">
-  <span class="label">Reading the formula as a story</span>
-  <p>That line has a natural reading: to produce a document, first pick a class, then produce words
-  appropriate to that class. Classification runs the story backwards — given the words, which class
-  most likely produced them?</p>
-  <p>Because it describes how a document could be <em>generated</em>, Naïve Bayes is called a
-  <strong>generative</strong> model. You could genuinely use it to write text, badly. The
-  alternative family, <strong>discriminative</strong> models, skips the story and learns only what
-  separates the classes.</p>
-</div>
-
-<h2>The last problem, and two lies to fix it</h2>
-
-<p>We are still stuck on <code>P(d | c)</code>: the probability of a <em>whole document</em> given
-a class. A document is a specific sequence of specific words in a specific order, so counting it
-runs into exactly the same uniqueness problem as before. Nothing has been solved yet — it has been
-moved.</p>
-
-<p>Naïve Bayes escapes by making two assumptions. Both are false. Say that plainly, because their
-falseness is the interesting part.</p>
-
-<h3>Assumption 1 — bag of words</h3>
-
-<p><strong>Position does not matter.</strong> Keep which words appeared and how often; throw away
-the order. The document becomes an unordered bag:</p>
-
-<pre><code>"the film was fun, not boring"      →   {the, film, was, fun, not, boring}
-"the film was boring, not fun"      →   {the, film, was, boring, not, fun}</code></pre>
-
-<p>Those two reviews mean opposite things and the model cannot tell them apart. That is a real
-loss, and it is accepted anyway, because word <em>identity</em> carries most of the signal for
-sentiment and word <em>order</em> costs far too much to model. We come back to bag of words
-properly in session 17, where it becomes a way of turning a document into a vector.</p>
-
-<h3>Assumption 2 — the naïve assumption</h3>
-
-<p>This is the one the method is named after. <strong>Given the class, the words are
-independent</strong> — knowing one word tells you nothing about the others. Which lets us multiply
-them:</p>
-
-<pre><code>P(d | c)  =  P(w₁ | c) · P(w₂ | c) · … · P(wₙ | c)</code></pre>
-
-<p>Obviously untrue. In a positive review, seeing <code>special</code> makes
-<code>effects</code> far more likely than it otherwise would be, and <code>San</code> all but
-guarantees <code>Francisco</code>. Words travel together. The assumption says they do not.</p>
-
-<div class="callout warn">
-  <span class="label">The third time we have made this trade</span>
-  <p>The pattern is now unmistakable, so name it:</p>
-  <ul>
-    <li><strong>Session 12</strong> — the Markov assumption: only the last word or two matters.
-    False.</li>
-    <li><strong>Now</strong> — bag of words: order does not matter. False.</li>
-    <li><strong>Now</strong> — the naïve assumption: words are independent. False.</li>
-  </ul>
-  <p><mark>Each one replaces a quantity we cannot estimate with one we can, and each is adopted
-  knowingly.</mark> The test of such an assumption is never "is it true?" — it is "does the model
-  built on it work?" Naïve Bayes is wrong about language in an obvious way and classifies text
-  well. Both facts are true at once, and being comfortable with that is most of applied machine
-  learning.</p>
-</div>
-
-<h2>The classifier</h2>
-
-<p>Put the pieces together and the whole method is one line:</p>
+<p>Last session ended with the whole classifier on one line and not a single number in it:</p>
 
 <pre><code>best class  =  argmax   P(c) · Π P(w | c)
                 c in C          w in d</code></pre>
 
-<p>In words, and this is the version worth remembering: <strong>for each class, multiply how
-common that class is by how typical each of the document's words is for it. Pick the winner.</strong></p>
+<p>Today we fill it in. Two things have to be learned from data — the prior <code>P(c)</code> and
+the likelihoods <code>P(w | c)</code> — and both are counts. There is no training loop and nothing
+to tune. You count, you divide, and the classifier exists.</p>
 
-<p>Two quantities are needed, and both are plain counts on labelled data:</p>
+<h2>The training data</h2>
+
+<p>Five very short reviews, already labelled by a human. Three negative, two positive:</p>
 
 <table>
-  <tr><th>quantity</th><th>what it asks</th></tr>
-  <tr><td><code>P(c)</code></td><td>what fraction of the training documents are in class c?</td></tr>
-  <tr><td><code>P(w | c)</code></td><td>of all the words in class c's documents, what fraction are this word?</td></tr>
+  <tr><th>class</th><th>document</th></tr>
+  <tr><td>−</td><td>just plain boring</td></tr>
+  <tr><td>−</td><td>entirely predictable and lacks energy</td></tr>
+  <tr><td>−</td><td>no surprises and very few laughs</td></tr>
+  <tr><td>+</td><td>very powerful</td></tr>
+  <tr><td>+</td><td>the most fun film of the summer</td></tr>
 </table>
 
-<p>No optimisation, no iteration, no training loop. You count, you divide, you are done — which is
-why Naïve Bayes is still worth teaching in an age of enormous models. It is the cheapest thing that
-works.</p>
+<p>And the sentence we want to classify, which the model has never seen:</p>
+
+<pre><code>predictable with no fun</code></pre>
+
+<p>Read it as a human first. It is negative — <em>predictable</em> and <em>no fun</em>. Whether the
+arithmetic agrees is the test.</p>
+
+<h2>Training, step 1 — the prior</h2>
+
+<p>The prior asks how common each class is, before reading anything. Count
+<strong>documents</strong>:</p>
+
+<pre><code>P(c)  =  number of documents in class c  /  total documents
+
+P(−)  =  3/5  =  0.6           P(+)  =  2/5  =  0.4</code></pre>
+
+<p>That is the whole step. Note it is the only place we count documents — everything after this
+counts words.</p>
+
+<h2>Training, step 2 — the likelihoods</h2>
+
+<p>Now <code>P(w | c)</code>: if a review is negative, how often is the next word
+<code>boring</code>? Glue all of a class's documents together into one <strong>big
+document</strong>, and count within it:</p>
+
+<pre><code>P(w | c)  =  count of w in class c  /  total words in class c</code></pre>
+
+<table>
+  <tr><th>class</th><th>big document</th><th>tokens</th></tr>
+  <tr><td>−</td><td>just plain boring entirely predictable and lacks energy no surprises and very few laughs</td><td><strong>14</strong></td></tr>
+  <tr><td>+</td><td>very powerful the most fun film of the summer</td><td><strong>9</strong></td></tr>
+</table>
+
+<div class="callout warn">
+  <span class="label">Two denominators in two consecutive steps</span>
+  <p>The prior divided by <strong>5</strong> — the number of documents. The likelihood divides by
+  <strong>14</strong> or <strong>9</strong> — the number of words in that class. Different
+  questions, different denominators. Mixing them up is the most common way this calculation goes
+  wrong.</p>
+  <p>Count the positive big document yourself: <em>very powerful the most fun film of the
+  summer</em> is <strong>9</strong> tokens, not 8. <code>the</code> appears twice.</p>
+</div>
+
+<h2>The first attempt fails</h2>
+
+<p>Our test sentence is <code>predictable with no fun</code>. Take <code>with</code> aside for a
+moment and try the other three words on the counts we have:</p>
+
+<table>
+  <tr><th>word</th><th>count in −</th><th>P(w | −)</th><th>count in +</th><th>P(w | +)</th></tr>
+  <tr><td><code>predictable</code></td><td>1</td><td>1/14</td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
+  <tr><td><code>no</code></td><td>1</td><td>1/14</td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
+  <tr><td><code>fun</code></td><td><strong>0</strong></td><td><strong>0</strong></td><td>1</td><td>1/9</td></tr>
+</table>
+
+<p>Now multiply. The negative class dies on <code>fun</code>. The positive class dies on
+<code>predictable</code>, and again on <code>no</code>:</p>
+
+<pre><code>P(−) · P(S | −)  =  0.6 × 1/14 × 1/14 × 0   =   0
+P(+) · P(S | +)  =  0.4 × 0    × 0    × 1/9 =   0</code></pre>
+
+<div class="callout warn">
+  <span class="label">This is worse than a wrong answer</span>
+  <p>Both classes score exactly zero. The classifier does not pick badly — <mark>it cannot pick at
+  all.</mark> There is nothing to compare, and no amount of staring at the tie will produce a
+  decision.</p>
+  <p>And nothing unusual happened. Every word in the test sentence is an ordinary English word that
+  appeared in the training data. They just did not all appear in <em>both</em> classes, which with
+  five short documents is entirely expected.</p>
+</div>
+
+<p>We have met this failure twice before — session 12's zero-probability sentence and session 13's
+whole hour about it. Third appearance, same cause: <strong>a product dies if any factor is
+zero</strong>, and counting hands out zeros generously.</p>
+
+<h2>Add-one, and this time it is the right tool</h2>
+
+<p>The fix is the one from session 13. Pretend every word was seen once more than it was:</p>
+
+<pre><code>P(w | c)  =  ( count(w, c) + 1 )  /  ( total words in c  +  |V| )</code></pre>
+
+<p>Same shape as before: the <code>+1</code> on top removes the zeros, and the denominator grows by
+<code>|V|</code> to keep the probabilities summing to 1.</p>
+
+<div class="callout">
+  <span class="label">Session 13 said add-one was bad. It was — for language models</span>
+  <p>The complaint in session 13 was about scale. A language model has V ≈ 50,000, so add-one
+  handed almost all the probability to words that were never observed, and a bigram seen every
+  single time got rated at 0.008%.</p>
+  <p>Here V is <strong>20</strong>. The correction is gentle, the numbers stay sensible, and
+  add-one is what practitioners genuinely use for Naïve Bayes — it is the standard method, not a
+  teaching stand-in. <mark>The method did not change; the vocabulary size did.</mark></p>
+  <p>This is worth holding on to as a general habit: a technique is not good or bad on its own. It
+  is good or bad at a particular scale, on a particular problem.</p>
+</div>
+
+<h3>What goes in |V|</h3>
+
+<p><code>|V|</code> is the number of <strong>distinct word types across the whole training set —
+both classes together</strong>. Count them here and there are <strong>20</strong>:</p>
+
+<pre><code>and · boring · energy · entirely · few · film · fun · just · lacks · laughs
+most · no · of · plain · powerful · predictable · summer · surprises · the · very</code></pre>
+
+<div class="callout warn">
+  <span class="label">The trap: V is not per-class</span>
+  <p>It is tempting to use "the vocabulary of the negative class" when computing negative
+  likelihoods. <strong>Wrong.</strong> Both classes use the same <code>|V| = 20</code>.</p>
+  <p>Why it matters: the two classes' scores are only comparable if they were computed over the
+  same set of possible words. Give each class its own V and you are comparing probabilities from
+  two different universes — and the numbers still look perfectly reasonable, which is what makes
+  this error dangerous rather than obvious.</p>
+</div>
+
+<h3>What about <code>with</code>?</h3>
+
+<p><code>with</code> appears nowhere in the training data, in either class. It is not in V, so it
+has no probability to smooth. The rule for Naïve Bayes is blunt: <strong>drop it</strong>. Remove
+the word from the test document and carry on with the rest.</p>
+
+<div class="callout">
+  <span class="label">Compare with session 13 — same problem, different right answer</span>
+  <p>For a <em>language model</em>, an unknown word was handled with <code>&lt;UNK&gt;</code>,
+  because the model has to assign the sentence a probability and cannot simply pretend part of it
+  is absent.</p>
+  <p>A <em>classifier</em> only needs to compare classes. An unknown word contributes the same
+  nothing to every class, so it cannot affect which one wins — dropping it is not an approximation,
+  it genuinely changes no decision. Worth noticing that the right answer depends on what the model
+  is <em>for</em>, not just on the problem it hits.</p>
+</div>
+
+<h2>The full calculation</h2>
+
+<p>With <code>|V| = 20</code>, the denominators become <code>14 + 20 = 34</code> and
+<code>9 + 20 = 29</code>:</p>
+
+<table>
+  <tr><th>word</th><th>P(w | −)</th><th>P(w | +)</th></tr>
+  <tr><td><code>predictable</code></td><td>(1+1)/34 = 2/34</td><td>(0+1)/29 = 1/29</td></tr>
+  <tr><td><code>no</code></td>         <td>(1+1)/34 = 2/34</td><td>(0+1)/29 = 1/29</td></tr>
+  <tr><td><code>fun</code></td>        <td>(0+1)/34 = 1/34</td><td>(1+1)/29 = 2/29</td></tr>
+</table>
+
+<p>No zeros anywhere. Multiply each row through, with the prior in front:</p>
+
+<pre><code>P(−) · P(S | −)  =  3/5  ×  (2 × 2 × 1) / 34³  =  6.1 × 10⁻⁵     ← larger
+P(+) · P(S | +)  =  2/5  ×  (1 × 1 × 2) / 29³  =  3.2 × 10⁻⁵</code></pre>
+
+<p><strong>The classifier says negative</strong>, which is what a human said too. It got there
+knowing nothing about English, from five documents and some division.</p>
+
+<p>Look at where the decision came from. Both classes had one helpful word and two unhelpful ones,
+so the margin is not dramatic — but <code>predictable</code> and <code>no</code> each appeared in
+negative reviews and never in positive ones, and two such words outweighed <code>fun</code> going
+the other way. The prior helped a little too: negative reviews were more common to begin with.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>We dropped <code>P(d)</code> from the formula. But <code>P(d)</code> is a real quantity — the
-  probability of that document. Why is it safe to throw away, and what do we lose?</p>
+  <span class="label">Work this one out before reading on</span>
+  <p>The negative calculation above is done in full. Do the positive one yourself and check you get
+  3.2 × 10⁻⁵. You need the prior 2/5, and the three probabilities 1/29, 1/29 and 2/29.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Safe because it is identical for every class.</strong> We compare
-    <code>P(d|+)P(+)/P(d)</code> against <code>P(d|−)P(−)/P(d)</code> for the same document d.
-    Dividing both by the same number cannot change which is larger. The ranking is untouched.</p>
-    <p><strong>What we lose is the scale.</strong> The numbers that come out are no longer real
-    probabilities and will not add to 1 — they are scores. So you can say "positive beats negative",
-    but you cannot say "70% confident" without putting the denominator back.</p>
-    <p>The general principle is worth keeping: <strong>when you only need an ordering, any factor
-    shared by everything you are ranking can be dropped.</strong> It turns up constantly, and it is
-    almost always the cheapest simplification available.</p>
+    <p><code>2/5 × (1/29) × (1/29) × (2/29) = 2/5 × 2/24389 = 4/121945 = 3.28 × 10⁻⁵</code></p>
+    <p>The denominator is <strong>29</strong> because the positive big document has
+    <strong>9</strong> tokens and |V| is 20. If you got 28, you counted the positive documents as 8
+    tokens and missed the second <code>the</code> in <em>the most fun film of the summer</em>.</p>
+    <p>If you got a much larger number, check you did not use a per-class vocabulary in place of
+    |V| = 20.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="2">
+<h2>One more problem: the numbers get too small</h2>
+
+<p>Our test sentence had three words. A real review has two hundred, so the score is two hundred
+probabilities multiplied together — each one small, and the product astronomically smaller.</p>
+
+<p>Computers store numbers with limited precision. Multiply enough small values and the result
+stops being small and starts being <strong>exactly zero</strong>:</p>
+
+<pre><code>0.01 ^ 200   →   0.0        (not "very small" — zero, in ordinary floating point)</code></pre>
+
+<p>That is called <strong>underflow</strong>, and it would zero out every class again — this time
+for a purely mechanical reason rather than a missing count.</p>
+
+<h3>The fix: add logarithms instead of multiplying</h3>
+
+<p>Logs turn multiplication into addition: <code>log(a × b) = log a + log b</code>. So take the log
+of the whole thing and the product becomes a sum:</p>
+
+<pre><code>best class  =  argmax   log P(c)  +  Σ log P(w | c)
+                c in C             w in d</code></pre>
+
+<p>The numbers being added are moderate negative values — around −3, not 10⁻¹⁴⁷ — and nothing
+underflows.</p>
+
+<p>Our example, in natural logs:</p>
+
+<table>
+  <tr><th>class</th><th>log prior</th><th>+ log likelihoods</th><th>total</th></tr>
+  <tr><td>−</td><td>−0.51</td><td>−2.83 − 2.83 − 3.53</td><td><strong>−9.70</strong> ← larger</td></tr>
+  <tr><td>+</td><td>−0.92</td><td>−3.37 − 3.37 − 2.67</td><td><strong>−10.33</strong></td></tr>
+</table>
+
+<p>Negative wins again — as it must.</p>
+
+<div class="callout">
+  <span class="label">Why taking logs cannot change the answer</span>
+  <p>The logarithm is <strong>monotonic</strong>: if a &gt; b then log a &gt; log b, always. So
+  whichever class had the bigger score still has the bigger log score. The ranking is preserved
+  exactly, and the ranking is the entire output.</p>
+  <p>What you lose is the readable scale — −9.70 is not a probability and cannot be quoted as one.
+  We already gave that up in session 15 when we dropped <code>P(d)</code>, so nothing new is lost
+  here.</p>
+  <p>Every real implementation works in log space. When you meet <code>predict_log_proba</code> in
+  scikit-learn next week, this is why it exists.</p>
+</div>
+
+<div class="quiz" data-answer="3">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why can we not just count <code>P(c | d)</code> from the training data
-  directly?</p>
+  <p class="q-text">In add-one smoothing for Naïve Bayes, what is the <code>|V|</code> added to the
+  denominator?</p>
   <div class="q-opts">
-    <button class="opt">Because probabilities conditioned on a class cannot be counted</button>
-    <button class="opt">Because a document has too many words for the count to be exact</button>
-    <button class="opt">Because the exact document is unique, so its count is 0 or 1</button>
-    <button class="opt">Because the classes overlap, so a document may fall into both</button>
+    <button class="opt">The number of training documents that belong to the class c</button>
+    <button class="opt">The number of running words in class c's combined big document</button>
+    <button class="opt">The number of distinct word types found in class c's documents</button>
+    <button class="opt">The number of distinct word types across all classes together</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>the exact document is unique, so its count is 0 or 1</strong>.</p>
-    <p>You would be counting how often that precise document appeared with each label, and a new
-    document has never appeared at all. It is session 12's wall again: the quantity is well defined
-    and there is no data behind it. Bayes' rule turns it into questions about single words, which
-    do have data behind them.</p>
+    <p>Correct answer: <strong>distinct word types across all classes together</strong>.</p>
+    <p>Both classes use the same |V| — 20 in our example. Give each class its own vocabulary and
+    the two scores are computed over different sets of possible words, so comparing them is
+    meaningless. The numbers still look reasonable, which is exactly why this error survives.</p>
   </div>
 </div>
 
-<div class="quiz" data-answer="1">
+<div class="quiz" data-answer="0">
   <span class="q-num">Question 2 of 2</span>
-  <p class="q-text">What exactly does the "naïve" assumption claim?</p>
+  <p class="q-text">Why does working in log space not change which class the classifier picks?</p>
   <div class="q-opts">
-    <button class="opt">That every class is equally likely before the document is read</button>
-    <button class="opt">That given the class, each word is independent of the others</button>
-    <button class="opt">That a word means the same thing in every document it appears in</button>
-    <button class="opt">That the training documents were labelled without any human error</button>
+    <button class="opt">Because the log function is monotonic, so it preserves score order</button>
+    <button class="opt">Because the log values are rounded before the comparison is made</button>
+    <button class="opt">Because the log of the prior and the likelihood cancel each other</button>
+    <button class="opt">Because both classes get shifted by the same amount when using logs</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>given the class, each word is independent of the others</strong>.</p>
-    <p>That is what lets us multiply the individual <code>P(w|c)</code> values together instead of
-    estimating the probability of the whole word combination. It is plainly false — <code>special</code>
-    and <code>effects</code> are not independent — and the classifier works anyway. Note that the
-    <em>separate</em> bag-of-words assumption is the one about order.</p>
+    <p>Correct answer: <strong>the log function is monotonic, so it preserves score order</strong>.</p>
+    <p>A bigger number always has a bigger logarithm, so the winner cannot change. That is the whole
+    argument — logs are a fix for underflow, not a modelling decision. Note the last option is
+    wrong: the two classes are <em>not</em> shifted by the same amount, and they do not need to be.</p>
   </div>
 </div>
 
@@ -789,31 +794,30 @@ works.</p>
 
 <div class="callout">
   <span class="label">The whole lesson in two sentences</span>
-  <p>We want the most likely class given the document, which cannot be counted because the document
-  is unique — so Bayes' rule flips it into the likelihood of the document given the class times the
-  prior of the class, and the denominator drops out because we only need a ranking. That likelihood
-  is still uncountable, so two knowingly false assumptions cut it down: order does not matter, and
-  words are independent, leaving a classifier that is nothing but counting and multiplying.</p>
+  <p>Training a Naïve Bayes classifier is two sets of counts — the prior from document counts, the
+  likelihoods from word counts inside each class's combined text — and unsmoothed those counts
+  produce zeros that leave both classes scoring nothing at all. Add-one fixes it with the whole
+  training vocabulary in the denominator, unknown words are simply dropped, and the products are
+  computed as sums of logs so they do not underflow.</p>
 </div>
 
-<p>We now have the formula and not a single number in it. Next session we train it on real labelled
-reviews and classify one.</p>
+<p>That completes sentiment analysis with Naïve Bayes, and with it the second block of Unit II.
+You now have a classifier that learns from labelled examples instead of a hand-written lexicon —
+the thing VADER's missing <code>nightmare</code> asked for back in lab 1.</p>
 
-<p>Although you can probably see what is waiting. The formula multiplies one
-<code>P(w | c)</code> for every word in the document. So what happens the first time a word in a
-new review never appeared in the training documents of that class? The count is zero, the product
-is zero, and the class is ruled out entirely on the strength of one word.</p>
-
-<p>We have met that before, and we know what it is called.</p>
+<p>One thing worth noticing before we move on. Look at what we did to the documents: threw away
+word order, kept a count for each word. We never gave that a name, but it is a way of turning a
+document into numbers — and it is not specific to classification. Search, similarity and
+recommendation all need the same thing. Next session names it, and turns a document into a
+vector.</p>
 
 <h2>Read this next</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
 Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>Appendix B</strong>
-("Naive Bayes, Text Classification, and Sentiment") — free online. Read <strong>§B.1</strong>, up
-to where it starts training the classifier; that is next session. <strong>It is Appendix B, not
-chapter 4</strong> — chapter 4 in this edition is a different method, and older reading lists get
-this wrong.</p>
+("Naive Bayes, Text Classification, and Sentiment") — free online. Read <strong>§B.2</strong>
+(training) and <strong>§B.3</strong> (smoothing, unknown words, and the same worked example you
+just did). <strong>Appendix B, not chapter 4.</strong></p>
 
 
 
@@ -826,8 +830,8 @@ this wrong.</p>
 
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
-  <a href="0014-evaluation-and-perplexity.html">← Session 14: judging a language model</a>
-  <a href="0016-naive-bayes-for-sentiment.html">Next — Session 16: Naïve Bayes for sentiment →</a>
+  <a href="0015-bayes-rule-and-naive-bayes.html">← Session 15: Bayes' rule and Naïve Bayes</a>
+  <span>Next — Session 17: Bag of Words and the vector space model</span>
 </nav>
 
 <script>
