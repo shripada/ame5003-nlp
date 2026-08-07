@@ -11,7 +11,10 @@
    night, so the page follows the reader's light/dark setting.
 
    All colour goes through tokens. Never hardcode a colour in a component —
-   if you do, it will look wrong in dark mode. Add a token instead. */
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
 
 :root {
   /* neutrals — warm-biased, to sit with the red accent rather than fight it */
@@ -506,6 +509,14 @@ figcaption {
 .fig-head-b { fill: var(--ok); }
 .fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
 .fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
 
 /* ---- Narrow screens: margin notes fold into the text ---- */
 @media (max-width: 1100px) {
@@ -1053,9 +1064,73 @@ figcaption {
   (<em>unit vectors</em>), then take their dot product — so it compares direction and throws length
   away. A document and the same document printed twice score exactly 1. For count, tf or tf-idf
   vectors the range is <strong>0 to 1</strong>, because counts are never negative and such vectors
-  can be at most 90° apart; for embeddings, which do have negative components, the range is the full
-  <strong>−1 to 1</strong>. It fixes a length problem, not a feature problem — uninformative features
+  can be at most 90° apart; for embeddings, which do have negative components, the formula's range is
+  the full <strong>−1 to 1</strong> — though measured on real Word2Vec vectors (session 21) the
+  cosines bottom out near <strong>−0.3</strong>, sit at a median of about +0.06, and only 17% are
+  negative at all. Read a cosine against the spread its own representation produces: 0.3 is weak for
+  count vectors and unusually high for embeddings. It fixes a length problem, not a feature problem — uninformative features
   stay uninformative however you measure the angle. Session 19.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Neuron <span class="sym">unit</span></dt>
+  <dd>A weighted sum of inputs, plus a bias, pushed through one non-linear function:
+  <code>y = f(Σ wᵢxᵢ + b)</code>. That is the whole object. Naïve Bayes in log space is already the
+  same shape — <code>log P(c) + Σ log P(w|c)</code> — the difference being that its weights are
+  <strong>counted</strong> while a neuron's are <strong>fitted</strong>. Stack neurons side by side
+  and the sums become one matrix multiply, <code>f(Wx + b)</code>, which is a <strong>layer</strong>.
+  Session 20.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Activation function <span class="sym">sigmoid · ReLU</span></dt>
+  <dd>The non-linear <code>f</code> in a neuron. <strong>Sigmoid</strong>
+  <code>σ(z) = 1/(1 + e<sup>−z</sup>)</code> squashes any number into (0, 1), so it reads as a
+  probability — Word2Vec's negative sampling scores a pair as <code>σ(u·v)</code>.
+  <strong>ReLU</strong> <code>max(0, z)</code> is the modern default from Unit III on. It is not
+  optional <em>if you want depth</em>: without it, <code>W₂(W₁x) = (W₂W₁)x</code> and a stack of
+  layers collapses into one. ⚠️ That argument is about depth, not about every model — Word2Vec is
+  deliberately shallow and has <em>no</em> hidden non-linearity at all. Session 20.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Softmax</dt>
+  <dd>Turns any list of scores into a probability distribution:
+  <code>softmax(z)ᵢ = e^(zᵢ) / Σⱼ e^(zⱼ)</code>. Exponentiate, then divide by the total, so
+  everything comes out positive and sums to 1 — unlike ordinary normalisation it accepts negative
+  inputs and arbitrary scales, which is why it can sit on top of a layer. The exponential
+  <strong>exaggerates gaps</strong>: a lead of 2 in score is always a ratio of <code>e² ≈ 7.4</code>
+  in probability. Used wherever a model must pick one item out of many — in Word2Vec, one word out of
+  the whole vocabulary, which is expensive enough that <em>negative sampling</em> exists to avoid it.
+  Session 20.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Loss function <span class="sym">cross-entropy</span></dt>
+  <dd>The number a model is trained to make smaller. For a single prediction, cross-entropy loss is
+  <code>−log(probability the model gave the correct answer)</code> — near 0 for a confident correct
+  answer, large for a confident wrong one, infinite for a probability of 0. Not new: session 14's
+  <strong>perplexity</strong> is the exponentiated average of exactly this, so minimising
+  cross-entropy and minimising perplexity are the same act. Session 20.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Gradient descent <span class="sym">learning rate · backpropagation</span></dt>
+  <dd>How weights get fitted. The <strong>gradient</strong> says which way is uphill on the loss, so
+  step the other way and repeat: <code>w ← w − η·gradient</code>, where <code>η</code> is the
+  <strong>learning rate</strong> — how big a step. Steps shrink automatically near a minimum, because
+  the gradient <em>is</em> the steepness. <strong>Backpropagation</strong> is just the chain rule
+  applied systematically, working backwards from the loss, to get that gradient for every weight in
+  the network. Session 20.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Embedding matrix <span class="sym">the vectors are the weights</span></dt>
+  <dd>The <code>|V| × d</code> weight matrix whose rows are the word vectors — 10,000 × 300 in a
+  typical Word2Vec. The trap is expecting the vectors to be <em>extracted</em> from a trained model:
+  there is no such step. The matrix is a layer's weights, fitted by the same gradient descent as
+  everything else, and when training stops you throw the rest of the network away and keep it. The
+  word vectors <em>were</em> the model. Sessions 20–21.</dd>
 </dl>
 
 <dl class="term trap">
@@ -1069,13 +1144,46 @@ figcaption {
 <dl class="term">
   <dt>Distributional hypothesis</dt>
   <dd>"You shall know a word by the company it keeps" (Firth, 1957). Words in similar contexts
-  have similar meanings. The premise every embedding method rests on.</dd>
+  have similar meanings. The premise every embedding method rests on. Sessions up to 19
+  <strong>counted</strong> the company (bag-of-words, TF-IDF); Word2Vec <strong>predicts</strong> it
+  instead and keeps the weights; GloVe <strong>counts it globally</strong> — the whole corpus's
+  co-occurrences at once, rather than one window — and fits vectors to the counts directly. All three
+  rest on the same premise; they differ in how they get from "company" to numbers. ⚠️ The hypothesis
+  is honest about its limits: antonyms appear in nearly identical contexts, so <code>good</code> and
+  <code>bad</code> come out with a high cosine in both Word2Vec (0.719, rank 2) and GloVe (0.645,
+  present but outside the top 10 — the two released vector sets disagree at the margins, not on the
+  underlying effect). Distribution is not meaning.</dd>
 </dl>
 
 <dl class="term">
   <dt>Embedding</dt>
   <dd>A learned dense vector for a word/token. A lookup table — vocabulary × dimensions —
-  trained by gradient descent, not hand-built.</dd>
+  trained by gradient descent, not hand-built. ⚠️ Note what it does <em>not</em> fix: a word absent
+  from the training vocabulary has no vector at all, so session 3's OOV problem survives intact; and
+  each word gets exactly one vector, so <code>bank</code> carries the river and the money sense
+  blended together. Both limits hold for GloVe as much as Word2Vec — neither is fixed by switching
+  which one counts or predicts. Unit III's contextual embeddings exist to fix the second.
+  Sessions 20–22.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Self-supervised learning</dt>
+  <dd>Training on labels manufactured from the input itself, so no human labelling is needed.
+  Word2Vec's is the plainest example: delete a word from a sentence, ask the model to name it, and
+  the deleted word <em>is</em> the label. Contrast session 16's sentiment classifier, which needed
+  2,000 reviews a person had read and tagged. This is why the approach took over — not that it is
+  cleverer, but that every sentence ever written becomes training data. Every large language model
+  in Unit III is pre-trained this way. Session 21.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Word2Vec's two vectors per word</dt>
+  <dd>During training each word has <strong>two</strong>: an <em>input</em> vector <code>v_w</code>
+  (row <em>w</em> of <code>E</code>), used when the word appears as context, and an <em>output</em>
+  vector <code>u_w</code> (row <em>w</em> of <code>W'</code>), used when it is the thing being
+  predicted. A word's score is <code>u_w · x</code>. When training stops, <code>W'</code> is
+  <strong>thrown away</strong> and the rows of <code>E</code> are the word vectors everybody
+  downloads. Trips almost everyone the first time. Session 21.</dd>
 </dl>
 
 <dl class="term trap">
@@ -1083,21 +1191,44 @@ figcaption {
   <dd>The two Word2Vec architectures, and they are <strong>mirror images</strong>.
   <strong>CBOW</strong>: context → predict the centre word. <strong>Skip-gram</strong>: centre
   word → predict the context. Skip-gram is slower, better on rare words. Expect this in the exam — and check yourself,
-  because the two are very easy to flip.</dd>
+  because the two are very easy to flip.
+  <br>The reason for the trade-off: from one window position CBOW builds <strong>one</strong>
+  training example (average the context, predict the centre) while Skip-gram builds
+  <strong>one per context word</strong> — four times the signal from the same text, which is what
+  rare words need. Both throw word order away. Neither is a language model: they score one position,
+  never a sequence. Session 21.</dd>
 </dl>
 
 <dl class="term">
   <dt>Negative sampling</dt>
   <dd>Word2Vec's efficiency trick: rather than a softmax over the whole vocabulary, discriminate
   the true context word from a handful of random "negative" words. Turns an impossible
-  normalization into cheap binary classification.</dd>
+  normalization into cheap binary classification.
+  <br>The cost it removes is the <em>denominator</em>: softmax must score every word you know just
+  to normalise one prediction — 10⁶ exponentials per training example on a realistic vocabulary,
+  about 10¹⁵ per pass over a billion tokens. Negative sampling scores the true pair as
+  <code>σ(u·v)</code> and <code>k</code> invented pairs as <code>σ(−u·v)</code>: six sigmoids
+  instead of a million exponentials, roughly <strong>167,000×</strong> less arithmetic. Negatives
+  are drawn from the unigram distribution raised to the power <code>3/4</code>. Session 21.</dd>
 </dl>
 
-<dl class="term">
+<dl class="term trap">
   <dt>GloVe <span class="sym">Global Vectors</span></dt>
-  <dd>Embeddings from factorising a global word-word co-occurrence matrix. Contrast with
-  Word2Vec's local sliding window — <em>global counts vs. local prediction</em> is the
-  comparison to teach.</dd>
+  <dd>Fits vectors so <code>wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ ≈ log Xᵢⱼ</code>, where <code>X</code> is the global
+  word-word co-occurrence matrix counted once over the whole corpus. No hidden layer, no softmax, no
+  prediction step — closer to matrix factorisation than to Word2Vec's neural network. The log matters
+  because a <em>difference</em> of two such fits recovers a <em>ratio</em> of co-occurrence
+  probabilities, which the paper argues is the informative quantity (its own <code>ice</code>/
+  <code>steam</code>/<code>solid</code>/<code>gas</code>/<code>water</code> table makes the case).
+  Like Word2Vec, trains two vectors per word and — unlike Word2Vec — <strong>sums</strong> them rather
+  than discarding one.
+  <br>⚠️ <strong>The trap: "global counts beat local prediction" is GloVe's own marketing, not a
+  settled result.</strong> Levy &amp; Goldberg (2014) showed Skip-gram-with-negative-sampling
+  implicitly factorises a shifted PMI matrix — i.e. it was using global statistics all along — and
+  Levy, Goldberg &amp; Dagan (2015) found matched hyperparameters close most of the gap between
+  count-based and prediction-based methods. Real vectors from both bear this out: nearest-neighbour
+  tables for <code>movie</code>, <code>terrible</code>, <code>battle</code>, <code>king</code> agree
+  closely between GoogleNews Word2Vec and <code>glove-wiki-gigaword-300</code>. Session 22.</dd>
 </dl>
 
 <h2>Unit III — Deep learning</h2>

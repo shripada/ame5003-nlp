@@ -1,0 +1,1029 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 22 — GloVe</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 22</p>
+  <h1>GloVe</h1>
+  <p class="subtitle">One loss function, one co-occurrence matrix, twenty minutes of new material.
+  What earns the hour is the question it puts next to Word2Vec — and the honest answer, which is not
+  the one GloVe's own paper gives.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Where Unit II has got to</h2>
+
+<p>Six sessions ago a document was a row of ones and zeros — session 8's incidence matrix, present or
+absent, nothing in between. Session 17 kept a count instead of a bit. Session 18 reweighted that count
+by how rare the word was. Session 19 stopped comparing lengths and started comparing angles. Session 21
+threw all of that out and replaced <em>counting</em> with <em>predicting</em>: delete a word, guess it,
+keep the weights. Today asks the question that move raises but never answered: <mark>was predicting
+actually necessary, or would counting have worked all along if we had counted the right thing?</mark></p>
+
+<h2>The complaint GloVe makes</h2>
+
+<p>Word2Vec slides a window across the corpus and, at every position, asks one question and throws the
+window away. Slide it across a billion tokens and you will pass the pair <code>(ice, steam)</code> —
+not literally adjacent, but both near words like <code>water</code> and <code>cold</code> — thousands
+of separate times, and the model never once holds the <em>total</em>. Every window is a fresh,
+context-free glimpse.</p>
+
+<div class="callout">
+  <span class="label">GloVe's argument, stated fairly</span>
+  <p>The corpus already contains the total. Count how often every word appears near every other word,
+  once, and you have a table that Word2Vec spent an entire training run approximating one window at a
+  time. <mark>Global Vectors: build the global co-occurrence matrix, then fit vectors to it
+  directly.</mark></p>
+</div>
+
+<h2>Co-occurrence, and the ratio that matters</h2>
+
+<p>Call the matrix <code>X</code>: <code>Xᵢⱼ</code> is how many times word <em>j</em> appears within
+some window of word <em>i</em>, counted across the whole corpus. That much is just session 19's
+pie/data/computer table, scaled up to every word against every word.</p>
+
+<p>The paper's actual contribution is not the matrix — co-occurrence matrices are old. It is the claim
+that <strong>a single probability is not the informative quantity; a ratio of two probabilities
+is</strong>. Take two words that mean different things but share a domain — <code>ice</code> and
+<code>steam</code> — and a handful of probe words:</p>
+
+<div class="recall">
+  <span class="label">Work this out before reading on</span>
+  <p>Two drinks, <code>espresso</code> and <code>juice</code>, and two probe words, counted across some
+  corpus:</p>
+  <pre><code>X(espresso, sugar)     =   5        X(juice, sugar)     =  45
+X(espresso, caffeine)  =  80        X(juice, caffeine)  =   4</code></pre>
+  <p>Work out the ratio <code>X(espresso, k) / X(juice, k)</code> for each probe word <code>k</code>.
+  Which word is each ratio "about"? And if a third probe word gave a ratio close to <strong>1</strong>,
+  what would that tell you?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><code>sugar</code>: 5/45 ≈ <strong>0.11</strong> — small, so <code>sugar</code> belongs to
+    <code>juice</code>, not <code>espresso</code>.</p>
+    <p><code>caffeine</code>: 80/4 = <strong>20</strong> — large, so <code>caffeine</code> belongs to
+    <code>espresso</code>.</p>
+    <p>A ratio near 1 would mean the probe word is <strong>equally associated with both, or with
+    neither</strong> — it carries no information for telling the two target words apart. That is the
+    whole trick: <mark>a plain probability just says "these two words show up together often or
+    rarely"; the ratio says which of two candidate words a third word actually belongs to.</mark></p>
+  </div>
+</div>
+
+<p>Now the same idea, computed for real. <code>text8</code> (Wikipedia text, ~17 million tokens), a
+window of 10, top 20,000 words by frequency:</p>
+
+<table>
+  <tr><th></th><th><code>solid</code></th><th><code>gas</code></th><th><code>water</code></th><th><code>fashion</code></th></tr>
+  <tr><td><code>ice</code></td>   <td>30</td><td>14</td><td>128</td><td>2</td></tr>
+  <tr><td><code>steam</code></td> <td>2</td> <td>12</td><td>30</td> <td>0</td></tr>
+</table>
+
+<pre><code>ratio = P(k | ice) / P(k | steam)
+
+solid    3.75    ← larger, correctly:   ice relates to solid more than steam does
+gas      0.29    ← smaller, correctly:  steam relates to gas more than ice does
+water    1.07    ← near 1, correctly:   both relate to water about equally
+fashion  ∞        ← steam and fashion co-occur ZERO times in this corpus</code></pre>
+
+<p>Three of four land exactly where the paper's table says they should. The fourth did not fail —
+it hit session 13's zero problem from the other side. <code>fashion</code> is meant to be the
+"irrelevant to both" probe, sitting near 1. In a corpus of 17 million tokens, <code>steam</code> and
+<code>fashion</code> simply never appear within ten words of each other, so the ratio divides by zero
+instead of landing near 1.</p>
+
+<div class="callout warn">
+  <span class="label">⚠️ Not a failed replication — the same zero problem, again</span>
+  <p>Pennington et al. trained on <strong>6 billion</strong> tokens, about 350× this corpus. At that
+  scale, two arbitrary words almost always co-occur <em>some</em> nonzero number of times purely by
+  chance, so their ratio lands near 1 as the theory predicts. At 17 million tokens, rare pairings can
+  and do hit exactly zero. <mark>Sparse counts break in the same place they always break</mark> — this
+  is session 13's smoothing problem wearing a different matrix.</p>
+</div>
+
+<h2>From ratio to loss</h2>
+
+<p>The ratio argument says: whatever the vectors end up encoding, it should be possible to recover
+that ratio from them. GloVe's move is to ask the vectors to predict the <em>log</em> of the raw count
+directly, one pair at a time:</p>
+
+<pre><code>wᵢᵀ w̃ⱼ  +  bᵢ  +  b̃ⱼ   =   log Xᵢⱼ</code></pre>
+
+<p><code>wᵢ</code> is word <em>i</em>'s vector, <code>w̃ⱼ</code> is word <em>j</em>'s vector playing
+the context role, and <code>bᵢ</code>, <code>b̃ⱼ</code> are per-word bias terms that absorb how
+frequent each word is on its own, so the dot product is left to encode the relationship rather than
+raw frequency. Fit every vector and bias to make that equation as true as possible, over every nonzero
+cell of <code>X</code>, and you have GloVe's loss (weighting term <code>f</code> next):</p>
+
+<pre><code>J  =  Σᵢⱼ f(Xᵢⱼ) · (wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ − log Xᵢⱼ)²</code></pre>
+
+<p>Why the log, specifically? Because a <em>difference</em> of dot products is exactly a
+<em>ratio</em> of counts once you exponentiate back:</p>
+
+<div class="callout">
+  <span class="label">The one algebraic fact doing all the work</span>
+  <p><code>log(Xᵢₖ) − log(Xⱼₖ) = log(Xᵢₖ / Xⱼₖ)</code>. If the model fits
+  <code>wᵢᵀw̃ₖ ≈ log Xᵢₖ</code> and <code>wⱼᵀw̃ₖ ≈ log Xⱼₖ</code> for every word, then
+  <code>wᵢᵀw̃ₖ − wⱼᵀw̃ₖ</code> is automatically fitting the log-ratio from beat 3 — the very quantity
+  the paper argued was the informative one. <mark>The log is not decoration. It is the thing that turns
+  "fit a count" into "fit the ratio that actually carries meaning".</mark></p>
+</div>
+
+<p>The paper's own derivation — starting from the ratio and working forward to this equation — runs
+three pages. None of it is needed to use the result, so it is skipped here on purpose.</p>
+
+<h2>Weighting: don't let the common pairs win</h2>
+
+<p>Squared error on <code>log Xᵢⱼ</code> has a problem session 18 already gave a name to: a handful of
+extremely frequent pairs — <code>(the, of)</code>, <code>(a, the)</code> — would dominate the loss and
+drown out everything else, exactly the way one enormous raw count once drowned out idf. GloVe's fix is
+the same shape as session 18's log-damping: a weighting function that caps how much any single pair can
+contribute.</p>
+
+<pre><code>f(x) = (x / x_max)^α   if x &lt; x_max
+f(x) = 1                otherwise         (paper's values: x_max = 100, α = 3/4)</code></pre>
+
+<p>Frequent pairs are capped at full weight instead of being allowed to grow without bound; very rare
+pairs (co-occurring once or twice) are down-weighted too, since a single accidental co-occurrence is
+mostly noise. <mark>Same complaint as session 18, same shape of fix, different matrix.</mark></p>
+
+<h2>Two vectors again — and this time they get added</h2>
+
+<p>Look back at the loss: there are two matrices, <code>w</code> and <code>w̃</code>, exactly like
+Word2Vec's <code>E</code> and <code>W'</code>. Session 21 said "some implementations offer to average
+the two together; hardly anybody does." <strong>GloVe is the implementation that does</strong> — the
+paper reports that summing <code>w + w̃</code> for each word (a cheap ensembling trick, since both
+were fit to the same data from slightly different roles) gives marginally better vectors than either
+alone, and every released GloVe file already has this done for you.</p>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">GloVe's loss pulls <code>wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ</code> toward a target value. What is
+  that target?</p>
+  <div class="q-opts">
+    <button class="opt">The probability that word <em>j</em> is the true context of word
+    <em>i</em></button>
+    <button class="opt">A ranking score used to sort words by similarity</button>
+    <button class="opt">The logarithm of how many times <em>i</em> and <em>j</em> co-occurred in the
+    corpus</button>
+    <button class="opt">The cosine similarity between the two words' final vectors</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the log of the raw co-occurrence count</strong>, <code>log Xᵢⱼ</code>.</p>
+    <p>Nothing here is a probability of anything — there is no softmax, no prediction step, no
+    sampling. GloVe is closer to matrix factorisation than to a classifier: fit a matrix of numbers,
+    reconstruct a matrix of numbers. The log matters specifically because a <em>difference</em> of two
+    such fits reconstructs the <em>ratio</em> from beat 3, which is the quantity the whole method is
+    built to recover.</p>
+  </div>
+</div>
+
+<h2>So which one is actually better?</h2>
+
+<table>
+  <tr><th></th><th>Word2Vec</th><th>GloVe</th></tr>
+  <tr><td>what it sees</td><td>one window at a time</td><td>the whole corpus, counted once up front</td></tr>
+  <tr><td>training signal</td><td>predict a missing word</td><td>reconstruct a co-occurrence count</td></tr>
+  <tr><td>statistics used</td><td>local, implicitly</td><td>global, explicitly</td></tr>
+  <tr><td>cost shape</td><td>many cheap passes over text</td><td>one expensive count, then fit on the nonzeros</td></tr>
+  <tr><td>the pitch</td><td>prediction beats counting</td><td>you already had the counts — use them</td></tr>
+</table>
+
+<p>Both stories sound decisive. Here is what real vectors from both actually give, side by side —
+session 21's GoogleNews Word2Vec against <code>glove-wiki-gigaword-300</code> (Wikipedia + Gigaword,
+6B tokens, 400,000 words), nearest neighbours by cosine for the same five words:</p>
+
+<table>
+  <tr><th>word</th><th>Word2Vec (session 21)</th><th>GloVe</th></tr>
+  <tr><td><code>movie</code></td>
+      <td>film 0.868, movies 0.801, films 0.736</td>
+      <td>film 0.859, movies 0.849, films 0.791</td></tr>
+  <tr><td><code>terrible</code></td>
+      <td>horrible 0.924, horrendous 0.847, dreadful 0.802</td>
+      <td>horrible 0.862, awful 0.788, dreadful 0.724</td></tr>
+  <tr><td><code>battle</code></td>
+      <td>battles 0.829, tussle 0.714, fight 0.702</td>
+      <td>battles 0.820, fought 0.682, fight 0.631</td></tr>
+  <tr><td><code>wit</code></td>
+      <td>humor 0.719, wry_humor 0.667, witty 0.643</td>
+      <td>humor 0.694, wry 0.657, humour 0.645</td></tr>
+  <tr><td><code>king</code></td>
+      <td>kings 0.714, queen 0.651, monarch 0.641</td>
+      <td>queen 0.634, prince 0.620, monarch 0.590</td></tr>
+</table>
+
+<p>That is about as close as two different methods, trained on different corpora with different
+preprocessing, are ever going to agree. Every top neighbour is either identical or a plainly related
+word. <mark>Nothing here supports either paper's marketing.</mark></p>
+
+<h3>The famous analogy, both ways</h3>
+
+<pre><code>king − man + woman, excluding inputs:
+    Word2Vec:  queen 0.7118, monarch 0.6190, princess 0.5902
+    GloVe:     queen 0.6713, princess 0.5433, throne 0.5386
+
+king − man + woman, excluding nothing (rank the whole vocabulary):
+    Word2Vec:  king 0.8449 ← nearest is itself,  then queen 0.7301
+    GloVe:     king 0.8066 ← nearest is itself,  then queen 0.6896</code></pre>
+
+<p>The same honest correction session 21 made about Word2Vec applies here without changes: the vector
+lands near <code>king</code>, not <em>on</em> <code>queen</code>, in both representations, and
+<code>queen</code> is the best non-input answer in both. Same phenomenon, same overstatement in the
+popular telling, two unrelated training methods.</p>
+
+<h3>The one real difference: <code>good</code></h3>
+
+<p>Session 21's least comfortable finding was <code>bad</code> sitting second-nearest to
+<code>good</code> in Word2Vec, at 0.719. Check the same query in GloVe:</p>
+
+<pre><code>good  →  better 0.766, really 0.736, always 0.717, you 0.707, well 0.705,
+         excellent 0.704, very 0.697, things 0.694, think 0.690, way 0.684
+
+cos(good, bad) = 0.645          ← real, but doesn't crack the top ten</code></pre>
+
+<div class="callout warn">
+  <span class="label">⚠️ Read this carefully — it is not "GloVe fixed antonyms"</span>
+  <p><code>bad</code> is nowhere in GloVe's top ten neighbours of <code>good</code>, where it was rank
+  two in Word2Vec. It would be tempting to conclude GloVe solved the antonym problem. <mark>It did
+  not</mark> — 0.645 is still a high cosine, close behind the tenth-ranked word, and this GloVe file
+  used different preprocessing (lower-cased), a different corpus (Wikipedia + Gigaword vs. Google
+  News) and different training hyperparameters. The more defensible reading: <strong>two representations
+  of "similar" trained on different data with different settings disagree at the margins</strong>, which
+  is itself evidence for the next paragraph — the differences that show up are about corpus and tuning,
+  not about which architecture is fundamentally smarter.</p>
+</div>
+
+<table>
+  <tr><th>pair</th><th>Word2Vec</th><th>GloVe</th></tr>
+  <tr><td><code>increase</code> ↔ <code>decrease</code></td><td>0.837</td><td>0.814</td></tr>
+  <tr><td><code>good</code> ↔ <code>bad</code></td><td>0.719</td><td>0.645</td></tr>
+  <tr><td><code>up</code> ↔ <code>down</code></td><td>0.640</td><td>0.747</td></tr>
+  <tr><td><code>always</code> ↔ <code>never</code></td><td>0.601</td><td>0.720</td></tr>
+</table>
+
+<p>No consistent pattern — GloVe is lower on two pairs and higher on the other two. If GloVe's counting
+were fundamentally better at separating antonyms, this table would lean one way. It does not.</p>
+
+<div class="callout">
+  <span class="label">The honest answer</span>
+  <p><strong>About the same, and the theoretical distinction is smaller than either paper's framing
+  suggests.</strong> Levy &amp; Goldberg (2014) proved that Skip-gram with negative sampling is
+  implicitly factorising a matrix of shifted pointwise mutual information — which is to say, it was
+  using global corpus statistics the entire time, just never writing them down as a matrix. Levy,
+  Goldberg &amp; Dagan (2015) then showed that once you match hyperparameters — window size, negative
+  samples, subsampling — across count-based and prediction-based methods, the gap between them mostly
+  closes. <mark>The real lesson of GloVe is not "counting beats predicting". It is that counting and
+  predicting were never as different as either paper's abstract made them sound.</mark></p>
+</div>
+
+<div class="quiz" data-answer="3">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">What does later research (Levy &amp; Goldberg) say about GloVe vs. Word2Vec?</p>
+  <div class="q-opts">
+    <button class="opt">GloVe is strictly better because it uses global statistics that Word2Vec
+    cannot see</button>
+    <button class="opt">Word2Vec is strictly better because prediction is a stronger learning signal
+    than counting</button>
+    <button class="opt">They are unrelated techniques that happen to produce vectors of the same
+    shape</button>
+    <button class="opt">Skip-gram with negative sampling implicitly uses global statistics too, and
+    with matched hyperparameters the two perform about the same</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>Skip-gram was already using global statistics, and matched
+    hyperparameters close most of the gap</strong>.</p>
+    <p>GloVe's own paper argues the third option is false and its pitch is the first option. Levy
+    &amp; Goldberg's 2014 result is what makes that pitch hard to defend: SGNS is provably factorising
+    a PMI-based matrix, so "counts vs. prediction" was never a clean split. The 2015 follow-up measured
+    it directly and found hyperparameters mattered more than which of the two methods you picked.</p>
+  </div>
+</div>
+
+<h2>Unit II, end to end</h2>
+
+<p>Nine sessions, one arc, never stated as a single line until now:</p>
+
+<table>
+  <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
+  <tr><td>8</td><td>Incidence matrix</td><td>a word is present or absent — one bit</td></tr>
+  <tr><td>17</td><td>Bag-of-words</td><td>presence becomes a count</td></tr>
+  <tr><td>18</td><td>TF-IDF</td><td>the count is reweighted by how rare the word is</td></tr>
+  <tr><td>19</td><td>Cosine similarity</td><td>compare those vectors by angle, not length</td></tr>
+  <tr><td>21</td><td>Word2Vec</td><td>stop counting context, predict it, keep the weights</td></tr>
+  <tr><td>22</td><td>GloVe</td><td>count context globally, fit vectors to the counts directly</td></tr>
+</table>
+
+<p><mark>Sparse to dense. Counted to learned.</mark> Every representation in this course from session
+8 onward is an answer to the same question — "how do I turn a word or a document into numbers a
+machine can compare?" — and each session's answer fixed something the previous one got wrong at the
+cost of something it could still explain about itself. Sessions 21 and 22 are where that trade-off
+becomes hardest to see: a 300-dimensional vector no longer has any single number you can point to and
+say what it means.</p>
+
+<h2>What none of this fixes</h2>
+
+<p>Word2Vec and GloVe share every limitation session 21 closed on, because both give a document exactly
+the same kind of building block — one dense vector per word type.</p>
+
+<ul>
+  <li><strong>One vector per word, no matter how many things it means.</strong> <code>bank</code> still
+  gets a single point in space, wherever "river" and "money" senses average out to.</li>
+  <li><strong>Frozen at training time.</strong> A word absent from the training corpus has no vector at
+  all — session 3's vocabulary problem, untouched. A GloVe file trained in 2014 knows nothing built
+  after 2014, same as Word2Vec's 2013 file.</li>
+  <li><strong>Blind to order.</strong> Both are fit from unordered or window-based co-occurrence.
+  Neither can tell you anything about a <em>sequence</em> — only about which words tend to keep company
+  with which others.</li>
+</ul>
+
+<p>Every one of those three is a Unit III topic. Contextual embeddings fix the first. Nothing before
+Unit III fixes the second. The third is the reason Unit III opens with a model built to process a
+sequence <em>as</em> a sequence, one step at a time.</p>
+
+<h2>The one thing to remember</h2>
+
+<div class="callout">
+  <span class="label">The whole lesson in four sentences</span>
+  <p>GloVe builds the global word-word co-occurrence matrix once, then fits vectors so their dot
+  product recovers the <em>log</em> of each count — because a difference of two such fits reconstructs
+  the ratio of co-occurrence probabilities, which is the quantity that actually distinguishes one word
+  from another. A weighting function stops frequent pairs from dominating the loss, the same complaint
+  session 18 made about raw counts. In practice it produces vectors about as good as Word2Vec's, not
+  better, and the "global counts beat local prediction" story does not survive Levy &amp; Goldberg's
+  result that Skip-gram was implicitly using global statistics the whole time. That closes Unit II:
+  sparse counted representations have become dense learned ones, and what happens next is making those
+  dense vectors aware of sequence, context and order — Unit III.</p>
+</div>
+
+<h2>Read this next</h2>
+
+<p>The primary source is <strong>Jeffrey Pennington, Richard Socher and Christopher Manning</strong>,
+<a href="https://nlp.stanford.edu/pubs/glove.pdf"><em>GloVe: Global Vectors for Word
+Representation</em></a> (2014) — short, and §3 is the only section that matters for this course.</p>
+
+<p>The honesty in beat 7 comes from two papers worth citing by name if anyone asks:
+<strong>Omer Levy and Yoav Goldberg</strong>, <em>Neural Word Embedding as Implicit Matrix
+Factorization</em> (NeurIPS 2014), and <strong>Levy, Goldberg and Dagan</strong>, <em>Improving
+Distributional Similarity with Lessons Learned from Word2Vec</em> (TACL 2015).</p>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and Language Processing</a></strong>
+chapter 5 covers GloVe alongside Word2Vec and is the gentler first read.</p>
+
+
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0021-word2vec-cbow-and-skip-gram.html">← Session 21: Word2Vec — CBOW and Skip-gram</a>
+  <span>Unit III begins — Session 23</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<style>
+/* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
+   Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
+   lesson.css, not a consumer of it — decks live in slides/, lessons in
+   lessons/, and the two documents have opposite goals (reading measure vs.
+   projector legibility), so this file duplicates the token blocks below
+   rather than @import-ing lesson.css and fighting its page rules.
+
+   KEEP THE TOKEN BLOCK BELOW IN SYNC WITH assets/lesson.css. Same names,
+   same values — only the layout below differs. */
+
+:root {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+strong { font-weight: 600; }
+
+/* ---- Deck + slide scaffolding ----
+   scroll-snap does the actual navigation. slides.js only adds keyboard/click
+   convenience on top — the deck already works with JS disabled. */
+.deck {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+.slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4vh 6vw;
+  position: relative;
+  text-align: center;
+}
+.slide-inner { width: 100%; max-width: 62rem; }
+
+/* ---- Eyebrow / kicker, reused across shapes ---- */
+.slide-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.2rem;
+}
+
+/* ---- Shape: title ---- */
+.slide--title h1 {
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 1.12;
+  margin: 0 0 1.2rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.slide--title .subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ---- Shape: bullets ---- */
+.slide--bullets h2,
+.slide--split h2,
+.slide--table h2,
+.slide--code h2,
+.slide--refs h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+.slide--bullets ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+.slide--bullets li {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  margin-bottom: .9rem;
+  padding-left: 1.6rem;
+  position: relative;
+}
+.slide--bullets li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+.slide--bullets .aside {
+  margin-top: 2rem;
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 46rem;
+}
+.ref-list li {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.ref-list li:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.ref-list .ref-title {
+  font-size: clamp(1.05rem, 2.1vw, 1.4rem);
+  margin: 0 0 .4rem;
+}
+.ref-list .ref-note {
+  font-size: clamp(.85rem, 1.5vw, 1.05rem);
+  color: var(--ink-soft);
+  font-style: italic;
+  margin: 0 0 .55rem;
+}
+.ref-list .ref-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.72rem, 1.2vw, .88rem);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* ---- Shape: statement (the big single-line slides) ---- */
+.slide--statement p {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.28;
+  margin: 0;
+  text-wrap: balance;
+}
+.slide--statement .lede {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, .9rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.6rem;
+}
+.slide--statement footer {
+  margin-top: 1.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.3vw, 1rem);
+  color: var(--ink-soft);
+}
+.slide--statement.warn p { color: var(--warn); }
+.slide--statement q { quotes: none; }
+
+/* ---- Shape: code ---- */
+.slide pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1.6rem 2rem;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.5rem);
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.slide code { font-family: var(--mono); }
+.slide pre code { background: none; padding: 0; }
+
+/* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
+.slide--split .split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem;
+  text-align: left;
+  align-items: start;
+}
+.slide--split .split-col .col-label {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .7rem;
+}
+.slide--split .split-col.bad .col-label { color: var(--bad); }
+.slide--split .split-col.good .col-label { color: var(--ok); }
+.slide--split .split-col.bad pre { border-left-color: var(--bad); }
+.slide--split .split-col.good pre { border-left-color: var(--ok); }
+@media (max-width: 900px) {
+  .slide--split .split-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Shape: table (own larger-type variant — lesson.css's tables are too
+   dense to read from the back of a room) ---- */
+.slide--table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  text-align: left;
+}
+.slide--table th, .slide--table td {
+  padding: .8rem 1.4rem .8rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.slide--table th {
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: .82em;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.slide--table td code, .slide--table th code { font-size: 1em; }
+
+/* ---- Quiz / recall reuse (assets/quiz.js) — scoped to fit one viewport ---- */
+.slide .quiz, .slide .recall {
+  text-align: left;
+  max-width: 46rem;
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 1.8rem 2.2rem;
+  margin: 0 auto;
+}
+.slide .recall { border-style: dashed; border-color: var(--ink-faint); }
+.slide .q-num, .slide .recall .label {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .8rem;
+}
+.slide .q-text { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: 0 0 1.2rem; }
+.slide .q-opts { display: flex; flex-direction: column; gap: .6rem; }
+.slide button.opt {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-align: left;
+  padding: .7rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.slide button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.slide button.opt:disabled { cursor: default; opacity: .55; }
+.slide button.opt.correct { background: var(--ok-bg); border-color: var(--ok); opacity: 1; font-weight: 600; }
+.slide button.opt.wrong { background: var(--bad-bg); border-color: var(--bad); opacity: 1; }
+.slide .q-fb {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.9rem, 1.6vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.slide .q-fb.show { display: block; }
+.slide .q-fb strong { color: var(--ink); }
+.slide button.reveal {
+  font-family: var(--mono);
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .55rem 1.1rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .9rem;
+}
+.slide button.reveal:hover { background: var(--code-bg); }
+.slide .recall .answer {
+  display: none;
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.95rem, 1.7rem, 1.15rem);
+}
+.slide .recall .answer.show { display: block; }
+
+/* ---- SVG diagram furniture (local copies of lesson.css's .fig-* pattern) ---- */
+.slide-fig { margin: 1.6rem auto 0; max-width: 46rem; }
+.slide-fig svg { width: 100%; height: auto; overflow: visible; }
+.fig-word { fill: var(--ink); font-family: var(--serif); font-size: 22px; }
+.fig-arc { stroke: var(--ink-faint); stroke-width: 1.6; fill: none; }
+.fig-arc-a { stroke: var(--accent); }
+.fig-arc-b { stroke: var(--ok); }
+.fig-arc-label { fill: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+
+/* ---- Chrome: progress bar + counter ---- */
+.deck-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  z-index: 60;
+  transition: width .15s ease-out;
+}
+.deck-exit {
+  position: fixed;
+  top: .9rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  z-index: 60;
+  background: var(--bg);
+  padding: .3rem .6rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.deck-exit:hover { color: var(--accent); border-color: var(--accent); }
+.deck-counter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+}
+
+/* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
+.deck-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  overflow-y: auto;
+  padding: 4vh 6vw;
+}
+.deck-overview.show { display: block; }
+.deck-overview ol {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+  counter-reset: ov;
+}
+.deck-overview li {
+  counter-increment: ov;
+  font-size: 1.15rem;
+  padding: .6rem .8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+}
+.deck-overview li::before {
+  content: counter(ov, decimal-leading-zero);
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  font-size: .85rem;
+  padding-top: .15rem;
+}
+.deck-overview li:hover, .deck-overview li.current { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+  .slide { height: auto; min-height: 100vh; page-break-after: always; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="deck-progress"></div>
+<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<div class="deck-counter"></div>
+
+<div class="deck">
+
+  <section class="slide slide--title" data-title="Title">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
+      <h1>Capturing, choosing, and the greedy trap</h1>
+      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
+      bug everybody writes at least once.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Where we got to">
+    <div class="slide-inner">
+      <h2>Where we got to</h2>
+      <ul>
+        <li>Last session: describing the <strong>shape</strong> of text</li>
+        <li>Finding is only half the job</li>
+        <li>Today: pull the pieces out, and handle more than one format</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Groups: getting the pieces out">
+    <div class="slide-inner">
+      <h2>Groups: getting the pieces out</h2>
+      <pre><code>text     "Exam on 15/03/2026."
+pattern  (\d{2})/(\d{2})/(\d{4})
+
+whole match  ->  15/03/2026
+group 1      ->  15      the day
+group 2      ->  03      the month
+group 3      ->  2026    the year</code></pre>
+      <p class="aside">Group 0 is always the whole match.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="In Python">
+    <div class="slide-inner">
+      <h2>In Python</h2>
+      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
+m.group(0)   # '15/03/2026'
+m.group(1)   # '15'
+m.group(3)   # '2026'</code></pre>
+      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
+      &ldquo;the exam is in March.&rdquo;</p>
+    </div>
+  </section>
+
+  <section class="slide slide--split" data-title="A trap you will hit in the lab">
+    <div class="slide-inner">
+      <h2>A trap you will hit in the lab</h2>
+      <div class="split-grid">
+        <div class="split-col bad">
+          <p class="col-label">With groups</p>
+          <pre><code>regex.findall(
+  r"(\d{2})/(\d{2})/(\d{4})", text)
+
+[('15','03','2026'),
+ ('01','04','2026')]</code></pre>
+        </div>
+        <div class="split-col good">
+          <p class="col-label">No groups</p>
+          <pre><code>regex.findall(
+  r"\d{2}/\d{2}/\d{4}", text)
+
+['15/03/2026',
+ '01/04/2026']</code></pre>
+        </div>
+      </div>
+      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
+      match.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Non-capturing groups">
+    <div class="slide-inner">
+      <h2>Want brackets, not capturing?</h2>
+      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
+# ['15/03/2026', '01/04/2026']</code></pre>
+      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
+      for structure, not for capture.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Alternation: this or that">
+    <div class="slide-inner">
+      <h2>Alternation: this or that</h2>
+      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
+
+matches  15/03/2026
+matches  15-03-2026</code></pre>
+      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
+      between single characters.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The brackets matter">
+    <div class="slide-inner">
+      <h2>For longer choices, use <code>|</code> with brackets</h2>
+      <pre><code>(?:cat|dog)s?
+
+on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
+      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
+      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
+      unless brackets stop it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Word boundaries: the quiet bug">
+    <div class="slide-inner">
+      <h2><code>\b</code> means word boundary</h2>
+      <table>
+        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
+        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
+        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+      </table>
+      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
+      between a word character and a non-word character.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--split" data-title="The same test in Kannada">
+    <div class="slide-inner">
+      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
+      <div class="split-grid">
+        <div class="split-col bad">
+          <p class="col-label">re — wrong</p>
+          <pre><code>re.search(
+  r"\bಕನ\b", "ಕನ್ನಡ")
+# matches!</code></pre>
+        </div>
+        <div class="split-col good">
+          <p class="col-label">regex — right</p>
+          <pre><code>regex.search(
+  r"\bಕನ\b", "ಕನ್ನಡ")
+# no match</code></pre>
+        </div>
+      </div>
+      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
+      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A better wrong answer">
+    <div class="slide-inner">
+      <p class="lede">Why this matters beyond regex</p>
+      <p>A good library gets you a <strong>better wrong answer</strong>, not a right one.</p>
+      <footer>Session 3 is about what to do instead.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The greedy trap">
+    <div class="slide-inner">
+      <h2>Pull the tags out of this text</h2>
+      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
+      <p class="aside">A tag is an angle bracket, some stuff, another angle bracket. So:
+      <code>&lt;.*&gt;</code>. Obvious.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="It matched the entire line">
+    <div class="slide-inner">
+      <h2>Run it</h2>
+      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
+
+# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
+      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Why: greedy by default">
+    <div class="slide-inner">
+      <h2>Quantifiers are greedy</h2>
+      <ul>
+        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
+        <li>They give characters back only if the rest of the pattern cannot otherwise
+        match</li>
+        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
+        <em>last</em> <code>&gt;</code></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--split" data-title="Lazy fixes it">
+    <div class="slide-inner">
+      <h2>Add <code>?</code> to make it lazy</h2>
+      <div class="split-grid">
+        <div class="split-col bad">
+          <p class="col-label">greedy</p>
+          <pre><code>r"&lt;.*&gt;"
+
+&lt;b&gt;bold&lt;/b&gt;
+ and &lt;i&gt;italic&lt;/i&gt;</code></pre>
+        </div>
+        <div class="split-col good">
+          <p class="col-label">lazy</p>
+          <pre><code>r"&lt;.*?&gt;"
+
+&lt;b&gt;</code></pre>
+        </div>
+      </div>
+      <p class="aside">Lazy: take as little as possible.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The better fix">
+    <div class="slide-inner">
+      <h2>The better fix</h2>
+      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
+# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
+      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
+      bracket, then a closing bracket.&rdquo; It cannot overshoot.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
+        <div class="q-opts">
+          <button class="opt">Just one letter a, the shortest possible</button>
+          <button class="opt">All three letters, the longest possible</button>
+          <button class="opt">Nothing at all, because it is invalid</button>
+          <button class="opt">Zero letters, an empty match at start</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>just one letter a</strong>.</p>
+          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
+          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
+          lazy, takes exactly one and stops.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
+        tuples?</p>
+        <div class="q-opts">
+          <button class="opt">Because findall always returns tuples of strings</button>
+          <button class="opt">Because the slash character splits every match found</button>
+          <button class="opt">Because findall returns the groups when groups exist</button>
+          <button class="opt">Because the pattern matches two separate things here</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
+          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
+          what you wanted — a tuple per match.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Changing text, not just finding it">
+    <div class="slide-inner">
+      <h2><code>regex.sub</code> reformats in one line</h2>
+      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
+          "Exam on 15/03/2026.")
+
+# 'Exam on 2026-03-15.'</code></pre>
+      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Putting it together: a small extractor">
+    <div class="slide-inner">
+      <h2>Four fields, three formatting wobbles</h2>
+      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
+INV-2292  16-03-2026  Rs 900       due
+INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Named groups">
+    <div class="slide-inner">
+      <h2>Give each piece a name</h2>
+      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
+(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
+Rs\s(?P&lt;amount&gt;[\d,]+)\s+
+(?P&lt;status&gt;paid|due)</code></pre>
+      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
+      — <code>m.group(3)</code> does not.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="One dictionary per line">
+    <div class="slide-inner">
+      <h2>The shortcut: <code>groupdict()</code></h2>
+      <pre><code>regex.search(pattern, lines[0]).groupdict()
+
+# {'invoice': 'INV-2291', 'date': '15/03/2026',
+#  'amount': '12,500', 'status': 'paid'}</code></pre>
+      <p class="aside">Text went in; structured data came out.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Try this before the lab">
+    <div class="slide-inner">
+      <h2>Try this before the lab</h2>
+      <div class="recall">
+        <span class="label">Add a fifth field</span>
+        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
+        brackets included.</p>
+        <p>Get two things right: the brackets are literal, and you don't want them in the
+        captured value.</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
+          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
+          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What to remember">
+    <div class="slide-inner">
+      <p class="lede">What to remember</p>
+      <p>Quantifiers are <strong>greedy</strong> by default — they grab as much as they can.
+      When a match is far bigger than you expected, this is almost always why.</p>
+      <footer>Next: tokenization — where we take the \b problem seriously.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--refs" data-title="References">
+    <div class="slide-inner">
+      <h2>Read this next</h2>
+      <ul class="ref-list">
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
+          Processing</em>, chapter 2, §2.6</p>
+          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+        </li>
+        <li>
+          <p class="ref-title">regex101.com</p>
+          <p class="ref-note">Paste <code>&lt;.*&gt;</code> against some HTML — it draws the
+          match as you type and shows the greedy grab happening.</p>
+          <a class="ref-link" href="https://regex101.com/" target="_blank"
+          rel="noopener">regex101.com</a>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+<script>
+/* Slide-deck navigation — MSIS NLP teaching workspace.
+ * Zero dependencies. The deck already works with this script disabled:
+ * CSS scroll-snap (assets/slides.css, .deck/.slide) handles navigation on
+ * its own. This file only adds keyboard/click convenience, a progress bar,
+ * a slide counter, and a jump overview on top of that.
+ *
+ * USAGE — markup contract:
+ *   <div class="deck">
+ *     <div class="deck-progress"></div>
+ *     <div class="deck-counter"></div>
+ *     <section class="slide slide--title" data-title="Short label">…</section>
+ *     …
+ *   </div>
+ * data-title is what shows up in the "o" overview list.
+ *
+ * Reuses assets/quiz.js unchanged for .quiz/.recall slides — this script
+ * never touches that markup, it only guards against stealing its clicks.
+ */
+
+(function () {
+  "use strict";
+
+  var deck = document.querySelector(".deck");
+  if (!deck) return;
+
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.querySelector(".deck-progress");
+  var counter = document.querySelector(".deck-counter");
+  var current = 0;
+
+  function updateChrome(index) {
+    current = index;
+    if (counter) {
+      counter.textContent =
+        String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    if (progress) {
+      var pct = slides.length > 1 ? (index / (slides.length - 1)) * 100 : 0;
+      progress.style.setProperty("--progress", pct + "%");
+    }
+    var ovItems = document.querySelectorAll(".deck-overview li");
+    ovItems.forEach(function (li, i) {
+      li.classList.toggle("current", i === index);
+    });
+  }
+
+  // Tracks position for wheel/trackpad/swipe scrolling, which never calls
+  // goTo() — the observer is the only thing that knows the slide changed.
+  // It intentionally does NOT drive keyboard/click navigation (see goTo).
+  var observer = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          var idx = slides.indexOf(entry.target);
+          if (idx !== -1) updateChrome(idx);
+        }
+      });
+    },
+    { root: deck, threshold: 0.6 }
+  );
+  slides.forEach(function (s) {
+    observer.observe(s);
+  });
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(slides.length - 1, index));
+    // Explicit "instant" on purpose: with CSS scroll-behavior:smooth on
+    // .deck, a JS-triggered scroll that doesn't override behavior inherits
+    // "smooth" (per the scrollTop/scrollIntoView spec) and animates via
+    // requestAnimationFrame. That animation can stall — e.g. under tab
+    // throttling — leaving navigation stuck. Native wheel/trackpad
+    // scrolling still gets the CSS smooth glide; only JS-driven jumps
+    // (keyboard, click, overview) are forced instant for reliability.
+    slides[index].scrollIntoView({ block: "start", behavior: "instant" });
+    // Updated synchronously here, not left to the IntersectionObserver —
+    // that observer can lag a JS-driven jump by a frame or more, and a
+    // second key/click before it fires would compute next() against a
+    // stale index and look like a dropped input.
+    updateChrome(index);
+    if (history.replaceState) {
+      history.replaceState(null, "", "#" + (index + 1));
+    }
+  }
+
+  function next() {
+    goTo(current + 1);
+  }
+  function prev() {
+    goTo(current - 1);
+  }
+
+  // ---- Overview / jump list ----
+  var overview = document.querySelector(".deck-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "deck-overview";
+    var ol = document.createElement("ol");
+    slides.forEach(function (s, i) {
+      var li = document.createElement("li");
+      li.textContent = s.dataset.title || "Slide " + (i + 1);
+      li.addEventListener("click", function () {
+        goTo(i);
+        toggleOverview(false);
+      });
+      ol.appendChild(li);
+    });
+    overview.appendChild(ol);
+    document.body.appendChild(overview);
+  }
+
+  function toggleOverview(force) {
+    var show = typeof force === "boolean" ? force : !overview.classList.contains("show");
+    overview.classList.toggle("show", show);
+  }
+
+  // ---- Fullscreen ----
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", function (e) {
+    if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+      case "PageDown":
+        e.preventDefault();
+        next();
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault();
+        prev();
+        break;
+      case "Home":
+        e.preventDefault();
+        goTo(0);
+        break;
+      case "End":
+        e.preventDefault();
+        goTo(slides.length - 1);
+        break;
+      case "f":
+        toggleFullscreen();
+        break;
+      case "o":
+        toggleOverview();
+        break;
+      case "Escape":
+        toggleOverview(false);
+        break;
+    }
+  });
+
+  // ---- Click-to-advance ----
+  // Guarded so it never steals clicks meant for quiz options, the recall
+  // reveal button, or links.
+  deck.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    next();
+  });
+
+  // ---- Initial position from location.hash ----
+  // Deferred a frame: this script runs while the browser parses the end of
+  // <body>, before it has necessarily committed layout for a 22-slide-tall
+  // deck. Calling goTo() synchronously here can compute against a stale
+  // (pre-layout) box and land on the wrong offset.
+  var hash = parseInt(location.hash.replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 1 && hash <= slides.length) {
+    requestAnimationFrame(function () {
+      goTo(hash - 1);
+    });
+  } else {
+    updateChrome(0);
+  }
+})();
+
+</script>
+</body>
+</html>

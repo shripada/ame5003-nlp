@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slides — Session 1: What NLP is, and your first tool</title>
+<style>
+/* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
+   Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
+   lesson.css, not a consumer of it — decks live in slides/, lessons in
+   lessons/, and the two documents have opposite goals (reading measure vs.
+   projector legibility), so this file duplicates the token blocks below
+   rather than @import-ing lesson.css and fighting its page rules.
+
+   KEEP THE TOKEN BLOCK BELOW IN SYNC WITH assets/lesson.css. Same names,
+   same values — only the layout below differs. */
+
+:root {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+strong { font-weight: 600; }
+
+/* ---- Deck + slide scaffolding ----
+   scroll-snap does the actual navigation. slides.js only adds keyboard/click
+   convenience on top — the deck already works with JS disabled. */
+.deck {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+.slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4vh 6vw;
+  position: relative;
+  text-align: center;
+}
+.slide-inner { width: 100%; max-width: 62rem; }
+
+/* ---- Eyebrow / kicker, reused across shapes ---- */
+.slide-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.2rem;
+}
+
+/* ---- Shape: title ---- */
+.slide--title h1 {
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 1.12;
+  margin: 0 0 1.2rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.slide--title .subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ---- Shape: bullets ---- */
+.slide--bullets h2,
+.slide--split h2,
+.slide--table h2,
+.slide--code h2,
+.slide--refs h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+.slide--bullets ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+.slide--bullets li {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  margin-bottom: .9rem;
+  padding-left: 1.6rem;
+  position: relative;
+}
+.slide--bullets li::before {
+  content: "—";
+  position: absolute;
+  left: 0;
+  color: var(--accent);
+}
+.slide--bullets .aside {
+  margin-top: 2rem;
+  font-size: clamp(1rem, 2vw, 1.3rem);
+  color: var(--ink-soft);
+  font-style: italic;
+}
+
+/* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 46rem;
+}
+.ref-list li {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.ref-list li:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+.ref-list .ref-title {
+  font-size: clamp(1.05rem, 2.1vw, 1.4rem);
+  margin: 0 0 .4rem;
+}
+.ref-list .ref-note {
+  font-size: clamp(.85rem, 1.5vw, 1.05rem);
+  color: var(--ink-soft);
+  font-style: italic;
+  margin: 0 0 .55rem;
+}
+.ref-list .ref-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.72rem, 1.2vw, .88rem);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* ---- Shape: statement (the big single-line slides) ---- */
+.slide--statement p {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.28;
+  margin: 0;
+  text-wrap: balance;
+}
+.slide--statement .lede {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, .9rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.6rem;
+}
+.slide--statement footer {
+  margin-top: 1.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.3vw, 1rem);
+  color: var(--ink-soft);
+}
+.slide--statement.warn p { color: var(--warn); }
+.slide--statement q { quotes: none; }
+
+/* ---- Shape: code ---- */
+.slide pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1.6rem 2rem;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.5rem);
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.slide code { font-family: var(--mono); }
+.slide pre code { background: none; padding: 0; }
+
+/* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
+.slide--split .split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem;
+  text-align: left;
+  align-items: start;
+}
+.slide--split .split-col .col-label {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .7rem;
+}
+.slide--split .split-col.bad .col-label { color: var(--bad); }
+.slide--split .split-col.good .col-label { color: var(--ok); }
+.slide--split .split-col.bad pre { border-left-color: var(--bad); }
+.slide--split .split-col.good pre { border-left-color: var(--ok); }
+@media (max-width: 900px) {
+  .slide--split .split-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Shape: table (own larger-type variant — lesson.css's tables are too
+   dense to read from the back of a room) ---- */
+.slide--table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  text-align: left;
+}
+.slide--table th, .slide--table td {
+  padding: .8rem 1.4rem .8rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.slide--table th {
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: .82em;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.slide--table td code, .slide--table th code { font-size: 1em; }
+
+/* ---- Quiz / recall reuse (assets/quiz.js) — scoped to fit one viewport ---- */
+.slide .quiz, .slide .recall {
+  text-align: left;
+  max-width: 46rem;
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 1.8rem 2.2rem;
+  margin: 0 auto;
+}
+.slide .recall { border-style: dashed; border-color: var(--ink-faint); }
+.slide .q-num, .slide .recall .label {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .8rem;
+}
+.slide .q-text { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: 0 0 1.2rem; }
+.slide .q-opts { display: flex; flex-direction: column; gap: .6rem; }
+.slide button.opt {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-align: left;
+  padding: .7rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.slide button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.slide button.opt:disabled { cursor: default; opacity: .55; }
+.slide button.opt.correct { background: var(--ok-bg); border-color: var(--ok); opacity: 1; font-weight: 600; }
+.slide button.opt.wrong { background: var(--bad-bg); border-color: var(--bad); opacity: 1; }
+.slide .q-fb {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.9rem, 1.6vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.slide .q-fb.show { display: block; }
+.slide .q-fb strong { color: var(--ink); }
+.slide button.reveal {
+  font-family: var(--mono);
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .55rem 1.1rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .9rem;
+}
+.slide button.reveal:hover { background: var(--code-bg); }
+.slide .recall .answer {
+  display: none;
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.95rem, 1.7rem, 1.15rem);
+}
+.slide .recall .answer.show { display: block; }
+
+/* ---- SVG diagram furniture (local copies of lesson.css's .fig-* pattern) ---- */
+.slide-fig { margin: 1.6rem auto 0; max-width: 46rem; }
+.slide-fig svg { width: 100%; height: auto; overflow: visible; }
+.fig-word { fill: var(--ink); font-family: var(--serif); font-size: 22px; }
+.fig-arc { stroke: var(--ink-faint); stroke-width: 1.6; fill: none; }
+.fig-arc-a { stroke: var(--accent); }
+.fig-arc-b { stroke: var(--ok); }
+.fig-arc-label { fill: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+
+/* ---- Chrome: progress bar + counter ---- */
+.deck-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  z-index: 60;
+  transition: width .15s ease-out;
+}
+.deck-exit {
+  position: fixed;
+  top: .9rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  z-index: 60;
+  background: var(--bg);
+  padding: .3rem .6rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.deck-exit:hover { color: var(--accent); border-color: var(--accent); }
+.deck-counter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+}
+
+/* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
+.deck-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  overflow-y: auto;
+  padding: 4vh 6vw;
+}
+.deck-overview.show { display: block; }
+.deck-overview ol {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+  counter-reset: ov;
+}
+.deck-overview li {
+  counter-increment: ov;
+  font-size: 1.15rem;
+  padding: .6rem .8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+}
+.deck-overview li::before {
+  content: counter(ov, decimal-leading-zero);
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  font-size: .85rem;
+  padding-top: .15rem;
+}
+.deck-overview li:hover, .deck-overview li.current { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+  .slide { height: auto; min-height: 100vh; page-break-after: always; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+}
+
+</style>
+</head>
+<body>
+
+<div class="deck-progress"></div>
+<a class="deck-exit" href="../lessons/0001-what-is-nlp-and-your-first-tool.html">&larr; Lesson</a>
+<div class="deck-counter"></div>
+
+<div class="deck">
+
+  <section class="slide slide--title" data-title="Title">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 01</p>
+      <h1>What NLP is, and your first tool</h1>
+      <p class="subtitle">Why language is hard for computers — and how to pull facts out of
+      text with a pattern.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="You already use this every day">
+    <div class="slide-inner">
+      <h2>You already use this every day</h2>
+      <ul>
+        <li>Your phone predicted the next word as you typed</li>
+        <li>Your email put a message in the spam folder</li>
+        <li>A search engine found a page without your exact words</li>
+        <li>Something translated a sentence for you</li>
+        <li>A chatbot gave you a sensible answer</li>
+      </ul>
+      <p class="aside">By the end of this course, you will have built versions of most of
+      these.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What is NLP?">
+    <div class="slide-inner">
+      <h2>What is NLP?</h2>
+      <ul>
+        <li>NLP stands for <strong>Natural Language Processing</strong></li>
+        <li>It means teaching computers to work with human language — the words people
+        speak and write</li>
+        <li>Not just English. Any language.</li>
+      </ul>
+      <p class="aside">Every example on the last slide was NLP.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="AI, ML, deep learning">
+    <div class="slide-inner">
+      <h2>Some words you will hear a lot</h2>
+      <ul>
+        <li><strong>AI</strong> — the big goal: make a computer do something that used to
+        need a person</li>
+        <li><strong>Machine learning</strong> — one way to do that: show the computer
+        examples, instead of writing rules yourself</li>
+        <li><strong>Deep learning</strong> — one kind of machine learning: networks with
+        many layers</li>
+      </ul>
+      <p class="aside">Each one is inside the one before it — like nested circles.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where NLP fits">
+    <div class="slide-inner">
+      <p class="lede">Where NLP fits</p>
+      <p>NLP is not one more item on that list. NLP is a <strong>problem</strong>:
+      language.</p>
+      <footer>People have solved it three ways — rules, then machine learning, then deep
+      learning. This course follows that order, one unit at a time.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Computers are exact, language is not">
+    <div class="slide-inner">
+      <p>Computers are good at exact things — numbers, dates, IDs.<br><br>Language is
+      not exact.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The old man the boat">
+    <div class="slide-inner">
+      <p class="lede">Read this sentence</p>
+      <p>&ldquo;The old man the boat.&rdquo;</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Man is a verb here">
+    <div class="slide-inner">
+      <h2>It is not broken</h2>
+      <ul>
+        <li><strong>man</strong> here is a verb — it means &ldquo;to staff&rdquo;</li>
+        <li>The old people are staffing the boat</li>
+        <li>Your brain assumed &ldquo;old man&rdquo; was a noun, then reversed at
+        &ldquo;the boat&rdquo;</li>
+      </ul>
+      <p class="aside">A computer has the same problem, with no instinct to fall back on.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="I saw a man on a hill with a telescope">
+    <div class="slide-inner">
+      <p class="lede">Who has the telescope?</p>
+      <p>&ldquo;I saw a man on a hill with a telescope.&rdquo;</p>
+      <div class="slide-fig">
+        <svg viewBox="0 0 620 220" role="img" aria-label="Diagram showing two possible attachments of the phrase 'with a telescope' — to 'man' or to 'saw' — creating ambiguity about who holds the telescope.">
+          <text x="230" y="18" class="fig-arc-label fig-arc-a-label" fill="var(--accent)" text-anchor="middle">I saw … with a telescope</text>
+          <path class="fig-arc fig-arc-a" d="M 60,90 Q 240,40 420,90" />
+
+          <text x="10"  y="130" class="fig-word">I</text>
+          <text x="45"  y="130" class="fig-word">saw</text>
+          <text x="115" y="130" class="fig-word">a</text>
+          <text x="150" y="130" class="fig-word">man</text>
+          <text x="215" y="130" class="fig-word">on</text>
+          <text x="255" y="130" class="fig-word">a</text>
+          <text x="290" y="130" class="fig-word">hill</text>
+          <text x="355" y="130" class="fig-word">with</text>
+          <text x="415" y="130" class="fig-word">a</text>
+          <text x="450" y="130" class="fig-word">telescope</text>
+
+          <path class="fig-arc fig-arc-b" d="M 160,145 Q 300,195 420,145" />
+          <text x="270" y="215" class="fig-arc-label" fill="var(--ok)" text-anchor="middle">man … with a telescope</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Language is ambiguous">
+    <div class="slide-inner">
+      <p>Language is <strong>ambiguous</strong>.<br><br>Almost every technique in this
+      course is a way of dealing with it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Where this course goes">
+    <div class="slide-inner">
+      <h2>Where this course goes</h2>
+      <table>
+        <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
+        <tr><td>1</td><td>How do we turn messy text into clean pieces, and find things
+        in it?</td><td>A working search engine</td></tr>
+        <tr><td>2</td><td>How do we turn words into numbers, so maths can work on
+        them?</td><td>A sentiment classifier, and word vectors</td></tr>
+        <tr><td>3</td><td>How do we get a machine to understand context and generate
+        language?</td><td>Neural models, up to fine-tuning BERT</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--title" data-title="Your first tool: regular expressions">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">We start at the bottom</p>
+      <h1>Your first tool: regular expressions</h1>
+      <p class="subtitle">Before anything clever, you need to get facts out of raw text.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Information extraction">
+    <div class="slide-inner">
+      <h2>A regex is a small language for describing shape</h2>
+      <ul>
+        <li>You write a pattern; the computer finds every match</li>
+        <li>The oldest tool in NLP — still one of the most used</li>
+        <li>Pulling structured facts out of unstructured text is called
+        <strong>information extraction</strong></li>
+      </ul>
+      <p class="aside">Often the whole answer for dates, phone numbers, IDs — no machine
+      learning needed.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="regex, not re">
+    <div class="slide-inner">
+      <h2>In this course: <code>regex</code>, not <code>re</code></h2>
+      <pre><code>pip install regex</code></pre>
+      <p class="aside">Same functions, same patterns as <code>re</code> — you lose nothing.
+      Python's built-in <code>re</code> does not handle Indian scripts correctly. You'll
+      see why in a minute.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The pieces you need today">
+    <div class="slide-inner">
+      <h2>The pieces you need today</h2>
+      <table>
+        <tr><th>Pattern</th><th>Means</th></tr>
+        <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td></tr>
+        <tr><td><code>[0-9]</code></td><td>any digit — a range</td></tr>
+        <tr><td><code>[^0-9]</code></td><td><code>^</code> inside brackets means
+        <em>not</em></td></tr>
+        <tr><td><code>.</code></td><td>any character at all</td></tr>
+        <tr><td><code>\d</code> · <code>\w</code> · <code>\s</code></td><td>digit ·
+        word char · whitespace</td></tr>
+        <tr><td><code>a*</code> · <code>a+</code> · <code>a?</code></td><td>zero+ ·
+        one+ · optional</td></tr>
+        <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="A real example">
+    <div class="slide-inner">
+      <h2>A real example</h2>
+      <pre><code>"Call +91 98765 43210 before 15/03/2026
+or email admin@manipal.edu"</code></pre>
+      <p class="aside">Three facts hiding in one line of text.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--split" data-title="Three patterns, three facts">
+    <div class="slide-inner">
+      <h2>Three patterns, three facts</h2>
+      <div class="split-grid">
+        <div class="split-col">
+          <p class="col-label">Pattern</p>
+          <pre><code>date   \d{2}/\d{2}/\d{4}
+phone  \+91 \d{5} \d{5}
+email  [\w.]+@[\w.]+</code></pre>
+        </div>
+        <div class="split-col">
+          <p class="col-label">Match</p>
+          <pre><code>15/03/2026
++91 98765 43210
+admin@manipal.edu</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Escaping">
+    <div class="slide-inner">
+      <p class="lede">The most common regex bug</p>
+      <p><code>+</code> means &ldquo;one or more&rdquo;. To match a literal plus sign,
+      write <code>\+</code>.</p>
+      <p class="lede" style="margin-top:1.6rem">This is called <strong>escaping</strong>.
+      Forgetting it is the #1 mistake.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--split" data-title="re vs regex on Kannada">
+    <div class="slide-inner">
+      <h2><code>re.findall(r"\w+", …)</code> on Kannada</h2>
+      <pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"   # "Kannada language" — two words</code></pre>
+      <div class="split-grid">
+        <div class="split-col bad">
+          <p class="col-label">re — wrong</p>
+          <pre><code>['ಕನ', 'ನಡ', 'ಭ', 'ಷ']
+# four "words"</code></pre>
+        </div>
+        <div class="split-col good">
+          <p class="col-label">regex — right</p>
+          <pre><code>['ಕನ್ನಡ', 'ಭಾಷೆ']
+# two words</code></pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The virama is a mark, not a letter">
+    <div class="slide-inner">
+      <h2>Inside &ldquo;ಕನ್ನಡ&rdquo; — five characters, one special</h2>
+      <table>
+        <tr><th>Char</th><th>Codepoint</th><th>Role</th></tr>
+        <tr><td>ಕ</td><td>U+0C95</td><td>letter</td></tr>
+        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
+        <tr><td>್</td><td>U+0CCD</td><td><strong>combining mark — the virama</strong></td></tr>
+        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
+        <tr><td>ಡ</td><td>U+0CA1</td><td>letter</td></tr>
+      </table>
+      <p class="aside"><code>re</code>'s <code>\w</code> accepts letters and digits but
+      rejects combining marks — so it ends the word at the virama.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="The failure is silent">
+    <div class="slide-inner">
+      <p class="lede">Why this matters more than it looks</p>
+      <p>In Unit II you count words to build Bag of Words and TF-IDF.<br><br>If your
+      word counts are doubled before you start, every number after that is wrong — and
+      <strong>nothing crashes to tell you.</strong></p>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Try this: PIN and roll number">
+    <div class="slide-inner">
+      <h2>Try this before the answer</h2>
+      <div class="recall">
+        <span class="label">Write a pattern</span>
+        <p>A PIN code: exactly six digits.</p>
+        <p>A roll number like <code>MSIS2026001</code>: four letters, then seven digits.</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p>PIN code: <code>\d{6}</code></p>
+          <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
+          <p><code>\w{4}\d{7}</code> is not tight enough — <code>\w</code> also accepts
+          digits and underscore.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: [^aeiou]">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What does <code>[^aeiou]</code> match?</p>
+        <div class="q-opts">
+          <button class="opt">A vowel found at the very start of the line</button>
+          <button class="opt">Any single character that is not a vowel</button>
+          <button class="opt">Any vowel repeated one or more times</button>
+          <button class="opt">The literal characters caret and vowels</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>any single character that is not a vowel</strong>.</p>
+          <p><code>^</code> inside brackets means <em>not</em>. Outside brackets it means
+          <em>start of line</em>. Same symbol, two jobs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: colou?r">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Which pattern matches both <code>colour</code> and
+        <code>color</code>?</p>
+        <div class="q-opts">
+          <button class="opt">The pattern <code>colo*r</code></button>
+          <button class="opt">The pattern <code>colo+r</code></button>
+          <button class="opt">The pattern <code>colo.r</code></button>
+          <button class="opt">The pattern <code>colou?r</code></button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <code>colou?r</code>.</p>
+          <p><code>?</code> applies to the character right before it — <code>u</code> —
+          making it optional. A quantifier attaches to the <em>one thing</em> just
+          before it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What to remember">
+    <div class="slide-inner">
+      <p class="lede">What to remember</p>
+      <p>Language is ambiguous; computers have no instinct for it.<br><br>But when the
+      thing you want has a <strong>shape</strong> — a date, a phone number, an ID — a
+      regex will find it, and no machine learning will beat it.</p>
+      <footer>Next: capturing groups, alternatives, and the greedy matching trap.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--refs" data-title="References">
+    <div class="slide-inner">
+      <h2>Read this next</h2>
+      <ul class="ref-list">
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
+          Processing</em>, chapter 2, §2.6</p>
+          <p class="ref-note">Read §2.6 only this week — the chapter covers other topics
+          that come later in the course.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+<script>
+/* Slide-deck navigation — MSIS NLP teaching workspace.
+ * Zero dependencies. The deck already works with this script disabled:
+ * CSS scroll-snap (assets/slides.css, .deck/.slide) handles navigation on
+ * its own. This file only adds keyboard/click convenience, a progress bar,
+ * a slide counter, and a jump overview on top of that.
+ *
+ * USAGE — markup contract:
+ *   <div class="deck">
+ *     <div class="deck-progress"></div>
+ *     <div class="deck-counter"></div>
+ *     <section class="slide slide--title" data-title="Short label">…</section>
+ *     …
+ *   </div>
+ * data-title is what shows up in the "o" overview list.
+ *
+ * Reuses assets/quiz.js unchanged for .quiz/.recall slides — this script
+ * never touches that markup, it only guards against stealing its clicks.
+ */
+
+(function () {
+  "use strict";
+
+  var deck = document.querySelector(".deck");
+  if (!deck) return;
+
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.querySelector(".deck-progress");
+  var counter = document.querySelector(".deck-counter");
+  var current = 0;
+
+  function updateChrome(index) {
+    current = index;
+    if (counter) {
+      counter.textContent =
+        String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    if (progress) {
+      var pct = slides.length > 1 ? (index / (slides.length - 1)) * 100 : 0;
+      progress.style.setProperty("--progress", pct + "%");
+    }
+    var ovItems = document.querySelectorAll(".deck-overview li");
+    ovItems.forEach(function (li, i) {
+      li.classList.toggle("current", i === index);
+    });
+  }
+
+  // Tracks position for wheel/trackpad/swipe scrolling, which never calls
+  // goTo() — the observer is the only thing that knows the slide changed.
+  // It intentionally does NOT drive keyboard/click navigation (see goTo).
+  var observer = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          var idx = slides.indexOf(entry.target);
+          if (idx !== -1) updateChrome(idx);
+        }
+      });
+    },
+    { root: deck, threshold: 0.6 }
+  );
+  slides.forEach(function (s) {
+    observer.observe(s);
+  });
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(slides.length - 1, index));
+    // Explicit "instant" on purpose: with CSS scroll-behavior:smooth on
+    // .deck, a JS-triggered scroll that doesn't override behavior inherits
+    // "smooth" (per the scrollTop/scrollIntoView spec) and animates via
+    // requestAnimationFrame. That animation can stall — e.g. under tab
+    // throttling — leaving navigation stuck. Native wheel/trackpad
+    // scrolling still gets the CSS smooth glide; only JS-driven jumps
+    // (keyboard, click, overview) are forced instant for reliability.
+    slides[index].scrollIntoView({ block: "start", behavior: "instant" });
+    // Updated synchronously here, not left to the IntersectionObserver —
+    // that observer can lag a JS-driven jump by a frame or more, and a
+    // second key/click before it fires would compute next() against a
+    // stale index and look like a dropped input.
+    updateChrome(index);
+    if (history.replaceState) {
+      history.replaceState(null, "", "#" + (index + 1));
+    }
+  }
+
+  function next() {
+    goTo(current + 1);
+  }
+  function prev() {
+    goTo(current - 1);
+  }
+
+  // ---- Overview / jump list ----
+  var overview = document.querySelector(".deck-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "deck-overview";
+    var ol = document.createElement("ol");
+    slides.forEach(function (s, i) {
+      var li = document.createElement("li");
+      li.textContent = s.dataset.title || "Slide " + (i + 1);
+      li.addEventListener("click", function () {
+        goTo(i);
+        toggleOverview(false);
+      });
+      ol.appendChild(li);
+    });
+    overview.appendChild(ol);
+    document.body.appendChild(overview);
+  }
+
+  function toggleOverview(force) {
+    var show = typeof force === "boolean" ? force : !overview.classList.contains("show");
+    overview.classList.toggle("show", show);
+  }
+
+  // ---- Fullscreen ----
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", function (e) {
+    if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+      case "PageDown":
+        e.preventDefault();
+        next();
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault();
+        prev();
+        break;
+      case "Home":
+        e.preventDefault();
+        goTo(0);
+        break;
+      case "End":
+        e.preventDefault();
+        goTo(slides.length - 1);
+        break;
+      case "f":
+        toggleFullscreen();
+        break;
+      case "o":
+        toggleOverview();
+        break;
+      case "Escape":
+        toggleOverview(false);
+        break;
+    }
+  });
+
+  // ---- Click-to-advance ----
+  // Guarded so it never steals clicks meant for quiz options, the recall
+  // reveal button, or links.
+  deck.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    next();
+  });
+
+  // ---- Initial position from location.hash ----
+  // Deferred a frame: this script runs while the browser parses the end of
+  // <body>, before it has necessarily committed layout for a 22-slide-tall
+  // deck. Calling goTo() synchronously here can compute against a stale
+  // (pre-layout) box and land on the wrong offset.
+  var hash = parseInt(location.hash.replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 1 && hash <= slides.length) {
+    requestAnimationFrame(function () {
+      goTo(hash - 1);
+    });
+  } else {
+    updateChrome(0);
+  }
+})();
+
+</script>
+</body>
+</html>

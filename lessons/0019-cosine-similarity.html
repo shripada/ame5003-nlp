@@ -11,7 +11,10 @@
    night, so the page follows the reader's light/dark setting.
 
    All colour goes through tokens. Never hardcode a colour in a component —
-   if you do, it will look wrong in dark mode. Add a token instead. */
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
 
 :root {
   /* neutrals — warm-biased, to sit with the red accent rather than fight it */
@@ -506,6 +509,14 @@ figcaption {
 .fig-head-b { fill: var(--ok); }
 .fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
 .fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
 
 /* ---- Narrow screens: margin notes fold into the text ---- */
 @media (max-width: 1100px) {
@@ -759,8 +770,11 @@ fact about our data rather than about the formula:</p>
 </div>
 
 <p>⚠️ Say that as "for count vectors", because it stops being true soon. The word embeddings in
-sessions 21–22 have negative components, their vectors point in every direction, and their cosines
-genuinely reach −1. Same formula, wider range.</p>
+sessions 21–22 have negative components, so their cosines <em>can</em> come out negative and the
+0 floor is gone. Same formula, wider range.<span class="sidenote">How much wider is a question worth
+measuring rather than assuming, and session 21 measures it on real embeddings: negative cosines do
+occur, but they bottom out around −0.3 rather than −1. Trained vectors sit in a narrower cone than
+the formula allows.</span></p>
 
 <p>For now: <strong>1 means same direction, 0 means no words in common.</strong></p>
 
@@ -891,8 +905,9 @@ somebody.</p>
     denominator are always positive.</p>
     <p>The formula itself is perfectly happy to return −1 — no absolute value, and the division by
     lengths only guarantees the range −1 to 1, not 0 to 1. That matters in a few weeks:
-    <mark>word embeddings have negative components, and their cosines really do go down to
-    −1.</mark> The last option is wrong for a different reason — two documents sharing no words at
+    <mark>word embeddings have negative components, so their cosines really can come out
+    negative.</mark> (Session 21 measures how negative they get in practice, and the answer is
+    less dramatic than the formula permits.) The last option is wrong for a different reason — two documents sharing no words at
     all give a dot product of exactly 0, which is a perfectly ordinary answer.</p>
   </div>
 </div>
@@ -1007,7 +1022,7 @@ the same ground from the search-engine side.</p>
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
   <a href="0018-the-tf-idf-vector-model.html">← Session 18: The TF-IDF vector model</a>
-  <span>Next — Session 20</span>
+  <a href="0020-neural-networks-in-one-hour.html">Session 20: Neural networks in one hour →</a>
 </nav>
 
 <script>

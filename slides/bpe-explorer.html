@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BPE Explorer — Session 3</title>
+<style>
+:root {
+  --ink: #111; --ink-soft: #444; --ink-faint: #6b6b6b;
+  --rule: #d8d4cc; --bg: #fffef9; --surface: #ffffff; --code-bg: #f4f2ec;
+  --accent: #7a2e2e; --accent-soft: #f3e9e9; --mark: #fff3b8;
+  --ok: #1f6f43; --ok-bg: #e6f4ec;
+  --warn: #8a5a00; --warn-bg: #fdf3dc;
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0; --ink-soft: #b3afa8; --ink-faint: #8b8880;
+    --rule: #34373d; --bg: #14161a; --surface: #1b1e23; --code-bg: #1d2026;
+    --accent: #e0958a; --accent-soft: #2c1f1e; --mark: #6a5312;
+    --ok: #5cb083; --ok-bg: #16281e;
+    --warn: #d7a44b; --warn-bg: #2a2416;
+  }
+}
+:root[data-theme="dark"] {
+  --ink: #e7e5e0; --ink-soft: #b3afa8; --ink-faint: #8b8880;
+  --rule: #34373d; --bg: #14161a; --surface: #1b1e23; --code-bg: #1d2026;
+  --accent: #e0958a; --accent-soft: #2c1f1e; --mark: #6a5312;
+  --ok: #5cb083; --ok-bg: #16281e;
+  --warn: #d7a44b; --warn-bg: #2a2416;
+}
+:root[data-theme="light"] {
+  --ink: #111; --ink-soft: #444; --ink-faint: #6b6b6b;
+  --rule: #d8d4cc; --bg: #fffef9; --surface: #ffffff; --code-bg: #f4f2ec;
+  --accent: #7a2e2e; --accent-soft: #f3e9e9; --mark: #fff3b8;
+  --ok: #1f6f43; --ok-bg: #e6f4ec;
+  --warn: #8a5a00; --warn-bg: #fdf3dc;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink); }
+body {
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.55;
+}
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; border-radius: 2px; }
+a { color: var(--accent); }
+code { font-family: var(--mono); }
+
+.page { max-width: 76rem; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+
+.eyebrow {
+  font-family: var(--mono); font-size: .72rem; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--accent); margin: 0 0 .6rem;
+}
+h1 { font-weight: 400; font-size: clamp(1.9rem, 4vw, 2.6rem); margin: 0 0 .4rem; text-wrap: balance; }
+.subtitle { font-style: italic; color: var(--ink-soft); font-size: 1.05rem; margin: 0 0 .3rem; max-width: 52rem; }
+.back-link { font-family: var(--mono); font-size: .78rem; color: var(--ink-faint); }
+.back-link a { color: var(--ink-faint); text-decoration: underline; text-underline-offset: 2px; }
+.back-link a:hover { color: var(--accent); }
+
+h2 { font-weight: 400; font-size: 1.15rem; margin: 0 0 1rem; }
+
+.card {
+  border: 1px solid var(--rule); border-radius: 8px; background: var(--surface);
+  padding: 1.5rem 1.7rem; margin-bottom: 1.4rem;
+}
+
+label.field-label {
+  display: block; font-family: var(--mono); font-size: .7rem; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--ink-faint); margin-bottom: .5rem;
+}
+textarea {
+  width: 100%; min-height: 5.5rem; resize: vertical;
+  font-family: var(--mono); font-size: .95rem; line-height: 1.5;
+  padding: .8rem .9rem; border: 1px solid var(--rule); border-radius: 5px;
+  background: var(--code-bg); color: var(--ink);
+}
+textarea:focus, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.input-row { display: flex; flex-wrap: wrap; gap: .7rem; align-items: center; margin-top: 1rem; }
+
+button {
+  font-family: var(--serif); font-size: .95rem; cursor: pointer;
+  padding: .6rem 1.1rem; border-radius: 5px; border: 1px solid var(--rule);
+  background: var(--bg); color: var(--ink);
+}
+button:hover:not(:disabled) { border-color: var(--accent); background: var(--accent-soft); }
+button:disabled { opacity: .4; cursor: default; }
+button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+button.primary:hover:not(:disabled) { background: var(--accent); opacity: .9; }
+button.ghost {
+  font-family: var(--mono); font-size: .78rem; letter-spacing: .04em;
+  color: var(--ink-soft); background: transparent; border-style: dashed;
+}
+
+.error { color: var(--warn); background: var(--warn-bg); border: 1px solid var(--warn); border-radius: 5px;
+  padding: .6rem .9rem; font-size: .88rem; margin-top: .8rem; display: none; }
+.error.show { display: block; }
+
+/* ---- Step controls + timeline ---- */
+.controls-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 1rem;
+  margin-bottom: 1.2rem; padding: 1rem 1.3rem; border: 1px solid var(--rule);
+  border-radius: 8px; background: var(--surface);
+}
+.step-nav { display: flex; align-items: center; gap: .6rem; }
+.step-label { font-family: var(--mono); font-size: .82rem; color: var(--ink-soft); white-space: nowrap; }
+.timeline { display: flex; flex-wrap: wrap; gap: .35rem; flex: 1; }
+.timeline button {
+  width: 2.1rem; height: 2.1rem; padding: 0; border-radius: 50%;
+  font-family: var(--mono); font-size: .72rem; display: flex; align-items: center; justify-content: center;
+}
+.timeline button.current { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.timeline button.converged-mark { border-color: var(--ok); color: var(--ok); }
+
+/* ---- Merge banner ---- */
+.merge-banner {
+  font-family: var(--mono); font-size: 1rem; padding: 1rem 1.3rem;
+  border-radius: 6px; border-left: 3px solid var(--accent); background: var(--accent-soft);
+  margin-bottom: 1.4rem;
+}
+.merge-banner.start { border-left-color: var(--ink-faint); background: var(--code-bg); color: var(--ink-soft); }
+.merge-banner.converged { border-left-color: var(--ok); background: var(--ok-bg); color: var(--ink); }
+
+/* ---- Stats row ---- */
+.stats-row { display: flex; flex-wrap: wrap; gap: 1.6rem; margin-bottom: 1.4rem; }
+.stat { font-family: var(--mono); }
+.stat .n { font-size: 1.5rem; color: var(--ink); display: block; line-height: 1.1; }
+.stat .l { font-size: .68rem; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-faint); }
+
+/* ---- Panel grid ---- */
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; align-items: start; }
+@media (max-width: 860px) { .grid { grid-template-columns: 1fr; } }
+
+.vocab-list { display: flex; flex-wrap: wrap; gap: .4rem; }
+.chip {
+  display: inline-block; font-family: var(--mono); font-size: .85rem;
+  padding: .3rem .65rem; border: 1px solid var(--rule); border-radius: 4px; background: var(--code-bg);
+}
+.chip.new { border-color: var(--accent); background: var(--accent-soft); font-weight: 600; color: var(--accent); }
+
+table.cand-table { width: 100%; border-collapse: collapse; font-size: .88rem; }
+table.cand-table th, table.cand-table td { padding: .45rem .5rem; border-bottom: 1px solid var(--rule); text-align: left; }
+table.cand-table th { font-family: var(--mono); font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-faint); }
+table.cand-table td.pair, table.cand-table td.count { font-family: var(--mono); }
+tr.picked td { background: var(--ok-bg); font-weight: 600; }
+.more-note { color: var(--ink-faint); font-size: .8rem; margin-top: .5rem; }
+
+.corpus-list { display: flex; flex-direction: column; gap: .5rem; font-family: var(--mono); font-size: .95rem; }
+.corpus-row { display: flex; gap: .8rem; align-items: baseline; }
+.corpus-row .freq { color: var(--ink-faint); min-width: 2.4rem; text-align: right; }
+.corpus-row .symbols span { padding: 0 .05em; }
+.corpus-row .symbols span.hit { background: var(--mark); border-radius: 2px; }
+
+.note {
+  font-size: .85rem; color: var(--ink-soft); margin-top: 1rem; padding-top: 1rem;
+  border-top: 1px solid var(--rule);
+}
+</style>
+</head>
+<body>
+
+<div class="page">
+
+  <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 03 companion</p>
+  <h1>Byte-Pair Encoding, step by step</h1>
+  <p class="subtitle">Type a corpus, watch the merges happen one at a time, and scrub back to
+  any earlier point to see the vocabulary as it was then.</p>
+  <p class="back-link"><a href="0003-tokenization-and-the-vocabulary-problem.html">&larr; back to the Session 3 slides</a></p>
+
+  <section class="card">
+    <label class="field-label" for="corpus-input">Corpus (any text — words are lower-cased, punctuation ignored)</label>
+    <textarea id="corpus-input" spellcheck="false"></textarea>
+    <div class="input-row">
+      <button class="primary" id="run-btn">Train BPE</button>
+      <button class="ghost" id="reset-example-btn">Load Session 3 example</button>
+    </div>
+    <div class="error" id="corpus-error"></div>
+  </section>
+
+  <div id="results" style="display:none;">
+
+    <div class="controls-bar">
+      <div class="step-nav">
+        <button id="prev-btn">&larr; Prev</button>
+        <span class="step-label" id="step-label"></span>
+        <button id="next-btn">Next &rarr;</button>
+      </div>
+      <div class="timeline" id="timeline"></div>
+    </div>
+
+    <div class="merge-banner" id="merge-banner"></div>
+
+    <div class="stats-row" id="stats-row"></div>
+
+    <div class="grid">
+      <section class="card">
+        <h2>Vocabulary</h2>
+        <div class="vocab-list" id="vocab-list"></div>
+      </section>
+
+      <section class="card">
+        <h2>Pair counts <span style="color:var(--ink-faint); font-weight:400; font-size:.8rem;">— candidates for the next merge</span></h2>
+        <div id="candidates-wrap"></div>
+      </section>
+    </div>
+
+    <section class="card">
+      <h2>Corpus, tokenized at this step</h2>
+      <div class="corpus-list" id="corpus-list"></div>
+    </section>
+
+    <p class="note">Merges are picked by highest weighted pair frequency. Ties are broken by
+    which pair was <em>first seen</em> while scanning the corpus — the same rule
+    <code>classroom/demos/s03_bpe.py</code> uses, which is why the default example above
+    reproduces the exact six merges worked through on the slides. A merge stops being offered
+    once every remaining pair occurs only once — merging it wouldn't compress anything.</p>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  const END = "_";
+  const SEP = " ";
+  const EXAMPLE_TEXT =
+    "low low low low low " +
+    "lowest lowest " +
+    "newer newer newer newer newer newer " +
+    "wider wider wider " +
+    "new new";
+
+  const els = {
+    corpusInput: document.getElementById("corpus-input"),
+    runBtn: document.getElementById("run-btn"),
+    resetExampleBtn: document.getElementById("reset-example-btn"),
+    corpusError: document.getElementById("corpus-error"),
+    results: document.getElementById("results"),
+    prevBtn: document.getElementById("prev-btn"),
+    nextBtn: document.getElementById("next-btn"),
+    stepLabel: document.getElementById("step-label"),
+    timeline: document.getElementById("timeline"),
+    mergeBanner: document.getElementById("merge-banner"),
+    statsRow: document.getElementById("stats-row"),
+    vocabList: document.getElementById("vocab-list"),
+    candidatesWrap: document.getElementById("candidates-wrap"),
+    corpusList: document.getElementById("corpus-list"),
+  };
+
+  let history = [];
+  let pointer = 0;
+
+  // ---- BPE core -----------------------------------------------------
+
+  function parseCorpusText(text) {
+    const freq = new Map();
+    const words = text.toLowerCase().match(/[a-z']+/g) || [];
+    for (const w of words) freq.set(w, (freq.get(w) || 0) + 1);
+    return freq;
+  }
+
+  function initialCorpus(freqMap) {
+    const corpus = [];
+    for (const [word, freq] of freqMap) {
+      corpus.push({ word, symbols: [...word.split(""), END], freq });
+    }
+    return corpus;
+  }
+
+  function vocabOf(corpus) {
+    const set = new Set();
+    for (const { symbols } of corpus) for (const s of symbols) set.add(s);
+    return [...set].sort();
+  }
+
+  function countPairs(corpus) {
+    const counts = new Map();
+    for (const { symbols, freq } of corpus) {
+      for (let i = 0; i < symbols.length - 1; i++) {
+        const key = symbols[i] + SEP + symbols[i + 1];
+        counts.set(key, (counts.get(key) || 0) + freq);
+      }
+    }
+    return counts;
+  }
+
+  // First pair inserted wins ties — counts is insertion-ordered (a JS Map),
+  // and updating an existing key's value never moves its position.
+  function pickBest(counts) {
+    let bestKey = null, bestCount = 0;
+    for (const [key, count] of counts) {
+      if (count > bestCount) { bestKey = key; bestCount = count; }
+    }
+    if (!bestKey || bestCount < 2) return null;
+    const [a, b] = bestKey.split(SEP);
+    return { a, b, count: bestCount };
+  }
+
+  function applyMerge(corpus, a, b) {
+    const out = [];
+    const indexOf = new Map();
+    for (const { word, symbols, freq } of corpus) {
+      const next = [];
+      let i = 0;
+      while (i < symbols.length) {
+        if (i < symbols.length - 1 && symbols[i] === a && symbols[i + 1] === b) {
+          next.push(a + b);
+          i += 2;
+        } else {
+          next.push(symbols[i]);
+          i += 1;
+        }
+      }
+      const key = next.join(" ");
+      if (indexOf.has(key)) {
+        out[indexOf.get(key)].freq += freq;
+      } else {
+        indexOf.set(key, out.length);
+        out.push({ word, symbols: next, freq });
+      }
+    }
+    return out;
+  }
+
+  function computeState(corpus, mergeInfo) {
+    const counts = countPairs(corpus);
+    return { corpus, vocab: vocabOf(corpus), counts, best: pickBest(counts), mergeInfo };
+  }
+
+  // ---- Driving the history ------------------------------------------
+
+  function train(text) {
+    const freqMap = parseCorpusText(text);
+    if (freqMap.size === 0) {
+      showError("Couldn't find any words in that — try plain text with letters in it.");
+      return;
+    }
+    hideError();
+    history = [computeState(initialCorpus(freqMap), null)];
+    pointer = 0;
+    els.results.style.display = "";
+    render();
+  }
+
+  function stepForward() {
+    if (pointer < history.length - 1) { pointer++; render(); return; }
+    const frontier = history[history.length - 1];
+    if (!frontier.best) return;
+    const { a, b, count } = frontier.best;
+    const corpus = applyMerge(frontier.corpus, a, b);
+    history.push(computeState(corpus, { a, b, merged: a + b, count, step: history.length }));
+    pointer = history.length - 1;
+    render();
+  }
+
+  function stepBack() { if (pointer > 0) { pointer--; render(); } }
+  function jumpTo(i) { pointer = Math.max(0, Math.min(history.length - 1, i)); render(); }
+
+  // ---- Rendering ------------------------------------------------------
+
+  function showError(msg) { els.corpusError.textContent = msg; els.corpusError.classList.add("show"); }
+  function hideError() { els.corpusError.classList.remove("show"); }
+
+  function el(tag, attrs, children) {
+    const node = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") node.className = v;
+      else if (k === "text") node.textContent = v;
+      else node.setAttribute(k, v);
+    }
+    for (const c of children || []) node.appendChild(c);
+    return node;
+  }
+
+  function render() {
+    const state = history[pointer];
+    const atFrontier = pointer === history.length - 1;
+    const canAdvance = pointer < history.length - 1 || !!state.best;
+
+    els.prevBtn.disabled = pointer === 0;
+    els.nextBtn.disabled = !canAdvance;
+    els.nextBtn.textContent = pointer < history.length - 1 ? "Next →" : (state.best ? "Next merge →" : "No more merges");
+
+    els.stepLabel.textContent = pointer === 0
+      ? `Step 0 of ${history.length - 1} (start)`
+      : `Merge ${pointer} of ${history.length - 1}`;
+
+    renderTimeline(state, atFrontier);
+    renderBanner(state);
+    renderStats(state);
+    renderVocab(state);
+    renderCandidates(state);
+    renderCorpus(state);
+  }
+
+  function renderTimeline(state, atFrontier) {
+    els.timeline.innerHTML = "";
+    for (let i = 0; i < history.length; i++) {
+      const btn = el("button", { text: String(i), title: i === 0 ? "start" : `after merge ${i}` });
+      if (i === pointer) btn.classList.add("current");
+      btn.addEventListener("click", () => jumpTo(i));
+      els.timeline.appendChild(btn);
+    }
+    if (atFrontier && !state.best) {
+      const done = el("button", { text: "✓", title: "converged — no pair repeats" });
+      done.classList.add("converged-mark");
+      done.disabled = true;
+      els.timeline.appendChild(done);
+    }
+  }
+
+  function renderBanner(state) {
+    els.mergeBanner.className = "merge-banner";
+    if (!state.mergeInfo) {
+      els.mergeBanner.classList.add("start");
+      els.mergeBanner.textContent = "Initial state — every word split into single characters, with “_” marking the end of each word.";
+      return;
+    }
+    const { a, b, merged, count, step } = state.mergeInfo;
+    els.mergeBanner.textContent = `Merge ${step}:  ${a} + ${b}  →  ${merged}   (seen ${count} time${count === 1 ? "" : "s"})`;
+    if (pointer === history.length - 1 && !state.best) {
+      // converged right on landing on this step
+    }
+  }
+
+  function renderStats(state) {
+    const vocabSize = state.vocab.length;
+    const wordTypes = state.corpus.length;
+    const totalTokens = state.corpus.reduce((sum, w) => sum + w.freq * w.symbols.length, 0);
+    els.statsRow.innerHTML = "";
+    const stats = [
+      [String(vocabSize), "vocabulary size"],
+      [String(wordTypes), "distinct words"],
+      [String(totalTokens), "total symbols across corpus"],
+      [String(pointer), "merges applied"],
+    ];
+    for (const [n, l] of stats) {
+      els.statsRow.appendChild(el("div", { class: "stat" }, [
+        el("span", { class: "n", text: n }),
+        el("span", { class: "l", text: l }),
+      ]));
+    }
+  }
+
+  function renderVocab(state) {
+    els.vocabList.innerHTML = "";
+    const justAdded = state.mergeInfo ? state.mergeInfo.merged : null;
+    for (const sym of state.vocab) {
+      const chip = el("span", { class: "chip", text: sym === END ? "_ (end of word)" : sym });
+      if (sym === justAdded) chip.classList.add("new");
+      els.vocabList.appendChild(chip);
+    }
+  }
+
+  function renderCandidates(state) {
+    els.candidatesWrap.innerHTML = "";
+    if (!state.best) {
+      els.candidatesWrap.appendChild(el("p", {
+        class: "more-note",
+        text: "No pair occurs more than once anymore — BPE has converged on this corpus.",
+      }));
+      return;
+    }
+    const entries = [...state.counts.entries()].sort((x, y) => y[1] - x[1]);
+    const table = el("table", { class: "cand-table" }, []);
+    table.appendChild(el("thead", {}, [
+      el("tr", {}, [el("th", { text: "Pair" }), el("th", { text: "Count" })]),
+    ]));
+    const tbody = el("tbody", {}, []);
+    const LIMIT = 15;
+    entries.slice(0, LIMIT).forEach(([key, count]) => {
+      const [a, b] = key.split(SEP);
+      const isPicked = a === state.best.a && b === state.best.b && count === state.best.count;
+      const row = el("tr", {}, [
+        el("td", { class: "pair", text: `${a} + ${b}` }),
+        el("td", { class: "count", text: isPicked ? `${count}  ← next merge` : String(count) }),
+      ]);
+      if (isPicked) row.classList.add("picked");
+      tbody.appendChild(row);
+    });
+    table.appendChild(tbody);
+    els.candidatesWrap.appendChild(table);
+    if (entries.length > LIMIT) {
+      els.candidatesWrap.appendChild(el("p", { class: "more-note", text: `+ ${entries.length - LIMIT} more pairs, each occurring less often` }));
+    }
+  }
+
+  function renderCorpus(state) {
+    els.corpusList.innerHTML = "";
+    const justAdded = state.mergeInfo ? state.mergeInfo.merged : null;
+    for (const { word, symbols, freq } of state.corpus) {
+      const symbolsSpan = el("span", { class: "symbols" }, []);
+      symbols.forEach((sym, i) => {
+        const s = el("span", { text: sym + (i < symbols.length - 1 ? " " : "") });
+        if (sym === justAdded) s.classList.add("hit");
+        symbolsSpan.appendChild(s);
+      });
+      els.corpusList.appendChild(el("div", { class: "corpus-row" }, [
+        el("span", { class: "freq", text: `${freq}×` }),
+        symbolsSpan,
+      ]));
+      void word;
+    }
+  }
+
+  // ---- Wiring ---------------------------------------------------------
+
+  els.runBtn.addEventListener("click", () => train(els.corpusInput.value));
+  els.resetExampleBtn.addEventListener("click", () => {
+    els.corpusInput.value = EXAMPLE_TEXT;
+    train(EXAMPLE_TEXT);
+  });
+  els.prevBtn.addEventListener("click", stepBack);
+  els.nextBtn.addEventListener("click", stepForward);
+
+  document.addEventListener("keydown", (e) => {
+    if (document.activeElement === els.corpusInput) return;
+    if (els.results.style.display === "none") return;
+    if (e.key === "ArrowLeft") stepBack();
+    if (e.key === "ArrowRight") stepForward();
+  });
+
+  els.corpusInput.value = EXAMPLE_TEXT;
+  train(EXAMPLE_TEXT);
+})();
+</script>
+</body>
+</html>
