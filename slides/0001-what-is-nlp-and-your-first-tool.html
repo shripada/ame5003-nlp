@@ -602,12 +602,13 @@ strong { font-weight: 600; }
     <div class="slide-inner">
       <h2>It is not broken</h2>
       <ul>
-        <li><strong>man</strong> here is a verb — it means &ldquo;to staff&rdquo;</li>
-        <li>The old people are staffing the boat</li>
-        <li>Your brain assumed &ldquo;old man&rdquo; was a noun, then reversed at
-        &ldquo;the boat&rdquo;</li>
+        <li>Here <strong>man</strong> is a verb. It means &ldquo;to work on&rdquo; or
+        &ldquo;to operate&rdquo;</li>
+        <li>So: the old people operate the boat</li>
+        <li>Your brain read &ldquo;old man&rdquo; as one noun, then changed its mind when it
+        reached &ldquo;the boat&rdquo;</li>
       </ul>
-      <p class="aside">A computer has the same problem, with no instinct to fall back on.</p>
+      <p class="aside">A computer has the same problem — and no instinct to help it.</p>
     </div>
   </section>
 
@@ -664,7 +665,8 @@ strong { font-weight: 600; }
     <div class="slide-inner">
       <p class="slide-eyebrow">We start at the bottom</p>
       <h1>Your first tool: regular expressions</h1>
-      <p class="subtitle">Before anything clever, you need to get facts out of raw text.</p>
+      <p class="subtitle">Before anything clever, you need a way to pull facts out of plain
+      text.</p>
     </div>
   </section>
 
@@ -677,8 +679,8 @@ strong { font-weight: 600; }
         <li>Pulling structured facts out of unstructured text is called
         <strong>information extraction</strong></li>
       </ul>
-      <p class="aside">Often the whole answer for dates, phone numbers, IDs — no machine
-      learning needed.</p>
+      <p class="aside">For dates, phone numbers and ID numbers, this is often the complete
+      answer. No machine learning needed.</p>
     </div>
   </section>
 
@@ -746,7 +748,7 @@ admin@manipal.edu</code></pre>
       <p><code>+</code> means &ldquo;one or more&rdquo;. To match a literal plus sign,
       write <code>\+</code>.</p>
       <p class="lede" style="margin-top:1.6rem">This is called <strong>escaping</strong>.
-      Forgetting it is the #1 mistake.</p>
+      Everybody forgets it at least once.</p>
     </div>
   </section>
 
@@ -787,7 +789,7 @@ admin@manipal.edu</code></pre>
 
   <section class="slide slide--statement warn" data-title="The failure is silent">
     <div class="slide-inner">
-      <p class="lede">Why this matters more than it looks</p>
+      <p class="lede">Why this matters more than it seems</p>
       <p>In Unit II you count words to build Bag of Words and TF-IDF.<br><br>If your
       word counts are doubled before you start, every number after that is wrong — and
       <strong>nothing crashes to tell you.</strong></p>
@@ -857,9 +859,9 @@ admin@manipal.edu</code></pre>
   <section class="slide slide--statement" data-title="What to remember">
     <div class="slide-inner">
       <p class="lede">What to remember</p>
-      <p>Language is ambiguous; computers have no instinct for it.<br><br>But when the
-      thing you want has a <strong>shape</strong> — a date, a phone number, an ID — a
-      regex will find it, and no machine learning will beat it.</p>
+      <p>Language is ambiguous, and a computer has no instinct for it.<br><br>But when the
+      thing you want has a <strong>shape</strong> — a date, a phone number, an ID number — a
+      regex will find it. Machine learning will not do better.</p>
       <footer>Next: capturing groups, alternatives, and the greedy matching trap.</footer>
     </div>
   </section>

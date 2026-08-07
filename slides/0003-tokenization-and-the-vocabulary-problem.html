@@ -574,9 +574,9 @@ strong { font-weight: 600; }
     <div class="slide-inner">
       <h2>What people actually use</h2>
       <ul>
-        <li>The <strong>Penn Treebank</strong> tokenizer — a pile of regular expressions,
-        written by hand</li>
-        <li>Years of counter-examples, already solved</li>
+        <li>The <strong>Penn Treebank</strong> tokenizer — a large set of regular
+        expressions, written by hand</li>
+        <li>Years of difficult examples, already handled for you</li>
         <li>You do not write it. You call it.</li>
       </ul>
     </div>
@@ -612,8 +612,8 @@ strong { font-weight: 600; }
     <div class="slide-inner">
       <p class="lede">Use the library</p>
       <p>For English text, a good rule-based tokenizer is a <strong>solved problem</strong>.
-      Do not hand-roll one.</p>
-      <footer>But it does not survive contact with Unit III — and the reason has nothing to
+      Do not write your own.</p>
+      <footer>But it stops being enough when we reach Unit III — and the reason has nothing to
       do with punctuation.</footer>
     </div>
   </section>
@@ -741,8 +741,8 @@ merge 6:  lo + w  ->  low
 6  new er_
 3  w i d er_
 2  new _</code></pre>
-      <p class="aside">Three of these six merges are ties — a real implementation just picks a
-      fixed rule so runs are reproducible.
+      <p class="aside">In three of these six steps, two pairs had the same count. A real
+      implementation follows a fixed rule for choosing, so that every run gives the same result.
       <a href="bpe-explorer.html">Try it yourself, merge by merge &rarr;</a></p>
     </div>
   </section>
@@ -769,7 +769,7 @@ merge 6:  lo + w  ->  low
     <div class="slide-inner">
       <h2>Unknown characters are a different matter</h2>
       <ul>
-        <li>A script or emoji never seen in training isn't in the list either —
+        <li>A script or emoji that never appeared in training is not in the list either — so
         <code>&lt;UNK&gt;</code> comes back</li>
         <li>GPT models run BPE over <strong>bytes</strong>, not characters</li>
         <li>Only 256 possible bytes — all in the list from the start</li>
@@ -810,8 +810,9 @@ merge 6:  lo + w  ->  low
         </div>
         <div class="q-fb">
           <p>Correct: <strong>so merges cannot run past the end of one word</strong>.</p>
-          <p>Without the marker, the last letter of one word and the first of the next would
-          count as a pair like any other — junk symbols spanning two words.</p>
+          <p>Without the marker, the last letter of one word and the first letter of the next
+          word would count as a pair, like any other pair. You would get useless symbols that
+          cross from one word into the next.</p>
         </div>
       </div>
     </div>
@@ -822,7 +823,7 @@ merge 6:  lo + w  ->  low
       <h2>Where this comes back</h2>
       <table>
         <tr><th>Model</th><th>What it uses</th><th>When</th></tr>
-        <tr><td>BERT, DistilBERT</td><td>WordPiece — a close cousin of BPE</td>
+        <tr><td>BERT, DistilBERT</td><td>WordPiece — very similar to BPE</td>
         <td>Unit III</td></tr>
         <tr><td>GPT models</td><td>BPE, working on bytes</td><td>Unit III</td></tr>
         <tr><td>Word2Vec, GloVe</td><td>Whole words — still has the <code>&lt;UNK&gt;</code>

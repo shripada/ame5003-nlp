@@ -533,10 +533,10 @@ strong { font-weight: 600; }
 
   <section class="slide slide--bullets" data-title="Where we got to">
     <div class="slide-inner">
-      <h2>Where we got to</h2>
+      <h2>What we did last time</h2>
       <ul>
         <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>Finding is only half the job</li>
+        <li>But finding the text is only half the job</li>
         <li>Today: pull the pieces out, and handle more than one format</li>
       </ul>
     </div>
@@ -666,7 +666,8 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
   <section class="slide slide--statement" data-title="A better wrong answer">
     <div class="slide-inner">
       <p class="lede">Why this matters beyond regex</p>
-      <p>A good library gets you a <strong>better wrong answer</strong>, not a right one.</p>
+      <p>A good library gives you a <strong>better wrong answer</strong> — but still a wrong
+      one. The tool is not the fix. The method is.</p>
       <footer>Session 3 is about what to do instead.</footer>
     </div>
   </section>
@@ -675,8 +676,8 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     <div class="slide-inner">
       <h2>Pull the tags out of this text</h2>
       <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, some stuff, another angle bracket. So:
-      <code>&lt;.*&gt;</code>. Obvious.</p>
+      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
+      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
     </div>
   </section>
 
@@ -731,7 +732,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
       <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
 # ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
       <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; It cannot overshoot.</p>
+      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
     </div>
   </section>
 
@@ -790,7 +791,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
 
   <section class="slide slide--code" data-title="Putting it together: a small extractor">
     <div class="slide-inner">
-      <h2>Four fields, three formatting wobbles</h2>
+      <h2>Four fields, and the format is not the same on every line</h2>
       <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
 INV-2292  16-03-2026  Rs 900       due
 INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
@@ -861,8 +862,8 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
         </li>
         <li>
           <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste <code>&lt;.*&gt;</code> against some HTML — it draws the
-          match as you type and shows the greedy grab happening.</p>
+          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
+          highlights the match as you type, so you can watch it take too much.</p>
           <a class="ref-link" href="https://regex101.com/" target="_blank"
           rel="noopener">regex101.com</a>
         </li>
