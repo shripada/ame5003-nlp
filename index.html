@@ -121,25 +121,25 @@ footer {
 <a class="item" href="lessons/0002-regex-groups-and-the-greedy-trap.html">
   <span class="n">Session 02</span>
   <span class="t">Capturing, choosing, and the greedy trap</span>
-  <span class="d">Regular expressions, part two — pulling the pieces out, and the one bug everybody writes at least once.</span>
+  <span class="d">Regular expressions, part two: extracting the individual pieces of a match, handling more than one input format, and understanding greedy matching.</span>
 </a>
 
 <a class="item" href="lessons/0003-tokenization-and-the-vocabulary-problem.html">
   <span class="n">Session 03</span>
   <span class="t">Tokenization</span>
-  <span class="d">How a computer splits text into words — and why that turns out to be a hard problem.</span>
+  <span class="d">How a computer splits text into words, and why that turns out to be a difficult problem.</span>
 </a>
 
 <a class="item" href="lessons/0004-normalization-and-stop-words.html">
   <span class="n">Session 04</span>
   <span class="t">Cleaning up text</span>
-  <span class="d">Normalization and stop words — deciding which differences in text do not matter, and erasing them. The catch is that "does not matter" depends on the job.</span>
+  <span class="d">Normalization and stop words: deciding which differences in text do not matter and removing them. What counts as irrelevant depends on the task.</span>
 </a>
 
 <a class="item" href="lessons/0005-stemming-and-lemmatization.html">
   <span class="n">Session 05</span>
   <span class="t">Stemming and lemmatization</span>
-  <span class="d">Cutting a word down to a root form — the fast crude way, and the slow correct way — and knowing which one your task needs.</span>
+  <span class="d">Reducing a word to a root form by two different methods, and deciding which one a given task requires.</span>
 </a>
 
 <a class="item" href="lessons/0006-part-of-speech-tagging.html">
@@ -157,7 +157,7 @@ footer {
 <a class="item" href="lessons/0008-incidence-matrix-and-boolean-search.html">
   <span class="n">Session 08</span>
   <span class="t">Searching a collection</span>
-  <span class="d">The term-document incidence matrix, and answering Boolean queries with it — a clean idea that works, right up until it does not fit in memory.</span>
+  <span class="d">The term-document incidence matrix and how Boolean queries are answered with it, together with the reason it does not scale to real collections.</span>
 </a>
 
 <a class="item" href="lessons/0009-the-inverted-index.html">
@@ -195,7 +195,7 @@ footer {
 <a class="item" href="lessons/0014-evaluation-and-perplexity.html">
   <span class="n">Session 14</span>
   <span class="t">Judging a language model: perplexity</span>
-  <span class="d">We have built three models and cannot say which is best. The fix is one number — but it only means anything if you measure it on text the model has never seen.</span>
+  <span class="d">We have built three models and have no way to say which is best. The measure that settles it is a single number, but it means something only when computed on text the model has never seen.</span>
 </a>
 
 <a class="item" href="lessons/0015-bayes-rule-and-naive-bayes.html">
@@ -251,7 +251,13 @@ footer {
 <a class="item" href="lessons/0023-recurrent-neural-networks.html">
   <span class="n">Session 23</span>
   <span class="t">The RNN: hidden state, shared weights</span>
-  <span class="d">A feedforward layer is a fixed-size hammer; text is not a fixed-size nail. An RNN reuses the same small hammer once per word, carrying a running summary — the hidden state — forward from one word to the next.</span>
+  <span class="d">A feedforward layer needs an input of one fixed size, and sentences are not all one size. An RNN runs the same small network once per word instead, carrying a running summary — the hidden state — forward from one word to the next.</span>
+</a>
+
+<a class="item" href="lessons/0024-backprop-through-time-and-vanishing-gradients.html">
+  <span class="n">Session 24</span>
+  <span class="t">Training an RNN: backprop through time, and the vanishing gradient</span>
+  <span class="d">Last session ended on a promise the architecture makes and a question nobody answered. This session answers it, and the answer is no — not by default. That "no" is the entire reason the next session exists.</span>
 </a>
 
 <h2>Labs</h2>

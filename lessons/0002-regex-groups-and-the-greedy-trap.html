@@ -558,26 +558,27 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
   <h1>Capturing, choosing, and the greedy trap</h1>
-  <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one bug
-  everybody writes at least once.</p>
+  <p class="subtitle">Regular expressions, part two: extracting the individual pieces of a match,
+  handling more than one input format, and understanding greedy matching.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where we got to</h2>
+<h2>Where session 1 left off</h2>
 
-<p>Last session you learned to describe the <strong>shape</strong> of text: <code>\d{2}</code>
-for two digits, <code>[Cc]at</code> for either spelling, <code>u?</code> for optional.</p>
+<p>In session 1 we learned to describe the <strong>shape</strong> of text: <code>\d{2}</code> for
+two digits, <code>[Cc]at</code> for either spelling, <code>u?</code> for an optional character.</p>
 
-<p>That finds things. But finding is only half the job. Usually you want to <em>pull the pieces
-out</em>, or handle text that comes in more than one format. That is today.</p>
+<p>These patterns locate text, but locating is only half of the task. We usually also want to
+extract the individual pieces of a match, or to handle text that arrives in more than one format.
+This session covers both.</p>
 
-<h2>Groups: getting the pieces out</h2>
+<h2>Groups</h2>
 
-<p>Put round brackets around part of a pattern and it becomes a <strong>group</strong>. The regex
-engine remembers what matched inside each one.</p>
+<p>Round brackets around part of a pattern make it a <strong>group</strong>. The regular
+expression engine records what matched inside each group.</p>
 
 <pre><code>text     "Exam on 15/03/2026."
 pattern  (\d{2})/(\d{2})/(\d{4})
@@ -599,11 +600,12 @@ m.group(0)   # '15/03/2026'
 m.group(1)   # '15'
 m.group(3)   # '2026'</code></pre>
 
-<p>That is the difference between "there is a date here" and "the exam is in March".</p>
+<p>Groups are what separate knowing that a date is present from knowing that the exam is in
+March.</p>
 
 <div class="callout warn">
-  <span class="label">A trap you will hit in the lab</span>
-  <p>Groups quietly change what <code>findall</code> gives back.</p>
+  <span class="label">How groups change <code>findall</code></span>
+  <p>The presence of groups changes what <code>findall</code> returns.</p>
   <pre><code>text = "Due 15/03/2026 and 01/04/2026"
 
 regex.findall(r"(\d{2})/(\d{2})/(\d{4})", text)
@@ -611,44 +613,44 @@ regex.findall(r"(\d{2})/(\d{2})/(\d{4})", text)
 
 regex.findall(r"\d{2}/\d{2}/\d{4}", text)
 # ['15/03/2026', '01/04/2026']                   &lt;- the dates</code></pre>
-  <p>With groups, <code>findall</code> returns <em>the groups</em>, not the whole match. If you
-  want brackets for grouping but not for capturing, use <code>(?:...)</code> — a
+  <p>When groups are present, <code>findall</code> returns the groups rather than the whole match.
+  To use brackets for grouping without capturing, write <code>(?:...)</code>, a
   <strong>non-capturing group</strong>:</p>
   <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
 # ['15/03/2026', '01/04/2026']</code></pre>
 </div>
 
-<h2>Alternation: this or that</h2>
+<h2>Alternation</h2>
 
 <p>The <code>|</code> symbol means "or".</p>
 
-<p>Real data is rarely in one format. Some people write <code>15/03/2026</code>, others write
-<code>15-03-2026</code>. One pattern can take both:</p>
+<p>Real data rarely arrives in a single format. Some sources write <code>15/03/2026</code> and
+others write <code>15-03-2026</code>. A single pattern can accept both:</p>
 
 <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
 
 matches  15/03/2026
 matches  15-03-2026</code></pre>
 
-<p>Here a character class <code>[/-]</code> does the job, because it is a choice between single
-characters. For longer choices you need <code>|</code> with brackets:</p>
+<p>Here the character class <code>[/-]</code> suffices, since the choice is between single
+characters. Choices between longer sequences require <code>|</code> together with brackets:</p>
 
 <pre><code>(?:cat|dog)s?
 
 on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
 
-<p>The brackets matter. <code>cat|dogs?</code> means "<code>cat</code>, or
-<code>dogs?</code>" — not what you wanted. <code>|</code> splits the <em>whole</em> pattern
-unless brackets stop it.</p>
+<p>The brackets are necessary. <code>cat|dogs?</code> means "<code>cat</code>, or
+<code>dogs?</code>", which is not the intended reading: <code>|</code> divides the entire pattern
+unless brackets limit its scope.</p>
 
-<h2>Word boundaries: the quiet bug</h2>
+<h2>Word boundaries</h2>
 
-<p>Search for <code>cat</code> in this word:</p>
+<p>Consider searching for <code>cat</code> in the following word:</p>
 
 <pre><code>con<mark>cat</mark>enate</code></pre>
 
-<p>It matches. Your pattern found "cat" inside "concatenate", and it was right to — you asked for
-those three letters, and there they are.</p>
+<p>The pattern matches. It found "cat" inside "concatenate", correctly so: we asked for those
+three letters, and they are present.</p>
 
 <p><code>\b</code> means <strong>word boundary</strong>: the edge between a word character and a
 non-word character. It matches a position, not a character.</p>
@@ -657,78 +659,77 @@ non-word character. It matches a position, not a character.</p>
 cat              yes            yes         yes
 \bcat\b          no             yes         yes</code></pre>
 
-<p>Note the last column. <code>\bcat\b</code> still matches <code>cat.</code> — the full stop is
-not a word character, so the boundary is there. That is usually what you want: you are after the
-word, punctuation and all.</p>
+<p>Note the last column. <code>\bcat\b</code> still matches <code>cat.</code>, since the full stop
+is not a word character and a boundary therefore exists between them. This is normally the
+desired behaviour, as we are looking for the word regardless of adjacent punctuation.</p>
 
-<h3>The same test in Kannada</h3>
+<h3>Word boundaries in Kannada</h3>
 
-<p>Session 1 showed you that <code>re</code> breaks Kannada words at the virama. Watch what that
-does to <code>\b</code>.</p>
+<p>Session 1 showed that <code>re</code> splits Kannada words at the virama. We now examine the
+effect this has on <code>\b</code>.</p>
 
-<p>In English, <code>\bcat\b</code> correctly <em>refuses</em> to match inside
-<code>concatenate</code> — "cat" is not a whole word there. Good. Now try the same thing on
-<code>ಕನ್ನಡ</code>, asking whether the fragment <code>ಕನ</code> is a whole word:</p>
+<p>In English, <code>\bcat\b</code> correctly declines to match inside <code>concatenate</code>,
+since "cat" is not a whole word in that context. Applying the same test to <code>ಕನ್ನಡ</code>, we
+ask whether the fragment <code>ಕನ</code> is a whole word:</p>
 
 <pre><code>re.search(r"\bಕನ\b", "ಕನ್ನಡ")      # matches!    ← wrong
 regex.search(r"\bಕನ\b", "ಕನ್ನಡ")   # no match     ← right</code></pre>
 
-<p><code>re</code> says yes: it believes <code>ಕನ</code> is a complete word sitting inside
-<code>ಕನ್ನಡ</code>. It is not. It is the first half of one word.</p>
+<p><code>re</code> reports a match, treating <code>ಕನ</code> as a complete word inside
+<code>ಕನ್ನಡ</code>. It is not a word; it is the first half of one.</p>
 
-<p>The reason follows from session 1. <code>\b</code> is defined as "the edge of a
-<code>\w</code> run". If <code>\w</code> is wrong about where words end, <code>\b</code> inherits
-the error:</p>
+<p>The reason follows from session 1. <code>\b</code> is defined as the edge of a run of
+<code>\w</code> characters, so if <code>\w</code> is wrong about where words end, <code>\b</code>
+inherits that error:</p>
 
 <pre><code>number of \b positions inside ಕನ್ನಡ
 
 re      4      two at the ends, two invented at the virama
 regex   2      just the ends — correct</code></pre>
 
-<p>The rule is identical in both libraries. It works in English and fails in Kannada. That is
-what "not Unicode compliant" actually looks like in practice — not a crash, just a wrong answer
-delivered confidently.</p>
+<p>The rule is identical in both libraries; it works for English and fails for Kannada. This is
+what "not Unicode compliant" means in practice. There is no crash, only a wrong answer returned
+without any indication that anything is amiss.</p>
 
 <div class="callout">
-  <span class="label">Why this matters beyond regex</span>
-  <p>You have just met, in miniature, the question this whole unit is about: <strong>where does
-  a word end?</strong></p>
-  <p><code>\b</code> is one crude answer — "at the edge of a run of word characters". Even with
-  the right library it falls apart on <code>don't</code>, on <code>U.S.A.</code>, and on
-  languages that do not put spaces between words at all.</p>
-  <p><mark>A good library gets you a better wrong answer, not a right one.</mark> Session 3 is
-  about what to do instead.</p>
+  <span class="label">Where does a word end?</span>
+  <p>This example is a small instance of the question the whole unit addresses: where does a word
+  end?</p>
+  <p><code>\b</code> gives one crude answer, namely "at the edge of a run of word characters".
+  Even with a correct library, that answer fails for <code>don't</code>, for <code>U.S.A.</code>,
+  and for languages that do not separate words with spaces at all.</p>
+  <p><mark>A good library gives us a better wrong answer, not a right one.</mark> Session 3
+  considers what to do instead.</p>
 </div>
 
-<h2>The greedy trap</h2>
+<h2>Greedy and lazy quantifiers</h2>
 
-<p>This is the one. Everyone writes this bug once.</p>
-
-<p>You want to pull the tags out of this text:</p>
+<p>We now come to the most common error in writing regular expressions. Suppose we want to extract
+the tags from the following text:</p>
 
 <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
 
-<p>A tag is an angle bracket, some stuff, another angle bracket. So: <code>&lt;.*&gt;</code>.
-Obvious. Run it:</p>
+<p>A tag consists of an angle bracket, some content, and a closing angle bracket, which suggests
+the pattern <code>&lt;.*&gt;</code>. Running it gives:</p>
 
 <pre><code>regex.search(r"&lt;.*&gt;", text).group()
 
 # &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
 
-<p>It matched <strong>the entire line</strong>. One giant "tag".</p>
+<p>The pattern matched the entire line, treating it as a single tag.</p>
 
-<p>Why? Because <code>*</code> and <code>+</code> are <strong>greedy</strong>. They take as much
-as they possibly can, and only give characters back if the rest of the pattern cannot otherwise
-match.</p>
+<p>The reason is that <code>*</code> and <code>+</code> are <strong>greedy</strong>: they consume
+as much text as possible, and return characters only when the remainder of the pattern cannot
+otherwise match.</p>
 
-<p>Walk through it. <code>&lt;</code> matches the first angle bracket. Then <code>.*</code> runs
-to the <em>end of the line</em>, grabbing everything. Now the pattern still needs a
-<code>&gt;</code>, but there is nothing left. So <code>.*</code> backs up, one character at a
-time, until a <code>&gt;</code> can match — and the first <code>&gt;</code> it finds going
-<em>backwards</em> is the last one on the line.</p>
+<p>We can trace the process. <code>&lt;</code> matches the first angle bracket. <code>.*</code>
+then consumes everything to the end of the line. At this point the pattern still requires a
+<code>&gt;</code>, but no text remains, so <code>.*</code> gives back one character at a time
+until a <code>&gt;</code> can match. The first <code>&gt;</code> encountered when working
+backwards is the last one on the line.</p>
 
-<p>The fix is <code>?</code> after the quantifier. That makes it <strong>lazy</strong>: take as
-little as possible.</p>
+<p>Adding <code>?</code> after the quantifier makes it <strong>lazy</strong>, meaning that it
+consumes as little text as possible:</p>
 
 <pre><code>regex.search(r"&lt;.*?&gt;", text).group()      # &lt;b&gt;
 
@@ -736,15 +737,17 @@ regex.findall(r"&lt;.*?&gt;", text)
 # ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
 
 <div class="callout">
-  <span class="label">The better fix</span>
-  <p>Lazy matching works. But there is a sharper way to say it:</p>
+  <span class="label">A more precise alternative to lazy matching</span>
+  <p>Lazy matching solves the problem, but there is a more precise way to express the same
+  intent:</p>
   <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
 # ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-  <p>Read it: "an angle bracket, then <em>anything that is not a closing bracket</em>, then a
-  closing bracket." It cannot overshoot, because it is not allowed to cross a <code>&gt;</code>
-  in the first place.</p>
-  <p><mark>Being precise about what you allow beats fixing it afterwards.</mark> That is the same
-  lesson as the roll number in session 1, and it will keep coming back.</p>
+  <p>This pattern reads as "an angle bracket, then any number of characters that are not a closing
+  bracket, then a closing bracket." It cannot overshoot, because it is never permitted to cross a
+  <code>&gt;</code>.</p>
+  <p><mark>Being precise about what a pattern allows is preferable to correcting the result
+  afterwards.</mark> This is the same point made by the roll number example in session 1, and it
+  recurs throughout the course.</p>
 </div>
 
 <div class="quiz" data-answer="0">
@@ -759,13 +762,13 @@ regex.findall(r"&lt;.*?&gt;", text)
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>just one letter a</strong>.</p>
-    <p>Read <code>a+?</code> as two separate things. <code>a+</code> means "one or more a".
-    The <code>?</code> after it means "be lazy about it".</p>
-    <p>So: it must take at least one, and being lazy, it takes exactly one and stops.</p>
-    <p>The confusing part is that <code>?</code> has <strong>two jobs</strong>, just like
-    <code>^</code> did last session. After a character, <code>a?</code> means "optional". After a
-    quantifier, <code>+?</code> means "lazy". Which one it is depends on what comes
-    before it.</p>
+    <p><code>a+?</code> should be read as two separate elements. <code>a+</code> means "one or
+    more a", and the <code>?</code> that follows makes the quantifier lazy.</p>
+    <p>The pattern must therefore take at least one character, and being lazy, it takes exactly
+    one and stops.</p>
+    <p>As with <code>^</code> in session 1, the difficulty is that <code>?</code> serves two
+    purposes. After a character, <code>a?</code> means "optional"; after a quantifier,
+    <code>+?</code> means "lazy". Which meaning applies depends on what precedes it.</p>
   </div>
 </div>
 
@@ -780,53 +783,56 @@ regex.findall(r"&lt;.*?&gt;", text)
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>findall returns the groups when groups exist</strong>.</p>
-    <p>With no groups in the pattern, <code>findall</code> gives you a list of whole matches.
-    Add brackets and it assumes the groups are what you actually wanted, so it gives you those
-    instead — as a tuple per match.</p>
-    <p>Two ways out. If you do not need the pieces, drop the brackets. If you need brackets only
-    for grouping, make them non-capturing with <code>(?:...)</code>.</p>
+    <p>When the pattern contains no groups, <code>findall</code> returns a list of whole matches.
+    When brackets are present, it assumes the groups are what was wanted and returns those
+    instead, as one tuple per match.</p>
+    <p>There are two solutions. If the individual pieces are not needed, remove the brackets; if
+    the brackets are needed only for grouping, make them non-capturing with
+    <code>(?:...)</code>.</p>
   </div>
 </div>
 
-<h2>Changing text, not just finding it</h2>
+<h2>Substitution</h2>
 
-<p><code>regex.sub</code> replaces what it matches. Groups make it powerful: <code>\1</code>,
-<code>\2</code> in the replacement mean "whatever group 1 and 2 matched".</p>
+<p><code>regex.sub</code> replaces whatever the pattern matches. Groups extend what substitution
+can do: <code>\1</code> and <code>\2</code> in the replacement text refer to whatever group 1 and
+group 2 matched.</p>
 
-<p>Reformat every Indian-style date into ISO format in one line:</p>
+<p>The following converts a date from Indian format into ISO format:</p>
 
 <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1", "Exam on 15/03/2026.")
 
 # 'Exam on 2026-03-15.'</code></pre>
 
-<p>Day, month and year get captured, then written back in a different order. No parsing, no
-loops.</p>
+<p>The day, month, and year are captured and then written back in a different order, without any
+parsing or explicit loops.</p>
 
-<p>This is the kind of thing you will do constantly in Unit I — cleaning text into a consistent
-shape before anything else touches it.</p>
+<p>Operations of this kind are frequent in Unit I, where we clean text into a consistent form
+before any further processing.</p>
 
-<h2>Putting it together: a small extractor</h2>
+<h2>A worked example: a small extractor</h2>
 
-<p>Everything so far has been one pattern at a time. Real
-<strong>information extraction</strong> — the name for this whole job, from session 1 — means
-pulling several fields out of every line and handing back something a program can use.</p>
+<p>So far we have applied one pattern at a time. <strong>Information extraction</strong>, the term
+introduced in session 1, generally means pulling several fields out of every line and returning a
+structure a program can use.</p>
 
-<p>Here are three lines from an invoice log. Same fields every time, but the formatting wobbles:</p>
+<p>The following three lines come from an invoice log. The fields are the same in each line, but
+the formatting varies:</p>
 
 <pre><code>INV-2291  15/03/2026  Rs 12,500  paid
 INV-2292  16-03-2026  Rs 900     due
 INV-2293  17/03/2026  Rs 1,05,000 due</code></pre>
 
-<p>Four fields: an invoice number, a date, an amount, a status. Build the pattern one field at a
-time and say each piece out loud:</p>
+<p>There are four fields: an invoice number, a date, an amount, and a status. We build the pattern
+one field at a time:</p>
 
 <pre><code>INV-\d{4}              invoice: three letters, a dash, four digits
 \d{2}[/-]\d{2}[/-]\d{4}   date: either separator — from the alternation section
 Rs\s[\d,]+             amount: digits and commas, so 1,05,000 survives
 paid|due               status: one word or the other</code></pre>
 
-<p>Now join them with <code>\s+</code> for the gaps between fields. There is one new trick:
-instead of counting groups, <strong>give each one a name</strong> with
+<p>We join these with <code>\s+</code> to allow for the gaps between fields. One further feature
+is useful here: instead of numbering the groups, we can name each one using
 <code>(?P&lt;name&gt;...)</code>.</p>
 
 <pre><code>pattern = (r"(?P&lt;invoice&gt;INV-\d{4})\s+"
@@ -842,69 +848,71 @@ for line in lines:
 # INV-2292 16-03-2026 900 due
 # INV-2293 17/03/2026 1,05,000 due</code></pre>
 
-<p>Named groups are worth the extra characters. <code>m.group("amount")</code> still reads
-correctly six months later; <code>m.group(3)</code> does not, and it breaks silently the moment
-you add a field in the middle.</p>
+<p>Named groups are worth the additional characters. <code>m.group("amount")</code> remains
+readable months later, whereas <code>m.group(3)</code> does not, and the numbered form breaks
+without warning as soon as a field is added in the middle of the pattern.</p>
 
-<p>There is a shortcut for the whole lot at once:</p>
+<p>All the named groups can be retrieved at once:</p>
 
 <pre><code>regex.search(pattern, lines[0]).groupdict()
 
 # {'invoice': 'INV-2291', 'date': '15/03/2026',
 #  'amount': '12,500', 'status': 'paid'}</code></pre>
 
-<p>That dictionary is the point of the exercise. Text went in; structured data came out.</p>
+<p>This dictionary is the goal of the exercise: unstructured text goes in, and structured data
+comes out.</p>
 
 <div class="callout">
-  <span class="label">Extraction is not the last step</span>
-  <p><code>'12,500'</code> is still a <em>string</em>, and the two dates are still in two
-  different formats. Extraction gets you the pieces; you almost always have to clean them
-  afterwards:</p>
+  <span class="label">Extraction is followed by normalisation</span>
+  <p><code>'12,500'</code> is still a string, and the two dates are still in different formats.
+  Extraction produces the pieces; they almost always require cleaning afterwards:</p>
   <pre><code>int(m.group("amount").replace(",", ""))     # 12500 — a number at last
 
 regex.sub(r"(\d{2})[/-](\d{2})[/-](\d{4})",
           r"\3-\2-\1", m.group("date"))     # '2026-03-15' — one format</code></pre>
-  <p>Find, extract, then normalise. That order comes up in every lab in this unit.</p>
+  <p>Find, extract, then normalise. This sequence recurs in every lab in the unit.</p>
 </div>
 
 <div class="recall">
-  <span class="label">Try this before the lab</span>
+  <span class="label">Exercise</span>
   <p>Add a fifth field to the pattern. The log gains a customer code at the end, like
   <code>[CUST-4471]</code> — square brackets included.</p>
-  <p>Two things to get right: the brackets are literal characters, and you do not want them in
+  <p>Two points require care: the brackets are literal characters, and they should not appear in
   the captured value.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-    <p>Escape both brackets — <code>\[</code> and <code>\]</code> — because <code>[</code> starts
-    a character class. Forget the backslash and the pattern either breaks or matches something
-    strange.</p>
-    <p>Put the named group <em>inside</em> the escaped brackets and the brackets stay out of the
-    captured text: you get <code>CUST-4471</code>, not <code>[CUST-4471]</code>. Where you place
-    the group decides what you get back.</p>
+    <p>Both brackets must be escaped, as <code>\[</code> and <code>\]</code>, because
+    <code>[</code> otherwise begins a character class. Omitting the backslash makes the pattern
+    either invalid or wrong.</p>
+    <p>Placing the named group inside the escaped brackets keeps the brackets out of the captured
+    text, giving <code>CUST-4471</code> rather than <code>[CUST-4471]</code>. The position of the
+    group determines what is returned.</p>
   </div>
 </div>
 
-<h2>What to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The one thing</span>
-  <p>Quantifiers are <strong>greedy</strong> by default. They grab as much as they can. When a
-  pattern matches far more than you expected, this is almost always why.</p>
-  <p>Add <code>?</code> to make it lazy — or better, write the pattern so it cannot overshoot in
-  the first place.</p>
+  <span class="label">The main points</span>
+  <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can. When
+  a pattern matches considerably more than expected, this is almost always the reason.</p>
+  <p>Adding <code>?</code> makes a quantifier lazy. Better still is to write the pattern so that
+  it cannot overshoot at all.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>Finish <strong>§2.6</strong> of <a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter
 2 of <em>Speech and Language Processing</em></a>, including the substitution part.</p>
 
-<p>Then go to <a href="https://regex101.com/">regex101.com</a> and paste in
-<code>&lt;.*&gt;</code> against some HTML. It draws the match as you type, and it will show you
-the greedy grab happening. Ten minutes there is worth an hour of reading.</p>
+<p>You should also try <code>&lt;.*&gt;</code> against some HTML at <a
+href="https://regex101.com/">regex101.com</a>, which highlights the match as you type and makes
+the greedy behaviour visible. Ten minutes spent this way is more useful than an hour of
+reading.</p>
 
-<p>Next session: tokenization — where we take the <code>\b</code> problem seriously.</p>
+<p>Session 3 covers tokenization, where we address the question raised by <code>\b</code> more
+carefully.</p>
 
 
 

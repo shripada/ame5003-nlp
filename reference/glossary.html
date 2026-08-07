@@ -1257,9 +1257,20 @@ figcaption {
 
 <dl class="term">
   <dt>Vanishing gradient</dt>
-  <dd>Gradients shrink multiplicatively over long backprop paths, so plain RNNs cannot learn
-  long-range dependencies. The disease; LSTM is the treatment. (The recurrence this describes is
-  Session 23's; whether it actually happens in practice is Session 24's.)</dd>
+  <dd>Training an RNN sends one loss backward through every timestep, and each step multiplies the
+  gradient by the same matrix <code>U</code>. For the linear toy <code>h_t = Uh_{t-1} + Wx_t</code>
+  that is exactly <code>∂h_n/∂h₁ = U^(n−1)</code>: with <code>U = 0.5</code>, twenty steps back gives
+  <code>0.0000019</code> — not a weak learning signal but none. With <code>|U| &gt; 1</code> the same
+  formula <strong>explodes</strong> instead (<code>U = 1.5</code>, fifty steps → 4.25×10⁸), so the
+  failure runs both ways and only <code>|U| = 1</code> sits still. A real RNN's <code>tanh′ ≤ 1</code>
+  adds one more factor per step, which makes vanishing worse and never explains exploding.
+  <br>⚠️ <strong>This is only half of why long-range memory fails</strong>, and the half that matters
+  less for what comes next. SLP3 names another: one hidden state is asked to serve the current
+  decision <em>and</em> carry information for future ones, with nothing separating the two jobs. The
+  <strong>LSTM</strong> is the fix for <em>that</em> problem — an explicit context layer with learned
+  control over what is kept and forgotten — and it helps the gradient as a side effect, by making the
+  path additive rather than multiplicative. Remember it as a gradient trick and its design looks
+  arbitrary. Sessions 23–24; the fix is session 25.</dd>
 </dl>
 
 <dl class="term">

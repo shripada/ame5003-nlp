@@ -566,55 +566,55 @@ figcaption {
 
 
 
-<h2>Remember <code>nightmare</code>?</h2>
+<h2>Where lab 1 left off</h2>
 
-<p>In lab 1 we ran VADER, a sentiment analyser built from a hand-written lexicon, over a few
-sentences. It handled the hard ones well — it got <em>brilliant</em> and <em>terrible</em> right,
-and even scored <em>"not bad at all"</em> as mildly positive. Then it read this:</p>
+<p>In lab 1 we applied VADER, a sentiment analyser built from a hand-written lexicon, to several
+sentences. It handled the difficult cases well, classifying <em>brilliant</em> and
+<em>terrible</em> correctly and scoring <em>"not bad at all"</em> as mildly positive. It then
+produced the following:</p>
 
 <pre><code>"this course is going to be a nightmare"   →   0.0   (neutral)</code></pre>
 
-<p>Not a subtle failure. The reason was simple: <code>nightmare</code> is not in VADER's
-7,502-word lexicon. Nobody wrote it down.</p>
+<p>The failure is not subtle, and the reason is straightforward: <code>nightmare</code> does not
+appear in VADER's 7,502-word lexicon, because nobody added it.</p>
 
-<p>You could add it. But <code>shambles</code> is missing too — and so is whatever word people
-start using next year. A hand-written list is always one word short, for ever, and it needs a human
-to notice each gap.</p>
+<p>It could be added, but <code>shambles</code> is also missing, as is whatever word comes into use
+next year. A hand-written list is permanently incomplete, and a human must notice each gap.</p>
 
 <div class="callout">
-  <span class="label">The move this session makes</span>
-  <p>Stop writing the rules. Instead, show a program a pile of documents that people have already
-  labelled — this review is positive, that one is negative — and let it work out for itself which
-  words matter.</p>
-  <p>This is <strong>supervised machine learning</strong>, and it is the first time in this course
-  we ask a model to learn a task rather than compute a definition. The method we use is called
+  <span class="label">What this session adds</span>
+  <p>Rather than writing the rules, we supply a program with a collection of documents that
+  people have already labelled, marking each review as positive or negative, and let the program
+  determine for itself which words matter.</p>
+  <p>This is <strong>supervised machine learning</strong>. It is the first point in this course at
+  which we ask a model to learn a task rather than to compute a definition. The method used here is
   <strong>Naïve Bayes</strong>.</p>
 </div>
 
 <h2>The task</h2>
 
-<p><strong>Classification</strong> is: given a document, choose one label from a fixed set. We
-care about <strong>sentiment analysis</strong> — is this review positive or negative? — but the
-machinery is not specific to sentiment. The same classifier does spam detection (spam / not spam),
-language identification (which language is this?), and topic labelling, unchanged.</p>
+<p><strong>Classification</strong> is the task of choosing one label from a fixed set, given a
+document. Our concern here is <strong>sentiment analysis</strong>, determining whether a review is
+positive or negative, but the machinery is not specific to sentiment. The same classifier performs
+spam detection, language identification, and topic labelling without modification.</p>
 
-<p>What "supervised" means in practice: you need <strong>labelled training data</strong>, a set of
-documents each already marked with the right answer. That is the price of not writing rules, and
-it is a real price — somebody had to label them.</p>
+<p>In practice, "supervised" means that <strong>labelled training data</strong> is required: a set
+of documents each marked with the correct answer. This is the cost of not writing rules, and it is
+a genuine cost, since the documents had to be labelled by someone.</p>
 
-<h2>The question we want, and why we cannot count it</h2>
+<h2>Why we cannot count the answer directly</h2>
 
-<p>Written down, the goal is almost embarrassingly direct. Out of all the classes, return the one
-that is most probable given the document:</p>
+<p>Written out, the objective is direct: of all the classes, return the one that is most probable
+given the document.</p>
 
 <pre><code>best class  =  argmax  P(c | d)
                 c in C</code></pre>
 
-<p><code>argmax</code> just means "the thing that makes this biggest" — we want the class itself,
-not the probability. Read the line aloud: <em>of all the classes, give me the one most likely for
-this document.</em> That is exactly the job.</p>
+<p><code>argmax</code> denotes the argument that maximises the expression, so what we obtain is
+the class itself rather than the probability. The line reads as: of all the classes, return the one
+most likely for this document.</p>
 
-<p>Now try to estimate it the way we have estimated everything so far in this course — by
+<p>We now attempt to estimate this quantity in the way we have estimated everything so far, by
 counting:</p>
 
 <pre><code>P(positive | "predictable with no fun")
@@ -623,25 +623,25 @@ counting:</p>
        ─────────────────────────────────────────────
        count(that exact document)</code></pre>
 
-<p>The denominator is <strong>1</strong> if that document happens to be in your training set, and
-<strong>0</strong> if it is not — which it will not be, because it is a new document. That is the
-whole point of a classifier.</p>
+<p>The denominator is 1 if that document happens to appear in the training set and 0 otherwise.
+It will not appear, because it is a new document, which is the entire purpose of a classifier.</p>
 
 <div class="callout warn">
-  <span class="label">We have hit this exact wall before</span>
-  <p>Session 12: the chain rule gave the exact probability of a sentence, and was useless because
-  the long histories it needed almost never repeat. Same shape here. <mark>The quantity we want is
-  perfectly well defined and cannot be counted, because the thing we would count is unique.</mark></p>
-  <p>Last time the fix was to ask a shorter question. This time it is different, and better: we
-  keep the question and change who answers it.</p>
+  <span class="label">The same problem as in session 12</span>
+  <p>In session 12 the chain rule gave the exact probability of a sentence and was unusable,
+  because the long histories it required almost never recur. The situation here has the same
+  structure. <mark>The quantity we want is well defined and cannot be counted, because the thing we
+  would count is unique.</mark></p>
+  <p>In session 12 the solution was to ask a question with less context. Here the solution is
+  different: we keep the question and change the quantity used to answer it.</p>
 </div>
 
-<h2>A short probability refresher</h2>
+<h2>Probability: a short refresher</h2>
 
-<p>Three names, because the rest of the hour uses them constantly.</p>
+<p>Three terms are needed, since the remainder of the session uses them constantly.</p>
 
 <p>A <strong>conditional probability</strong> <code>P(A | B)</code> is the probability of A given
-that B is known to be true. That is all the notation means: the bar is "given".</p>
+that B is known to be true. The vertical bar denotes "given".</p>
 
 <table>
   <tr><th>name</th><th>written</th><th>in our problem</th></tr>
@@ -650,8 +650,8 @@ that B is known to be true. That is all the notation means: the bar is "given".<
   <tr><td><strong>posterior</strong></td><td><code>P(c | d)</code></td><td>how likely this class is, now that we have read the document</td></tr>
 </table>
 
-<p><em>Prior</em> and <em>posterior</em> mean before and after — before and after seeing the
-evidence. The posterior is what we want and cannot count. Hold on to that.</p>
+<p><em>Prior</em> and <em>posterior</em> mean before and after seeing the evidence. The posterior
+is the quantity we want and cannot count.</p>
 
 <h2>Bayes' rule</h2>
 
@@ -666,32 +666,33 @@ directions. In general form:</p>
 best class  =  argmax     ───────────────
                 c in C          P(d)</code></pre>
 
-<p>Look at what changed. We wanted <code>P(c | d)</code> — the probability of a class given a
-unique, never-before-seen document. We now need <code>P(d | c)</code> and <code>P(c)</code>
-instead.</p>
+<p>Consider what has changed. We wanted <code>P(c | d)</code>, the probability of a class given a
+unique document that has not been seen before. We now require <code>P(d | c)</code> and
+<code>P(c)</code> instead.</p>
 
-<p><code>P(c)</code> is easy: of the labelled documents, what fraction were positive? That is a
-count over documents, and there are plenty of documents. <code>P(d | c)</code> is still hard, and
-we deal with it in a moment. But the direction of travel is right — we swapped one impossible
-question for one easy one and one hard one.</p>
+<p><code>P(c)</code> is easy to estimate: of the labelled documents, what fraction were positive?
+This is a count over documents, and documents are plentiful. <code>P(d | c)</code> remains
+difficult, and we address it below. The exchange is nonetheless favourable: one impossible question
+has been replaced by one easy question and one difficult one.</p>
 
 <div class="callout">
-  <span class="label">Why flipping the question helps at all</span>
-  <p>It feels like a trick the first time. The reason it works: <strong>the two directions are not
-  equally hard to count.</strong></p>
-  <p>"How often is <em>this exact document</em> positive?" has no data behind it — the document is
-  unique. "How often does a positive review use the word <em>fun</em>?" has plenty of data, because
-  thousands of positive reviews exist and lots of them say <em>fun</em>. Bayes' rule lets us answer
-  the first question using the second.</p>
+  <span class="label">Why reversing the conditional helps</span>
+  <p>The reason this works is that <strong>the two directions are not equally difficult to
+  count</strong>.</p>
+  <p>The question "how often is this exact document positive?" has no data behind it, since the
+  document is unique. The question "how often does a positive review use the word <em>fun</em>?"
+  has a great deal of data behind it, since thousands of positive reviews exist and many of them
+  contain <em>fun</em>. Bayes' rule allows the first question to be answered using the second.</p>
 </div>
 
-<h3>Throwing away the denominator</h3>
+<h3>Dropping the denominator</h3>
 
-<p><code>P(d)</code> is the awkward-looking term, and it disappears for free. We are comparing
-classes for <strong>one fixed document</strong>. Whatever <code>P(d)</code> is, it is the same
-number in every class we compare — so it cannot change which class comes out largest.</p>
+<p><code>P(d)</code> is the remaining awkward term, and it can be removed at no cost. We are
+comparing classes for one fixed document, so whatever <code>P(d)</code> is, it takes the same value
+in every class being compared and cannot affect which class is largest.</p>
 
-<p>And we do not need a real probability. We need <em>which class wins</em>. So drop it:</p>
+<p>We also do not require an actual probability, only the identity of the winning class. We
+therefore drop the term:</p>
 
 <pre><code>best class  =  argmax   P(d | c) · P(c)
                 c in C
@@ -699,25 +700,24 @@ number in every class we compare — so it cannot change which class comes out l
                         likelihood   prior</code></pre>
 
 <div class="callout">
-  <span class="label">Reading the formula as a story</span>
-  <p>That line has a natural reading: to produce a document, first pick a class, then produce words
-  appropriate to that class. Classification runs the story backwards — given the words, which class
-  most likely produced them?</p>
+  <span class="label">Reading the formula</span>
+  <p>This expression has a natural interpretation: to produce a document, first select a class,
+  then produce words appropriate to that class. Classification reverses the process, asking which
+  class most likely produced the observed words.</p>
   <p>Because it describes how a document could be <em>generated</em>, Naïve Bayes is called a
-  <strong>generative</strong> model. You could genuinely use it to write text, badly. The
-  alternative family, <strong>discriminative</strong> models, skips the story and learns only what
-  separates the classes.</p>
+  <strong>generative</strong> model, and it can in fact be used to generate text, though poorly. The
+  alternative family, <strong>discriminative</strong> models, omits the generative account and
+  learns only what distinguishes the classes.</p>
 </div>
 
-<h2>The last problem, and two lies to fix it</h2>
+<h2>Two simplifying assumptions</h2>
 
-<p>We are still stuck on <code>P(d | c)</code>: the probability of a <em>whole document</em> given
-a class. A document is a specific sequence of specific words in a specific order, so counting it
-runs into exactly the same uniqueness problem as before. Nothing has been solved yet — it has been
-moved.</p>
+<p><code>P(d | c)</code>, the probability of a whole document given a class, remains unresolved. A
+document is a specific sequence of specific words in a specific order, so counting it encounters the
+same uniqueness problem as before. The difficulty has been relocated rather than solved.</p>
 
-<p>Naïve Bayes escapes by making two assumptions. Both are false. Say that plainly, because their
-falseness is the interesting part.</p>
+<p>Naïve Bayes proceeds by making two assumptions, both of which are false. This should be stated
+plainly, since their falseness is what makes them worth examining.</p>
 
 <h3>Assumption 1 — bag of words</h3>
 
@@ -727,50 +727,51 @@ the order. The document becomes an unordered bag:</p>
 <pre><code>"the film was fun, not boring"      →   {the, film, was, fun, not, boring}
 "the film was boring, not fun"      →   {the, film, was, boring, not, fun}</code></pre>
 
-<p>Those two reviews mean opposite things and the model cannot tell them apart. That is a real
-loss, and it is accepted anyway, because word <em>identity</em> carries most of the signal for
-sentiment and word <em>order</em> costs far too much to model. We come back to bag of words
-properly in session 17, where it becomes a way of turning a document into a vector.</p>
+<p>These two reviews have opposite meanings, and the model cannot distinguish them. This is a
+genuine loss of information, accepted because word identity carries most of the signal for sentiment
+while word order is expensive to model. We return to bag of words in session 17, where it becomes a
+method for representing a document as a vector.</p>
 
 <h3>Assumption 2 — the naïve assumption</h3>
 
-<p>This is the one the method is named after. <strong>Given the class, the words are
-independent</strong> — knowing one word tells you nothing about the others. Which lets us multiply
-them:</p>
+<p>This is the assumption the method is named after. <strong>Given the class, the words are
+independent</strong>, so that knowing one word gives no information about the others. This permits
+the individual probabilities to be multiplied:</p>
 
 <pre><code>P(d | c)  =  P(w₁ | c) · P(w₂ | c) · … · P(wₙ | c)</code></pre>
 
-<p>Obviously untrue. In a positive review, seeing <code>special</code> makes
-<code>effects</code> far more likely than it otherwise would be, and <code>San</code> all but
-guarantees <code>Francisco</code>. Words travel together. The assumption says they do not.</p>
+<p>This is plainly untrue. In a positive review, the presence of <code>special</code> makes
+<code>effects</code> far more likely than it would otherwise be, and <code>San</code> is almost
+always followed by <code>Francisco</code>. Words co-occur systematically, and the assumption denies
+that they do.</p>
 
 <div class="callout warn">
-  <span class="label">The third time we have made this trade</span>
-  <p>The pattern is now unmistakable, so name it:</p>
+  <span class="label">The same trade-off, a third time</span>
+  <p>The pattern is now clear enough to state explicitly:</p>
   <ul>
     <li><strong>Session 12</strong> — the Markov assumption: only the last word or two matters.
     False.</li>
     <li><strong>Now</strong> — bag of words: order does not matter. False.</li>
     <li><strong>Now</strong> — the naïve assumption: words are independent. False.</li>
   </ul>
-  <p><mark>Each one replaces a quantity we cannot estimate with one we can, and each is adopted
-  knowingly.</mark> The test of such an assumption is never "is it true?" — it is "does the model
-  built on it work?" Naïve Bayes is wrong about language in an obvious way and classifies text
-  well. Both facts are true at once, and being comfortable with that is most of applied machine
-  learning.</p>
+  <p><mark>Each of these replaces a quantity we cannot estimate with one we can, and each is
+  adopted knowingly.</mark> The test of such an assumption is not whether it is true but whether the
+  model built on it performs well. Naïve Bayes is obviously wrong about language and classifies text
+  effectively. Both statements hold simultaneously, and much of applied machine learning consists of
+  working with assumptions of this kind.</p>
 </div>
 
 <h2>The classifier</h2>
 
-<p>Put the pieces together and the whole method is one line:</p>
+<p>Combining the pieces, the entire method is a single expression:</p>
 
 <pre><code>best class  =  argmax   P(c) · Π P(w | c)
                 c in C          w in d</code></pre>
 
-<p>In words, and this is the version worth remembering: <strong>for each class, multiply how
-common that class is by how typical each of the document's words is for it. Pick the winner.</strong></p>
+<p>Stated in words: <strong>for each class, multiply how common that class is by how typical each
+of the document's words is for that class, and select the class with the highest result.</strong></p>
 
-<p>Two quantities are needed, and both are plain counts on labelled data:</p>
+<p>Two quantities are required, and both are counts over labelled data:</p>
 
 <table>
   <tr><th>quantity</th><th>what it asks</th></tr>
@@ -778,25 +779,25 @@ common that class is by how typical each of the document's words is for it. Pick
   <tr><td><code>P(w | c)</code></td><td>of all the words in class c's documents, what fraction are this word?</td></tr>
 </table>
 
-<p>No optimisation, no iteration, no training loop. You count, you divide, you are done — which is
-why Naïve Bayes is still worth teaching in an age of enormous models. It is the cheapest thing that
-works.</p>
+<p>There is no optimisation, no iteration, and no training loop: we count and divide. This is why
+Naïve Bayes remains worth studying alongside much larger models. It is the least expensive method
+that works.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>We dropped <code>P(d)</code> from the formula. But <code>P(d)</code> is a real quantity — the
-  probability of that document. Why is it safe to throw away, and what do we lose?</p>
+  <span class="label">Exercise</span>
+  <p>We removed <code>P(d)</code> from the formula, although it is a real quantity, namely the
+  probability of that document. Why can it be discarded safely, and what is lost by doing so?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Safe because it is identical for every class.</strong> We compare
-    <code>P(d|+)P(+)/P(d)</code> against <code>P(d|−)P(−)/P(d)</code> for the same document d.
-    Dividing both by the same number cannot change which is larger. The ranking is untouched.</p>
-    <p><strong>What we lose is the scale.</strong> The numbers that come out are no longer real
-    probabilities and will not add to 1 — they are scores. So you can say "positive beats negative",
-    but you cannot say "70% confident" without putting the denominator back.</p>
-    <p>The general principle is worth keeping: <strong>when you only need an ordering, any factor
-    shared by everything you are ranking can be dropped.</strong> It turns up constantly, and it is
-    almost always the cheapest simplification available.</p>
+    <p>It can be discarded safely because it is identical for every class. We compare
+    <code>P(d|+)P(+)/P(d)</code> against <code>P(d|−)P(−)/P(d)</code> for the same document d, and
+    dividing both by the same number cannot change which is larger. The ranking is unaffected.</p>
+    <p>What is lost is the scale. The resulting values are no longer probabilities and do not sum
+    to 1; they are scores. We can therefore state that positive outranks negative, but not that the
+    classifier is 70% confident, without restoring the denominator.</p>
+    <p>The general principle is worth retaining: <strong>when only an ordering is required, any
+    factor shared by every item being ranked can be discarded.</strong> This situation arises
+    frequently and usually provides the cheapest available simplification.</p>
   </div>
 </div>
 
@@ -812,10 +813,10 @@ works.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>the exact document is unique, so its count is 0 or 1</strong>.</p>
-    <p>You would be counting how often that precise document appeared with each label, and a new
-    document has never appeared at all. It is session 12's wall again: the quantity is well defined
-    and there is no data behind it. Bayes' rule turns it into questions about single words, which
-    do have data behind them.</p>
+    <p>This would require counting how often that precise document appeared with each label, and
+    a new document has never appeared at all. This is the same obstacle as in session 12: the
+    quantity is well defined and has no data behind it. Bayes' rule converts it into questions about
+    individual words, which do have data behind them.</p>
   </div>
 </div>
 
@@ -830,42 +831,42 @@ works.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>given the class, each word is independent of the others</strong>.</p>
-    <p>That is what lets us multiply the individual <code>P(w|c)</code> values together instead of
-    estimating the probability of the whole word combination. It is plainly false — <code>special</code>
-    and <code>effects</code> are not independent — and the classifier works anyway. Note that the
-    <em>separate</em> bag-of-words assumption is the one about order.</p>
+    <p>This is what permits the individual <code>P(w|c)</code> values to be multiplied together
+    rather than estimating the probability of the whole word combination. It is plainly false, since
+    <code>special</code> and <code>effects</code> are not independent, and the classifier performs
+    well regardless. Note that the separate bag-of-words assumption is the one concerning order.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>We want the most likely class given the document, which cannot be counted because the document
-  is unique — so Bayes' rule flips it into the likelihood of the document given the class times the
-  prior of the class, and the denominator drops out because we only need a ranking. That likelihood
-  is still uncountable, so two knowingly false assumptions cut it down: order does not matter, and
-  words are independent, leaving a classifier that is nothing but counting and multiplying.</p>
+  <span class="label">The main points</span>
+  <p>We want the most likely class given the document, a quantity that cannot be counted because
+  the document is unique. Bayes' rule converts it into the likelihood of the document given the
+  class, multiplied by the prior probability of the class, and the denominator drops out because
+  only a ranking is required. That likelihood is still not countable, so two knowingly false
+  assumptions reduce it further: order does not matter, and words are independent. What remains is a
+  classifier consisting only of counting and multiplication.</p>
 </div>
 
-<p>We now have the formula and not a single number in it. Next session we train it on real labelled
-reviews and classify one.</p>
+<p>We now have the formula with no numbers in it. Session 16 trains it on real labelled reviews
+and uses it to classify one.</p>
 
-<p>Although you can probably see what is waiting. The formula multiplies one
-<code>P(w | c)</code> for every word in the document. So what happens the first time a word in a
-new review never appeared in the training documents of that class? The count is zero, the product
-is zero, and the class is ruled out entirely on the strength of one word.</p>
+<p>One difficulty is already visible. The formula multiplies one <code>P(w | c)</code> for every
+word in the document, so consider what happens when a word in a new review never appeared in the
+training documents of that class. The count is zero, the product is zero, and the class is excluded
+entirely on the evidence of a single word. This is the zero problem from session 13, in a new
+setting.</p>
 
-<p>We have met that before, and we know what it is called.</p>
-
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
-Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>Appendix B</strong>
-("Naive Bayes, Text Classification, and Sentiment") — free online. Read <strong>§B.1</strong>, up
-to where it starts training the classifier; that is next session. <strong>It is Appendix B, not
-chapter 4</strong> — chapter 4 in this edition is a different method, and older reading lists get
-this wrong.</p>
+Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>Appendix B</strong>,
+"Naive Bayes, Text Classification, and Sentiment", available free online. Read <strong>§B.1</strong>
+up to the point where it begins training the classifier, which is the subject of session 16. Note
+that this material is in <strong>Appendix B, not chapter 4</strong>. Chapter 4 in this edition
+covers a different method, and older reading lists cite it incorrectly.</p>
 
 
 

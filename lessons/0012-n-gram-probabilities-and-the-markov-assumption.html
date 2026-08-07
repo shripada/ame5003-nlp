@@ -566,46 +566,46 @@ figcaption {
 
 
 
-<h2>The question we left open</h2>
+<h2>Where session 11 left off</h2>
 
-<p>Last session defined a language model: something that gives a probability to a sequence of words.
-We said an n-gram model looks only at the last word or two. What we never said is where the actual
-<em>numbers</em> come from.</p>
+<p>Session 11 defined a language model as a system that assigns a probability to a sequence of
+words, and stated that an n-gram model uses only the last word or two. It did not say where the
+numbers themselves come from.</p>
 
-<p>They come from counting. That is genuinely all. This hour is about which things to count, and
-about one assumption we make on purpose even though it is false.</p>
+<p>They come from counting. This session covers which quantities to count and one assumption we
+make deliberately, despite knowing it to be false.</p>
 
-<h2>A corpus small enough to check by hand</h2>
+<h2>A small corpus</h2>
 
-<p>Everything below is computed from these four sentences:</p>
+<p>Everything that follows is computed from these four sentences:</p>
 
 <pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
 &lt;s&gt; I want to eat Chinese food &lt;/s&gt;
 &lt;s&gt; I want Indian food &lt;/s&gt;
 &lt;s&gt; she wants to eat Indian food &lt;/s&gt;</code></pre>
 
-<h3>The two extra symbols</h3>
+<h3>The sentence boundary symbols</h3>
 
-<p><code>&lt;s&gt;</code> and <code>&lt;/s&gt;</code> mark the start and end of a sentence. They are
-not decoration — they are counted as tokens, like any word, and each one earns its place:</p>
+<p><code>&lt;s&gt;</code> and <code>&lt;/s&gt;</code> mark the start and end of a sentence. They
+are counted as tokens, like any other word, and each serves a specific purpose:</p>
 
 <ul>
-  <li><code>&lt;s&gt;</code> gives the <strong>first word something to condition on</strong>. Without
-  it you cannot ask "how likely is <code>I</code> at the start?", because there is no previous word to
-  look at.</li>
-  <li><code>&lt;/s&gt;</code> is how the model knows <strong>when to stop</strong>. This one is less
-  obvious and more important. A model that generates text picks a word, then another, then another —
-  something has to make it end. <code>&lt;/s&gt;</code> is a word it can predict, and predicting it
-  means "the sentence is over".</li>
+  <li><code>&lt;s&gt;</code> gives the first word something to condition on. Without it we cannot
+  ask how likely <code>I</code> is at the start of a sentence, since there would be no preceding
+  word.</li>
+  <li><code>&lt;/s&gt;</code> is how the model determines when to stop. This is the less obvious and
+  more important of the two. A model generating text selects one word after another, and something
+  must terminate the process. <code>&lt;/s&gt;</code> is a token the model can predict, and
+  predicting it means the sentence has ended.</li>
 </ul>
 
-<h2>The exact answer: the chain rule</h2>
+<h2>The chain rule</h2>
 
-<p>We want the probability of a whole sentence. The rule for breaking a joint probability into a
-chain of conditional ones is standard probability — the <strong>chain rule</strong>. For a sentence
-it reads left to right: the probability of the sentence is the probability of the first word, times
-the probability of the second <em>given</em> the first, times the third given the first two, and so
-on.</p>
+<p>We want the probability of a whole sentence. The rule for decomposing a joint probability into
+a chain of conditional probabilities is the <strong>chain rule</strong> of probability. Applied to a
+sentence it reads left to right: the probability of the sentence is the probability of the first
+word, multiplied by the probability of the second given the first, multiplied by the probability of
+the third given the first two, and so on.</p>
 
 <pre><code>P(I want to eat Indian food)
   = P(I | &lt;s&gt;)
@@ -616,48 +616,48 @@ on.</p>
   × P(food | I want to eat Indian)
   × P(&lt;/s&gt; | I want to eat Indian food)</code></pre>
 
-<p>This is <strong>exact</strong>. No approximation anywhere. And to estimate any one of those terms
-you just count — the number of times the full sequence appears, divided by the number of times the
-history appears:</p>
+<p>This decomposition is exact, involving no approximation. Any one of its terms can be estimated
+by counting: the number of times the full sequence appears, divided by the number of times the
+history appears.</p>
 
 <pre><code>P(food | I want to eat Indian)  =  count(I want to eat Indian food)
                                    ─────────────────────────────────
                                    count(I want to eat Indian)</code></pre>
 
-<p>In our corpus that is <code>1 / 1 = 1.0</code>. Which looks like a great result and is actually the
-whole problem.</p>
+<p>In our corpus this evaluates to <code>1 / 1 = 1.0</code>, which appears to be a strong result
+and is in fact the source of the difficulty.</p>
 
 <div class="callout warn">
-  <span class="label">Why the exact answer is useless</span>
-  <p>That estimate rests on a denominator of <strong>one</strong>. One observation is not evidence;
-  it is a coincidence. And it gets worse: ask about a history the corpus has never seen —
-  <code>we want to eat Indian</code> — and the denominator is <strong>zero</strong>. The probability
-  is not small, it is <strong>undefined</strong>.</p>
-  <p>This is the wall from last session, in its exact form. Long histories almost never repeat, so
-  the counts you need are either absent or too thin to trust. <mark>The chain rule is perfectly
-  correct and completely unusable.</mark></p>
+  <span class="label">Why the exact computation is impractical</span>
+  <p>That estimate rests on a denominator of one, and a single observation is not sufficient
+  evidence for a probability estimate. The situation is worse for a history the corpus has never
+  contained, such as <code>we want to eat Indian</code>, where the denominator is zero and the
+  probability is not merely small but undefined.</p>
+  <p>This is the limitation identified in session 11, stated precisely. Long histories almost never
+  recur, so the required counts are either absent or too small to be reliable. <mark>The chain rule
+  is exactly correct and unusable in practice.</mark></p>
 </div>
 
-<h2>The fix: assume the far past does not matter</h2>
+<h2>The Markov assumption</h2>
 
-<p>Since we cannot condition on the whole history, we approximate it with a short one. That step has
-a name:</p>
+<p>Since we cannot condition on the whole history, we approximate it by a short one. This
+approximation is the <strong>Markov assumption</strong>.</p>
 
 <div class="callout">
-  <span class="label">The Markov assumption</span>
+  <span class="label">Definition</span>
   <p>The probability of the next word depends only on the <strong>last few words</strong>, not on the
   entire history.</p>
   <p>For a <strong>bigram</strong> model, "last few" means <strong>one</strong>:</p>
   <pre><code>P(food | I want to eat Indian)  ≈  P(food | Indian)</code></pre>
 </div>
 
-<p>Be clear about what just happened: this assumption is <strong>false</strong>. Language obviously
-has long-range dependencies — the subject at the start of a sentence controls the verb at the end.
-We are not claiming otherwise. We are trading correctness for something we can actually measure.
-<mark>A short history is wrong but countable; a long history is right but uncountable. Countable
-wins.</mark></p>
+<p>It should be clear that this assumption is false. Language contains long-range dependencies;
+the subject at the beginning of a sentence governs the verb at the end. We are not claiming
+otherwise, but trading correctness for something we can measure. <mark>A short history is incorrect
+but countable, and a long history is correct but uncountable.</mark></p>
 
-<p>Put the assumption into the chain rule and every term shrinks to one previous word:</p>
+<p>Substituting the assumption into the chain rule reduces every term to a single previous
+word:</p>
 
 <pre><code>P(I want to eat Indian food)
   ≈  P(I | &lt;s&gt;) × P(want | I) × P(to | want) × P(eat | to)
@@ -665,17 +665,17 @@ wins.</mark></p>
 
 <h2>Estimating a bigram probability by counting</h2>
 
-<p>Each of those terms is now a count of a <em>pair</em> divided by a count of a <em>single word</em>:</p>
+<p>Each of these terms is now a count of a pair divided by a count of a single word:</p>
 
 <pre><code>P(w₂ | w₁)  =  count(w₁ w₂)  /  count(w₁)</code></pre>
 
-<p>This is called the <strong>maximum likelihood estimate</strong> (MLE). The name sounds heavier
-than the idea: it means the estimate that best fits the data we saw, which for counting problems is
-simply the observed proportion. Nothing is being adjusted or assumed — the corpus said
-<code>eat</code> was followed by <code>Indian</code> in 2 of 3 cases, so the estimate is 2/3.</p>
+<p>This is the <strong>maximum likelihood estimate</strong> (MLE). The term denotes the estimate
+that best fits the observed data, which for counting problems is simply the observed proportion.
+Nothing is adjusted or assumed: the corpus shows <code>eat</code> followed by <code>Indian</code> in
+2 of 3 cases, so the estimate is 2/3.</p>
 
-<p>Here are the counts from our four sentences. Note <code>count(eat) = 3</code> and
-<code>count(&lt;s&gt;) = 4</code>:</p>
+<p>The counts from our four sentences are given below. Note that <code>count(eat) = 3</code> and
+<code>count(&lt;s&gt;) = 4</code>.</p>
 
 <table>
   <tr><th>bigram</th><th>count(w₁ w₂)</th><th>count(w₁)</th><th>P(w₂ | w₁)</th></tr>
@@ -691,33 +691,34 @@ simply the observed proportion. Nothing is being adjusted or assumed — the cor
   <tr><td><code>food &lt;/s&gt;</code></td> <td>4</td><td>4</td><td>4/4 = 1.0</td></tr>
 </table>
 
-<p>Every bigram used in the calculations below is in that table, so you can follow each one through
-by hand.</p>
+<p>Every bigram used in the calculations below appears in this table, so each can be verified by
+hand.</p>
 
-<p>Look at the pairs that share a first word. After <code>eat</code>, the model gives
-<code>Indian</code> twice the probability of <code>Chinese</code> — and those two add to 1, because
-they are the only things that ever followed <code>eat</code>. Same for <code>want</code>. That is the
-model working: a distribution over what comes next, learned purely from counts.</p>
+<p>Consider the pairs sharing a first word. After <code>eat</code>, the model assigns
+<code>Indian</code> twice the probability of <code>Chinese</code>, and the two sum to 1, since they
+are the only words that ever follow <code>eat</code> in this corpus. The same holds for
+<code>want</code>. This is the model behaving as intended: a distribution over what comes next,
+estimated entirely from counts.</p>
 
 <div class="callout warn">
-  <span class="label">Do not read 1.0 as certainty</span>
-  <p>Several rows above are exactly <code>1.0</code>, and that is an <strong>artefact of a toy
-  corpus</strong>, not a claim about English. <code>P(food | Indian) = 1.0</code> only because these
-  four sentences never put anything else after <code>Indian</code>.</p>
+  <span class="label">Interpreting a probability of 1.0</span>
+  <p>Several rows above are exactly <code>1.0</code>. This is an artefact of a very small corpus
+  rather than a claim about English. <code>P(food | Indian) = 1.0</code> holds only because these
+  four sentences never place any other word after <code>Indian</code>.</p>
   <p>In a real corpus, <code>Indian</code> would be followed by hundreds of different words and the
-  largest probability might be a few percent. The numbers here are tiny so the arithmetic stays
-  checkable by hand. Trust the <em>method</em>, not these particular values.</p>
+  largest probability might be a few per cent. The values here are small so that the arithmetic
+  remains checkable by hand. It is the method that generalises, not these particular numbers.</p>
 </div>
 
 <h2>Scoring a whole sentence</h2>
 
-<p>Multiply the bigram probabilities straight through:</p>
+<p>We multiply the bigram probabilities together:</p>
 
 <pre><code>P(I want to eat Indian food)
   ≈ 3/4 × 3/3 × 2/3 × 3/3 × 2/3 × 3/3 × 4/4
   = 1/3  ≈ 0.333</code></pre>
 
-<p>And now the model can be used for its actual job — comparing sentences:</p>
+<p>The model can now be used for its intended purpose, which is comparing sentences:</p>
 
 <table>
   <tr><th>sentence</th><th>bigram probability</th></tr>
@@ -726,44 +727,45 @@ model working: a distribution over what comes next, learned purely from counts.<
   <tr><td>she wants to eat Indian food</td><td>1/6 ≈ 0.167</td></tr>
 </table>
 
-<p>The first is rated twice as likely as the others, and it should be: the corpus prefers
-<code>Indian</code> over <code>Chinese</code> after <code>eat</code>, and starts with <code>I</code>
-more often than <code>she</code>. The model has no idea what any of these words mean. It ranked them
-correctly anyway, from counts alone.</p>
+<p>The first sentence is rated twice as likely as the others, which is correct for this corpus:
+<code>Indian</code> follows <code>eat</code> more often than <code>Chinese</code> does, and
+sentences begin with <code>I</code> more often than with <code>she</code>. The model has no
+representation of what any of these words mean, and it ranks them correctly from counts alone.</p>
 
 <div class="callout">
-  <span class="label">The chain rule survives; the assumption does not</span>
+  <span class="label">What the Markov assumption changes</span>
   <p>A modern large language model factorises a sentence left to right with the <strong>same chain
   rule</strong> — one word at a time, each conditioned on what came before. That part never went
   away.</p>
-  <p>What it drops is the <strong>Markov assumption</strong>. It conditions on thousands of previous
-  words instead of one, because a neural network can handle a long history without needing to have
-  counted it. So the Markov assumption is not a permanent fact about language modelling. It is the
-  compromise you must make when your only tool is counting — and most of the progress in this field
-  has been about removing it.</p>
+  <p>What it discards is the <strong>Markov assumption</strong>. It conditions on thousands of
+  previous words rather than one, because a neural network can process a long history without having
+  counted it. The Markov assumption is therefore not a permanent feature of language modelling but
+  the compromise required when counting is the only available tool. Much of the progress in this
+  field has consisted of removing it.</p>
 </div>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>Using the table above, work out the bigram probability of <code>I want Indian food</code>. The
-  bigrams you need are <code>&lt;s&gt; I</code>, <code>I want</code>, <code>want Indian</code>,
-  <code>Indian food</code>, and <code>food &lt;/s&gt;</code> (which is 4/4).</p>
+  <span class="label">Exercise</span>
+  <p>Using the table above, compute the bigram probability of <code>I want Indian food</code>. The
+  required bigrams are <code>&lt;s&gt; I</code>, <code>I want</code>, <code>want Indian</code>,
+  <code>Indian food</code>, and <code>food &lt;/s&gt;</code>, the last of which is 4/4.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><code>3/4 × 3/3 × 1/3 × 3/3 × 4/4 = 1/4 = 0.25</code></p>
-    <p>Lower than <code>I want to eat Indian food</code> (0.333), because <code>want</code> is
-    followed by <code>Indian</code> in only 1 of 3 cases but by <code>to</code> in 2 of 3.</p>
-    <p>Worth noticing: this sentence is <em>shorter</em> and still scores lower — only because so
-    many probabilities in this toy corpus are exactly 1.0, which costs the longer sentence nothing.
-    In real data every extra word multiplies in another probability well below 1, so longer sentences
-    score lower almost automatically. That makes raw probability a poor way to compare sentences of
-    different lengths — a problem session 14 solves.</p>
+    <p>This is lower than <code>I want to eat Indian food</code> at 0.333, because
+    <code>want</code> is followed by <code>Indian</code> in only 1 of 3 cases but by <code>to</code>
+    in 2 of 3.</p>
+    <p>Note that this sentence is shorter and still scores lower. That occurs here only because so
+    many probabilities in this small corpus are exactly 1.0, which costs the longer sentence
+    nothing. In real data, every additional word introduces a further probability well below 1, so
+    longer sentences score lower almost automatically. Raw probability is therefore a poor basis for
+    comparing sentences of different lengths, a problem addressed in session 14.</p>
   </div>
 </div>
 
-<h2>Then it breaks</h2>
+<h2>Where the method fails</h2>
 
-<p>Score one more sentence — a perfectly reasonable English sentence:</p>
+<p>Consider one further sentence, which is perfectly ordinary English:</p>
 
 <pre><code>P(I want to eat Indian pizza)
   ≈ 3/4 × 3/3 × 2/3 × 3/3 × 2/3 × P(pizza | Indian) × …
@@ -772,14 +774,14 @@ correctly anyway, from counts alone.</p>
 
   ⇒  P(I want to eat Indian pizza) = 0</code></pre>
 
-<p>Not "unlikely". <strong>Zero.</strong> One unseen pair anywhere in the sentence multiplies the
-whole thing to nothing, no matter how ordinary the other six words were. And the model is claiming
-something absurd — that this sentence is <em>impossible</em>, when all that happened is that four
-sentences of training text did not happen to contain it.</p>
+<p>The result is not a small probability but exactly zero. A single unseen pair anywhere in the
+sentence reduces the entire product to zero, however ordinary the remaining six words are. The model
+is asserting that this sentence is impossible, when in fact four sentences of training text simply
+did not happen to contain it.</p>
 
-<p>Any real corpus has this problem badly. Most bigrams that could occur never do, so most sentences
-you test will contain at least one unseen pair and score exactly zero. A model that says "impossible"
-about most valid sentences is not usable.</p>
+<p>Real corpora exhibit this problem severely. Most bigrams that could occur never do, so most test
+sentences contain at least one unseen pair and score exactly zero. A model that assigns zero
+probability to most valid sentences is not usable.</p>
 
 <div class="quiz" data-answer="1">
   <span class="q-num">Question 1 of 2</span>
@@ -792,9 +794,10 @@ about most valid sentences is not usable.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>long histories are too rare to count, and short ones are not</strong>.</p>
-    <p>The chain rule is exact but needs counts of long word sequences, which almost never repeat —
-    often the denominator is 1, or 0 and undefined. Cutting the history to one or two words gives up
-    real information in exchange for counts big enough to trust. It is a trade, made knowingly.</p>
+    <p>The chain rule is exact but requires counts of long word sequences, which almost never
+    recur; the denominator is often 1, or 0 and therefore undefined. Reducing the history to one or
+    two words discards real information in exchange for counts large enough to be reliable. This is
+    a trade made deliberately.</p>
   </div>
 </div>
 
@@ -810,33 +813,33 @@ about most valid sentences is not usable.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>2/3, because you divide the pair count by the word count</strong>.</p>
-    <p>The maximum likelihood estimate is count(w₁ w₂) / count(w₁) — of the 3 times
-    <code>eat</code> appeared, 2 were followed by <code>Indian</code>. The denominator is always the
-    count of the history word alone, never the corpus size.</p>
+    <p>The maximum likelihood estimate is count(w₁ w₂) / count(w₁). Of the 3 occurrences of
+    <code>eat</code>, 2 were followed by <code>Indian</code>. The denominator is always the count of
+    the history word alone, never the corpus size.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>The chain rule gives the exact probability of a sentence but needs counts of long word
-  sequences that almost never repeat, so we make the Markov assumption — knowingly false — and
-  condition on just the last word or two, which we can count. Each probability is then a plain
-  division, count of the pair over count of the first word, and multiplying them through scores a
-  whole sentence.</p>
+  <span class="label">The main points</span>
+  <p>The chain rule gives the exact probability of a sentence but requires counts of long word
+  sequences that almost never recur. We therefore adopt the Markov assumption, which we know to be
+  false, and condition on only the last word or two, which can be counted. Each probability is then
+  a single division, the count of the pair over the count of the first word, and multiplying these
+  together scores a whole sentence.</p>
 </div>
 
-<p>Except that it scores far too many good sentences at exactly zero. Every unseen pair kills a
-sentence outright, and in real data unseen pairs are everywhere. Next session is entirely about
-that: how to take probability away from what we did see and hand it to what we did not.</p>
+<p>The method assigns exactly zero to far too many acceptable sentences. Every unseen pair
+eliminates a sentence entirely, and unseen pairs are common in real data. Session 13 is devoted to
+this problem: how to move probability mass from what was observed to what was not.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
-Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
-("N-gram Language Models") — free online. Read the sections on n-gram probability estimation, up to
-where it introduces the zero-count problem; that is next session.</p>
+Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>chapter 3</strong>,
+"N-gram Language Models", available free online. Read the sections on n-gram probability estimation
+up to the point where the zero-count problem is introduced, which is the subject of session 13.</p>
 
 
 

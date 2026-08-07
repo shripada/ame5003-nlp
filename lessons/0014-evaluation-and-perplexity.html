@@ -558,18 +558,19 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 14</p>
   <h1>Judging a language model: perplexity</h1>
-  <p class="subtitle">We have built three models and cannot say which is best. The fix is one number —
-  but it only means anything if you measure it on text the model has never seen.</p>
+  <p class="subtitle">We have built three models and have no way to say which is best. The measure
+  that settles it is a single number, but it means something only when computed on text the model
+  has never seen.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Three models and no way to choose</h2>
+<h2>The problem of comparing models</h2>
 
-<p>Over the last three sessions we built a working n-gram language model, and along the way we
-collected a pile of choices with no way to settle any of them:</p>
+<p>Over the last three sessions we built a working n-gram language model, and in doing so
+accumulated several choices that we have no means of settling:</p>
 
 <ul>
   <li>Bigram or trigram?</li>
@@ -577,44 +578,44 @@ collected a pile of choices with no way to settle any of them:</p>
   <li>If interpolation — which λ values?</li>
 </ul>
 
-<p>Every one of those is an empirical question, and none of them can be answered by arguing. We
-need a way to put two models side by side and say <em>this one is better</em>. That is what this
-hour is for.</p>
+<p>Each of these is an empirical question, and none can be resolved by argument. We need a way to
+compare two models and determine which is better, which is the subject of this session.</p>
 
-<h2>The honest way to measure, and why we cannot afford it</h2>
+<h2>Extrinsic evaluation</h2>
 
-<p>A language model is almost never the product. It is a part inside something else — a speech
-recogniser, a translation system, a spelling corrector. So the real test is obvious: put model A
-inside the system, measure how well the system does; swap in model B, measure again. Better
-system wins.</p>
+<p>A language model is rarely the final product. It is a component within a larger system, such
+as a speech recogniser, a translation system, or a spelling corrector. The definitive test therefore
+follows directly: place model A inside the system and measure the system's performance, then
+substitute model B and measure again. The model producing the better system is the better model.</p>
 
 <p>This is called <strong>extrinsic evaluation</strong>, and it is the only kind that actually
 answers the question you care about.<span class="sidenote">SLP3 3rd ed., §3.2: extrinsic
 evaluation is "the only way to know if a particular improvement in the language model … is
 really going to help the task at hand".</span> It is also expensive. Running a full speech
-recogniser over a test corpus twice can take hours or days, and you may want to compare twenty
-models, not two. You cannot tune λ that way.</p>
+recogniser over a test corpus twice can take hours or days, and we may need to compare twenty
+models rather than two. Tuning λ by this method is not feasible.</p>
 
-<p>So we also want a cheap measure — one that scores the language model on its own, with no
-application attached. That is an <strong>intrinsic evaluation</strong>. The standard intrinsic
-measure for language models is <strong>perplexity</strong>, and it is what the rest of this hour
-is about.</p>
+<p>We therefore also want an inexpensive measure, one that scores the language model on its own with
+no application attached. Such a measure is an <strong>intrinsic evaluation</strong>. The standard
+intrinsic measure for language models is <strong>perplexity</strong>, which is the subject of the
+remainder of this session.</p>
 
 <div class="callout warn">
-  <span class="label">Keep the trade in view</span>
-  <p>Intrinsic is cheap and approximate; extrinsic is expensive and true. Perplexity is a
-  <em>stand-in</em> for the thing you actually want. It is a good stand-in, which is why everyone
-  uses it — but a model with better perplexity does not always make the system around it better.
-  We come back to this at the end, and it matters more than it sounds.</p>
+  <span class="label">Extrinsic and intrinsic evaluation compared</span>
+  <p>Intrinsic evaluation is inexpensive and approximate; extrinsic evaluation is expensive and
+  definitive. Perplexity is a proxy for the quantity we actually care about. It is a good proxy,
+  which is why it is universally used, but a model with better perplexity does not always improve
+  the system built around it. We return to this point at the end of the session.</p>
 </div>
 
-<h2>First, split the data</h2>
+<h2>Splitting the data</h2>
 
-<p>Before any measuring: <strong>you cannot evaluate a model on the text it was trained on.</strong>
-The whole point of a language model is to predict text it has not seen. Scored on its own training
-corpus it is being asked to remember, not to predict, and it will look far better than it is.</p>
+<p>One point must precede any measurement: <strong>a model cannot be evaluated on the text it was
+trained on</strong>. The purpose of a language model is to predict text it has not seen. Scored on
+its own training corpus, it is being asked to recall rather than to predict, and it will appear far
+better than it is.</p>
 
-<p>So the corpus is cut into three parts, used for three different jobs:</p>
+<p>The corpus is therefore divided into three parts, serving three different purposes:</p>
 
 <table>
   <tr><th>set</th><th>what it is for</th><th>how often you touch it</th></tr>
@@ -623,50 +624,52 @@ corpus it is being asked to remember, not to predict, and it will look far bette
   <tr><td><strong>test set</strong></td><td>the final, honest number</td><td><strong>once</strong>, at the very end</td></tr>
 </table>
 
-<p>The training/test split is the one everybody knows. The devset is the one people skip, and the
-reason it exists is subtler. Even if you never train on the test set, testing on it fifty times
-while you fiddle with λ lets its quirks leak into your choices. You end up tuned to that
-particular text. So all the fiddling happens on the devset, and the test set is opened once.</p>
+<p>The training and test split is widely known. The development set is more often omitted, and
+the reason for it is less obvious. Even if the test set is never used for training, evaluating on it
+fifty times while adjusting λ allows its particular characteristics to influence those choices, and
+the result is a model tuned to that specific text. All such adjustment is therefore carried out on
+the development set, and the test set is used once.</p>
 
-<p>This also finally explains the <strong>held-out set</strong> from last session, where the λ
-values for interpolation came from. A held-out set is exactly this: data kept out of training so
-it can answer a question training data cannot answer honestly.</p>
+<p>This also explains the <strong>held-out set</strong> from session 13, from which the λ values for
+interpolation were obtained. A held-out set is exactly this: data withheld from training so that it
+can answer a question the training data cannot answer without bias.</p>
 
 <div class="callout warn">
   <span class="label">Training on the test set</span>
-  <p>Letting test sentences into the training corpus is a specific, named mistake —
+  <p>Allowing test sentences into the training corpus is a specific and named error:
   <strong>training on the test set</strong>, also called <strong>data contamination</strong>. It
-  does not produce a small error. It produces beautiful numbers that mean nothing, because the
-  model is being scored on its ability to recall.</p>
-  <p>It is easy to do by accident: duplicate documents in a scraped corpus, a shuffled split that
-  puts two halves of the same article on both sides. Check for it. And when someone reports a
-  result, the first question is always <em>what was it measured on?</em></p>
+  does not produce a small error but excellent numbers that mean nothing, because the model is being
+  scored on its capacity to recall.</p>
+  <p>It occurs easily by accident, through duplicate documents in a scraped corpus or a shuffled
+  split that places two halves of the same article on both sides. It should be checked for
+  explicitly. When a result is reported, the first question to ask is what it was measured on.</p>
 </div>
 
 <h2>What "better" means</h2>
 
-<p>Take the test set — a lump of text the model has never seen. Both models can assign it a
-probability, the same way session 12 assigned a probability to a sentence. The rule is then as
-simple as it could be:</p>
+<p>Consider the test set, a body of text the model has never seen. Both models can assign it a
+probability, in the same way that session 12 assigned a probability to a sentence. The criterion is
+then straightforward.</p>
 
 <div class="callout">
-  <span class="label">The whole criterion</span>
-  <p>The better model is the one that assigns <strong>higher probability to the test set</strong>.
-  Higher probability means it was less surprised by real text — which is precisely what we wanted
-  a language model to be good at.</p>
+  <span class="label">The criterion</span>
+  <p>The better model is the one assigning <strong>higher probability to the test set</strong>.
+  Higher probability means the model was less surprised by real text, which is precisely the ability
+  we want a language model to have.</p>
 </div>
 
-<p>That is already a usable measure. It has one flaw, and fixing the flaw gives us perplexity.</p>
+<p>This is already a usable measure. It has one defect, and correcting that defect yields
+perplexity.</p>
 
-<h3>The flaw: probability shrinks with length</h3>
+<h3>Probability decreases with sentence length</h3>
 
-<p>A sentence probability is a product of numbers below 1, so every extra word makes it smaller.
-Score a 10-word test set and you get something like 0.0001; score a 1,000-word test set and you
-get a number with hundreds of zeros after the decimal point. The size of the number is mostly
-telling you how long the text was, not how good the model is.</p>
+<p>A sentence probability is a product of numbers below 1, so each additional word makes it
+smaller. A 10-word test set yields a value of about 0.0001, while a 1,000-word test set yields a
+number with hundreds of zeros after the decimal point. The magnitude of the number therefore
+reflects mainly the length of the text rather than the quality of the model.</p>
 
-<p>The fix is to normalise by length — divide out the effect of the token count, so what is left
-is a per-word figure that texts of different sizes can be compared on.</p>
+<p>The correction is to normalise by length, dividing out the effect of the token count, so that
+what remains is a per-word figure comparable across texts of different sizes.</p>
 
 <h2>Perplexity</h2>
 
@@ -677,14 +680,15 @@ token:</p>
 
        =  the N-th root of  1 / P(W)</code></pre>
 
-<p>Two things are happening in that one expression, and they are worth separating:</p>
+<p>Two separate operations are combined in this expression, and it is worth distinguishing
+them:</p>
 
 <ul>
-  <li>The <strong>−1</strong> inverts it. High probability becomes a low number. So
-  <strong>lower perplexity is better</strong> — this is the single most common thing to get
-  backwards.</li>
-  <li>The <strong>1/N</strong> takes the N-th root, which is what cancels out the length. It turns
-  a whole-text probability into a per-token one.</li>
+  <li>The <strong>−1</strong> inverts the probability, so that a high probability becomes a low
+  number. <strong>Lower perplexity is therefore better</strong>, which is the most commonly
+  misremembered property of the measure.</li>
+  <li>The <strong>1/N</strong> takes the N-th root, which removes the effect of length, converting
+  a whole-text probability into a per-token quantity.</li>
 </ul>
 
 <div class="callout">
@@ -693,38 +697,40 @@ token:</p>
   <em>includes</em> <code>&lt;/s&gt;</code> and <em>excludes</em> <code>&lt;s&gt;</code>. Exactly
   the same rule that made V = 10 rather than 11 last session: <code>&lt;s&gt;</code> is only ever
   context, never a prediction.</p>
-  <p>Our four-sentence corpus has 26 such tokens. Get N wrong and every perplexity below is
-  wrong, quietly.</p>
+  <p>Our four-sentence corpus contains 26 such tokens. If N is wrong, every perplexity computed
+  below is wrong as well, and nothing will indicate the error.</p>
 </div>
 
-<h3>What the number means: branching factor</h3>
+<h3>Perplexity as a branching factor</h3>
 
-<p>Perplexity has a reading that makes it far less abstract. It is roughly the number of choices
-the model felt it had at each step — its <strong>average branching factor</strong>.</p>
+<p>Perplexity admits an interpretation that makes it considerably less abstract: it is
+approximately the number of choices the model was effectively selecting between at each step, its
+<strong>average branching factor</strong>.</p>
 
-<p>Take the simplest possible model over our vocabulary of V = 10: one that has learned nothing
-and calls every next token equally likely, probability 1/10 each. Its perplexity on any test text
-works out to exactly <strong>10</strong>.</p>
+<p>Consider the simplest possible model over our vocabulary of V = 10, one that has learned nothing
+and treats every next token as equally likely with probability 1/10. Its perplexity on any test text
+is exactly <strong>10</strong>:</p>
 
 <pre><code>PP  =  ((1/10)^N) ^ (−1/N)  =  10</code></pre>
 
-<p>Ten, because at every position the model is choosing blindly between ten options. That is the
-bar any real model has to clear. A model with perplexity 4 on the same vocabulary has narrowed ten
-options down to about four. A perplexity of 1 would mean it knew the next word exactly, every
-time.</p>
+<p>The value is ten because at every position the model selects blindly among ten options. This
+is the standard any real model must improve on. A model with perplexity 4 over the same vocabulary
+has reduced ten options to roughly four, and a perplexity of 1 would mean it identified the next
+word exactly every time.</p>
 
-<p>It is a bar, not a ceiling: a model can score <em>worse</em> than 10 here, by being confidently
-wrong — putting most of its probability on words that then do not appear. Guessing blindly is not
-the floor of performance, only the floor of effort.</p>
+<p>This is a reference point rather than an upper bound. A model can score worse than 10 by being
+confidently wrong, placing most of its probability on words that do not then appear. Guessing
+uniformly is not the worst possible performance, only the performance obtainable without effort.</p>
 
-<p>This is why perplexity is described as <em>weighted</em> branching factor. The raw branching
-factor just counts the options; perplexity weights them by probability, so a model that technically
-allows ten words but puts most of its probability on one of them gets a low score.</p>
+<p>This is why perplexity is described as a <em>weighted</em> branching factor. The raw branching
+factor counts the available options, whereas perplexity weights them by probability, so a model that
+formally permits ten words but concentrates most of its probability on one of them receives a low
+score.</p>
 
-<h2>Four numbers from our corpus</h2>
+<h2>Four perplexity values from our corpus</h2>
 
-<p>Same four sentences as sessions 11–13. Watch what happens across these four measurements — they
-are one argument, not four examples.</p>
+<p>We use the same four sentences as sessions 11 to 13. The four measurements that follow
+constitute a single argument rather than four separate examples.</p>
 
 <pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
 &lt;s&gt; I want to eat Chinese food &lt;/s&gt;
@@ -733,7 +739,8 @@ are one argument, not four examples.</p>
 
 <h3>1 · The model that knows nothing → 10</h3>
 
-<p>Established above. This is our reference point: any real model has to beat 10.</p>
+<p>This value was established above and serves as our reference point: any real model must
+improve on 10.</p>
 
 <h3>2 · The trained bigram model, on a training sentence → 1.17</h3>
 
@@ -742,22 +749,24 @@ are one argument, not four examples.</p>
 
 <pre><code>PP  =  (1/3) ^ (−1/7)  =  3 ^ (1/7)  =  1.17</code></pre>
 
-<p>1.17 out of a possible 10. The model is behaving as though it knew the next word almost
-perfectly at every step.</p>
+<p>The value is 1.17 against a reference of 10, so the model is behaving as though it identified
+the next word almost exactly at every step.</p>
 
 <div class="callout warn">
-  <span class="label">That number is not good news — it is the warning</span>
-  <p>1.17 does not mean we built an excellent model. It means we scored the model on a sentence it
-  was trained on, and it recited it back. It is not predicting; it is remembering.</p>
-  <p>This is what data contamination looks like from the inside: not an obvious error, just a
-  suspiciously good result. <mark>A perplexity that looks too good is usually a broken
-  experiment, not a breakthrough.</mark></p>
+  <span class="label">Why this number is not a good result</span>
+  <p>A value of 1.17 does not indicate an excellent model. It indicates that the model was scored
+  on a sentence from its own training data and reproduced it. The model is recalling rather than
+  predicting.</p>
+  <p>This is how data contamination presents in practice: not as an obvious error but as an
+  implausibly good result. <mark>A perplexity that appears too good usually indicates a flawed
+  experiment rather than a strong model.</mark></p>
 </div>
 
 <h3>3 · A genuine test sentence, MLE → infinite</h3>
 
-<p>So let us do it properly. Here is a sentence the model has never seen, built entirely from words
-it does know — <code>I want Chinese food</code>. All four words are in the vocabulary.</p>
+<p>We therefore repeat the measurement correctly, using a sentence the model has never seen that
+is composed entirely of words it does know: <code>I want Chinese food</code>. All four words are in
+the vocabulary.</p>
 
 <pre><code>P(I want Chinese food)
   =  3/4  ×  3/3  ×  0/3  ×  1/1  ×  4/4       ← count(want Chinese) = 0
@@ -765,18 +774,20 @@ it does know — <code>I want Chinese food</code>. All four words are in the voc
 
 PP  =  0 ^ (−1/5)  =  1/0  =  ∞</code></pre>
 
-<p>Infinite perplexity. Not a large number — undefined, dividing by zero. And the sentence is
-perfectly ordinary; it just happens to pair two words the corpus never put together.</p>
+<p>The perplexity is infinite. This is not a large number but an undefined one, arising from
+division by zero, and the sentence itself is perfectly ordinary; it merely pairs two words the
+corpus never placed together.</p>
 
-<p>This is session 13's zero problem arriving with consequences attached. It is not only that an
-unsmoothed model gives silly answers. <strong>You cannot evaluate it at all.</strong> One unseen
-pair anywhere in a test set of a million words sends the perplexity of the whole thing to infinity.
-Smoothing is not a nicety; without it there is no number to report.</p>
+<p>This is session 13's zero problem with its consequences made explicit. The difficulty is not
+only that an unsmoothed model produces implausible estimates. <strong>It cannot be evaluated at
+all.</strong> A single unseen pair anywhere in a test set of a million words sends the perplexity of
+the entire set to infinity. Smoothing is not an optional refinement; without it there is no number
+to report.</p>
 
 <h3>4 · The same sentence, add-one smoothed → 4.69</h3>
 
-<p>Now use last session's add-one estimate, <code>(count(w₁w₂) + 1) / (count(w₁) + V)</code> with
-V = 10:</p>
+<p>We now apply session 13's add-one estimate, <code>(count(w₁w₂) + 1) / (count(w₁) + V)</code>,
+with V = 10:</p>
 
 <table>
   <tr><th>bigram</th><th>counts</th><th>add-one probability</th></tr>
@@ -791,9 +802,9 @@ V = 10:</p>
 
 PP =  0.000439 ^ (−1/5)  =  4.69</code></pre>
 
-<p><strong>4.69</strong>, and now the number is worth something. On a vocabulary of 10, the model
-behaves as if it were choosing between roughly five options at each step rather than ten. From four
-sentences of training text, that is an honest result.</p>
+<p>The result is <strong>4.69</strong>, and this number is meaningful. Over a vocabulary of 10,
+the model behaves as though selecting between roughly five options at each step rather than ten.
+From four sentences of training text, this is a legitimate result.</p>
 
 <h3>The four numbers together</h3>
 
@@ -806,23 +817,23 @@ sentences of training text, that is an honest result.</p>
 </table>
 
 <div class="callout">
-  <span class="label">Only one of those is a result</span>
-  <p>The last row. The other three are each a lesson about how to get one: what a model that knows
-  nothing scores, what scoring on training data looks like, and what happens when you skip
-  smoothing.</p>
+  <span class="label">Which of the four is a genuine result</span>
+  <p>Only the last row. The other three each demonstrate a condition required to obtain one: the
+  score of a model that has learned nothing, the appearance of a score computed on training data,
+  and the consequence of omitting smoothing.</p>
 </div>
 
-<p>One caveat on all of it: perplexity is normally computed over a <strong>whole test set</strong>,
-not a single sentence — you multiply the probabilities of all its sentences together and N is the
-token count of the lot. Single sentences are used here only because four training sentences is all
-we have. A test set of one sentence would be worthless in practice: far too small to be
-representative.</p>
+<p>One qualification applies throughout: perplexity is normally computed over a <strong>whole test
+set</strong> rather than a single sentence. The probabilities of all its sentences are multiplied
+together and N is the total token count. Single sentences are used here only because four training
+sentences are all we have. A test set of one sentence would be of no practical value, being far too
+small to be representative.</p>
 
-<h2>What real perplexity numbers look like</h2>
+<h2>Perplexity values in practice</h2>
 
-<p>Our numbers are tiny because the vocabulary is ten words. Here is the same experiment at
-realistic scale, from the textbook: unigram, bigram and trigram models trained on 38 million words
-of Wall Street Journal text, then scored on a 1.5-million-word test
+<p>Our values are small because the vocabulary contains ten words. The same experiment at
+realistic scale, taken from the textbook, uses unigram, bigram, and trigram models trained on 38
+million words of Wall Street Journal text and scored on a 1.5-million-word test
 set.<span class="sidenote">SLP3 3rd ed., §3.3. Figures read from the live chapter, August 2026.</span></p>
 
 <table>
@@ -832,63 +843,65 @@ set.<span class="sidenote">SLP3 3rd ed., §3.3. Figures read from the live chapt
   <tr><td>trigram</td><td><strong>109</strong></td></tr>
 </table>
 
-<p>Read that as branching factor and it tells a clear story. The unigram model — which ignores
-context entirely — is picking between roughly a thousand options at each word. Knowing one previous
-word cuts that to 170. Knowing two cuts it to 109. That is what "more context helps" looks like as
-a measurement instead of an opinion.</p>
+<p>Read as branching factors, these values are informative. The unigram model, which ignores
+context entirely, selects among roughly a thousand options at each word. Knowing one previous word
+reduces this to 170, and knowing two reduces it to 109. This is the claim that more context helps,
+expressed as a measurement rather than an assertion.</p>
 
-<p>It also shows the diminishing return: the first word of context buys far more than the second.
-And the trend cannot continue for ever — a 10-gram model would have almost no counts to work from,
-so the gains stop arriving. More context only helps while you still have enough data to estimate
-it.</p>
+<p>The figures also show diminishing returns: the first word of context contributes far more than
+the second. The trend cannot continue indefinitely, since a 10-gram model would have almost no
+counts available, so the improvements cease. More context helps only while sufficient data remains
+to estimate it.</p>
 
-<h2>Three ways perplexity misleads you</h2>
+<h2>Three ways perplexity can mislead</h2>
 
-<p>It is a good measure. It is also easy to misuse, in three specific ways.</p>
+<p>Perplexity is a good measure, and it is also easy to misuse, in three specific ways.</p>
 
 <h3>1 · Two perplexities are only comparable on the same test set and the same vocabulary</h3>
 
-<p>Perplexity depends on the model <em>and</em> the text. A model scored on easy text gets a lower
-number than a better model scored on hard text. Comparing perplexities from two different papers,
-two different test sets, or two different tokenizers tells you nothing at all.</p>
+<p>Perplexity depends on both the model and the text. A model scored on easy text obtains a lower
+value than a better model scored on difficult text. Comparing perplexities taken from two different
+papers, two different test sets, or two different tokenizers is therefore uninformative.</p>
 
 <h3>2 · <code>&lt;UNK&gt;</code> can be gamed</h3>
 
 <p>This one follows directly from last session. Suppose you shrink your vocabulary so that most
 words get replaced by <code>&lt;UNK&gt;</code>. The model now has very few things to choose between,
-so it predicts confidently and perplexity drops beautifully — while the model has actually become
+so it predicts confidently and perplexity drops sharply — while the model has actually become
 <em>less</em> useful, because it no longer distinguishes the words it threw away.</p>
 
-<p>So a perplexity figure is only meaningful alongside its vocabulary size and its
-<code>&lt;UNK&gt;</code> policy. Quoted alone, it can be made to say almost anything.</p>
+<p>A perplexity figure is therefore meaningful only when reported together with its vocabulary
+size and its <code>&lt;UNK&gt;</code> policy. Quoted on its own, it can be made to support almost
+any claim.</p>
 
 <h3>3 · Better perplexity does not guarantee a better system</h3>
 
-<p>Back to where we started. Perplexity is the cheap stand-in for extrinsic evaluation, and the
-stand-in is not the thing. A model can predict text slightly better on average and still not change
-a single decision the speech recogniser makes.<span class="sidenote">SLP3 3rd ed., §3.3: "An
+<p>This returns us to the opening of the session. Perplexity is an inexpensive proxy for
+extrinsic evaluation, and a proxy is not the quantity itself. A model can predict text slightly
+better on average without altering a single decision made by the speech recogniser.<span class="sidenote">SLP3 3rd ed., §3.3: "An
 (intrinsic) improvement in perplexity does not guarantee an (extrinsic) improvement in the
 performance of a language processing task."</span></p>
 
-<p>The working practice is: use perplexity constantly, because it is fast and it is usually right
-about the big differences; then confirm the choice that matters with a real end-to-end test.</p>
+<p>The practice that follows is to use perplexity routinely, since it is fast and generally
+correct about large differences, and then to confirm the decision that matters with an end-to-end
+test.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
+  <span class="label">Exercise</span>
   <p>Session 12 scored two sentences: <code>I want Indian food</code> at 1/4 = 0.250 and
-  <code>she wants to eat Indian food</code> at 1/6 = 0.167. By probability, the first is the clear
-  winner. What does perplexity say? (N is 5 and 7.)</p>
+  <code>she wants to eat Indian food</code> at 1/6 = 0.167. By raw probability the first ranks
+  higher. What does perplexity give? Take N as 5 and 7 respectively.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><code>PP(I want Indian food) = (1/4)^(−1/5) = 4^(1/5) = <strong>1.320</strong></code><br>
     <code>PP(she wants to eat Indian food) = (1/6)^(−1/7) = 6^(1/7) = <strong>1.292</strong></code></p>
-    <p><strong>Perplexity reverses the ranking.</strong> The longer sentence had the lower raw
-    probability but the better per-token score — it just had two more words to pay for. Raw
-    probability was partly measuring length; perplexity divides that out.</p>
-    <p>That is the −1/N doing its job. But note what this is <em>for</em>: length normalisation is
-    what lets you compare a model's performance on test sets of different sizes. Perplexity is a
-    measure of <strong>models</strong>, not a ranking of sentences — do not walk away thinking its
-    purpose is to decide which sentence is better English.</p>
+    <p>Perplexity reverses the ranking. The longer sentence had the lower raw probability but the
+    better per-token score, having simply two more words to account for. Raw probability was partly
+    measuring length, and perplexity divides that effect out.</p>
+    <p>This is the −1/N term operating as intended. Note, however, what it is for: length
+    normalisation is what permits comparison of a model's performance across test sets of different
+    sizes. Perplexity is a measure of <strong>models</strong>, not a ranking of sentences, and it
+    should not be understood as a method for deciding which sentence is better English.</p>
   </div>
 </div>
 
@@ -904,9 +917,9 @@ about the big differences; then confirm the choice that matters with a real end-
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>almost nothing — it was scored on text it memorised</strong>.</p>
-    <p>Perplexity on training data measures recall, not prediction, and it is always flatteringly
-    low. It is a broken experiment, not a good model. The only figure worth reporting comes from
-    held-out data the model has never seen.</p>
+    <p>Perplexity computed on training data measures recall rather than prediction and is always
+    misleadingly low. It indicates a flawed experiment rather than a good model. The only figure
+    worth reporting comes from held-out data the model has never seen.</p>
   </div>
 </div>
 
@@ -922,9 +935,10 @@ about the big differences; then confirm the choice that matters with a real end-
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>one unseen n-gram makes P = 0, and perplexity inverts it</strong>.</p>
-    <p>The test-set probability is a product, so a single zero anywhere collapses the whole thing to
-    zero — and perplexity raises that to a negative power, which is division by zero. Any real test
-    set contains unseen n-grams. That is why you cannot evaluate an unsmoothed model at all.</p>
+    <p>The test-set probability is a product, so a single zero anywhere reduces the whole product
+    to zero, and perplexity raises that to a negative power, which is division by zero. Any real
+    test set contains unseen n-grams, which is why an unsmoothed model cannot be evaluated at
+    all.</p>
   </div>
 </div>
 
@@ -941,37 +955,39 @@ about the big differences; then confirm the choice that matters with a real end-
   <div class="q-fb">
     <p>Correct answer: <strong>model B, if both were measured on the same test set with the same
     vocabulary</strong>.</p>
-    <p>Lower is better, so B — but only under that condition. Perplexity depends on the text as well
-    as the model, and shrinking the vocabulary lowers it for free. Without matching conditions the
-    two numbers are not measuring the same thing.</p>
+    <p>Lower is better, so model B, but only under that condition. Perplexity depends on the text
+    as well as on the model, and reducing the vocabulary lowers it without any improvement to the
+    model. Without matching conditions the two numbers do not measure the same quantity.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>Perplexity is the test-set probability inverted and normalised per token, so lower is better,
-  and it reads as the average number of words the model thought it was choosing between. The number
-  is only worth anything if it came from text the model never trained on — measured on training data
-  it looks wonderful and means nothing, and measured without smoothing it is infinite.</p>
+  <span class="label">The main points</span>
+  <p>Perplexity is the test-set probability, inverted and normalised per token, so that lower
+  values are better. It can be read as the average number of words the model was effectively
+  choosing between. The value is meaningful only if computed on text the model was not trained on:
+  measured on training data it appears excellent and means nothing, and measured without smoothing
+  it is infinite.</p>
 </div>
 
-<p>That completes the n-gram language model: count, assume a short history, smooth, and now measure.
-Every choice we left open — bigram or trigram, which smoothing, which λ — is now answerable by
-building both and comparing perplexity on a devset.</p>
+<p>This completes the n-gram language model: count, assume a short history, smooth, and measure.
+Every choice left open earlier — bigram or trigram, which smoothing method, which λ values — can now
+be settled by building both alternatives and comparing perplexity on a development set.</p>
 
-<p>Next session changes the question. Instead of asking how likely a piece of text is, we ask what
-it is <em>about</em> — is this review positive or negative? The probability machinery carries
-straight over, pointed at a new target.</p>
+<p>Session 15 changes the question. Instead of asking how likely a piece of text is, we ask what it
+is about: whether a given review is positive or negative. The probability machinery carries over
+directly, applied to a different target.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
-Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
-("N-gram Language Models") — free online. Read <strong>§3.2</strong> on training and test sets and
-<strong>§3.3</strong> on perplexity. The book writes the perplexity formula a second way, using
-logarithms; it is the same quantity, and we take logs properly in session 16.</p>
+Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>chapter 3</strong>,
+"N-gram Language Models", available free online. Read <strong>§3.2</strong> on training and test
+sets and <strong>§3.3</strong> on perplexity. The book also writes the perplexity formula a second
+way, using logarithms. It is the same quantity, and we introduce logarithms properly in session
+16.</p>
 
 
 

@@ -566,7 +566,7 @@ figcaption {
 
 
 
-<h2>The number we did not explain</h2>
+<h2>Where session 18 left off</h2>
 
 <p>Here is the board from the end of last session, exactly as we left it. <em>Julius Caesar</em>'s
 raw column, and a document that is the same play printed twice:</p>
@@ -583,7 +583,7 @@ thing.</p>
 
 <p>The second one is right, and by the end of the hour you will have derived it.</p>
 
-<h2>Distance measures the tips. We want the direction.</h2>
+<h2>Why Euclidean distance is unsuitable</h2>
 
 <p>Draw the vectors instead of listing them. Every document vector starts at the origin and ends at
 a point. Euclidean distance measures the gap between the two <em>tips</em>. That is a perfectly good
@@ -663,13 +663,13 @@ of the gap between their tips, doubling a document changes nothing at all.</p>
 </figure>
 
 <div class="callout">
-  <span class="label">The whole idea, before any formula</span>
+  <span class="label">The idea, before the formula</span>
   <p>Document length is mostly a fact about <em>how much someone wrote</em>. It is not what we
   wanted to measure. <mark>Compare direction, not magnitude</mark> — and a long document and a short
   document on the same subject will come out similar, which is exactly what we would want.</p>
 </div>
 
-<h2>Start with the dot product</h2>
+<h2>The dot product</h2>
 
 <p>The dot product of two vectors multiplies them component by component and adds up the results:</p>
 
@@ -688,7 +688,7 @@ d · 2d  =  7×14 + 62×124 + 1×2 + 2×4    =  7796</code></pre>
 as relevant, but because it is twice as long. A frequent word, or a long document, wins on the dot
 product for no reason but size.</p>
 
-<h2>Divide the length away</h2>
+<h2>Normalising by vector length</h2>
 
 <p>So divide each vector by its own length. That is the whole fix:</p>
 
@@ -700,7 +700,7 @@ cos(a, b) = ───────
 length turns it into a <strong>unit vector</strong> — same direction, length exactly 1. So:</p>
 
 <div class="callout">
-  <span class="label">The framing worth keeping</span>
+  <span class="label">How to think about cosine similarity</span>
   <p><mark>Cosine similarity is just the dot product of two unit vectors.</mark></p>
   <p>Shrink both vectors down to length 1, which throws away everything except which way they point,
   and <em>then</em> compare them. Nothing about triangles or the unit circle is needed to use
@@ -710,7 +710,7 @@ length turns it into a <strong>unit vector</strong> — same direction, length e
   compute.</span></p>
 </div>
 
-<h2>Now finish the board</h2>
+<h2>Completing the calculation</h2>
 
 <p>Take the formula to <code>d</code> and <code>2d</code> and watch what happens to the 2:</p>
 
@@ -731,7 +731,7 @@ change its cosine with anything.</mark> That is the property we went looking for
 proved rather than asserted.</p>
 
 <div class="recall">
-  <span class="label">Work this out before reading on — no calculator</span>
+  <span class="label">Exercise (no calculator)</span>
   <p>Two documents, two dimensions each:</p>
   <pre><code>a = [ 3, 0]
 b = [30, 0]</code></pre>
@@ -748,7 +748,7 @@ b = [30, 0]</code></pre>
   </div>
 </div>
 
-<h2>What the numbers can be</h2>
+<h2>The range of cosine values</h2>
 
 <p>Cosine runs from <strong>1</strong>, for vectors pointing the same way, through <strong>0</strong>
 for vectors at right angles, down to <strong>−1</strong> for vectors pointing in opposite
@@ -778,7 +778,7 @@ the formula allows.</span></p>
 
 <p>For now: <strong>1 means same direction, 0 means no words in common.</strong></p>
 
-<h2>Back to Shakespeare — and this is the payoff</h2>
+<h2>Returning to the Shakespeare corpus</h2>
 
 <p>Session 18 ended badly on purpose. After tf-idf weighting, <em>As You Like It</em> was closer to
 <em>Julius Caesar</em> (a history) than to <em>Twelfth Night</em> (its fellow comedy). Session 17's
@@ -822,7 +822,7 @@ axis that still matters</mark>, and it is left pointing off on the leftovers. Th
 and 0.110 come from. Not "a bit less similar": <em>almost at right angles to everything else</em>.</p>
 
 <div class="callout">
-  <span class="label">The sentence that holds this hour together</span>
+  <span class="label">The central result</span>
   <p><mark>Cosine fixes a length problem, not a feature problem.</mark></p>
   <p>Session 18's trouble was never that the vectors were the wrong length. It was that after
   weighting, <code>good</code> was exactly zero and <code>fool</code> and <code>wit</code> were down
@@ -871,7 +871,7 @@ log damping is what pulls those numbers apart — 0.975 against 0.934 is a gap y
 somebody.</p>
 
 <div class="callout">
-  <span class="label">The three-way result, in one place</span>
+  <span class="label">The three comparisons together</span>
   <p><strong>Raw counts + cosine</strong> — technically right, practically useless. The genre pairs
   do come out on top, by less than a thousandth, because one common word dominates and everything
   looks alike.</p>
@@ -968,7 +968,7 @@ that away and asks only about direction.</p>
 <p>Hold on to this table. <strong>A word represented as a vector of the company it keeps</strong> is
 the whole idea behind sessions 21–22, and cosine is how those vectors get compared.</p>
 
-<h2>Where this goes</h2>
+<h2>Where cosine similarity is used later</h2>
 
 <p>This is the most-used formula in the course, and it is worth naming the places you will meet it
 again.</p>
@@ -986,10 +986,10 @@ again.</p>
   almost always taken a cosine.</li>
 </ul>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in three sentences</span>
+  <span class="label">The main points</span>
   <p>Cosine similarity is <code>(a·b) / (|a||b|)</code> — the dot product of the two vectors after
   each has been shrunk to length 1, which is to say a comparison of direction with length thrown
   away. Because scaling a vector cancels out of numerator and denominator, a document and the same
@@ -1000,7 +1000,7 @@ again.</p>
   bad however you measure the angle between them.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
 Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>§5.4</strong>

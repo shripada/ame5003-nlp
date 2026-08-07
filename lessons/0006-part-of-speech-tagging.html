@@ -566,11 +566,12 @@ figcaption {
 
 
 
-<h2>Why this comes right after lemmatization</h2>
+<h2>Why part-of-speech tagging follows lemmatization</h2>
 
-<p>Last session hit a wall: to lemmatize <code>meeting</code> correctly, you had to know whether it
-was a <strong>noun</strong> ("a meeting") or a <strong>verb</strong> ("they are meeting"). We said
-"a tool works out the part of speech for you". This is that tool.</p>
+<p>Session 5 ended with an unresolved requirement: to lemmatize <code>meeting</code> correctly,
+we needed to know whether it was a <strong>noun</strong> ("a meeting") or a <strong>verb</strong>
+("they are meeting"). We deferred this to a tool that determines the part of speech. This session
+describes that tool.</p>
 
 <p><strong>Part-of-speech tagging</strong> (POS tagging) labels every word in a sentence with its
 grammatical category — noun, verb, adjective, and so on:</p>
@@ -580,8 +581,8 @@ PRON    VERB    NOUN      ADV</code></pre>
 
 <h2>The word classes</h2>
 
-<p>Words fall into a small number of grammatical classes. You already know most of them from
-school; here are the ones that matter, with what each does:</p>
+<p>Words fall into a small number of grammatical classes. The following are the classes that
+matter for our purposes, with the function of each:</p>
 
 <table>
   <tr><th>Class</th><th>Job</th><th>Examples</th></tr>
@@ -594,63 +595,64 @@ school; here are the ones that matter, with what each does:</p>
   <tr><td>Preposition</td><td>relates a noun to the rest</td><td><code>on</code>, <code>in</code>, <code>to</code></td></tr>
 </table>
 
-<p>There is a useful split here. <strong>Nouns, verbs, adjectives and adverbs are "open"
-classes</strong> — new ones get invented all the time (<code>to google</code>,
-<code>selfie</code>). <strong>Determiners, pronouns and prepositions are "closed"</strong> — the
-list barely changes in a lifetime. No one invents a new word for <code>the</code>. That is also,
-not by coincidence, the same set of little words that a stop-word list removes.</p>
+<p>These classes divide into two groups. <strong>Nouns, verbs, adjectives, and adverbs are
+open classes</strong>: new members are coined regularly, such as <code>to google</code> and
+<code>selfie</code>. <strong>Determiners, pronouns, and prepositions are closed classes</strong>,
+whose membership changes very little over time; no new word for <code>the</code> is coined. The
+closed classes are, not coincidentally, the same set of words that a stop-word list removes.</p>
 
-<h2>The real problem: the same word has no fixed class</h2>
+<h2>Words do not have a fixed word class</h2>
 
-<p>If every word had one grammatical class, tagging would be a dictionary lookup. It is not,
-because <strong>a word's class depends on how it is used</strong>. Look at <code>book</code>:</p>
+<p>If every word belonged to a single grammatical class, tagging would be a dictionary lookup.
+It is not, because <strong>a word's class depends on how it is used</strong>. Consider
+<code>book</code>:</p>
 
 <pre><code>"Give me the book."        book  →  NOUN   (a thing)
 "I can book a flight."     book  →  VERB   (an action)
 "They book flights daily." book  →  VERB   (an action)</code></pre>
 
-<p>Same four letters, different job each time. No dictionary can tell you which is which —
-<strong>only the surrounding words can.</strong> <code>the book</code> must be a noun (a
-determiner is followed by a noun); <code>can book</code> must be a verb (a word like
-<code>can</code> is followed by one). The tagger reads the whole sentence and uses each word's
-neighbours to decide.</p>
+<p>The same four letters serve a different function in each sentence. No dictionary can
+determine which is which; only the surrounding words can. In <code>the book</code> the word must
+be a noun, since a determiner is followed by a noun, and in <code>can book</code> it must be a
+verb, since a modal such as <code>can</code> is followed by one. The tagger reads the whole
+sentence and uses each word's neighbours to decide.</p>
 
-<p>This is why POS tagging is called a <strong>sequence-labelling</strong> task: you do not tag a
-word on its own, you tag it in the sequence it sits in. The context is not a nice-to-have; it is
-the only thing that resolves the ambiguity.</p>
+<p>For this reason POS tagging is called a <strong>sequence-labelling</strong> task: a word is not
+tagged in isolation but within the sequence in which it occurs. Context is not merely helpful; it
+is the only thing that resolves the ambiguity.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>Here is a sentence that is famously hard: <code>"The old man the boat."</code> It <em>is</em>
-  a correct English sentence. What grammatical job is each word doing?</p>
+  <span class="label">Exercise</span>
+  <p>Consider the sentence <code>"The old man the boat."</code>, which is grammatical English.
+  What grammatical function does each word serve?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><code>The old</code> means "the old people" — <code>old</code> is standing in as a noun.
     <code>man</code> is the <strong>verb</strong>: to <em>man</em> a boat means to staff it. So it
     reads "the old people staff the boat".</p>
-    <p>You almost certainly first read <code>man</code> as a noun and hit a dead end — that is why
-    it is called a "garden-path" sentence. And here is the honest part:
-    <mark>a modern tagger gets this wrong too.</mark> spaCy tags <code>man</code> as a noun,
-    exactly the mistake a human first makes. Taggers are about 97% accurate, but genuinely
-    ambiguous sentences still beat them.</p>
+    <p>Most readers first take <code>man</code> to be a noun and reach a dead end, which is why
+    this is called a <strong>garden-path</strong> sentence. <mark>A modern tagger makes the same
+    error.</mark> spaCy tags <code>man</code> as a noun, exactly as a human reader does on first
+    reading. Taggers are about 97% accurate overall, but genuinely ambiguous sentences remain
+    beyond them.</p>
   </div>
 </div>
 
-<h2>Tagsets: how fine-grained do you want to be?</h2>
+<h2>Tagsets</h2>
 
-<p>How many labels are there? It depends which <strong>tagset</strong> you choose — and there are
-two common levels of detail.</p>
+<p>The number of labels depends on which <strong>tagset</strong> is chosen. Two levels of detail
+are in common use.</p>
 
-<p>The <strong>Universal POS tagset</strong> is coarse: about 17 tags, the broad classes above —
-<code>NOUN</code>, <code>VERB</code>, <code>ADJ</code>, <code>ADV</code>, <code>DET</code>, and so
-on. Easy to read, and the same across languages.</p>
+<p>The <strong>Universal POS tagset</strong> is coarse, with about 17 tags corresponding to the
+broad classes above: <code>NOUN</code>, <code>VERB</code>, <code>ADJ</code>, <code>ADV</code>,
+<code>DET</code>, and others. It is readable and consistent across languages.</p>
 
 <p>The <strong>Penn Treebank tagset</strong> is fine: about 45 tags. It splits each broad class
 into detailed ones — a noun can be <code>NN</code> (singular) or <code>NNS</code> (plural); a verb
 can be <code>VB</code> (base form), <code>VBZ</code> (3rd-person singular), <code>VBP</code>
 (other present), and more.</p>
 
-<p>The tool gives you both at once. Here is one sentence with both tagsets:</p>
+<p>Most tools produce both. The following sentence is shown under each tagset:</p>
 
 <table>
   <tr><th>Word</th><th>Universal</th><th>Penn Treebank</th></tr>
@@ -660,19 +662,20 @@ can be <code>VB</code> (base form), <code>VBZ</code> (3rd-person singular), <cod
   <tr><td><code>daily</code></td><td>ADV</td><td>RB (adverb)</td></tr>
 </table>
 
-<p>Use the coarse tagset when you only need "is this a noun or a verb" — for example, to feed the
-lemmatizer from session 5. Use the fine one when the detail matters, such as telling singular from
-plural. Neither is more correct; they are different zoom levels on the same thing.</p>
+<p>The coarse tagset is appropriate when only the broad class is needed, as when supplying the
+part of speech to the lemmatizer from session 5. The fine tagset is appropriate when the
+additional detail matters, such as distinguishing singular from plural. Neither is more correct
+than the other; they describe the same phenomenon at different levels of granularity.</p>
 
 <h2>Where POS tagging is used</h2>
 
 <ul>
-  <li><strong>Lemmatization</strong> — the session-5 payoff. The lemmatizer needs the part of
-      speech, and this is where it comes from.</li>
-  <li><strong>Named entity recognition</strong> — next session. Knowing the nouns is a strong
-      first clue to where the names are.</li>
-  <li><strong>Parsing and downstream tasks</strong> — most classical NLP pipelines tag first,
-      because so much later work leans on knowing each word's job.</li>
+  <li><strong>Lemmatization.</strong> The lemmatizer requires the part of speech, and POS
+      tagging is where it comes from.</li>
+  <li><strong>Named entity recognition</strong>, the subject of session 7. Knowing which words are
+      nouns is a strong initial indication of where the names are.</li>
+  <li><strong>Parsing and other downstream tasks.</strong> Most classical NLP pipelines tag first,
+      because later stages depend on knowing each word's grammatical function.</li>
 </ul>
 
 <div class="quiz" data-answer="1">
@@ -686,9 +689,9 @@ plural. Neither is more correct; they are different zoom levels on the same thin
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>a word's class depends on the words around it</strong>.</p>
-    <p><code>book</code> is a noun in "the book" and a verb in "can book". A dictionary would have
-    to list both and could not choose between them — only the context decides. That is the whole
-    reason POS tagging is a sequence-labelling task and not a lookup.</p>
+    <p><code>book</code> is a noun in "the book" and a verb in "can book". A dictionary would
+    list both and could not choose between them; only the context decides. This is why POS tagging
+    is a sequence-labelling task rather than a lookup.</p>
   </div>
 </div>
 
@@ -704,28 +707,30 @@ plural. Neither is more correct; they are different zoom levels on the same thin
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>the Universal tagset</strong>.</p>
-    <p>The lemmatizer only needs the broad class — noun vs verb vs adjective — so the coarse
-    17-tag set is exactly right. The fine Penn distinctions (singular vs plural noun, which present
-    tense) are detail the lemmatizer does not use here. Match the tagset to what the task needs.</p>
+    <p>The lemmatizer requires only the broad class, that is noun, verb, or adjective, so the
+    coarse 17-tag set is sufficient. The finer Penn distinctions, such as singular versus plural
+    noun or which present tense, are not used by the lemmatizer. The tagset should be matched to
+    what the task requires.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>Part-of-speech tagging labels each word with its grammatical job, and it needs the whole
-  sentence because the same word can be a noun in one place and a verb in another. That reliance on
-  context — not a dictionary — is what makes it a real task, and it is the same reason the next
-  step, finding names, is harder still.</p>
+  <span class="label">The main points</span>
+  <p>Part-of-speech tagging labels each word with its grammatical class, and it requires the
+  whole sentence, because the same word can be a noun in one position and a verb in another. This
+  dependence on context rather than on a dictionary is what makes the task non-trivial, and it is
+  also why named entity recognition, the subject of session 7, is harder still.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
-<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/17.pdf">Chapter
-17 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
-It is titled "Sequence Labeling for Parts of Speech and Named Entities", and it covers this lesson
-and the next one together. Read the sections on word classes and the Penn Treebank tagset.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/17.pdf">chapter
+17 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin, available free
+online. It is titled "Sequence Labeling for Parts of Speech and Named Entities" and covers this
+session and the next together. Read the sections on word classes and on the Penn Treebank
+tagset.</p>
 
 
 

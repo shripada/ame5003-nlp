@@ -566,62 +566,63 @@ figcaption {
 
 
 
-<h2>Where Boolean search ran out</h2>
+<h2>The limits of Boolean search</h2>
 
-<p>The inverted index answered "which documents match?" — and gave back an unordered
-<strong>set</strong>. A document either matched or it did not. That is fine for six plays. Type a
-query into a web search and it matches <em>millions</em> of pages. An unordered set of a million
-results is useless. You need the <strong>best</strong> ones first.</p>
+<p>The inverted index answered the question of which documents match, returning an unordered
+<strong>set</strong>: a document either matched or it did not. This is adequate for six plays. A
+web search query, however, matches millions of pages, and an unordered set of a million results is
+of no use. The best-matching documents must come first.</p>
 
-<p>So we move from matching to <strong>ranking</strong>: give each matching document a
-<strong>score</strong> for the query, then sort by score. The classic scoring recipe, still the
-baseline everywhere, is <strong>TF-IDF</strong>. It is built from two ideas, and we build it the
-same way.</p>
+<p>We therefore move from matching to <strong>ranking</strong>: each matching document is assigned
+a <strong>score</strong> for the query, and the documents are sorted by that score. The standard
+scoring method, still used as a baseline, is <strong>TF-IDF</strong>. It combines two ideas, which
+we introduce in turn.</p>
 
-<h2>Idea 1 — term frequency: how often the word appears</h2>
+<h2>Term frequency</h2>
 
-<p>A document that says <code>car</code> ten times is probably more about cars than one that says it
-once. So the first idea is simple: score a document by how many times the query term appears in it.
-This count is the <strong>term frequency</strong> (TF).</p>
+<p>A document containing <code>car</code> ten times is probably more concerned with cars than one
+containing it once. The first idea is therefore to score a document by the number of times the
+query term appears in it. This count is the <strong>term frequency</strong> (tf).</p>
 
-<h3>Why the raw count is wrong</h3>
+<h3>Why the raw count is unsuitable</h3>
 
-<p>Raw count over-rewards repetition. Is a document with <code>car</code> 100 times really 100
-times more relevant than one with it once? No. It is more relevant — but nowhere near 100 times.
-Relevance grows with count, but it grows <strong>slower and slower</strong>. The tenth mention adds
-much less than the second.</p>
+<p>The raw count rewards repetition too heavily. A document containing <code>car</code> 100 times
+is not 100 times more relevant than one containing it once. It is more relevant, but by nothing
+approaching that factor. Relevance increases with the count, but at a decreasing rate: the tenth
+occurrence contributes much less than the second.</p>
 
-<p>The fix is a <strong>logarithm</strong>, which is exactly the function that grows fast at first
-and then flattens. We use a log-weighted term frequency:</p>
+<p>The solution is a <strong>logarithm</strong>, a function that grows quickly at first and then
+flattens. We use a log-weighted term frequency:</p>
 
 <pre><code>weight = 1 + log₁₀(tf)      (when tf &gt; 0)</code></pre>
 
-<p>Watch what it does to the count:</p>
+<p>The effect on the count is as follows:</p>
 
 <table>
   <tr><th>appears (tf)</th><th>1</th><th>10</th><th>100</th><th>1000</th></tr>
   <tr><td>weight</td><td>1.0</td><td>2.0</td><td>3.0</td><td>4.0</td></tr>
 </table>
 
-<p>Every <em>tenfold</em> increase in the count adds just <strong>1</strong> to the weight. Going
-from 1 mention to 10 matters as much as going from 10 to 100. <mark>That is where the first
-logarithm comes from: it turns "diminishing returns" into arithmetic.</mark></p>
+<p>Each tenfold increase in the count adds exactly 1 to the weight, so an increase from 1
+occurrence to 10 counts for as much as an increase from 10 to 100. <mark>This is the purpose of the
+first logarithm: it expresses diminishing returns arithmetically.</mark></p>
 
-<h2>Idea 2 — inverse document frequency: how rare the word is</h2>
+<h2>Inverse document frequency</h2>
 
-<p>Term frequency alone has a worse problem. Consider the query <code>the best car</code>. The word
-<code>the</code> appears many times in <em>every</em> document, so by term frequency it scores
-enormously — and it tells you nothing about which document is a good match. A common word is a bad
-discriminator; a rare word is a good one. If two documents share the word <code>insurance</code>,
-that is a far stronger signal than sharing <code>the</code>.</p>
+<p>Term frequency alone has a more serious problem. Consider the query <code>the best car</code>.
+The word <code>the</code> appears many times in every document, so it receives a very high term
+frequency while indicating nothing about which document is a good match. A common word is a poor
+discriminator and a rare word is a good one: two documents sharing the word
+<code>insurance</code> is a far stronger signal than two documents sharing <code>the</code>.</p>
 
-<p>So we want to <strong>down-weight common words and up-weight rare ones</strong>. Measure how
-common a word is by its <strong>document frequency</strong> (df) — the number of documents that
-contain it. Then weight by the <strong>inverse</strong>, squashed with a log again:</p>
+<p>We therefore want to down-weight common words and up-weight rare ones. How common a word is can
+be measured by its <strong>document frequency</strong> (df), the number of documents containing it.
+We then weight by the <strong>inverse</strong> of this quantity, again compressed with a
+logarithm:</p>
 
 <pre><code>idf = log₁₀(N / df)        N = total number of documents</code></pre>
 
-<p>Here are real values from a collection of N = 806,791 documents:</p>
+<p>The following values come from a collection of N = 806,791 documents:</p>
 
 <table>
   <tr><th>term</th><th>in how many docs (df)</th><th>idf</th></tr>
@@ -631,20 +632,22 @@ contain it. Then weight by the <strong>inverse</strong>, squashed with a log aga
   <tr><td><code>best</code></td>      <td>25,235</td> <td>1.50</td></tr>
 </table>
 
-<p>The rarer the word, the higher its idf: <code>auto</code> (in fewer documents) outranks
-<code>best</code> (in more). And the important edge case:</p>
+<p>The rarer the word, the higher its idf: <code>auto</code>, occurring in fewer documents,
+outranks <code>best</code>, which occurs in more. One limiting case is worth stating
+explicitly.</p>
 
 <div class="callout">
-  <span class="label">Stop words down-weight themselves</span>
+  <span class="label">How idf handles stop words</span>
   <p>A word in <em>every</em> document has df = N, so its idf is <code>log₁₀(N/N) = log₁₀(1) =
   0</code>. Its weight is <strong>zero</strong>.</p>
-  <p>Remember the stop-word problem from <a href="0004-normalization-and-stop-words.html">session
-  4</a>? IDF handles it for free. You do not need a hand-written list to kill <code>the</code> — it
-  appears everywhere, so its idf is near zero, and it contributes almost nothing to any score.
-  <mark>The maths does what the stop-word list was trying to do, without the list.</mark></p>
+  <p>This addresses the stop-word problem from
+  <a href="0004-normalization-and-stop-words.html">session 4</a> without additional machinery. No
+  hand-written list is needed to suppress <code>the</code>: it appears in nearly every document, so
+  its idf is close to zero and it contributes almost nothing to any score. <mark>The weighting
+  achieves what the stop-word list was intended to achieve, without the list.</mark></p>
 </div>
 
-<h2>Putting them together</h2>
+<h2>Combining tf and idf</h2>
 
 <p>The <strong>TF-IDF weight</strong> of a term in a document multiplies the two ideas:</p>
 
@@ -652,40 +655,40 @@ contain it. Then weight by the <strong>inverse</strong>, squashed with a log aga
              how often it appears          how rare it is
              IN THIS document              ACROSS all documents</code></pre>
 
-<p>This is high in exactly the right case: a term that appears <strong>often in this document</strong>
-but is <strong>rare across the collection</strong> — in other words, a word that is distinctive to
-this document. It is low for a word that is rare here, and near zero for a word that is everywhere.</p>
+<p>This quantity is high in precisely the desired case: a term that appears often in this
+document and is rare across the collection, that is, a word distinctive to this document. It is low
+for a word that is rare here and close to zero for a word that occurs everywhere.</p>
 
-<p>To score a whole document for a query, add up the tf-idf weights of the query terms, then sort
-the matching documents by that total. The document with the highest score comes first. That is
-ranked retrieval.</p>
+<p>To score a whole document for a query, we sum the tf-idf weights of the query terms and sort the
+matching documents by that total, placing the highest-scoring document first. This is ranked
+retrieval.</p>
 
 <div class="callout">
-  <span class="label">The two logarithms, side by side</span>
-  <p>Both logs are there to <strong>squash a big range into a manageable one</strong>, but for
-  different reasons:</p>
+  <span class="label">The two logarithms compared</span>
+  <p>Both logarithms compress a large range into a manageable one, but for different reasons:</p>
   <ul>
-    <li>On <strong>TF</strong>: because relevance has diminishing returns — the 100th mention barely
-    adds to the 10th.</li>
-    <li>On <strong>DF</strong>: because word rarity spans a huge range — from a word in ten documents
-    to one in a million — and a raw ratio would let rare words dominate wildly.</li>
+    <li>On <strong>tf</strong>, because relevance shows diminishing returns: the hundredth
+    occurrence adds little to the tenth.</li>
+    <li>On <strong>df</strong>, because word rarity spans a very large range, from a word in ten
+    documents to one in a million, and a raw ratio would allow rare words to dominate the score.</li>
   </ul>
 </div>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>Two documents both match the query <code>car insurance</code>. Document A says
-  <code>insurance</code> 9 times; document B says <code>the</code> 50 times and
-  <code>insurance</code> once. By TF-IDF, which ranks higher — and why is that the right answer?</p>
+  <span class="label">Exercise</span>
+  <p>Two documents both match the query <code>car insurance</code>. Document A contains
+  <code>insurance</code> 9 times; document B contains <code>the</code> 50 times and
+  <code>insurance</code> once. Under TF-IDF, which ranks higher, and why is that the correct
+  outcome?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><strong>Document A.</strong> Its <code>insurance</code> weight is
     <code>(1 + log 9) × 1.62 ≈ 1.95 × 1.62 ≈ 3.2</code>. Document B's <code>the</code> contributes
     almost nothing — its idf is near zero, no matter that it appears 50 times — and its single
     <code>insurance</code> scores <code>1 × 1.62 = 1.62</code>.</p>
-    <p>So A wins, which is correct: A is genuinely more about insurance, while B just happens to use
-    a common word a lot. This is TF-IDF doing its whole job in one comparison — rewarding the
-    distinctive word, ignoring the common one.</p>
+    <p>Document A therefore ranks higher, which is the correct outcome: A is genuinely concerned
+    with insurance, whereas B merely uses a common word frequently. This comparison shows the whole
+    behaviour of TF-IDF: it rewards the distinctive word and disregards the common one.</p>
   </div>
 </div>
 
@@ -700,9 +703,9 @@ ranked retrieval.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>relevance grows with count, but less and less each time</strong>.</p>
-    <p>A word appearing 100 times does not make a document 100 times more relevant than one where it
-    appears once. The log captures those diminishing returns: each tenfold rise in the count adds
-    the same fixed amount (1) to the weight.</p>
+    <p>A word appearing 100 times does not make a document 100 times more relevant than one in
+    which it appears once. The logarithm captures these diminishing returns: each tenfold increase
+    in the count adds the same fixed amount, 1, to the weight.</p>
   </div>
 </div>
 
@@ -717,28 +720,28 @@ ranked retrieval.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>zero, so it contributes nothing to any score</strong>.</p>
-    <p>If df = N then idf = log(N/N) = log(1) = 0. A word that is everywhere cannot distinguish
-    between documents, and IDF gives it exactly zero weight — which is why TF-IDF suppresses stop
-    words without needing a stop-word list.</p>
+    <p>If df = N then idf = log(N/N) = log(1) = 0. A word occurring in every document cannot
+    distinguish between documents, and idf assigns it exactly zero weight. This is why TF-IDF
+    suppresses stop words without requiring a stop-word list.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>TF-IDF scores a term high when it appears often in this document but rarely across the
-  collection — frequent-here times rare-everywhere — so distinctive words drive the ranking and
-  common words fall away. The two logarithms are there to tame diminishing returns on the count and
-  to compress the huge range of word rarity into a usable weight.</p>
+  <span class="label">The main points</span>
+  <p>TF-IDF assigns a high score to a term that appears often in a given document and rarely
+  across the collection, so that distinctive words determine the ranking and common words
+  contribute little. The two logarithms serve to model diminishing returns on the count and to
+  compress the large range of word rarity into a usable weight.</p>
 </div>
 
-<p>That closes Unit I. You can now take raw text, clean it, analyse it, search a collection, and
-rank the results. Unit II changes the question entirely: instead of finding text, can a machine
-predict and generate it? That starts with <strong>language models</strong> next session — and
-TF-IDF itself comes back in Unit II, as the way to turn a document into a vector of numbers.</p>
+<p>This concludes Unit I. We can now take raw text, clean it, analyse it, search a collection,
+and rank the results. Unit II asks a different question: rather than finding text, can a machine
+predict and generate it? This begins with <strong>language models</strong> in session 11. TF-IDF
+itself returns in Unit II as the method for representing a document as a vector of numbers.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
 Information Retrieval</a></strong>, <strong>Chapter 6</strong> ("Scoring, term weighting and the

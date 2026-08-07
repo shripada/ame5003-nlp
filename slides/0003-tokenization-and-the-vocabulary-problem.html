@@ -572,12 +572,12 @@ strong { font-weight: 600; }
 
   <section class="slide slide--bullets" data-title="The Penn Treebank tokenizer">
     <div class="slide-inner">
-      <h2>What people actually use</h2>
+      <h2>Rule-based tokenization</h2>
       <ul>
         <li>The <strong>Penn Treebank</strong> tokenizer — a large set of regular
         expressions, written by hand</li>
-        <li>Years of difficult examples, already handled for you</li>
-        <li>You do not write it. You call it.</li>
+        <li>Years of difficult examples, already handled</li>
+        <li>We do not write it; we call it.</li>
       </ul>
     </div>
   </section>
@@ -596,7 +596,7 @@ strong { font-weight: 600; }
 
   <section class="slide slide--bullets" data-title="It got all of them">
     <div class="slide-inner">
-      <h2>Go through the three problems</h2>
+      <h2>Checking the three problems</h2>
       <ul>
         <li><code>Dr.</code> and <code>U.S.A.</code> kept their full stops — it knows
         abbreviations</li>
@@ -612,17 +612,17 @@ strong { font-weight: 600; }
     <div class="slide-inner">
       <p class="lede">Use the library</p>
       <p>For English text, a good rule-based tokenizer is a <strong>solved problem</strong>.
-      Do not write your own.</p>
+      There is no reason to write one by hand.</p>
       <footer>But it stops being enough when we reach Unit III — and the reason has nothing to
       do with punctuation.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="First — what is a model?">
+  <section class="slide slide--bullets" data-title="What we mean by a model">
     <div class="slide-inner">
       <h2>First — what is a &ldquo;model&rdquo;?</h2>
       <ul>
-        <li>Sessions 1–2: you wrote <strong>rules by hand</strong></li>
+        <li>Sessions 1–2: <strong>rules written by hand</strong></li>
         <li>A model is the opposite — it learns patterns from examples
         (<strong>training</strong>)</li>
         <li>It keeps a handful of <strong>numbers per word</strong> it knows</li>
@@ -665,17 +665,17 @@ later:     model sees "doomscrolling"
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Think about this before reading on">
+  <section class="slide slide--recall" data-title="Exercise">
     <div class="slide-inner">
-      <h2>Think about this before reading on</h2>
+      <h2>Exercise</h2>
       <div class="recall">
         <span class="label">The constraint</span>
-        <p>Fixed word list. Language keeps inventing new words. You are not allowed to use
-        <code>&lt;UNK&gt;</code>. What can you change?</p>
+        <p>The word list is fixed, language keeps producing new words, and
+        <code>&lt;UNK&gt;</code> is not available. What can be changed?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
           <p>Make the pieces <strong>smaller than words</strong>.</p>
-          <p>Word parts can spell any new word out of parts you already have. But single
+          <p>Word parts can spell any new word out of parts already in the list. But single
           letters carry no meaning on their own.</p>
           <p><strong>Big pieces carry meaning but miss new words. Small pieces cover
           everything but carry little meaning.</strong> Sit in the middle.</p>
@@ -686,19 +686,19 @@ later:     model sees "doomscrolling"
 
   <section class="slide slide--bullets" data-title="Byte-Pair Encoding">
     <div class="slide-inner">
-      <h2>Byte-Pair Encoding: let the data decide</h2>
+      <h2>Byte-Pair Encoding</h2>
       <ul>
         <li>Start with a list of single characters</li>
         <li>Count every pair of neighbouring symbols</li>
         <li>Join the <strong>most frequent</strong> pair. Add it to the list.</li>
         <li>Repeat <em>k</em> times</li>
       </ul>
-      <p class="aside"><em>k</em> is a number you choose — it decides how big your final list
-      is.</p>
+      <p class="aside"><em>k</em> is a parameter we choose, and it determines the size of the
+      final list.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Working through an example">
+  <section class="slide slide--code" data-title="A worked example">
     <div class="slide-inner">
       <h2>A small set of words</h2>
       <pre><code>5  l o w _
@@ -747,7 +747,7 @@ merge 6:  lo + w  ->  low
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Look at what it learned">
+  <section class="slide slide--statement" data-title="What the algorithm has learned">
     <div class="slide-inner">
       <p class="lede">Look at what it learned</p>
       <p>The symbol <code>er_</code> — in English, <em>-er</em> means &ldquo;more of
@@ -756,7 +756,7 @@ merge 6:  lo + w  ->  low
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Why this fixes the problem">
+  <section class="slide slide--statement" data-title="Why this solves the vocabulary problem">
     <div class="slide-inner">
       <p class="lede">Take the word <code>lower</code> — not in the training list</p>
       <p>BPE splits it into <code>low</code> + <code>er_</code>. Both pieces are already
@@ -818,7 +818,7 @@ merge 6:  lo + w  ->  low
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Where this comes back">
+  <section class="slide slide--table" data-title="Where subword tokenization is used">
     <div class="slide-inner">
       <h2>Where this comes back</h2>
       <table>
@@ -834,18 +834,18 @@ merge 6:  lo + w  ->  low
 
   <section class="slide slide--code" data-title="Same idea, later">
     <div class="slide-inner">
-      <h2>When you use BERT later</h2>
+      <h2>BERT&rsquo;s tokenizer</h2>
       <pre><code>"doomscrolling"  ->  ["doom", "##scroll", "##ing"]</code></pre>
       <p class="aside"><code>##</code> means &ldquo;this joins to the piece before it&rdquo; —
       same idea as our <code>_</code>, opposite end.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="What to remember">
+  <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
-      <p class="lede">What to remember</p>
-      <p>Tokenization is not about splitting strings. It is about choosing the
-      <strong>pieces your model is allowed to think in</strong>.</p>
+      <p class="lede">Summary</p>
+      <p>Tokenization is not simply a matter of splitting strings. It determines the
+      <strong>units a model is able to represent</strong>.</p>
       <p>Choose whole words, and new words become unknown. Choose word parts, and the model
       can handle anything.</p>
       <footer>Next: normalization and stop words.</footer>
@@ -854,7 +854,7 @@ merge 6:  lo + w  ->  low
 
   <section class="slide slide--refs" data-title="References">
     <div class="slide-inner">
-      <h2>Read this next</h2>
+      <h2>Reading</h2>
       <ul class="ref-list">
         <li>
           <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language

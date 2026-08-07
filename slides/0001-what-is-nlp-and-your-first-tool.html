@@ -531,9 +531,9 @@ strong { font-weight: 600; }
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="You already use this every day">
+  <section class="slide slide--bullets" data-title="What natural language processing is">
     <div class="slide-inner">
-      <h2>You already use this every day</h2>
+      <h2>What natural language processing is</h2>
       <ul>
         <li>Your phone predicted the next word as you typed</li>
         <li>Your email put a message in the spam folder</li>
@@ -561,7 +561,7 @@ strong { font-weight: 600; }
 
   <section class="slide slide--bullets" data-title="AI, ML, deep learning">
     <div class="slide-inner">
-      <h2>Some words you will hear a lot</h2>
+      <h2>Terms you will encounter</h2>
       <ul>
         <li><strong>AI</strong> — the big goal: make a computer do something that used to
         need a person</li>
@@ -584,7 +584,7 @@ strong { font-weight: 600; }
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Computers are exact, language is not">
+  <section class="slide slide--statement" data-title="Why language is hard for computers">
     <div class="slide-inner">
       <p>Computers are good at exact things — numbers, dates, IDs.<br><br>Language is
       not exact.</p>
@@ -600,12 +600,12 @@ strong { font-weight: 600; }
 
   <section class="slide slide--bullets" data-title="Man is a verb here">
     <div class="slide-inner">
-      <h2>It is not broken</h2>
+      <h2>The sentence is grammatical</h2>
       <ul>
         <li>Here <strong>man</strong> is a verb. It means &ldquo;to work on&rdquo; or
         &ldquo;to operate&rdquo;</li>
         <li>So: the old people operate the boat</li>
-        <li>Your brain read &ldquo;old man&rdquo; as one noun, then changed its mind when it
+        <li>We read &ldquo;old man&rdquo; as one noun phrase, then revise when we
         reached &ldquo;the boat&rdquo;</li>
       </ul>
       <p class="aside">A computer has the same problem — and no instinct to help it.</p>
@@ -661,12 +661,12 @@ strong { font-weight: 600; }
     </div>
   </section>
 
-  <section class="slide slide--title" data-title="Your first tool: regular expressions">
+  <section class="slide slide--title" data-title="Regular expressions">
     <div class="slide-inner">
       <p class="slide-eyebrow">We start at the bottom</p>
       <h1>Your first tool: regular expressions</h1>
-      <p class="subtitle">Before anything clever, you need a way to pull facts out of plain
-      text.</p>
+      <p class="subtitle">Before any of the more sophisticated methods, we need a way to extract facts from
+      raw text.</p>
     </div>
   </section>
 
@@ -674,7 +674,7 @@ strong { font-weight: 600; }
     <div class="slide-inner">
       <h2>A regex is a small language for describing shape</h2>
       <ul>
-        <li>You write a pattern; the computer finds every match</li>
+        <li>We write a pattern; the computer finds every match</li>
         <li>The oldest tool in NLP — still one of the most used</li>
         <li>Pulling structured facts out of unstructured text is called
         <strong>information extraction</strong></li>
@@ -686,17 +686,17 @@ strong { font-weight: 600; }
 
   <section class="slide slide--code" data-title="regex, not re">
     <div class="slide-inner">
-      <h2>In this course: <code>regex</code>, not <code>re</code></h2>
+      <h2>In this course we use <code>regex</code>, not <code>re</code></h2>
       <pre><code>pip install regex</code></pre>
-      <p class="aside">Same functions, same patterns as <code>re</code> — you lose nothing.
-      Python's built-in <code>re</code> does not handle Indian scripts correctly. You'll
+      <p class="aside">Same functions and same patterns as <code>re</code>.
+      Python's built-in <code>re</code> does not handle Indian scripts correctly. We
       see why in a minute.</p>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="The pieces you need today">
+  <section class="slide slide--table" data-title="Basic patterns">
     <div class="slide-inner">
-      <h2>The pieces you need today</h2>
+      <h2>Basic patterns</h2>
       <table>
         <tr><th>Pattern</th><th>Means</th></tr>
         <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td></tr>
@@ -713,9 +713,9 @@ strong { font-weight: 600; }
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A real example">
+  <section class="slide slide--code" data-title="An example">
     <div class="slide-inner">
-      <h2>A real example</h2>
+      <h2>An example</h2>
       <pre><code>"Call +91 98765 43210 before 15/03/2026
 or email admin@manipal.edu"</code></pre>
       <p class="aside">Three facts hiding in one line of text.</p>
@@ -787,18 +787,18 @@ admin@manipal.edu</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--statement warn" data-title="The failure is silent">
+  <section class="slide slide--statement warn" data-title="Why this matters for the rest of the course">
     <div class="slide-inner">
-      <p class="lede">Why this matters more than it seems</p>
-      <p>In Unit II you count words to build Bag of Words and TF-IDF.<br><br>If your
-      word counts are doubled before you start, every number after that is wrong — and
+      <p class="lede">Why this matters for the rest of the course</p>
+      <p>In Unit II we count words to build bag of words and TF-IDF.<br><br>If the
+      word counts are doubled before we start, every number after that is wrong — and
       <strong>nothing crashes to tell you.</strong></p>
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Try this: PIN and roll number">
+  <section class="slide slide--recall" data-title="Exercise: PIN and roll number">
     <div class="slide-inner">
-      <h2>Try this before the answer</h2>
+      <h2>Exercise</h2>
       <div class="recall">
         <span class="label">Write a pattern</span>
         <p>A PIN code: exactly six digits.</p>
@@ -856,19 +856,20 @@ admin@manipal.edu</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="What to remember">
+  <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
-      <p class="lede">What to remember</p>
-      <p>Language is ambiguous, and a computer has no instinct for it.<br><br>But when the
-      thing you want has a <strong>shape</strong> — a date, a phone number, an ID number — a
-      regex will find it. Machine learning will not do better.</p>
+      <p class="lede">Summary</p>
+      <p>Language is ambiguous, and a computer has no intuition for resolving it.<br><br>But when
+      the thing we want has a fixed <strong>shape</strong> — a date, a phone number, an
+      identifier — a regular expression will find it, and a trained model is unlikely to do
+      better.</p>
       <footer>Next: capturing groups, alternatives, and the greedy matching trap.</footer>
     </div>
   </section>
 
   <section class="slide slide--refs" data-title="References">
     <div class="slide-inner">
-      <h2>Read this next</h2>
+      <h2>Reading</h2>
       <ul class="ref-list">
         <li>
           <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language

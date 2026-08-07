@@ -566,10 +566,11 @@ figcaption {
 
 
 
-<h2>You already use this every day</h2>
+<h2>What natural language processing is</h2>
 
-<p>Natural Language Processing (NLP) is getting computers to work with human language. You have
-used it several times today without noticing:</p>
+<p><strong>Natural language processing</strong> (NLP) is the study of computational methods for
+working with human language. You have almost certainly used it several times today without
+noticing:</p>
 
 <ul>
   <li>Your phone predicted the next word as you typed.</li>
@@ -579,26 +580,24 @@ used it several times today without noticing:</p>
   <li>You asked a chatbot a question and got a sensible answer back.</li>
 </ul>
 
-<p>Every one of these is in this course. By the end you will have built simplified versions of
-most of them.</p>
+<p>We will cover every one of these. By the end of the course you will have built simplified
+versions of most of them.</p>
 
-<h2>So why is it hard?</h2>
+<h2>Why language is hard for computers</h2>
 
-<p>Computers are good at exact things. Numbers, dates, IDs. Language is not exact. It is full of
-sentences that have more than one correct reading, and you resolve them without noticing.</p>
-
-<p>Read this sentence:</p>
+<p>Computers work well with exact things: numbers, dates, identifiers. Language is not exact. It is
+full of sentences that have more than one correct reading, and readers resolve them without
+noticing. Consider the following sentence:</p>
 
 <pre><code>The old man the boat.</code></pre>
 
-<p>Most people read it, stop, and read it again. It looks broken. It is not. Here
-<strong>man</strong> is a verb — it means "to staff". The sentence says: <em>the old people are
-staffing the boat</em>.</p>
+<p>Most readers stop here and read the sentence a second time, since it appears to be
+ungrammatical. It is not. The word <strong>man</strong> is being used as a verb, meaning "to
+staff", so the sentence says that the old people are staffing the boat.</p>
 
-<p>Your brain assumed "old man" was a noun phrase, then hit "the boat" and had to reverse. A
-computer has the same problem, and no instinct to fall back on.</p>
-
-<p>Another:</p>
+<p>The difficulty is that we initially read "the old man" as a noun phrase, and only on reaching
+"the boat" do we revise that reading. A computer faces the same problem, without the linguistic
+intuition we fall back on. Here is a second example:</p>
 
 <pre><code>I saw a man on a hill with a telescope.</code></pre>
 
@@ -606,17 +605,18 @@ computer has the same problem, and no instinct to fall back on.</p>
 valid English. Nothing in the words tells you which is meant.</p>
 
 <div class="callout">
-  <span class="label">The point</span>
-  <p>Language is <strong>ambiguous</strong>: the same words can mean different things. You
-  resolve ambiguity using knowledge of the world, and you do it so fast you never notice.</p>
-  <p>A computer has no world knowledge. Everything it knows must come from the text itself, or
-  from what we build into it. <mark>Almost every technique in this course is a way of dealing
+  <span class="label">Ambiguity</span>
+  <p>Language is <strong>ambiguous</strong>: the same sequence of words can have more than one
+  meaning. We resolve ambiguity using knowledge of the world, and we do so quickly enough that we
+  rarely notice we are doing it.</p>
+  <p>A computer has no such world knowledge. Everything it knows must come from the text itself,
+  or from what we build into it. <mark>Almost every technique in this course is a way of dealing
   with ambiguity.</mark></p>
 </div>
 
-<h2>Where this course goes</h2>
+<h2>The structure of this course</h2>
 
-<p>Three units, and each one answers a question left open by the one before.</p>
+<p>The course has three units. Each one answers a question left open by the unit before it.</p>
 
 <table>
   <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
@@ -628,41 +628,41 @@ valid English. Nothing in the words tells you which is meant.</p>
       <td>Neural models, up to fine-tuning BERT</td></tr>
 </table>
 
-<p>We start at the bottom. Before anything clever, you need to get facts out of raw text.</p>
+<p>We begin with the first of these. Before any of the more sophisticated methods, we need a way to
+extract facts from raw text.</p>
 
-<h2>Your first tool: regular expressions</h2>
+<h2>Regular expressions</h2>
 
-<p>A <strong>regular expression</strong> (regex) is a small language for describing patterns in
-text. You write a pattern; the computer finds every piece of text that matches it.</p>
+<p>A <strong>regular expression</strong> (regex) is a language for specifying patterns in text. We
+write a pattern, and the computer finds every piece of text that matches it.</p>
 
-<p>It is the oldest tool in NLP and still one of the most used. When you need to pull dates,
-phone numbers, or IDs out of documents, a regex is often the whole answer — no machine learning
-needed.<span class="sidenote">Jurafsky &amp; Martin, <a
+<p>Regular expressions are the oldest tool in NLP and still one of the most widely used. To
+extract dates, phone numbers, or identifiers from documents, a regular expression is often the
+entire solution, with no machine learning required.<span class="sidenote">Jurafsky &amp; Martin, <a
 href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">SLP3 chapter 2</a>, <strong>§2.6</strong>.
 Note the section number — that chapter covers several topics and regex is not the first one.</span></p>
 
 <div class="callout">
-  <span class="label">The name for this job</span>
-  <p>Pulling structured facts — dates, amounts, names, IDs — out of text that was not written to
-  be structured is called <strong>information extraction</strong>. You will see the phrase in the
-  syllabus and in exam questions, so learn it now.</p>
-  <p>Regex is the oldest way to do it, and often still the best one. Sessions 1 and 2 are
-  information extraction with regular expressions, start to finish, and Lab 2 is where you build
-  a real one.</p>
+  <span class="label">Information extraction</span>
+  <p>The task of pulling structured facts — dates, amounts, names, identifiers — out of text that
+  was not written to be structured is called <strong>information extraction</strong>. The term
+  appears in the syllabus and in exam questions.</p>
+  <p>Regular expressions are the oldest method for this task, and often still the best. Sessions 1
+  and 2 cover information extraction with regular expressions, and lab 2 is where you build one.</p>
 </div>
 
 <div class="callout">
-  <span class="label">In this course we use <code>regex</code>, not <code>re</code></span>
-  <p>Python ships with a regex library called <code>re</code>. We will not use it. Install this
-  instead:</p>
+  <span class="label">Using the <code>regex</code> library, not <code>re</code></span>
+  <p>Python includes a regular expression library called <code>re</code>. We will not use it.
+  Install the following instead:</p>
   <pre><code>pip install regex</code></pre>
-  <p>Then <code>import regex</code> and use it exactly as you would <code>re</code> — same
-  functions, same patterns. You lose nothing.</p>
-  <p>Why: <code>re</code> does not handle Indian scripts correctly. You will see this for
-  yourself later in this lesson.</p>
+  <p>You can then <code>import regex</code> and use it exactly as you would use <code>re</code>:
+  the functions and patterns are the same.</p>
+  <p>The reason is that <code>re</code> does not handle Indian scripts correctly. We demonstrate
+  this later in the lesson.</p>
 </div>
 
-<h3>The pieces you need today</h3>
+<h3>Basic patterns</h3>
 
 <table>
   <tr><th>Pattern</th><th>Means</th><th>Example match</th></tr>
@@ -676,7 +676,7 @@ Note the section number — that chapter covers several topics and regex is not 
   <tr><td><code>\s</code></td><td>a space, tab or newline</td><td> </td></tr>
 </table>
 
-<p>Then you say <em>how many times</em>:</p>
+<p>A second set of patterns specifies how many times something may occur:</p>
 
 <table>
   <tr><th>Pattern</th><th>Means</th></tr>
@@ -687,45 +687,47 @@ Note the section number — that chapter covers several topics and regex is not 
   <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
 </table>
 
-<h3>A real example</h3>
+<h3>An example: extracting three facts from a line of text</h3>
 
-<p>Say you have this line of text and you want the facts out of it:</p>
+<p>Suppose we have the following line of text and want to extract the facts it contains:</p>
 
 <pre><code>"Call +91 98765 43210 before 15/03/2026 or email admin@manipal.edu"</code></pre>
 
-<p>Three patterns, three facts:</p>
+<p>Three patterns extract the three facts:</p>
 
 <pre><code>date   \d{2}/\d{2}/\d{4}        →  15/03/2026
 phone  \+91 \d{5} \d{5}         →  +91 98765 43210
 email  [\w.]+@[\w.]+            →  admin@manipal.edu</code></pre>
 
-<p>Read the date pattern out loud: "two digits, a slash, two digits, a slash, four digits." That
-is all a regex is — a description of shape.</p>
+<p>The date pattern can be read aloud as "two digits, a slash, two digits, a slash, four digits."
+A regular expression is a description of shape, and nothing more.</p>
 
-<p>Notice <code>\+</code> in the phone pattern. <code>+</code> normally means "one or more", so
-to match a literal plus sign you put a backslash in front. This is called
-<strong>escaping</strong>, and forgetting it is the most common regex bug there is.</p>
+<p>Note the <code>\+</code> in the phone pattern. Since <code>+</code> normally means "one or
+more", matching a literal plus sign requires a backslash in front of it. This is called
+<strong>escaping</strong>, and omitting it is among the most common errors in writing regular
+expressions.</p>
 
-<p>The email pattern is <strong>deliberately loose</strong>. <code>[\w.]+@[\w.]+</code> also
-accepts <code>..@..</code> and <code>admin@manipal</code> with no <code>.edu</code> on the end.
-It is good enough for this one line of text, and no more. Matching email addresses exactly is
-famously hard — the pattern that really does it is hundreds of characters long. Loose on purpose
-is fine, as long as you know it is loose.</p>
+<p>The email pattern is deliberately loose. <code>[\w.]+@[\w.]+</code> will also accept
+<code>..@..</code> and <code>admin@manipal</code> with no <code>.edu</code> at the end. It is
+adequate for this one line of text and no more. Matching email addresses exactly is difficult;
+a pattern that does so correctly runs to hundreds of characters. A loose pattern is acceptable
+provided we know that it is loose.</p>
 
-<h3>Why not <code>re</code>? Try it on Kannada</h3>
+<h3>Why <code>re</code> fails on Kannada</h3>
 
-<p>Here is the reason for that install. Take one word — <strong>ಕನ್ನಡ</strong>, the word
-"Kannada" — and ask each library to find the words in it.</p>
+<p>We can now show why we install <code>regex</code>. Consider the Kannada word
+<strong>ಕನ್ನಡ</strong>, meaning "Kannada", and ask each library to find the words in a short
+phrase containing it.</p>
 
 <pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"        # "Kannada language" — two words
 
 re.findall(r"\w+", text)      # ['ಕನ', 'ನಡ', 'ಭ', 'ಷ']     ← four!
 regex.findall(r"\w+", text)   # ['ಕನ್ನಡ', 'ಭಾಷೆ']            ← two</code></pre>
 
-<p><code>re</code> found <strong>four</strong> words where there are two. It broke both words in
-half.</p>
+<p><code>re</code> reports four words where there are two, having split both words in half.</p>
 
-<p>Why? Look inside <code>ಕನ್ನಡ</code>. It is five characters, and one of them is special:</p>
+<p>To see why, we look inside <code>ಕನ್ನಡ</code>. It consists of five characters, one of which
+behaves differently from the rest:</p>
 
 <pre><code>ಕ   U+0C95   KANNADA LETTER KA        a letter
 ನ   U+0CA8   KANNADA LETTER NA        a letter
@@ -733,24 +735,24 @@ half.</p>
 ನ   U+0CA8   KANNADA LETTER NA        a letter
 ಡ   U+0CA1   KANNADA LETTER DDA       a letter</code></pre>
 
-<p>The <strong>virama</strong> joins two consonants together. It is a mark, not a letter. And
-<code>re</code>'s definition of <code>\w</code> — "a word character" — accepts letters and digits
-but <strong>rejects combining marks</strong>. So when <code>re</code> reaches the virama it
-decides the word has ended.</p>
+<p>The <strong>virama</strong> joins two consonants together. It is a combining mark rather than a
+letter, and <code>re</code>'s definition of <code>\w</code>, "a word character", accepts letters
+and digits but rejects combining marks. When <code>re</code> reaches the virama it therefore
+concludes that the word has ended.</p>
 
-<p>Every Indian script uses combining marks. So does Arabic, Hebrew, Thai. <code>re</code>'s
-idea of "a word" was built around English, and it quietly falls apart everywhere else.</p>
+<p>Every Indian script uses combining marks, as do Arabic, Hebrew, and Thai. The notion of "a
+word" built into <code>re</code> was designed around English, and it fails for these scripts.</p>
 
 <div class="callout warn">
-  <span class="label">Why this matters more than it looks</span>
-  <p>This is not a cosmetic bug. In Unit II you will count words to build Bag of Words, TF-IDF
-  and n-grams. <mark>If your word counts are doubled before you start, every number after that
-  is wrong</mark> — and nothing will crash to tell you.</p>
-  <p>The failure is silent. That is the worst kind.</p>
+  <span class="label">Why this matters for the rest of the course</span>
+  <p>This is not a cosmetic problem. In Unit II we count words in order to build bag of words,
+  TF-IDF, and n-gram models. <mark>If the word counts are doubled before we begin, every number
+  computed from them is wrong</mark>, and nothing will raise an error. The problem becomes
+  apparent only when a result looks implausible, if it becomes apparent at all.</p>
 </div>
 
 <div class="recall">
-  <span class="label">Try this before reading on</span>
+  <span class="label">Exercise</span>
   <p>Write a pattern that matches a PIN code: exactly six digits.</p>
   <p>Then a harder one: a roll number like <code>MSIS2026001</code> — four letters, then seven
   digits.</p>
@@ -758,12 +760,11 @@ idea of "a word" was built around English, and it quietly falls apart everywhere
   <div class="answer">
     <p>PIN code: <code>\d{6}</code></p>
     <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
-    <p>If you wrote <code>\w{4}\d{7}</code> for the second one — close, but not tight enough.
-    <code>\w</code> matches letters <em>and</em> digits <em>and</em> underscore, so that pattern
-    also accepts <code>12345678901</code> and <code>msis2026001</code>. Neither is a roll
-    number.</p>
-    <p>Being exact about what you allow is most of the skill. A pattern that is too loose
-    quietly lets rubbish through, and you will not notice until the data is wrong.</p>
+    <p><code>\w{4}\d{7}</code> is close, but not precise enough. <code>\w</code> matches letters,
+    digits, and the underscore, so that pattern also accepts <code>12345678901</code> and
+    <code>msis2026001</code>, neither of which is a roll number.</p>
+    <p>Being precise about what a pattern allows is most of the skill. A loose pattern accepts bad
+    data without raising an error, and the problem is not noticed until the results are wrong.</p>
   </div>
 </div>
 
@@ -778,13 +779,13 @@ idea of "a word" was built around English, and it quietly falls apart everywhere
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>any single character that is not a vowel</strong>.</p>
-    <p>The trap is <code>^</code>. It has <strong>two different meanings</strong> depending on
-    where it sits:</p>
-    <p>Inside square brackets, at the start: it means <em>not</em>. So <code>[^aeiou]</code> is
-    "anything except a vowel".</p>
-    <p>Outside brackets: it means <em>start of line</em>. So <code>^The</code> matches "The"
-    only at the beginning.</p>
-    <p>Same symbol, two jobs. Expect to get this wrong once, then never again.</p>
+    <p>The difficulty is that <code>^</code> has two different meanings depending on where it
+    appears.</p>
+    <p>Inside square brackets, in first position, it means <em>not</em>, so <code>[^aeiou]</code>
+    matches anything except a vowel.</p>
+    <p>Outside brackets it means <em>start of line</em>, so <code>^The</code> matches "The" only
+    at the beginning of a line.</p>
+    <p>The same symbol thus serves two purposes, and this is a common source of confusion.</p>
   </div>
 </div>
 
@@ -799,30 +800,30 @@ idea of "a word" was built around English, and it quietly falls apart everywhere
   </div>
   <div class="q-fb">
     <p>Correct answer: <code>colou?r</code>.</p>
-    <p>The <code>?</code> applies to the character just before it — <code>u</code> — and means
-    "zero or one of these". So the <code>u</code> becomes optional. That is exactly the
-    difference between the two spellings.</p>
-    <p>Why the others fail: <code>colo*r</code> makes the <strong>o</strong> optional, so it
-    matches <code>colr</code> and <code>colooor</code> but never <code>colour</code>.
-    <code>colo+r</code> has the same problem. <code>colo.r</code> needs exactly one character
-    there, so it matches <code>colour</code> and <code>coloXr</code>, but not
-    <code>color</code>.</p>
-    <p>The lesson: a quantifier attaches to the <em>one thing</em> immediately before it.</p>
+    <p>The <code>?</code> applies to the character immediately before it, <code>u</code>, and
+    means "zero or one of these". The <code>u</code> therefore becomes optional, which is exactly
+    the difference between the two spellings.</p>
+    <p>The other patterns fail for the following reasons. <code>colo*r</code> makes the
+    <strong>o</strong> optional, so it matches <code>colr</code> and <code>colooor</code> but
+    never <code>colour</code>; <code>colo+r</code> has the same problem. <code>colo.r</code>
+    requires exactly one character in that position, so it matches <code>colour</code> and
+    <code>coloXr</code>, but not <code>color</code>.</p>
+    <p>In general, a quantifier attaches to the single element immediately before it.</p>
   </div>
 </div>
 
-<h2>What to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The one thing</span>
-  <p>Language is ambiguous, and computers have no instinct for it. Everything in this course is
-  a way of handling that.</p>
-  <p>But not every problem needs a clever model. When the thing you want has a
-  <strong>shape</strong> — a date, a phone number, an ID — a regex will find it, and no amount
-  of machine learning will beat it.</p>
+  <span class="label">The main points</span>
+  <p>Language is ambiguous, and computers have no intuition for resolving that ambiguity. The
+  methods in this course are all, in one way or another, ways of handling it.</p>
+  <p>Not every problem requires a learned model, however. When the item we want has a fixed
+  <strong>shape</strong> — a date, a phone number, an identifier — a regular expression will find
+  it, and a trained model is unlikely to do better.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>Read <strong>§2.6, "Regular Expressions"</strong> in <a
 href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter 2 of <em>Speech and Language
@@ -831,8 +832,8 @@ Processing</em></a> by Jurafsky and Martin. It is free.</p>
 <p><strong>Read §2.6 only this week.</strong> That chapter covers other topics as well, and some
 of them come later in this course. You are not missing anything by skipping them for now.</p>
 
-<p>Next session we finish regex: groups, alternatives, and the greedy matching trap. Then in
-session 3 we start on tokenization.</p>
+<p>Session 2 completes our treatment of regular expressions, covering groups, alternation, and
+greedy matching. Session 3 then introduces tokenization.</p>
 
 
 

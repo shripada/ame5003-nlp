@@ -567,13 +567,13 @@ figcaption {
 
 
 
-<h2>The thing we have been using without naming</h2>
+<h2>Bag of words</h2>
 
 <p>Last session we classified a film review, and to do it we threw away the word order and kept a
 count for each word. We never gave that a name. It has one:</p>
 
 <div class="callout">
-  <span class="label">Bag of words</span>
+  <span class="label">Definition</span>
   <p>Represent a document by <strong>which words it contains and how often</strong>, discarding
   the order entirely. A bag, not a list — you can see what is in it, but not what came first.</p>
 </div>
@@ -589,7 +589,7 @@ recover a distinction that was destroyed here. We accept it anyway, for the reas
 word identity carries most of the signal, word order costs far more to model than it repays. But
 know what you traded.</p>
 
-<h2>You have already built this</h2>
+<h2>Where this has already appeared</h2>
 
 <p>In session 8 we made a table for Boolean search: one row per term, one column per document, a
 1 where the term appears and a 0 where it does not. The <strong>term-document incidence
@@ -613,7 +613,7 @@ August 2026. Note these are four <em>different</em> plays from session 8's six �
 <em>this play is substantially about fools</em>. We have gone from <strong>contains</strong> to
 <strong>how much about</strong>.</p>
 
-<h2>The move: a column is a vector</h2>
+<h2>Columns as vectors</h2>
 
 <p>Session 8 read this table in <strong>rows</strong> — each row a string of bits saying which
 plays contain a word, which is what Boolean queries need.</p>
@@ -629,7 +629,7 @@ length four is a <strong>point in four-dimensional space</strong> — one axis p
 document's position along each axis is how often it uses that word.</p>
 
 <div class="callout">
-  <span class="label">This is the whole idea of the hour</span>
+  <span class="label">The central idea</span>
   <p>Every document becomes a <strong>point in a space with one dimension per vocabulary
   word</strong>. The collection becomes a cloud of points.</p>
   <p>And once documents are points, <mark>documents that are close together use words in similar
@@ -643,7 +643,7 @@ document's position along each axis is how often it uses that word.</p>
 Useful, and limited. The vector space model answers a different kind: <em>which of these documents
 resemble each other?</em> Nothing in Unit I could do that.</p>
 
-<h3>Seeing it</h3>
+<h3>Plotting two of the dimensions</h3>
 
 <p>Four dimensions cannot be drawn, so take two of them — <code>battle</code> and <code>fool</code>
 — and plot the four plays on those axes alone:</p>
@@ -711,7 +711,7 @@ anyone — it fell out of counting two words.</p>
 the closeness is still there, and it can still be measured. <strong>How</strong> to measure it is
 session 19.</p>
 
-<h3>The rows are vectors too</h3>
+<h3>Rows as vectors</h3>
 
 <p>We turned the columns into document vectors. The rows work the same way: <code>fool</code> is
 <code>[36, 58, 1, 4]</code> — a word represented by the documents it appears in.</p>
@@ -720,7 +720,7 @@ session 19.</p>
 have positions, and words with similar positions are used in similar contexts — which is most of
 the way to what a word <em>means</em>. That is where sessions 21 and 22 go, and it starts here.</p>
 
-<h2>The price: almost everything is zero</h2>
+<h2>Sparsity</h2>
 
 <p>Our table had four words. A real vocabulary has 50,000, so every document vector has 50,000
 numbers in it — and a 200-word review can be non-zero in at most 200 of them. Over 99% of every
@@ -735,7 +735,7 @@ the inverted index is how we <em>store</em> them. Same information, and the stor
 solved before we needed it.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
+  <span class="label">Exercise</span>
   <p>Look at the table again. <code>good</code> has the largest counts by far — 114, 80, 62, 89 —
   in every single play. If you had to drop one of the four words from the representation, which
   should go, and why?</p>
@@ -788,10 +788,10 @@ solved before we needed it.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
+  <span class="label">The main points</span>
   <p>Bag of words represents a document by its word counts with the order thrown away, which turns
   each document into a vector — a point in a space with one dimension per vocabulary word. Once
   documents are points, documents that sit close together use words in similar proportions and are
@@ -807,7 +807,7 @@ being common, when what we actually want is words that are <em>distinctive</em>.
 it inside the vector instead of inside a score, and re-weights this exact table. What comes out is
 not what you would guess from the plot above.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
 Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>§11.1</strong>

@@ -567,12 +567,12 @@ figcaption {
 
 
 
-<h2>The sentence from last session</h2>
+<h2>Where session 20 left off</h2>
 
 <p>Here is what was on the board at the end of session 20:</p>
 
 <div class="callout">
-  <span class="label">Session 21, first ten minutes — as promised</span>
+  <span class="label">The sentence promised in session 20</span>
   <p><strong>"CBOW averages the context word vectors, multiplies by an output matrix, applies
   softmax, and does gradient descent on the cross-entropy loss."</strong></p>
 </div>
@@ -581,13 +581,13 @@ figcaption {
 be. Today we build the model it describes, and then we find out that the prediction it makes is
 something we throw away.</p>
 
-<h2>The premise: meaning from company</h2>
+<h2>The distributional hypothesis</h2>
 
 <p>The idea underneath all of this is older than any of the machinery, and it is one line — J. R.
 Firth, 1957:</p>
 
 <div class="callout">
-  <span class="label">The distributional hypothesis</span>
+  <span class="label">Definition</span>
   <p><mark>"You shall know a word by the company it keeps."</mark></p>
   <p>Words that turn up in similar contexts tend to mean similar things. That is the whole premise,
   and every embedding method in this course rests on it.</p>
@@ -620,14 +620,14 @@ the two representations behave.</p>
 <p>So the premise already works. What Word2Vec changes is the verb:</p>
 
 <div class="callout">
-  <span class="label">The move this session makes</span>
+  <span class="label">What this session adds</span>
   <p>Every method in Unit II so far has <strong>counted</strong> the company a word keeps —
   bag-of-words, TF-IDF, that table above. Word2Vec <strong>predicts</strong> it instead.</p>
   <p><mark>Stop counting the context. Start predicting it, and keep what the model had to learn in
   order to predict well.</mark></p>
 </div>
 
-<h2>The task is a pretext</h2>
+<h2>The prediction task is a pretext</h2>
 
 <p>Here is the task Word2Vec trains on. Take a sentence, delete a word, and ask the model to guess
 what was deleted:</p>
@@ -643,7 +643,7 @@ words appearing in similar company end up with similar numbers — because that 
 in the data that helps. The prediction is a pretext. <mark>The weights are the product.</mark></p>
 
 <div class="callout">
-  <span class="label">And it needs no labelled data at all</span>
+  <span class="label">No labelled data is required</span>
   <p>Session 16 trained a sentiment classifier and needed 2,000 reviews that somebody had read and
   tagged as positive or negative. That labelling is the expensive part of supervised learning, and
   it is why good labelled datasets are rare.</p>
@@ -657,7 +657,7 @@ in the data that helps. The prediction is a pretext. <mark>The weights are the p
   everything.</p>
 </div>
 
-<h2>CBOW: context predicts the centre</h2>
+<h2>CBOW</h2>
 
 <p><strong>CBOW</strong> stands for <em>Continuous Bag of Words</em>, and it is the sentence from
 last session, made concrete. Take our example with a window of <strong>±2</strong> — two words each
@@ -695,7 +695,7 @@ p   probabilities       10000           = softmax(z)</code></pre>
 </ol>
 
 <div class="callout">
-  <span class="label">Which weights get nudged</span>
+  <span class="label">Which weights are updated</span>
   <p><strong>All of them — including the four rows of <code>E</code> we just looked up.</strong>
   Those rows are weights, exactly as session 20 flagged, so gradient descent adjusts them like
   anything else.</p>
@@ -705,7 +705,7 @@ p   probabilities       10000           = softmax(z)</code></pre>
   means.</mark></p>
 </div>
 
-<h2>Skip-gram: the same thing, backwards</h2>
+<h2>Skip-gram</h2>
 
 <p><strong>Skip-gram</strong> reverses the arrows. One centre word goes in, and the model predicts
 the words around it — each context word as its own separate prediction:</p>
@@ -795,7 +795,7 @@ the words around it — each context word as its own separate prediction:</p>
 actually use.</p>
 
 <div class="callout">
-  <span class="label">Which one to reach for</span>
+  <span class="label">Choosing between CBOW and skip-gram</span>
   <p><strong>Skip-gram, usually.</strong> It squeezes four training examples out of the window where
   CBOW gets one, so the same corpus teaches it more — and that extra signal matters most for
   <em>rare</em> words, which appear too seldom for CBOW to learn much about them.</p>
@@ -806,7 +806,7 @@ actually use.</p>
   blind, choose Skip-gram.</p>
 </div>
 
-<h2>A detail that trips everybody: each word has two vectors</h2>
+<h2>Each word has two vectors</h2>
 
 <p>Look back at the shape block. <code>E</code> has one row per vocabulary word, and so does
 <code>W'</code>. Those are two different sets of numbers for the same word, and both are being
@@ -820,7 +820,7 @@ word w's OUTPUT vector   u_w  =  row w of W'     used when w is the thing being 
 the model keeps separate numbers for each.</p>
 
 <div class="callout">
-  <span class="label">Session 20 promised you this</span>
+  <span class="label">As promised in session 20</span>
   <p>Last session's second quiz said: when training stops, <em>"you throw away the rest of the
   network and keep that matrix"</em>. This is the rest of the network. <mark><code>W'</code> is
   discarded.</mark></p>
@@ -829,7 +829,7 @@ the model keeps separate numbers for each.</p>
   Some implementations offer to average the two together instead; hardly anybody does.</p>
 </div>
 
-<h2>The arithmetic that breaks it</h2>
+<h2>The cost of the softmax</h2>
 
 <p>Everything above is correct and none of it can be run. The problem is the softmax denominator.</p>
 
@@ -852,7 +852,7 @@ paper trained on 100 billion words.</p>
 <p>And note where the cost is. It is not in the answer, it is in the normalising. We want to know
 about <em>one</em> word, and softmax makes us score a million to find out.</p>
 
-<h2>Negative sampling: change the question</h2>
+<h2>Negative sampling</h2>
 
 <p>The fix is not a faster softmax. It is a different question.</p>
 
@@ -879,7 +879,7 @@ paper says as much.</span> Typical <code>k</code> is 5 to 20 for a small corpus,
 one.</p>
 
 <div class="callout warn">
-  <span class="label">⚠️ This is session 20's sigmoid, arriving exactly where it was promised</span>
+  <span class="label">The sigmoid from session 20</span>
   <p>Session 20 showed the sigmoid and then said, in a warn box, that it would appear here — and
   that it would <strong>not</strong> be a hidden activation. Here it is: <mark>one dot product
   turned into one probability</mark>. Word2Vec still has no hidden non-linearity anywhere. It is a
@@ -898,7 +898,7 @@ one.</p>
 or better. That is why Word2Vec was a moment rather than a paper.</p>
 
 <div class="recall">
-  <span class="label">Work this out before reading on</span>
+  <span class="label">Exercise</span>
   <p>Here is a sentence and a window of <strong>±2</strong>:</p>
   <pre><code>the  cat  sat  on  the  mat</code></pre>
   <p>Take <code>on</code> as the target. What exactly is the input to CBOW, and what is the target?
@@ -970,7 +970,7 @@ or better. That is why Word2Vec was a moment rather than a paper.</p>
   </div>
 </div>
 
-<h2>Do the vectors actually work?</h2>
+<h2>Evaluating the vectors</h2>
 
 <p>Everything below was computed from <strong>the real thing</strong> — the vectors Mikolov's team
 released in 2013, trained on about 100 billion words of Google News, 300 numbers per word. We loaded
@@ -997,7 +997,7 @@ word.<span class="sidenote"><code>battle</code>, <code>good</code>, <code>fool</
 <code>wit</code> are the four words we counted across four Shakespeare plays in sessions 17 to 19.
 Back then each was one column of a matrix. Here each is 300 learned numbers.</span></p>
 
-<h3>But look at what <code>good</code> pulls in</h3>
+<h3>The nearest neighbours of <code>good</code></h3>
 
 <pre><code>good   →   great 0.729,  bad 0.719,  terrific 0.689,  decent 0.684,  nice 0.684</code></pre>
 
@@ -1013,7 +1013,7 @@ it is not rare:</p>
 </table>
 
 <div class="callout">
-  <span class="label">The distributional hypothesis being honest about itself</span>
+  <span class="label">A limitation of the distributional hypothesis</span>
   <p>Ask why and the answer is uncomfortable but obvious. <em>"The film was good"</em> and
   <em>"the film was bad"</em> are the same sentence. Antonyms appear in nearly
   <strong>identical company</strong> — that is what makes them antonyms rather than unrelated words.
@@ -1024,7 +1024,7 @@ it is not rare:</p>
   measure rather than take our word for.</p>
 </div>
 
-<h2>The famous one: <code>king − man + woman</code></h2>
+<h2>The <code>king − man + woman</code> analogy</h2>
 
 <p>You have probably met this result. Word vectors support a kind of arithmetic: take
 <code>king</code>, subtract <code>man</code>, add <code>woman</code>, and the vector you land on is
@@ -1061,7 +1061,7 @@ makes sense the moment you look at the arithmetic rather than the story: we star
 started. <code>queen</code> is the nearest word that <em>is not one of the words we put in</em>.</p>
 
 <div class="callout warn">
-  <span class="label">⚠️ Both halves of this need saying</span>
+  <span class="label">What the analogy does and does not show</span>
   <p><strong>The result is real.</strong> Out of 300,000 words, the second-place finisher is
   <code>queen</code> and the next three are <code>monarch</code>, <code>princess</code> and
   <code>crown_prince</code>. That neighbourhood did not have to come out right and nobody arranged
@@ -1123,7 +1123,7 @@ comes remotely near −1. Searching all 300,000 words for the vector <em>most op
 <code>good</code> turns up −0.185, and for <code>king</code>, −0.202.</p>
 
 <div class="callout">
-  <span class="label">What is actually true</span>
+  <span class="label">The correct statement</span>
   <p>Trained embeddings do not spread over the whole sphere. They sit in a fairly narrow cone, and
   almost every pair of words is <em>slightly</em> positively aligned. <mark>The formula's range is
   −1 to 1; the data's range is roughly −0.3 to 1.</mark></p>
@@ -1158,7 +1158,7 @@ Same with <code>bat</code>, whose neighbours are <code>batsman</code>, <code>bat
 <p><mark>One word, one vector, no matter how many things the word means.</mark> Fixing that is what
 contextual embeddings do, and that is Unit III.</p>
 
-<h2>Where this leaves us</h2>
+<h2>Where Unit II stands</h2>
 
 <p>We have dense vectors, learned rather than counted, that put similar words near each other well
 enough to be genuinely useful — and that confuse antonyms, know nothing after 2013, and give
@@ -1169,7 +1169,7 @@ enough to be genuinely useful — and that confuse antonyms, know nothing after 
 whether these vectors beat that.</p>
 
 <div class="callout">
-  <span class="label">The honest answer, for now</span>
+  <span class="label">The current answer</span>
   <p><strong>We do not know, and it is not obvious.</strong> Lab 8 measures it.</p>
   <p>There is a real reason for doubt, and you have already seen it: <code>good</code> and
   <code>bad</code> have a cosine of 0.719. Average the word vectors of a review and the positive and
@@ -1179,10 +1179,10 @@ whether these vectors beat that.</p>
   <p>Do not let anyone tell you the answer before lab 8 does.</p>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in four sentences</span>
+  <span class="label">The main points</span>
   <p>Word2Vec sets up a task nobody wants solved — guess the missing word from its neighbours — and
   keeps the weights the model needed in order to do it, which means it trains on raw text with no
   labelling at all. CBOW averages the context vectors and predicts the centre word; Skip-gram
@@ -1195,7 +1195,7 @@ whether these vectors beat that.</p>
   <code>good</code>.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary sources are the two 2013 papers by <strong>Tomáš Mikolov</strong> and colleagues:
 <a href="https://arxiv.org/abs/1301.3781"><em>Efficient Estimation of Word Representations in Vector

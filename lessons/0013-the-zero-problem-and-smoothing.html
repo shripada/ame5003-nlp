@@ -566,49 +566,53 @@ figcaption {
 
 
 
-<h2>Where we stopped</h2>
+<h2>Where session 12 left off</h2>
 
-<p>Last session ended on a broken model. Our four-sentence corpus, scoring an ordinary sentence:</p>
+<p>Session 12 ended with a model that fails. Applied to an ordinary sentence, our four-sentence
+corpus gives:</p>
 
 <pre><code>P(I want to eat Indian pizza)  =  0</code></pre>
 
-<p>Not unlikely. Zero. One pair the corpus never happened to contain drove the whole product to
-nothing.</p>
+<p>The result is not a small probability but zero. A single pair that the corpus did not happen to
+contain reduced the whole product to nothing.</p>
 
-<p>And this is not a toy-corpus problem that goes away with more data. It gets <em>worse</em>. A
-vocabulary of 50,000 words has 2.5 billion possible bigrams, and no corpus contains more than a
-small fraction of them. So most sentences you will ever test contain at least one unseen pair, and a
-model that calls most valid sentences impossible is worthless.</p>
+<p>This is not an artefact of a small corpus that disappears with more data; it becomes more severe.
+A vocabulary of 50,000 words admits 2.5 billion possible bigrams, and no corpus contains more than a
+small fraction of them. Most test sentences therefore contain at least one unseen pair, and a model
+that assigns zero probability to most valid sentences is of no use.</p>
 
-<p>The cure is called <strong>smoothing</strong>: shave a little probability off the things we did
-see, and share it out among the things we did not.</p>
+<p>The remedy is <strong>smoothing</strong>: removing a small amount of probability from the events
+we observed and distributing it among those we did not.</p>
 
 <div class="callout">
-  <span class="label">Why it is called smoothing</span>
-  <p>Picture the probabilities as a bar chart over next words: a few tall bars for the words we saw,
-  and a flat row of zeros for everything else. Smoothing pushes the tall bars down slightly and
-  lifts the zeros just off the floor. The jagged shape becomes smoother — hence the name.</p>
-  <p>The total must still add up to 1. So every bit of probability given to an unseen word has to be
-  taken from a seen one. There is no free probability.</p>
+  <span class="label">The term "smoothing"</span>
+  <p>Consider the probabilities as a bar chart over possible next words: a few tall bars for the
+  words observed, and a flat row of zeros for the rest. Smoothing lowers the tall bars slightly and
+  raises the zeros above the floor, making the distribution less jagged. This is the origin of the
+  term.</p>
+  <p>The total must still sum to 1, so every unit of probability given to an unseen word must be
+  taken from a seen one. No probability is created.</p>
 </div>
 
 <h2>Add-one smoothing</h2>
 
-<p>The simplest possible fix, and the one to understand first: <strong>pretend you saw everything
-one more time than you did</strong>. Also called Laplace smoothing.</p>
+<p>The simplest approach, and the one to understand first, is to add one to every count, as
+though every possible event had been observed once more than it actually was. This is also called
+Laplace smoothing.</p>
 
 <pre><code>MLE       P(w₂ | w₁)  =   count(w₁ w₂)      /  count(w₁)
 
 add-one   P(w₂ | w₁)  =  (count(w₁ w₂) + 1) / (count(w₁) + V)</code></pre>
 
-<p>The <code>+1</code> on top is the whole idea — no count is zero any more, because everything got
-one free sighting. The denominator has to grow too, or the numbers stop adding to 1. It grows by
-<strong>V</strong>, the vocabulary size, because we added 1 to each of V possible next words.</p>
+<p>The <code>+1</code> in the numerator is the whole idea: no count is zero any more, because
+every event has received one additional observation. The denominator must also grow, or the
+probabilities will no longer sum to 1. It grows by <strong>V</strong>, the vocabulary size, because
+1 was added to each of V possible next words.</p>
 
 <p>In our corpus there are <strong>10</strong> tokens a model might predict — the nine words
 (<code>I</code>, <code>want</code>, <code>to</code>, <code>eat</code>, <code>Indian</code>,
 <code>Chinese</code>, <code>food</code>, <code>she</code>, <code>wants</code>) plus
-<code>&lt;/s&gt;</code>. So V = 10. Take the context <code>eat</code>, which occurs 3 times: the
+<code>&lt;/s&gt;</code>. Hence V = 10. For the context <code>eat</code>, which occurs 3 times, the
 denominator becomes 3 + 10 = 13.</p>
 
 <table>
@@ -619,18 +623,18 @@ denominator becomes 3 + 10 = 13.</p>
   <tr><td>each other word</td>      <td>0</td><td>0 — impossible</td><td>1/13 = 0.077</td></tr>
 </table>
 
-<p>It works. Nothing is zero, so no single unseen pair can wipe out a sentence. And the ordering
-survives — <code>Indian</code> still beats <code>Chinese</code>, which still beats the unseen
-words.</p>
+<p>The method works. No probability is zero, so no single unseen pair can eliminate a sentence,
+and the ordering is preserved: <code>Indian</code> still ranks above <code>Chinese</code>, which
+still ranks above the unseen words.</p>
 
-<h3>But look at what it cost</h3>
+<h3>The cost of add-one smoothing</h3>
 
-<p><code>P(Indian | eat)</code> fell from 0.667 to 0.231. Two-thirds of the evidence we actually
-collected was given away to words that never once followed <code>eat</code>. That is a lot of
-probability to move on no evidence at all.</p>
+<p><code>P(Indian | eat)</code> has fallen from 0.667 to 0.231. Two-thirds of the evidence
+actually collected has been transferred to words that never followed <code>eat</code> at all, on no
+evidence whatsoever.</p>
 
-<p>And with a realistic vocabulary it stops being "a lot" and becomes absurd. Here is
-<code>P(food | Indian)</code> — a pair seen 3 times out of 3 — as V grows:</p>
+<p>With a realistic vocabulary the effect becomes much larger. The following shows
+<code>P(food | Indian)</code>, a pair observed in 3 of 3 opportunities, as V increases:</p>
 
 <table>
   <tr><th>vocabulary size V</th><th>add-one estimate</th></tr>
@@ -640,35 +644,35 @@ probability to move on no evidence at all.</p>
 </table>
 
 <div class="callout warn">
-  <span class="label">Add-one is a teaching tool, not a working method</span>
-  <p>At a realistic vocabulary size, add-one takes a bigram we observed every single time and rates
-  it at eight-thousandths of a percent. The 50,000 words that <em>never</em> followed
-  <code>Indian</code> collectively soak up almost all the probability.</p>
-  <p><mark>The flaw is that add-one treats every unseen word as equally likely.</mark> It has no way
-  to know that <code>curry</code> is a plausible thing to follow <code>Indian</code> and
-  <code>the</code> is not. It gives them the same weight, and there are so many implausible words
-  that they drown out the evidence.</p>
-  <p>So add-one is genuinely used — but for problems with small vocabularies, like the Naïve Bayes
-  classifier in session 16. For language models it is the method that shows what a real method has
-  to do better.</p>
+  <span class="label">Add-one in practice</span>
+  <p>At a realistic vocabulary size, add-one assigns a bigram observed on every opportunity a
+  probability of eight thousandths of one per cent. The 50,000 words that never followed
+  <code>Indian</code> collectively absorb almost all the probability mass.</p>
+  <p><mark>The defect is that add-one treats every unseen word as equally likely.</mark> It has no
+  means of knowing that <code>curry</code> is a plausible continuation of <code>Indian</code> and
+  <code>the</code> is not, so it assigns them the same weight. There are so many implausible words
+  that they overwhelm the evidence.</p>
+  <p>Add-one is used in practice, but for problems with small vocabularies, such as the Naïve Bayes
+  classifier in session 16. For language models it serves mainly to establish what an adequate
+  method must do better.</p>
 </div>
 
-<h2>The better idea: ask a shorter question</h2>
+<h2>Using shorter n-grams</h2>
 
-<p>Add-one's mistake is falling back on <em>nothing</em> — a flat guess spread evenly. But we are
-never actually out of information. If we have never seen <code>she wants Indian</code>, we may still
-have seen <code>wants Indian</code>. And if not that, we certainly know how common
-<code>Indian</code> is on its own.</p>
+<p>The error in add-one is that it falls back on no information at all, distributing a flat
+estimate evenly. In fact we are never entirely without information. If we have not observed
+<code>she wants Indian</code>, we may still have observed <code>wants Indian</code>; and failing
+that, we know how frequent <code>Indian</code> is on its own.</p>
 
-<p>So when the evidence runs out, do not guess flat — <strong>ask the same question with less
-context</strong>. Two ways to do this.</p>
+<p>When the evidence for the full context is exhausted, therefore, we should ask the same question
+with less context rather than guessing uniformly. There are two ways to do this.</p>
 
-<h3>Backoff: use the shorter n-gram only when you must</h3>
+<h3>Backoff</h3>
 
-<p><strong>Backoff</strong> tries the longest n-gram first. If its count is zero, it drops to the
-next shorter one, and keeps dropping until it finds something it has seen.</p>
+<p><strong>Backoff</strong> uses the longest n-gram first. If its count is zero, it falls back to
+the next shorter one, continuing until it reaches an n-gram that has been observed.</p>
 
-<p>Take <code>P(Indian | she wants)</code> in our corpus:</p>
+<p>Consider <code>P(Indian | she wants)</code> in our corpus:</p>
 
 <table>
   <tr><th>try</th><th>counts</th><th>result</th></tr>
@@ -677,18 +681,19 @@ next shorter one, and keeps dropping until it finds something it has seen.</p>
   <tr><td>unigram — <code>Indian</code></td><td>3 / 26</td><td><strong>0.115</strong> — use this</td></tr>
 </table>
 
-<p>We never saw that phrase, but <code>Indian</code> is a reasonably common word here, so the answer
-is a reasonable non-zero number. Compare that with add-one, which would have handed
-<code>Indian</code> the same value as a word that appears once.</p>
+<p>The phrase was never observed, but <code>Indian</code> is reasonably frequent in this corpus,
+so the result is a sensible non-zero value. Add-one, by contrast, would have assigned
+<code>Indian</code> the same probability as a word occurring once.</p>
 
-<p>One catch: the shorter n-gram's probabilities already add to 1 on their own, so borrowing them
-raw would push the total above 1. Real backoff scales the borrowed values down by a discount factor
-to keep the books balanced. The idea is what matters here; the bookkeeping is in the reading.</p>
+<p>There is one complication. The shorter n-gram's probabilities already sum to 1 on their own, so
+using them directly would push the total above 1. Backoff as actually implemented scales the
+borrowed values down by a discount factor to preserve the total. The principle is what matters
+here; the details are in the reading.</p>
 
-<h3>Interpolation: always mix all of them</h3>
+<h3>Interpolation</h3>
 
-<p><strong>Interpolation</strong> does not wait for a zero. It always blends the trigram, bigram and
-unigram estimates together, with weights (written λ, lambda) that add to 1:</p>
+<p><strong>Interpolation</strong> does not wait for a zero count. It always combines the trigram,
+bigram, and unigram estimates, using weights, written λ, that sum to 1:</p>
 
 <pre><code>P(w₃ | w₁ w₂)  =  λ₁ · P(w₃ | w₁ w₂)     ← trigram
                +  λ₂ · P(w₃ | w₂)         ← bigram
@@ -696,7 +701,7 @@ unigram estimates together, with weights (written λ, lambda) that add to 1:</p>
 
                λ₁ + λ₂ + λ₃ = 1</code></pre>
 
-<p>Worked through for <code>P(Indian | I want)</code>, using λ = 0.5, 0.3, 0.2:</p>
+<p>Worked through for <code>P(Indian | I want)</code>, with λ = 0.5, 0.3, and 0.2:</p>
 
 <table>
   <tr><th>model</th><th>estimate</th><th>weight</th></tr>
@@ -707,58 +712,61 @@ unigram estimates together, with weights (written λ, lambda) that add to 1:</p>
 
 <pre><code>0.5 × 0.333  +  0.3 × 0.333  +  0.2 × 0.115  =  0.290</code></pre>
 
-<p>Because the unigram term is always in the mix and is never zero, the blended result is never
-zero. The long context leads when it is trustworthy; the short one quietly holds the floor up.</p>
+<p>Because the unigram term is always included and is never zero, the combined result is never
+zero. The long context dominates when it is reliable, and the short one establishes a lower
+bound.</p>
 
-<p>(In this example the trigram and bigram happen to give the same value, 1/3 — an accident of a
-four-sentence corpus, where almost every context occurs only once or twice. The thing to take from
-the arithmetic is the <strong>unigram floor</strong>: whatever the longer contexts say, including
-nothing at all, the mix cannot fall to zero.)</p>
+<p>In this example the trigram and bigram happen to give the same value, 1/3. This is an accident of
+a four-sentence corpus, in which almost every context occurs only once or twice. What the arithmetic
+demonstrates is the <strong>unigram floor</strong>: whatever the longer contexts contribute,
+including nothing at all, the combination cannot fall to zero.</p>
 
-<p>Where do the λ values come from? Not from guesswork and not from the training corpus — you would
-just relearn the training data. You set aside a separate slice of text, the <strong>held-out
-set</strong>, and pick the λ values that score it best. Measuring "best" properly is next
-session.</p>
+<p>The λ values are obtained neither by guesswork nor from the training corpus, since fitting them
+on the training corpus would simply reproduce the training data. A separate portion of text, the
+<strong>held-out set</strong>, is set aside, and the λ values that score it best are selected.
+Measuring what "best" means is the subject of session 14.</p>
 
 <div class="callout">
-  <span class="label">Backoff vs. interpolation in one line</span>
-  <p><strong>Backoff</strong> uses the shorter n-gram <em>only when the longer one fails</em>.
-  <strong>Interpolation</strong> uses all of them <em>every time</em>, weighted. Interpolation is
-  usually the better performer and is simpler to implement, which is why it is the more common
+  <span class="label">Backoff and interpolation compared</span>
+  <p><strong>Backoff</strong> uses the shorter n-gram only when the longer one has a zero count.
+  <strong>Interpolation</strong> uses all of them on every estimate, weighted. Interpolation
+  generally performs better and is simpler to implement, which is why it is the more common
   choice.</p>
 </div>
 
-<h2>The other kind of zero</h2>
+<h2>Unknown words</h2>
 
-<p>Everything above fixes an unseen <em>pair of known words</em>. But lesson 12's failure was
-<code>Indian pizza</code>, and <code>pizza</code> is not in our vocabulary at all. Smoothing cannot
-help: the word has no count to smooth, and it is not among the V words the probability was shared
-out over.</p>
+<p>Everything above addresses an unseen <em>pair of known words</em>. Session 12's failure,
+however, involved <code>Indian pizza</code>, and <code>pizza</code> is not in our vocabulary at all.
+Smoothing cannot help here: the word has no count to smooth and is not among the V words over which
+the probability was distributed.</p>
 
-<p>The standard fix is to make a slot for it. Before training, replace rare words in the corpus — say
-every word appearing only once — with a single special token, <strong><code>&lt;UNK&gt;</code></strong>.
-Then train normally. <code>&lt;UNK&gt;</code> becomes an ordinary vocabulary item with real counts,
-and at test time any word the model has never seen is swapped for <code>&lt;UNK&gt;</code> and gets
-that probability.</p>
+<p>The standard solution is to reserve a slot for such words. Before training, rare words in the
+corpus, for instance every word occurring only once, are replaced by a single special token,
+<strong><code>&lt;UNK&gt;</code></strong>, and training proceeds normally.
+<code>&lt;UNK&gt;</code> becomes an ordinary vocabulary item with real counts, and at test time any
+word the model has not seen is replaced by <code>&lt;UNK&gt;</code> and receives that
+probability.</p>
 
-<p>So the model no longer says "impossible". It says "a word I do not know", which is both true and
-useful.</p>
+<p>The model therefore no longer reports that the sentence is impossible. It reports that the
+sentence contains a word it does not know, which is both accurate and useful.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>Someone suggests: instead of adding 1 to every count, add 0.01. Does that fix add-one's problem
-  with a 50,000-word vocabulary?</p>
+  <span class="label">Exercise</span>
+  <p>Suppose that instead of adding 1 to every count we add 0.01. Does this solve add-one's
+  problem with a 50,000-word vocabulary?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>It helps a lot, and it is a real method</strong> — add-k smoothing. The denominator
-    becomes count(w₁) + 0.01V, so with V = 50,000 that is 500 rather than 50,000, and observed
-    bigrams keep far more of their probability.</p>
-    <p><strong>But it does not fix the real flaw.</strong> Every unseen word still gets exactly the
-    same share. The model still cannot tell that <code>curry</code> is a better guess after
-    <code>Indian</code> than <code>the</code> is — it has only made the wrong guess smaller.</p>
-    <p>That is why backoff and interpolation are different in kind, not just in degree: they use
-    evidence about the words themselves instead of spreading a flat amount. Tuning k is adjusting the
-    mistake; backing off is not making it.</p>
+    <p>It helps considerably, and it is a genuine method, called add-k smoothing. The denominator
+    becomes count(w₁) + 0.01V, so with V = 50,000 the added term is 500 rather than 50,000, and
+    observed bigrams retain far more of their probability.</p>
+    <p>It does not, however, address the underlying defect. Every unseen word still receives exactly
+    the same share, so the model still cannot determine that <code>curry</code> is a better
+    continuation of <code>Indian</code> than <code>the</code> is. The incorrect estimate has only
+    been made smaller.</p>
+    <p>Backoff and interpolation therefore differ in kind rather than in degree: they use evidence
+    about the words themselves instead of distributing a flat amount. Tuning k reduces the error;
+    backing off avoids it.</p>
   </div>
 </div>
 
@@ -773,8 +781,8 @@ useful.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>1 was added to each of V possible next words, so V was added</strong>.</p>
-    <p>The probabilities over all next words must still sum to 1. We handed out V extra counts in
-    total — one per possible next word — so the denominator has to grow by exactly V to match.</p>
+    <p>The probabilities over all next words must still sum to 1. V extra counts were distributed
+    in total, one per possible next word, so the denominator must grow by exactly V.</p>
   </div>
 </div>
 
@@ -790,37 +798,38 @@ useful.</p>
   <div class="q-fb">
     <p>Correct answer: <strong>it uses evidence about the word instead of one flat share for
     all</strong>.</p>
-    <p>Both methods avoid the unseen-<em>pair</em> zero, so that is not the difference. (Neither
-    rescues a word that is missing from the vocabulary altogether — that is what
-    <code>&lt;UNK&gt;</code> is for.) The real difference: add-one gives every unseen word the same
-    probability, while backoff drops to a shorter n-gram, so a common word gets more than a rare one.
-    It is guessing with evidence rather than guessing evenly.</p>
+    <p>Both methods avoid a zero for an unseen <em>pair</em>, so that is not the distinction, and
+    neither recovers a word missing from the vocabulary altogether, which is the purpose of
+    <code>&lt;UNK&gt;</code>. The actual difference is that add-one assigns every unseen word the
+    same probability, whereas backoff falls back to a shorter n-gram, so a common word receives more
+    than a rare one. Backoff estimates from evidence rather than distributing uniformly.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>Counting assigns zero to everything it never saw, which is most of language, so smoothing moves
-  probability from the seen to the unseen — and since the total must stay 1, that probability always
-  comes out of the observed counts. Add-one does it by spreading a flat share over every word, which
-  is far too blunt at real vocabulary sizes; backoff and interpolation do it by falling back on a
-  shorter context, so the fallback still carries evidence about which words are actually likely.</p>
+  <span class="label">The main points</span>
+  <p>Counting assigns zero probability to everything it has not observed, which is most of
+  language, so smoothing transfers probability from the observed to the unobserved. Since the total
+  must remain 1, that probability always comes out of the observed counts. Add-one distributes a
+  flat share over every word, which is far too crude at realistic vocabulary sizes. Backoff and
+  interpolation instead fall back on a shorter context, so that the fallback still reflects evidence
+  about which words are actually likely.</p>
 </div>
 
-<p>That is the n-gram language model complete: count, assume a short history, smooth. One question is
-left, and it is the one that decides everything else — is a given model any <em>good</em>? Bigram or
-trigram? Which λ values? You cannot answer any of it without a way to measure. Next session:
-perplexity.</p>
+<p>This completes the n-gram language model: count, assume a short history, and smooth. One
+question remains, and it determines every other choice: whether a given model is any good. Bigram or
+trigram? Which λ values? None of these can be settled without a way to measure model quality.
+Session 14 introduces perplexity.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
-Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
-("N-gram Language Models") — free online — for the smoothing sections and unknown words.
-<strong>Appendix C</strong> of the same book covers the stronger methods that follow from these ideas,
-including Good-Turing and Kneser-Ney. Read chapter 3 first; the appendix is optional depth.</p>
+Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>chapter 3</strong>,
+"N-gram Language Models", available free online. Read the sections on smoothing and on unknown
+words. <strong>Appendix C</strong> of the same book covers the stronger methods that develop these
+ideas, including Good-Turing and Kneser-Ney. Read chapter 3 first; the appendix is optional.</p>
 
 
 

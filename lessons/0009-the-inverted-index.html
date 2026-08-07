@@ -566,11 +566,11 @@ figcaption {
 
 
 
-<h2>Picking up where session 8 stopped</h2>
+<h2>Where session 8 left off</h2>
 
-<p>The incidence matrix was 99.8% zeros, and those zeros carried no information we cared about. The
-fix we arrived at was: <strong>stop storing the zeros; keep only the ones.</strong> This session
-turns that one sentence into the data structure that runs real search engines.</p>
+<p>The incidence matrix was 99.8% zeros, and those zeros carried no information we needed. The
+correction we arrived at was to stop storing the zeros and keep only the ones. This session
+develops that principle into the data structure used by real search engines.</p>
 
 <h2>Building the inverted index</h2>
 
@@ -582,9 +582,10 @@ turns that one sentence into the data structure that runs real search engines.</
       kept in <strong>sorted order</strong>.</li>
 </ul>
 
-<p>It is called <em>inverted</em> because it flips the natural direction. A document normally points
-to the words in it; here each word points to the documents it is in. Built from the same six
-Shakespeare plays as last session (numbered 1–6), it looks like this:</p>
+<p>It is called <em>inverted</em> because it reverses the natural direction of the mapping. A
+document normally points to the words it contains; here each word points to the documents that
+contain it. Built from the same six Shakespeare plays as in session 8, numbered 1 to 6, the index
+is:</p>
 
 <pre><code>Antony     →  1 → 2 → 6
 Brutus     →  1 → 2 → 4
@@ -594,22 +595,23 @@ Cleopatra  →  1
 mercy      →  1 → 3 → 4 → 5 → 6
 worser     →  1 → 3 → 4 → 5</code></pre>
 
-<p>Compare this with the matrix row for <code>Caesar</code>, which was <code>1 1 0 1 1 1</code> —
-six cells to say the same thing the postings list <code>1 2 4 5 6</code> says with five short
-numbers, and no wasted zero. A word that appears in three documents needs a list of three, whether
-the collection has six documents or six billion. <mark>The size of a postings list depends on the
-word, not on the size of the collection.</mark> That is the whole saving.</p>
+<p>Compare this with the matrix row for <code>Caesar</code>, which was <code>1 1 0 1 1 1</code>:
+six cells to record what the postings list <code>1 2 4 5 6</code> records in five numbers, with no
+zeros stored. A word appearing in three documents requires a list of three entries, whether the
+collection contains six documents or six billion. <mark>The size of a postings list depends on the
+word, not on the size of the collection.</mark> This is where the saving comes from.</p>
 
-<h2>Answering a query: merge two postings lists</h2>
+<h2>Answering a query by merging postings lists</h2>
 
-<p>Now the query. Take one <code>AND</code> from last session's example:</p>
+<p>We now turn to evaluating a query, beginning with a single <code>AND</code> from the session 8
+example:</p>
 
 <pre><code>Brutus AND mercy</code></pre>
 
-<p>You need the documents that appear in <em>both</em> postings lists — their
-<strong>intersection</strong>. The clever part is <em>how</em>. Because both lists are sorted, you
-do not compare every pair. You walk both lists at the same time with two pointers, and at each step
-you advance the one pointing at the <strong>smaller</strong> document ID:</p>
+<p>We require the documents appearing in <em>both</em> postings lists, that is their
+<strong>intersection</strong>. Because both lists are sorted, it is not necessary to compare every
+pair. Instead we traverse both lists simultaneously with two pointers, at each step advancing the
+pointer at the <strong>smaller</strong> document ID:</p>
 
 <pre><code>Brutus:  1 → 2 → 4
 mercy:   1 → 3 → 4 → 5 → 6
@@ -622,45 +624,46 @@ step 4:  4 vs 4   equal   → keep 4, advance both
 
 result:  1 → 4      (Antony and Cleopatra, Hamlet)</code></pre>
 
-<p>Each pointer only ever moves forward, so you pass through each list <strong>once</strong>. If the
-lists have lengths <em>x</em> and <em>y</em>, the work is about <em>x + y</em> — you never do
-<em>x</em> × <em>y</em> comparisons. That linear cost is the reason search feels instant, and it is
-only possible <strong>because the lists are sorted</strong>. Keeping postings sorted at build time
-is what buys you the fast query.</p>
+<p>Each pointer only moves forward, so each list is traversed once. If the lists have lengths
+<em>x</em> and <em>y</em>, the work required is about <em>x + y</em> rather than <em>x</em> ×
+<em>y</em> comparisons. This linear cost is why search returns results quickly, and it is possible
+only because the lists are sorted. Maintaining sorted postings at build time is what makes the
+query fast.</p>
 
 <div class="callout">
-  <span class="label">Why sorting is the whole trick</span>
-  <p>When you see <code>2</code> in one list is smaller than <code>3</code> in the other, you know
-  <code>2</code> cannot appear later in the second list — everything ahead is bigger. So you skip it
-  and move on, with no going back. Unsorted lists give you no such guarantee, and you are forced
-  back to checking every pair against every pair.</p>
+  <span class="label">Why the postings lists are sorted</span>
+  <p>When <code>2</code> in one list is smaller than <code>3</code> in the other, it follows that
+  <code>2</code> cannot appear later in the second list, since every remaining entry is larger. It
+  can therefore be skipped, with no need to reconsider it. Unsorted lists provide no such guarantee,
+  which forces a comparison of every pair.</p>
 </div>
 
-<h2>Finishing the real query</h2>
+<h2>Completing the query</h2>
 
-<p>The full query was <code>Brutus AND Caesar AND NOT Calpurnia</code>. Same tool, applied in turn:</p>
+<p>The full query was <code>Brutus AND Caesar AND NOT Calpurnia</code>. The same operation is
+applied in sequence:</p>
 
 <pre><code>Brutus  1 2 4   INTERSECT   Caesar  1 2 4 5 6     →   1 2 4
         1 2 4   AND NOT     Calpurnia  2           →   1 4</code></pre>
 
-<p><code>NOT Calpurnia</code> just means "drop any document that is in Calpurnia's list" — remove
-<code>2</code>, leaving <code>1 4</code>: <strong>Antony and Cleopatra</strong> and
-<strong>Hamlet</strong>. The same answer as the matrix gave in session 8, reached without storing a
-single zero.</p>
+<p><code>NOT Calpurnia</code> means removing any document in Calpurnia's list, so
+<code>2</code> is discarded, leaving <code>1 4</code>: <strong>Antony and Cleopatra</strong> and
+<strong>Hamlet</strong>. This is the same answer the matrix produced in session 8, obtained without
+storing a single zero.</p>
 
 <div class="callout">
-  <span class="label">One optimisation worth knowing</span>
-  <p>For <code>Brutus AND Caesar AND Calpurnia</code>, start with the <strong>shortest</strong>
-  postings list. <code>Calpurnia</code> is in just one document, so intersecting it first leaves at
-  most one candidate to check against the others. Process terms from rarest to commonest, and you do
-  the least work. This is a standard query-optimisation, and a likely viva question.</p>
+  <span class="label">An optimisation: process the rarest term first</span>
+  <p>For <code>Brutus AND Caesar AND Calpurnia</code>, begin with the <strong>shortest</strong>
+  postings list. <code>Calpurnia</code> occurs in only one document, so intersecting it first leaves
+  at most one candidate to check against the others. Processing terms from rarest to commonest
+  minimises the total work. This is a standard query optimisation.</p>
 </div>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>Using the index above, work the merge for <code>Brutus AND Antony</code> by hand.
-  <code>Brutus</code> is <code>1 2 4</code>; <code>Antony</code> is <code>1 2 6</code>. Which
-  documents come back?</p>
+  <span class="label">Exercise</span>
+  <p>Using the index above, carry out the merge for <code>Brutus AND Antony</code> by hand.
+  <code>Brutus</code> is <code>1 2 4</code> and <code>Antony</code> is <code>1 2 6</code>. Which
+  documents are returned?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
 <pre><code>Brutus:  1 → 2 → 4
@@ -672,9 +675,9 @@ Antony:  1 → 2 → 6
          Brutus finished → stop
 
 result:  1 → 2</code></pre>
-    <p><strong>Antony and Cleopatra</strong> and <strong>Julius Caesar</strong>. The
-    <code>4</code> and the <code>6</code> never match, and the two-pointer walk skips straight past
-    them without ever comparing <code>4</code> to <code>1</code> or <code>2</code>.</p>
+    <p>The result is <strong>Antony and Cleopatra</strong> and <strong>Julius Caesar</strong>.
+    The <code>4</code> and the <code>6</code> never match, and the two-pointer traversal passes them
+    without ever comparing <code>4</code> with <code>1</code> or <code>2</code>.</p>
   </div>
 </div>
 
@@ -689,8 +692,8 @@ result:  1 → 2</code></pre>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>the sorted IDs of the documents that contain one term</strong>.</p>
-    <p>The dictionary holds the terms; each term points to its postings list — the documents it
-    appears in, in sorted order. <code>Caesar → 1 2 4 5 6</code>. Sorted, because that is what makes
+    <p>The dictionary holds the terms, and each term points to its postings list, the documents
+    in which it appears, in sorted order: <code>Caesar → 1 2 4 5 6</code>. The sorting is what makes
     the merge fast.</p>
   </div>
 </div>
@@ -707,32 +710,32 @@ result:  1 → 2</code></pre>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>both lists are sorted, so each pointer only moves forward</strong>.</p>
-    <p>Sorted order means that when one ID is smaller than the other, it cannot appear later in the
-    other list, so you skip it and never look back. Each list is traversed once — about
-    <em>x + y</em> steps total. Lose the sorting and you are back to checking every pair.</p>
+    <p>Sorted order means that when one ID is smaller than the other, it cannot appear later in
+    the other list, so it can be skipped and never revisited. Each list is traversed once, for a
+    total of about <em>x + y</em> steps. Without the sorting, every pair must be checked.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
+  <span class="label">The main points</span>
   <p>An inverted index stores, for each term, a sorted list of the documents that contain it — only
   the ones, never the zeros. Queries are answered by merging these sorted lists with a two-pointer
   walk that runs in linear time, which is exactly why web-scale search returns in milliseconds.</p>
 </div>
 
-<p>But so far a document either matches or it does not — the result is an unordered set. Real search
-puts the <em>best</em> document first. Ranking is the next session, and it is where numbers replace
-the plain 0s and 1s.</p>
+<p>So far, however, a document either matches or it does not, and the result is an unordered set.
+Real search systems place the best-matching document first. Ranking is the subject of session 10,
+where numbers replace the 0s and 1s.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong> by Manning, Raghavan and Schütze — free online.
-<strong>Chapter 1</strong> covers building the inverted index and the postings-merge algorithm.
-Read the section titled "Processing Boolean queries" and follow the merge pseudocode; it is the
-same walk you did by hand above.</p>
+Information Retrieval</a></strong> by Manning, Raghavan, and Schütze, available free online.
+<strong>Chapter 1</strong> covers the construction of the inverted index and the postings-merge
+algorithm. Read the section titled "Processing Boolean queries" and follow the merge pseudocode,
+which is the same traversal carried out by hand above.</p>
 
 
 

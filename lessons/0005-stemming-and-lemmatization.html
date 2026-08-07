@@ -558,98 +558,101 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 05</p>
   <h1>Stemming and lemmatization</h1>
-  <p class="subtitle">Cutting a word down to a root form — the fast crude way, and the slow correct
-  way — and knowing which one your task needs.</p>
+  <p class="subtitle">Reducing a word to a root form by two different methods, and deciding which
+  one a given task requires.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where we are</h2>
+<h2>Where session 4 left off</h2>
 
-<p>In <a href="0004-normalization-and-stop-words.html">session 4</a> you collapsed harmless
-differences — case, accents, punctuation. There is one more difference worth collapsing, and it
-is the biggest: <strong>the same word wears different endings.</strong></p>
+<p>In <a href="0004-normalization-and-stop-words.html">session 4</a> we collapsed differences of
+case, accent, and punctuation. One further difference remains, and it is the largest:
+<strong>the same word appears with different endings</strong>.</p>
 
 <pre><code>study    studies    studying    studied</code></pre>
 
-<p>These are one idea in four coats. For counting and for search you usually want them to count
-as the same thing — someone searching <code>studying</code> should find a page that said
-<code>studies</code>. So you cut each word down to a shared <strong>root</strong>.</p>
+<p>These are four inflected forms of a single word. For counting and for search we usually want
+them to count as the same item, so that a user searching for <code>studying</code> finds a page
+containing <code>studies</code>. We therefore reduce each word to a shared <strong>root</strong>.</p>
 
-<p>There are two ways to do this, and the whole lesson is about how they differ and when to reach
-for each.</p>
+<p>There are two methods for doing this. This session covers how they differ and when each is
+appropriate.</p>
 
-<h2>Stemming: chop the endings by rule</h2>
+<h2>Stemming</h2>
 
-<p><strong>Stemming</strong> is the crude, fast way. It chops recognizable endings off a word by
-a fixed set of rules. The classic tool is the <strong>Porter stemmer</strong>, a list of rules
-like "if a word ends in <code>-ing</code>, remove it" applied in order.</p>
+<p><strong>Stemming</strong> removes recognisable endings from a word using a fixed set of rules.
+The standard tool is the <strong>Porter stemmer</strong>, which applies an ordered list of rules
+of the form "if a word ends in <code>-ing</code>, remove it".</p>
 
-<p>Run the <code>study</code> family through it and they all land on the same string:</p>
+<p>Applying it to the <code>study</code> family produces the same string in every case:</p>
 
 <pre><code>study      →  studi
 studies    →  studi
 studying   →  studi
 studied    →  studi</code></pre>
 
-<p>Notice <code>studi</code> is <strong>not a real word</strong>. That is not a bug. The stemmer
-has exactly one job — make related words land on the <em>same</em> string — and it does that.
-Nobody ever reads <code>studi</code>; it is just an internal key. For search, this is perfect:
-all four spellings now match each other.</p>
+<p>Note that <code>studi</code> is not a word of English. This is not a defect. The stemmer has a
+single objective, which is to map related words to the same string, and it achieves that.
+<code>studi</code> is never displayed; it serves only as an internal key. For search this is
+sufficient, since all four forms now match one another.</p>
 
-<p>Here is another family, all collapsing cleanly:</p>
+<p>A second family collapses in the same way:</p>
 
 <pre><code>argue  argued  argues  arguing    →    all become  argu</code></pre>
 
-<h3>Where stemming shows its crudeness</h3>
+<h3>The limitations of rule-based stemming</h3>
 
-<p>Because it only chops by rule and knows nothing about meaning, it makes mistakes. Watch:</p>
+<p>Because the stemmer applies rules without any representation of meaning, it makes errors:</p>
 
-<pre><code>organization   →  organ      (the meaning is gone entirely)
-was            →  wa         (just gibberish)
+<pre><code>organization   →  organ      (the meaning is lost)
+was            →  wa         (not a word)
 mice           →  mice       (unchanged — see below)
-better         →  better     (no idea it relates to "good")</code></pre>
+better         →  better     (no relation to "good" is recognised)</code></pre>
 
 <ul>
-  <li><code>organization → organ</code> — the rule stripped too much, and changed the meaning.
-      This is called <strong>over-stemming</strong>.</li>
-  <li><code>was → wa</code> — a rule fired that should not have, leaving nonsense.</li>
-  <li><code>mice → mice</code> — the stemmer can only remove <em>endings</em>. An irregular plural
-      like <code>mice</code> has nothing to chop, so it cannot reach <code>mouse</code>.</li>
+  <li><code>organization → organ</code>: the rule removed too much and changed the meaning. This
+      is called <strong>over-stemming</strong>.</li>
+  <li><code>was → wa</code>: a rule applied that should not have, leaving a non-word.</li>
+  <li><code>mice → mice</code>: the stemmer can only remove <em>endings</em>. An irregular plural
+      such as <code>mice</code> has no ending to remove, so the stemmer cannot reach
+      <code>mouse</code>.</li>
 </ul>
 
-<p>Stemming is fast and needs no dictionary, and for search it is often good enough. But it makes
-non-words and it mangles irregular ones. When you need a root that is a <em>real word</em>, you
-need the other method.</p>
+<p>Stemming is fast and requires no dictionary, and for search it is often adequate. It produces
+non-words, however, and handles irregular forms poorly. When the root must itself be a word, we
+need the second method.</p>
 
-<h2>Lemmatization: look up the real root</h2>
+<h2>Lemmatization</h2>
 
-<p><strong>Lemmatization</strong> also reduces a word to a root — but a real dictionary root,
-called the <strong>lemma</strong>. Instead of chopping, it looks the word up, so it can handle
-the cases stemming cannot:</p>
+<p><strong>Lemmatization</strong> also reduces a word to a root, but the root is a dictionary
+form, called the <strong>lemma</strong>. Rather than removing endings, it looks the word up, which
+allows it to handle the cases stemming cannot:</p>
 
 <pre><code>mice     →  mouse       (irregular plural — correct)
 was      →  be          (irregular verb — correct)
 better   →  good        (knows the words are related)
 studies  →  study       (a real word, not "studi")</code></pre>
 
-<p>Every output is a word you could find in a dictionary. That is the difference from stemming in
-one line: <mark>a stem is just a shared key; a lemma is the real base word.</mark></p>
+<p>Every output is a word that appears in a dictionary. This is the essential difference between
+the two methods: <mark>a stem is a shared key, whereas a lemma is the base form of the
+word.</mark></p>
 
-<h3>The catch: lemmatization needs the part of speech</h3>
+<h3>Lemmatization requires the part of speech</h3>
 
-<p>Here is the subtle part, and it is the whole reason lemmatization is harder than it looks. The
-root of a word can <strong>depend on how the word is used</strong>. Take <code>meeting</code>:</p>
+<p>There is a complication, and it is the reason lemmatization is harder than it first appears.
+The root of a word can depend on how the word is used in the sentence. Consider
+<code>meeting</code>:</p>
 
 <pre><code>"we had a meeting"       meeting is a NOUN  →  lemma is  meeting
 "they are meeting now"   meeting is a VERB  →  lemma is  meet</code></pre>
 
-<p>Same spelling, two different roots — and the only thing that tells them apart is the
-<strong>part of speech</strong>: is <code>meeting</code> a noun or a verb here? A lemmatizer that
-is not told the part of speech has to guess, and it usually guesses "noun". When the guess is
-wrong, it fails:</p>
+<p>The spelling is identical and the roots differ. The only thing distinguishing them is the
+<strong>part of speech</strong>: whether <code>meeting</code> is a noun or a verb in this
+sentence. A lemmatizer that is not given the part of speech must guess, and it generally guesses
+"noun". When that guess is wrong, the result is wrong:</p>
 
 <pre><code>lemmatize("was")            →  wa      (guessed noun — wrong, and no better than stemming)
 lemmatize("was", verb)      →  be      (told it is a verb — correct)
@@ -657,32 +660,33 @@ lemmatize("was", verb)      →  be      (told it is a verb — correct)
 lemmatize("better")         →  better  (guessed noun — wrong)
 lemmatize("better", adj)    →  good    (told it is an adjective — correct)</code></pre>
 
-<p>So lemmatization is only as good as the part-of-speech information you feed it. Who provides
-that? You do not want to label every word by hand. A tool like <strong>spaCy</strong> works out
-the part of speech for you automatically and lemmatizes in one step — which is why it is the easy
-choice for real work. (Working out the part of speech is its own topic:
-<strong>session 6</strong>.)</p>
+<p>Lemmatization is therefore only as accurate as the part-of-speech information supplied to it,
+and labelling every word by hand is not practical. A tool such as <strong>spaCy</strong>
+determines the part of speech automatically and lemmatizes in a single step, which is why it is
+the usual choice in practice. Determining the part of speech is itself a substantial task, and it
+is the subject of session 6.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>You are building a search engine over a few million documents. It has to be fast, and the
-  roots are never shown to a user — they are only used internally to match a query against a
-  document. Stem, or lemmatize?</p>
+  <span class="label">Exercise</span>
+  <p>Suppose we are building a search engine over several million documents. It must be fast, and
+  the roots are never shown to a user; they are used only to match a query against a document.
+  Should we stem or lemmatize?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Stem.</strong> Speed matters, nobody sees the roots, and non-words like
-    <code>studi</code> are completely fine because they are only used as internal match keys. A
-    dictionary lookup per word would be slower and buys you nothing here.</p>
-    <p>Flip the task — you are showing the root words back to a user, or feeding clean words into
-    a model — and the answer flips to <strong>lemmatize</strong>, because now <code>studi</code>
-    and <code>wa</code> would be an embarrassment. Same idea as lesson 4: the right choice depends
-    on the job.</p>
+    <p><strong>Stem.</strong> Speed matters, the roots are never displayed, and non-words such as
+    <code>studi</code> are acceptable because they serve only as internal match keys. A dictionary
+    lookup for every word would be slower and would provide no benefit here.</p>
+    <p>If the task changes so that root words are shown to a user, or supplied as input to a
+    model, the answer becomes <strong>lemmatize</strong>, since <code>studi</code> and
+    <code>wa</code> would then be visible. As in session 4, the correct choice depends on the
+    task.</p>
   </div>
 </div>
 
-<h2>Side by side</h2>
+<h2>Stemming and lemmatization compared</h2>
 
-<p>The one table to remember from today:</p>
+<p>The following two tables summarise the difference. The first compares the output of each method
+on the words used above:</p>
 
 <table>
   <tr><th>Word</th><th>Stem (Porter)</th><th>Lemma</th></tr>
@@ -692,6 +696,8 @@ choice for real work. (Working out the part of speech is its own topic:
   <tr><td><code>mice</code></td><td><code>mice</code></td><td><code>mouse</code></td></tr>
   <tr><td><code>better</code></td><td><code>better</code></td><td><code>good</code></td></tr>
 </table>
+
+<p>The second compares the two methods themselves:</p>
 
 <table>
   <tr><th></th><th>Stemming</th><th>Lemmatization</th></tr>
@@ -715,11 +721,12 @@ choice for real work. (Working out the part of speech is its own topic:
   <div class="q-fb">
     <p>Correct answer: <strong>for search, all that matters is that related words share a
     key</strong>.</p>
-    <p>A stem is only an internal match key — nobody reads it. If <code>organization</code> and
-    <code>organizations</code> both become <code>organ</code>, a search for one finds the other,
-    which is the goal. It <em>does</em> become a real problem if <code>organ</code> (the instrument
-    or body part) also stems to <code>organ</code> and gets wrongly matched — that over-collapsing
-    is the price of stemming's crudeness. For a task that needs meaning, use a lemma.</p>
+    <p>A stem is only an internal match key and is never displayed. If <code>organization</code>
+    and <code>organizations</code> both become <code>organ</code>, a search for either finds the
+    other, which is the goal. It does become a genuine problem when <code>organ</code>, meaning
+    the instrument or the body part, also stems to <code>organ</code> and is matched incorrectly.
+    This over-collapsing is the cost of the rule-based approach. For a task that depends on
+    meaning, use a lemma.</p>
   </div>
 </div>
 
@@ -736,34 +743,36 @@ choice for real work. (Working out the part of speech is its own topic:
   <div class="q-fb">
     <p>Correct answer: <strong>the lemmatizer looks the word up, so it knows irregular
     forms</strong>.</p>
-    <p>Stemming only chops endings, so an irregular form like <code>was → be</code> or
-    <code>mice → mouse</code> is out of its reach — there is no ending to remove. Lemmatization
-    uses a dictionary of forms, so it can map any inflection to its base word. The cost is that it
-    needs to know the part of speech, and it is slower.</p>
+    <p>Stemming only removes endings, so an irregular form such as <code>was → be</code> or
+    <code>mice → mouse</code> is beyond its reach, since there is no ending to remove.
+    Lemmatization uses a dictionary of forms and can therefore map any inflected form to its base
+    word. The costs are that it requires the part of speech and that it is slower.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>Stemming chops endings by rule — fast, no dictionary, output need not be a real word — and it
-  is the right tool for search. Lemmatization looks up the real dictionary root — correct, needs
-  the part of speech, slower — and it is the right tool when you need real words.</p>
+  <span class="label">The main points</span>
+  <p>Stemming removes endings by rule. It is fast, requires no dictionary, need not produce a real
+  word, and is the appropriate tool for search. Lemmatization looks up the dictionary root. It is
+  accurate, requires the part of speech, is slower, and is the appropriate tool when the output
+  must consist of real words.</p>
 </div>
 
-<p>That closes the text-cleaning arc: <a href="0003-tokenization-and-the-vocabulary-problem.html">tokenize</a>,
-<a href="0004-normalization-and-stop-words.html">normalize and remove stop words</a>, and now cut
-to a root. Next session we start working <em>with</em> the cleaned words, beginning with
-<strong>part-of-speech tagging</strong> — the very thing lemmatization was asking for.</p>
+<p>This completes the text-cleaning sequence:
+<a href="0003-tokenization-and-the-vocabulary-problem.html">tokenization</a>,
+<a href="0004-normalization-and-stop-words.html">normalization and stop-word removal</a>, and
+reduction to a root. Session 6 begins working with the cleaned words, starting with
+<strong>part-of-speech tagging</strong>, which is the information lemmatization required.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
-<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter
-2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
-Section 2.3, "Word Normalization, Lemmatization and Stemming", covers this lesson and the last one
-together. The Porter stemmer's original rules are in Martin Porter's 1980 paper, still readable
-and still in use.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter
+2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin, available free
+online. Section 2.3, "Word Normalization, Lemmatization and Stemming", covers this session and the
+previous one together. The Porter stemmer's original rules appear in Martin Porter's 1980 paper,
+which remains readable and remains in use.</p>
 
 
 

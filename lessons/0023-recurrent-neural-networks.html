@@ -558,19 +558,19 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 23</p>
   <h1>The RNN: hidden state, shared weights</h1>
-  <p class="subtitle">A feedforward layer is a fixed-size hammer; text is not a fixed-size nail. An
-  RNN reuses the same small hammer once per word, carrying a running summary — the hidden state —
-  forward from one word to the next.</p>
+  <p class="subtitle">A feedforward layer needs an input of one fixed size, and sentences are not
+  all one size. An RNN runs the same small network once per word instead, carrying a running
+  summary — the hidden state — forward from one word to the next.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>The five minutes this session owes you</h2>
+<h2>Recap: what session 20 established</h2>
 
-<p>Session 20's board, back up, nothing re-derived — just the shapes put back in front of the room.
-A neuron is one weighted sum plus a squashing function:</p>
+<p>We begin by restating two results from session 20. Nothing here is re-derived. A neuron computes
+one weighted sum followed by a squashing function:</p>
 
 <pre><code>y = f( Σ wᵢxᵢ + b )</code></pre>
 
@@ -580,7 +580,7 @@ they start as arbitrary numbers and get <strong>fitted</strong>, nudged by gradi
 whole thing predicts well. That is everything session 20 built, and it is everything this session
 needs. Nothing else from session 20 is re-taught.</p>
 
-<h2>The wall every representation so far has hit</h2>
+<h2>Why fixed-size input is a problem for text</h2>
 
 <p>Session 20's feedforward layer needs a <strong>fixed-size</strong> input vector — the matrix
 <code>W</code> has a fixed number of columns, and that number cannot change from one input to the
@@ -594,11 +594,11 @@ the same way:</p>
   Word2Vec — average every word's vector, get one fixed-size vector back.</li>
 </ul>
 
-<p>Both tricks paid the same price, and lab 8 <em>measured</em> it: TF-IDF beat both averaged-embedding
-representations, decisively. That price is not one problem — it is two:</p>
+<p>Both approaches pay the same price, and lab 8 measured it: TF-IDF outperformed both
+averaged-embedding representations. That price consists of two separate problems:</p>
 
 <div class="callout">
-  <span class="label">Two separate problems, not one</span>
+  <span class="label">Two distinct problems</span>
   <p><strong>Fixed size.</strong> A network built for a 10-word input cannot take a 50-word input
   without redesign.</p>
   <p><strong>Order-blindness.</strong> Averaging is commutative — <code>avg(a, b, c) = avg(c, b, a)</code>,
@@ -606,8 +606,8 @@ representations, decisively. That price is not one problem — it is two:</p>
   ever sees the vector.</p>
 </div>
 
-<p>The second claim is worth not taking on faith. Real vectors, <code>glove-wiki-gigaword-100</code>
-(the same cached file lab 8 used):</p>
+<p>We can check the second claim directly, using the same
+<code>glove-wiki-gigaword-100</code> vectors lab 8 used:</p>
 
 <pre><code>avg(GloVe[dog], GloVe[bites], GloVe[man])
 avg(GloVe[man], GloVe[bites], GloVe[dog])
@@ -615,7 +615,7 @@ avg(GloVe[man], GloVe[bites], GloVe[dog])
 cos( · , · )  =  0.9999999999999998</code></pre>
 
 <div class="callout warn">
-  <span class="label">⚠️ Not "close to 1" — mathematically incapable of being anything else</span>
+  <span class="label">Why the cosine is not exactly 1.0</span>
   <p>That is not a clean <code>1.0</code> — floating-point addition is not perfectly order-invariant,
   so <code>a+b+c</code> and <code>c+b+a</code> can differ in the last bit. <mark>The rounding noise in
   the seventeenth digit is not evidence that order mattered even a little</mark> — it is exactly the
@@ -626,7 +626,7 @@ cos( · , · )  =  0.9999999999999998</code></pre>
   does not care what order you add in.</p>
 </div>
 
-<h2>The fix: stop trying to see the whole sentence at once</h2>
+<h2>Processing one word at a time</h2>
 
 <p>Feed the network one word at a time instead. Give it a <strong>hidden state</strong> — a vector it
 carries from step to step — so that word 50 is processed with a summary of words 1–49 already folded
@@ -634,7 +634,7 @@ in. Nothing about the network's <em>size</em> depends on how long the sentence i
 step the network only ever looks at one word plus one hidden state.</p>
 
 <div class="callout">
-  <span class="label">One move, both problems</span>
+  <span class="label">How this addresses both problems</span>
   <p><strong>Fixed size</strong> stops being a constraint, because the network's input at every step
   is always "one word vector plus one hidden-state vector" — the same shape whether the sentence is
   three words or three hundred. <strong>Order-blindness</strong> stops being automatic, because the
@@ -642,11 +642,11 @@ step the network only ever looks at one word plus one hidden state.</p>
   from the one before that — a specific, order-dependent chain of updates, not a symmetric sum.</p>
 </div>
 
-<p>This is the promise session 22 closed on: "the third [problem, blindness to order] is the reason
-Unit III opens with a model built to process a sequence <em>as</em> a sequence, one step at a time."
-This is that promise, kept.</p>
+<p>This is the model session 22 pointed forward to, when it noted that blindness to order is the
+reason Unit III opens with a model built to process a sequence as a sequence, one step at a
+time.</p>
 
-<h2>The recurrence, stated plainly</h2>
+<h2>The recurrence</h2>
 
 <p>Three matrices, new names, same idea as session 20 — a matrix times a vector, added, squashed:</p>
 
@@ -665,7 +665,7 @@ gets fed back into itself, over and over, from drifting all one direction.</p>
 300×100, and <code>V</code> is whatever the output needs — one row per class, for example.</p>
 
 <div class="callout">
-  <span class="label">The session's real payload: the weights do not change</span>
+  <span class="label">Shared weights: the same matrices at every step</span>
   <p><code>U</code>, <code>W</code>, <code>V</code> are the <em>same three matrices</em>, reused at
   every timestep. Not three-hundred sets of weights for a three-hundred-word document and three for a
   three-word sentence — <mark>one set, applied again and again</mark>. A thousand-word document and a
@@ -782,25 +782,25 @@ gets fed back into itself, over and over, from drifting all one direction.</p>
   </div>
 </div>
 
-<h2>By hand, with numbers small enough to track</h2>
+<h2>A worked example</h2>
 
-<p>A tiny synthetic RNN — one-dimensional hidden state, clean integers, no activation function.
-<mark>Real RNNs squash every step with tanh</mark>; this toy skips it purely so the arithmetic stays
-inspectable on the page:</p>
+<p>Consider a very small RNN: a one-dimensional hidden state, integer weights, and no activation
+function. <mark>Real RNNs squash every step with tanh</mark>; we omit it here so that the arithmetic
+can be checked by hand:</p>
 
 <pre><code>U = 0.5     W = 1     h₀ = 0     x₁ = 2     x₂ = 3
 
 h₁ = U·h₀ + W·x₁ = 0.5·0 + 1·2 = 2
 h₂ = U·h₁ + W·x₂ = 0.5·2 + 1·3 = 4</code></pre>
 
-<p>The numbers themselves are forgettable — the structure is the point. Look at <code>h₂</code>'s
-formula: it contains <code>h₁</code>, which already contained <code>h₀</code>. The chain reaches back
-indefinitely, <strong>in principle</strong> — nothing in the formula stops <code>h₁₀₀</code> from
-depending, through an unbroken chain, on <code>h₀</code>. Whether it reaches back indefinitely in
-<em>practice</em> is a different question, and this session is not going to answer it.</p>
+<p>The particular values matter less than the structure. Note that <code>h₂</code>'s formula contains
+<code>h₁</code>, which in turn contained <code>h₀</code>. In principle the chain reaches back
+indefinitely: nothing in the formula prevents <code>h₁₀₀</code> from depending on <code>h₀</code>
+through an unbroken chain of such updates. Whether it does so in practice is a separate question,
+which we take up in session 24.</p>
 
 <div class="recall">
-  <span class="label">Work this out before revealing</span>
+  <span class="label">Exercise</span>
   <p>Same toy RNN. You are told <code>h₀ = 0</code>, <code>U = 0.5</code>, <code>W = 1</code>,
   <code>h₁ = 2</code>, and the next input is <code>x₂ = 3</code>. Compute <code>h₂</code> yourself.
   Then answer: does <code>h₂</code>'s formula mention <code>h₀</code> anywhere?</p>
@@ -815,7 +815,7 @@ depending, through an unbroken chain, on <code>h₀</code>. Whether it reaches b
   </div>
 </div>
 
-<h2>What comes out the other end</h2>
+<h2>Two output shapes: labeling and classification</h2>
 
 <p>The same architecture supports two different shapes of output, and this session commits to one of
 them as the running example.</p>
@@ -832,8 +832,7 @@ matrix, which softmaxes into however many classes the task has:</p>
 ŷ    =  softmax( W_c h_n )        W_c belongs to the classifier, not to the RNN</code></pre>
 
 <div class="callout warn">
-  <span class="label">⚠️ <code>W_c</code> is not <code>V</code> — this is where the diagram stops
-  applying</span>
+  <span class="label"><code>W_c</code> is not <code>V</code>: where the figure stops applying</span>
   <p>In a classifier there are no per-step outputs at all: no <code>y₁</code>, no <code>y₂</code>,
   nothing until the last word has been read. <mark>So <code>V</code> — the RNN's hidden→output matrix
   from the figure above — is simply not used here.</mark> The classification head is an extra,
@@ -849,39 +848,39 @@ then into <code>h_n</code>, and from there back through the whole chain — ever
 representation directly; a good representation is whatever falls out of training the final decision
 to be correct.</p>
 
-<h2>The contrast lab 8 earns</h2>
+<h2>Pooling the hidden states</h2>
 
 <p>SLP3 §13.3.2 itself offers an alternative to using just <code>h_n</code>: <strong>pooling</strong>
-— averaging <em>all</em> the hidden states instead of keeping only the last one. That deserves one
-careful paragraph, because it sounds like it walks straight back into beat 2's trap.</p>
+— averaging <em>all</em> the hidden states instead of keeping only the last one. This deserves
+care, since at first glance it appears to reintroduce the problem we measured earlier.</p>
 
 <div class="callout">
-  <span class="label">Pooling RNN hidden states is not lab 8's mistake, wearing a disguise</span>
+  <span class="label">Why this differs from averaging raw word vectors</span>
   <p>Lab 8 averaged <strong>raw word vectors</strong> — context-free, order-blind by construction,
-  exactly the problem beat 2 computed. Pooling <strong>RNN hidden states</strong> averages
+  exactly the problem measured earlier. Pooling <strong>RNN hidden states</strong> averages
   <code>h_1, h_2, …, h_n</code> — and every single <code>h_i</code> already encodes everything that
   came before position <em>i</em>, folded in by the recurrence one step at a time. <mark>The order
   information was built into each vector before the average, not thrown away by it.</mark> Averaging
-  is not inherently the enemy. Averaging <em>context-free</em> vectors was lab 8's problem,
+  is not the problem in itself. Averaging <em>context-free</em> vectors was lab 8's problem,
   specifically — and an RNN's hidden states are not context-free.</p>
 </div>
 
-<p>The same point, computed rather than argued. Push both token orderings from beat 2's example
-through a <strong>hand-rolled, randomly-initialised</strong> RNN — untrained, on purpose, because
-session 24 has not happened yet:</p>
+<p>We can verify this by computation rather than argument. Passing both orderings of
+<code>dog bites man</code> through a randomly initialised RNN — untrained, since we have not yet
+covered training — gives:</p>
 
 <pre><code>h(dog bites man)  ≠  h(man bites dog)         componentwise, exactly
 cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
 
 <div class="callout warn">
-  <span class="label">⚠️ Don't oversell this</span>
+  <span class="label">What this result does and does not show</span>
   <p>An untrained RNN's final hidden state has never been taught to do anything useful with the order
   it sees — <code>0.138</code> is not a meaningful similarity score in any sense a trained model's
   output would be. The claim here is narrower and does not depend on training at all: <strong>the
-  architecture is <em>capable</em> of seeing order; averaging raw vectors is not</strong>, a fact about
-  the two functions themselves, independent of what either has been trained to accomplish with that
-  capability. Compare the two cosines side by side — averaging's <code>0.9999999999999998</code>
-  against the untrained RNN's <code>0.138</code> — and the gap is the whole argument.</p>
+  architecture is <em>capable</em> of seeing order; averaging raw vectors is not</strong>. That is a
+  fact about the two functions, and holds whether or not either has been trained. The comparison to
+  make is between the two cosines: <code>0.9999999999999998</code> for averaging, <code>0.138</code>
+  for the untrained RNN.</p>
 </div>
 
 <div class="quiz" data-answer="3">
@@ -905,12 +904,12 @@ cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
     <em>function</em> <code>h_t = g(Uh_{t-1} + Wx_t)</code> still depends on which word arrived at
     which step, because <code>h_{t-1}</code> feeds into <code>h_t</code> and not the reverse.
     Averaging has no such asymmetry at all, trained or not — it is mathematically incapable of telling
-    two reorderings apart, which is what beat 2's cosine of <code>0.9999999999999998</code>
+    two reorderings apart, which is what the cosine of <code>0.9999999999999998</code> above
     demonstrated directly.</p>
   </div>
 </div>
 
-<h2>Where this leaves the wall from beat 2</h2>
+<h2>Averaged embeddings compared with an RNN</h2>
 
 <table>
   <tr><th></th><th>Averaged embedding (CBOW, lab 8)</th><th>RNN</th></tr>
@@ -923,39 +922,39 @@ cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
       discarded to achieve it</td></tr>
 </table>
 
-<h2>The honest cliffhanger</h2>
+<h2>An open question: how far back does it reach?</h2>
 
-<p>SLP3 itself claims the recurrent connection can let a decision "depend on information from
-hundreds of words in the past." State the claim, then question it, then stop:</p>
+<p>SLP3 states that the recurrent connection can let a decision "depend on information from hundreds
+of words in the past." We should be careful about what this claim establishes.</p>
 
 <div class="callout warn">
-  <span class="label">⚠️ The architecture allows it. Whether it happens is a different question.</span>
-  <p>This session showed you the architecture <em>allows</em> a decision to depend on information from
-  hundreds of words back — beat 5's toy made the chain visible, link by link, with nothing in the
-  formula that breaks it. <mark>Whether that actually happens once you try to train one is next
-  session's entire hour</mark> — and the honest answer is not the one the architecture's name
-  promises.</p>
+  <span class="label">What the architecture allows, and what training delivers</span>
+  <p>What we have shown is that the architecture <em>allows</em> a decision to depend on information
+  from hundreds of words back. The worked example above makes the chain visible link by link, and
+  nothing in the formula breaks it. <mark>Whether this dependence survives training is a separate
+  question</mark>, and session 24 is devoted to it. The answer is not the one the architecture
+  suggests.</p>
 </div>
 
-<p>Unit II ended on "blind to order," and this session is the fix. Unit III's first real complication
-is that the fix has a limit nobody in this room has stated yet.</p>
+<p>Unit II ended with the problem of order-blindness, and the RNN addresses it. The first
+complication in Unit III is that this solution has a limit, which we have not yet stated.</p>
 
 <div class="callout">
-  <span class="label">The whole lesson in four sentences</span>
-  <p>A feedforward layer needs a fixed-size input, and every trick this course has used to get one —
-  averaging context words, averaging a whole document — is mathematically incapable of seeing word
-  order, because addition is commutative. An RNN instead processes one word at a time, carrying a
-  hidden state <code>h_t = g(Uh_{t-1} + Wx_t)</code> forward, so the same three matrices
-  <code>U</code>, <code>W</code>, <code>V</code> handle a three-word sentence and a three-hundred-word
-  document identically, and the hidden state at any step is a specific, order-dependent function of
-  everything before it. For classification, the final hidden state <code>h_n</code> feeds a softmax,
-  trained end-to-end; pooling all the hidden states is a legitimate alternative precisely because each
-  one already encodes what came before it, unlike lab 8's raw-vector averaging. What this session did
-  not show is whether that "everything before it" reaches back hundreds of words in practice, only
-  that the architecture does not forbid it — that question is session 24's.</p>
+  <span class="label">Summary</span>
+  <p>A feedforward layer needs a fixed-size input. Every trick this course has used to get one —
+  averaging context words, averaging a whole document — cannot see word order, because addition is
+  commutative. An RNN reads one word at a time instead, carrying a hidden state
+  <code>h_t = g(Uh_{t-1} + Wx_t)</code> forward. The same three matrices handle a three-word sentence
+  and a three-hundred-word document. At any step, the hidden state depends on everything before it,
+  in order.</p>
+  <p>For classification, the final hidden state <code>h_n</code> feeds a softmax, trained end-to-end.
+  Pooling all the hidden states works too, for a reason lab 8's averaging could not claim: each
+  hidden state already encodes what came before it.</p>
+  <p>What this session did not show is whether "everything before it" really reaches back hundreds of
+  words. Only that the architecture does not forbid it. That is session 24's question.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/13.pdf">Speech and
 Language Processing</a></strong>, chapter 13, §13.1 (the recurrence and the unrolled figure) and
@@ -974,7 +973,8 @@ names backpropagation through time without opening it — session 24 opens it.</
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
   <a href="0022-glove.html">← Session 22: GloVe</a>
-  <span>Session 24: backpropagation through time — coming soon</span>
+  <a href="0024-backprop-through-time-and-vanishing-gradients.html">Session 24: backprop through time,
+  and the vanishing gradient →</a>
 </nav>
 
 <script>

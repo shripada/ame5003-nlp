@@ -566,7 +566,7 @@ figcaption {
 
 
 
-<h2>The debt from last session</h2>
+<h2>Where session 17 left off</h2>
 
 <p>Session 17 ended with a question. Here is the table again:</p>
 
@@ -585,7 +585,7 @@ what we want is a word that is <strong>distinctive</strong>.</p>
 <p>You already know the fix. Session 10 used TF-IDF to rank search results. Today it goes
 <em>inside the vector</em> rather than inside a score.</p>
 
-<h2>The two pieces, quickly</h2>
+<h2>Term frequency and inverse document frequency, restated</h2>
 
 <p>Both of these are session 10's, and neither changes. This is a recap.</p>
 
@@ -604,14 +604,14 @@ collection:</p>
 <p>One property of that second formula carries the whole hour, so notice it now:</p>
 
 <div class="callout">
-  <span class="label">Worth pinning down before we go on</span>
+  <span class="label">Definitions</span>
   <p>If a word appears in <em>every</em> document, then <code>df = N</code>, so
   <code>idf = log₁₀(N/N) = log₁₀(1) = <strong>0</strong></code>.</p>
   <p>Not small. Not nearly zero. <mark>Exactly zero</mark> — and anything multiplied by exactly
   zero is gone.</p>
 </div>
 
-<h2>The real Shakespeare numbers</h2>
+<h2>The Shakespeare corpus</h2>
 
 <p>Shakespeare wrote 37 plays, so <code>N = 37</code>. Here is <code>df</code> and
 <code>idf</code> for nine words across that whole collection:<span class="sidenote">SLP3 3rd ed.,
@@ -703,7 +703,7 @@ from the df counts rather than copied.</span></p>
 </figure>
 
 <div class="recall">
-  <span class="label">Work this out before reading on</span>
+  <span class="label">Exercise</span>
   <p><code>good</code> occurs <strong>114 times</strong> in <em>As You Like It</em> — the biggest
   number anywhere in our table. It also appears in all <strong>37</strong> of the 37 plays. What is
   its tf-idf weight?</p>
@@ -754,7 +754,7 @@ to 114, and its tf now ranges from 2.79 to 3.06. That was the point of the first
 table contributes <strong>nothing at all</strong> to any document's position. Session 17's recall
 box has been paid in full, by arithmetic rather than by our judgement.</p>
 
-<h2>But look at what else went</h2>
+<h2>What else the weighting removed</h2>
 
 <p>Read the rest of that table honestly. <code>fool</code> is down to hundredths. <code>wit</code>
 is not much better. The only row with any life left in it is <code>battle</code>.</p>
@@ -779,13 +779,13 @@ comedy.</strong> Session 17's clustering did not sharpen. It fell apart.</p>
 <p>There is no point re-drawing the scatter plot: with only <code>battle</code> carrying any
 weight, all four plays land strung out along a single line.</p>
 
-<h2>Why — and this is the lesson</h2>
+<h2>Why this happens</h2>
 
 <p>The tempting reading is "tf-idf failed here". That is the wrong reading, and getting it right is
 worth more than the technique itself.</p>
 
 <div class="callout">
-  <span class="label">The idea to take away from this hour</span>
+  <span class="label">The main idea</span>
   <p><mark>idf is a property of the <strong>collection</strong>, not of the document.</mark></p>
   <p>Nothing about <em>As You Like It</em> changed. What changed is that we asked how distinctive
   its words are <em>among 37 Shakespeare plays</em> — and Shakespeare uses <code>fool</code> in 36
@@ -800,13 +800,13 @@ Shakespeare, and they carry none. The words did not change; the collection did.<
 <p>So the honest summary of what just happened is this — and it is worth saying out loud:</p>
 
 <div class="callout">
-  <span class="label">What the numbers actually said</span>
+  <span class="label">What the numbers show</span>
   <p>TF-IDF did not break our example. It <strong>measured</strong> it, and the measurement says
   these four words cannot tell Shakespeare's plays apart, because Shakespeare uses them in nearly
   all of them. That is a fact about the collection we did not have ten minutes ago.</p>
 </div>
 
-<h2>So what should we have picked?</h2>
+<h2>Choosing better dimensions</h2>
 
 <p>The answer is sitting in the idf table. If the task is to tell Shakespeare's plays apart, choose
 words whose idf is actually high in <em>this</em> collection:</p>
@@ -878,7 +878,7 @@ reports "your features are poor for this collection" is doing its job, not faili
   </div>
 </div>
 
-<h2>One more problem, and then we stop</h2>
+<h2>A remaining problem</h2>
 
 <p>There is a second thing wrong with measuring distance between document vectors, and it has
 nothing to do with weighting.</p>
@@ -906,10 +906,10 @@ document length, which is not what we wanted to measure at all.</p>
   <strong>1.0000</strong> — perfectly identical. Next session derives it.</p>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in three sentences</span>
+  <span class="label">The main points</span>
   <p>TF-IDF weights each cell of the term-document matrix by <code>(1 + log₁₀ count) ×
   log₁₀(N/df)</code>, so that common words shrink and distinctive words dominate — and a word in
   every document collapses to exactly zero. But <em>distinctive</em> is measured against a
@@ -918,7 +918,7 @@ document length, which is not what we wanted to measure at all.</p>
   was tf-idf telling us those words were a poor description of <em>this</em> collection.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
 Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>§11.1.2</strong>

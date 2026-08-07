@@ -567,7 +567,7 @@ figcaption {
 
 
 
-<h2>Where Unit II has got to</h2>
+<h2>Where Unit II stands</h2>
 
 <p>Back in session 8 a document was a row of ones and zeros — the incidence matrix, present or
 absent, nothing in between. Session 17 kept a count instead of a bit. Session 18 reweighted that count
@@ -576,7 +576,7 @@ threw all of that out and replaced <em>counting</em> with <em>predicting</em>: d
 keep the weights. Today asks the question that move raises but never answered: <mark>was predicting
 actually necessary, or would counting have worked all along if we had counted the right thing?</mark></p>
 
-<h2>The complaint GloVe makes</h2>
+<h2>GloVe's objection to Word2Vec</h2>
 
 <p>Word2Vec slides a window across the corpus and, at every position, asks one question and throws the
 window away. Slide it across a billion tokens and you will pass the pair <code>(ice, steam)</code> —
@@ -585,14 +585,14 @@ of separate times, and the model never once holds the <em>total</em>. Every wind
 context-free glimpse.</p>
 
 <div class="callout">
-  <span class="label">GloVe's argument, stated fairly</span>
+  <span class="label">GloVe's argument</span>
   <p>The corpus already contains the total. Count how often every word appears near every other word,
   once, and you have a table that Word2Vec spent an entire training run approximating one window at a
   time. <mark>Global Vectors: build the global co-occurrence matrix, then fit vectors to it
   directly.</mark></p>
 </div>
 
-<h2>Co-occurrence, and the ratio that matters</h2>
+<h2>Co-occurrence ratios</h2>
 
 <p>Call the matrix <code>X</code>: <code>Xᵢⱼ</code> is how many times word <em>j</em> appears within
 some window of word <em>i</em>, counted across the whole corpus. That much is just session 19's
@@ -604,7 +604,7 @@ is</strong>. Take two words that mean different things but share a domain — <c
 <code>steam</code> — and a handful of probe words:</p>
 
 <div class="recall">
-  <span class="label">Work this out before reading on</span>
+  <span class="label">Exercise</span>
   <p>Two drinks, <code>espresso</code> and <code>juice</code>, and two probe words, counted across some
   corpus. Both drinks happen to appear equally often — each has a total of <strong>10,000</strong>
   co-occurrences with all words — so their counts are directly comparable:</p>
@@ -663,7 +663,7 @@ it hit session 13's zero problem from the other side. <code>fashion</code> is me
 instead of landing near 1.</p>
 
 <div class="callout warn">
-  <span class="label">⚠️ Not a failed replication — the same zero problem, again</span>
+  <span class="label">The zero problem, again</span>
   <p>Pennington et al. trained on <strong>6 billion</strong> tokens, about 350× this corpus. At that
   scale, two arbitrary words almost always co-occur <em>some</em> nonzero number of times purely by
   chance, so their ratio lands near 1 as the theory predicts. At 17 million tokens, rare pairings can
@@ -691,18 +691,18 @@ cell of <code>X</code>, and you have GloVe's loss (weighting term <code>f</code>
 <em>ratio</em> of counts once you exponentiate back:</p>
 
 <div class="callout">
-  <span class="label">The one algebraic fact doing all the work</span>
+  <span class="label">The algebraic identity</span>
   <p><code>log(Xᵢₖ) − log(Xⱼₖ) = log(Xᵢₖ / Xⱼₖ)</code>. If the model fits
   <code>wᵢᵀw̃ₖ ≈ log Xᵢₖ</code> and <code>wⱼᵀw̃ₖ ≈ log Xⱼₖ</code> for every word, then
-  <code>wᵢᵀw̃ₖ − wⱼᵀw̃ₖ</code> is automatically fitting the log-ratio from beat 3 — the very quantity
-  the paper argued was the informative one. <mark>The log is not decoration. It is the thing that turns
+  <code>wᵢᵀw̃ₖ − wⱼᵀw̃ₖ</code> is automatically fitting the log of the ratio from the section above —
+  the very quantity the paper argued was the informative one. <mark>The log is not decoration. It is the thing that turns
   "fit a count" into "fit the ratio that actually carries meaning".</mark></p>
 </div>
 
 <p>The paper's own derivation — starting from the ratio and working forward to this equation — runs
 three pages. None of it is needed to use the result, so it is skipped here on purpose.</p>
 
-<h2>Weighting: don't let the common pairs win</h2>
+<h2>Weighting the loss</h2>
 
 <p>Squared error on <code>log Xᵢⱼ</code> has a problem session 18 already gave a name to: a handful of
 extremely frequent pairs — <code>(the, of)</code>, <code>(a, the)</code> — would dominate the loss and
@@ -717,7 +717,7 @@ f(x) = 1                otherwise         (paper's values: x_max = 100, α = 3/4
 pairs (co-occurring once or twice) are down-weighted too, since a single accidental co-occurrence is
 mostly noise. <mark>Same complaint as session 18, same shape of fix, different matrix.</mark></p>
 
-<h2>Two vectors again — and this time they get added</h2>
+<h2>Two vectors, added</h2>
 
 <p>Look back at the loss: there are two matrices, <code>w</code> and <code>w̃</code>, exactly like
 Word2Vec's <code>E</code> and <code>W'</code>. Session 21 said "some implementations offer to average
@@ -743,12 +743,12 @@ alone, and every released GloVe file already has this done for you.</p>
     <p>Nothing here is a probability of anything — there is no softmax, no prediction step, no
     sampling. GloVe is closer to matrix factorisation than to a classifier: fit a matrix of numbers,
     reconstruct a matrix of numbers. The log matters specifically because a <em>difference</em> of two
-    such fits reconstructs the <em>ratio</em> from beat 3, which is the quantity the whole method is
-    built to recover.</p>
+    such fits reconstructs the co-occurrence <em>ratio</em>, which is the quantity the whole method
+    is built to recover.</p>
   </div>
 </div>
 
-<h2>So which one is actually better?</h2>
+<h2>Comparing Word2Vec and GloVe</h2>
 
 <table>
   <tr><th></th><th>Word2Vec</th><th>GloVe</th></tr>
@@ -786,7 +786,7 @@ session 21's GoogleNews Word2Vec against <code>glove-wiki-gigaword-300</code> (W
 preprocessing, are ever going to agree. Every top neighbour is either identical or a plainly related
 word. <mark>Nothing here supports either paper's marketing.</mark></p>
 
-<h3>The famous analogy, both ways</h3>
+<h3>The analogy task</h3>
 
 <pre><code>king − man + woman, excluding inputs:
     Word2Vec:  queen 0.7118, monarch 0.6190, princess 0.5902
@@ -801,7 +801,7 @@ lands near <code>king</code>, not <em>on</em> <code>queen</code>, in both repres
 <code>queen</code> is the best non-input answer in both. Same phenomenon, same overstatement in the
 popular telling, two unrelated training methods.</p>
 
-<h3>The one real difference: <code>good</code></h3>
+<h3>The difference on <code>good</code></h3>
 
 <p>Session 21's least comfortable finding was <code>bad</code> sitting second-nearest to
 <code>good</code> in Word2Vec, at 0.719. Check the same query in GloVe:</p>
@@ -812,7 +812,7 @@ popular telling, two unrelated training methods.</p>
 cos(good, bad) = 0.645          ← real, but doesn't crack the top ten</code></pre>
 
 <div class="callout warn">
-  <span class="label">⚠️ Read this carefully — it is not "GloVe fixed antonyms"</span>
+  <span class="label">What this result does not show</span>
   <p><code>bad</code> is nowhere in GloVe's top ten neighbours of <code>good</code>, where it was rank
   two in Word2Vec. It would be tempting to conclude GloVe solved the antonym problem. <mark>It did
   not</mark> — 0.645 is still a high cosine, close behind the tenth-ranked word, and this GloVe file
@@ -835,7 +835,7 @@ cos(good, bad) = 0.645          ← real, but doesn't crack the top ten</code></
 were fundamentally better at separating antonyms, this table would lean one way. It does not.</p>
 
 <div class="callout">
-  <span class="label">The honest answer</span>
+  <span class="label">The current answer</span>
   <p><strong>About the same, and the theoretical distinction is smaller than either paper's framing
   suggests.</strong> Levy &amp; Goldberg (2014) proved that Skip-gram with negative sampling is
   implicitly factorising a matrix of shifted pointwise mutual information — which is to say, it was
@@ -911,10 +911,10 @@ the same kind of building block — one dense vector per word type.</p>
 Unit III fixes the second. The third is the reason Unit III opens with a model built to process a
 sequence <em>as</em> a sequence, one step at a time.</p>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in four sentences</span>
+  <span class="label">The main points</span>
   <p>GloVe builds the global word-word co-occurrence matrix once, then fits vectors so their dot
   product recovers the <em>log</em> of each count — because a difference of two such fits reconstructs
   the ratio of co-occurrence probabilities, which is the quantity that actually distinguishes one word
@@ -926,13 +926,14 @@ sequence <em>as</em> a sequence, one step at a time.</p>
   dense vectors aware of sequence, context and order — Unit III.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong>Jeffrey Pennington, Richard Socher and Christopher Manning</strong>,
 <a href="https://nlp.stanford.edu/pubs/glove.pdf"><em>GloVe: Global Vectors for Word
 Representation</em></a> (2014) — short, and §3 is the only section that matters for this course.</p>
 
-<p>The honesty in beat 7 comes from two papers worth citing by name if anyone asks:
+<p>The "so which one is actually better?" section draws on two papers worth citing by name if anyone
+asks:
 <strong>Omer Levy and Yoav Goldberg</strong>, <em>Neural Word Embedding as Implicit Matrix
 Factorization</em> (NeurIPS 2014), and <strong>Levy, Goldberg and Dagan</strong>, <em>Improving
 Distributional Similarity with Lessons Learned from Word2Vec</em> (TACL 2015).</p>

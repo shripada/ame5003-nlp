@@ -558,8 +558,8 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 03</p>
   <h1>Tokenization</h1>
-  <p class="subtitle">How a computer splits text into words — and why that turns out to be a
-  hard problem.</p>
+  <p class="subtitle">How a computer splits text into words, and why that turns out to be a
+  difficult problem.</p>
 </header>
 
 <div class="wrap">
@@ -571,49 +571,50 @@ figcaption {
 <p>Before a computer can do anything with text, it has to break the text into pieces. Those
 pieces are called <strong>tokens</strong>. This step is called <strong>tokenization</strong>.</p>
 
-<p>It sounds easy. Split on spaces, and you are done:</p>
+<p>The task appears straightforward: split the text on spaces.</p>
 
 <pre><code>"the cat sat"   →   ["the", "cat", "sat"]</code></pre>
 
-<p>That works for this sentence. It stops working almost immediately.</p>
+<p>This works for the sentence above. It stops working almost immediately afterwards.</p>
 
 <h2>Why splitting on spaces fails</h2>
 
-<p>Look at this sentence:</p>
+<p>Consider the following sentence:</p>
 
 <pre><code>"Dr. O'Neill isn't in — he's at St. Mary's, re: the U.S.A. deal."</code></pre>
 
-<p>Split it on spaces and you get problems straight away:</p>
+<p>Splitting on spaces produces several problems immediately:</p>
 
 <ul>
-  <li><code>Mary's,</code> keeps the comma stuck to it. That comma is not part of the name.</li>
-  <li><code>isn't</code> stays as one piece. But it is really two words: <em>is</em> and
-      <em>not</em>.</li>
-  <li><code>Dr.</code> and <code>U.S.A.</code> contain full stops. If you split on full stops to
-      fix the first problem, you break these.</li>
+  <li><code>Mary's,</code> retains the comma, which is not part of the name.</li>
+  <li><code>isn't</code> remains a single piece, although it represents two words, <em>is</em>
+      and <em>not</em>.</li>
+  <li><code>Dr.</code> and <code>U.S.A.</code> contain full stops. Splitting on full stops to fix
+      the first problem would break these.</li>
 </ul>
 
-<p>Every rule you add to fix one case breaks another. Play this game for a while and you start to
-think the whole idea is hopeless.</p>
+<p>Each rule added to fix one case breaks another. After a while it can seem that the whole
+approach is unworkable.</p>
 
-<p>It is not. Careful rules do win in the end, and the next section shows the ones everybody
-uses. But they only settle the punctuation. Underneath there is a second problem that no amount
-of rule-writing touches, and that one is the reason this session matters.</p>
+<p>It is not. Careful rules do eventually succeed, and the next section presents the standard
+ones. They settle only the punctuation, however. Underneath lies a second problem that no amount
+of rule-writing addresses, and that problem is the main subject of this session.</p>
 
 
 
-<h2>What people actually use: a careful set of rules</h2>
+<h2>Rule-based tokenization</h2>
 
-<p>Whack-a-mole sounds hopeless, but it is not. If you play it patiently for long enough — and
-people did, for years — you end up with a rule set that handles almost everything in ordinary
-English text. The best known one is the <strong>Penn Treebank</strong> tokenizer. It is a pile of
-regular expressions, written by hand, in the spirit of sessions 1 and 2.<span class="sidenote">
+<p>Adding rules one counter-example at a time is slower than it looks, but it does converge.
+Researchers did exactly this for years, and the result is a rule set that handles almost
+everything in ordinary English text. The best known is the <strong>Penn Treebank</strong>
+tokenizer, a collection of hand-written regular expressions of the kind we saw in sessions 1 and
+2.<span class="sidenote">
 Jurafsky &amp; Martin, <a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">SLP3</a>
 <strong>§2.8</strong>, "rule-based tokenization". §2.7 shows the same job done with plain Unix
 tools, which is worth ten minutes of your time.</span></p>
 
-<p>You do not write it yourself. You call it. This is NLTK's version, on the same awkward
-sentence:</p>
+<p>We do not write such a tokenizer ourselves; we call an existing one. Here is NLTK's version,
+applied to the same difficult sentence:</p>
 
 <pre><code>from nltk.tokenize import word_tokenize
 
@@ -622,112 +623,114 @@ word_tokenize("Dr. O'Neill isn't in — he's at St. Mary's, re: the U.S.A. deal.
 ['Dr.', "O'Neill", 'is', "n't", 'in', '—', 'he', "'s", 'at', 'St.',
  'Mary', "'s", ',', 're', ':', 'the', 'U.S.A.', 'deal', '.']</code></pre>
 
-<p>Go through the list against the three problems from the last section. It got all of them:</p>
+<p>Comparing this output against the three problems from the previous section, we see that the
+tokenizer handles all of them:</p>
 
 <ul>
-  <li><code>Dr.</code> and <code>U.S.A.</code> kept their full stops — it knows abbreviations.</li>
-  <li>The final <code>.</code> came off as its own token, because that one <em>is</em>
+  <li><code>Dr.</code> and <code>U.S.A.</code> retain their full stops, since the tokenizer
+      recognises abbreviations.</li>
+  <li>The final <code>.</code> becomes its own token, since that one is genuinely
       punctuation.</li>
-  <li><code>isn't</code> became <code>is</code> + <code>n't</code> — split, and the negation is
-      still visible.</li>
-  <li><code>Mary's</code> became <code>Mary</code> + <code>'s</code>, and the comma is a separate
-      token.</li>
+  <li><code>isn't</code> becomes <code>is</code> + <code>n't</code>, so the negation remains
+      visible as a separate token.</li>
+  <li><code>Mary's</code> becomes <code>Mary</code> + <code>'s</code>, with the comma as a
+      separate token.</li>
 </ul>
 
-<p>Punctuation becomes its own token rather than being deleted, which is the right default: a
-question mark is a real signal, and you can always drop it later.</p>
+<p>Punctuation becomes its own token rather than being deleted. This is the appropriate default:
+a question mark carries real information, and it can always be discarded later.</p>
 
 <div class="callout">
-  <span class="label">Use the library</span>
-  <p>For English text, a good rule-based tokenizer is a solved problem. Do not hand-roll one.
-  <code>word_tokenize</code> in NLTK, or spaCy's tokenizer, has absorbed decades of
-  counter-examples you have not thought of yet. You will use both in Lab 3.</p>
-  <p>What you <em>do</em> need is to know what it did, because the tokens it hands back are what
-  every count in Unit II is counting.</p>
+  <span class="label">Use an existing tokenizer</span>
+  <p>For English text, rule-based tokenization is a solved problem, and there is no reason to
+  write one by hand. NLTK's <code>word_tokenize</code> and spaCy's tokenizer both incorporate
+  decades of accumulated counter-examples. We use both in lab 3.</p>
+  <p>What does matter is understanding what the tokenizer has done, since the tokens it returns
+  are what every count in Unit II counts.</p>
 </div>
 
-<p>So: where does a word end? For English prose, "here, mostly, and a library knows the
-exceptions." That is a genuinely useful answer, and for the whole of Unit I it is the answer we
-use.</p>
+<p>We can now give a partial answer to the question of where a word ends. For English prose, a
+word ends roughly where the spaces and punctuation suggest, and a good library knows the
+exceptions. This answer is useful, and it is the one we rely on throughout Unit I.</p>
 
-<p>But it does not survive contact with Unit III, and the reason has nothing to do with
+<p>It is not sufficient for Unit III, however, and the reason has nothing to do with
 punctuation.</p>
 
-<h2>The real problem: the word list is fixed, but language is not</h2>
+<h2>The vocabulary problem</h2>
 
 <div class="callout">
-  <span class="label">First — what is a "model"?</span>
-  <p>This word is about to appear a lot, so let us pin it down. You do not need the details yet;
-  you need enough to follow the next page.</p>
-  <p>In sessions 1 and 2 you wrote <strong>rules by hand</strong>. You decided a date looks like
-  <code>\d{2}/\d{2}/\d{4}</code>, and you typed that out. The computer did what you said.</p>
-  <p>A <strong>model</strong> is the opposite. You do not write the rules. You show it a pile of
-  examples — this is called <strong>training</strong> — and it works out the patterns itself.
-  Afterwards you give it something new and it makes a guess.<span class="sidenote">If you want a
+  <span class="label">What we mean by a "model"</span>
+  <p>This term is about to appear frequently, so we define it here. The full details are not
+  needed yet, only enough to follow the argument that follows.</p>
+  <p>In sessions 1 and 2 we wrote <strong>rules by hand</strong>. We decided that a date looks
+  like <code>\d{2}/\d{2}/\d{4}</code> and wrote that pattern out, and the computer applied it.</p>
+  <p>A <strong>model</strong> works the other way round. We do not write the rules. We supply a
+  large collection of examples, a process called <strong>training</strong>, and the model derives
+  the patterns itself. We then give it a new input and it produces a prediction.<span
+  class="sidenote">If you want a
   fuller answer now, the gentlest one on the internet is Google's <a
   href="https://developers.google.com/machine-learning/intro-to-ml/what-is-ml">"What is Machine
   Learning?"</a> — about 20 minutes, no mathematics. Their <a
   href="https://developers.google.com/machine-learning/glossary#model">ML Glossary</a> is a good
   place to look up any term that appears before we teach it. Neither is required reading. We
   build all of this properly from <strong>session 20</strong> onward.</span></p>
-  <p>To do that, a model has to keep some numbers for each word it knows — a handful of numbers
-  per word, which it adjusts while it learns. That is all "a model" needs to mean today:
-  <mark>a program that learned from examples, and keeps some numbers for every word it
-  knows.</mark></p>
-  <p>You will build your first one in week 6. For now, just hold on to the numbers-per-word part
-  — the rest of this lesson turns on it.</p>
+  <p>To do this, a model must store some numbers for each word it knows, and it adjusts those
+  numbers as it learns. For present purposes this is all the term needs to mean: <mark>a program
+  that has learned from examples, and that keeps some numbers for every word it knows.</mark></p>
+  <p>You will build your first model in week 6. For now, the important part is the storage of
+  numbers per word, on which the rest of this lesson depends.</p>
 </div>
 
 <p>Every model in this course needs a <strong>vocabulary</strong>. That is a fixed list of every
 token the model knows. The model builds this list once, from its training text, and then it is
 fixed forever.</p>
 
-<p>It has to be fixed, because <strong>the model keeps a row of numbers for every token in that
-list</strong> — that is the "numbers per word" from the box above. Ten thousand words means ten
-thousand rows. So the size of the list decides the size of the model.</p>
+<p>The list must be fixed because <strong>the model keeps a row of numbers for every token in
+it</strong>, which is the "numbers per word" from the definition above. Ten thousand words
+require ten thousand rows, so the size of the list determines the size of the model.</p>
 
-<p>Here is the problem. Language does not have a fixed word list. People invent new words all
-the time — <code>doomscrolling</code>, <code>rizz</code>, <code>ChatGPT-ing</code>. No matter
-how much text you train on, you will meet new words later.</p>
+<p>The difficulty is that language has no fixed word list. New words are coined continually:
+<code>doomscrolling</code>, <code>rizz</code>, <code>ChatGPT-ing</code>. However much text a
+model is trained on, it will encounter new words afterwards.</p>
 
-<p>So the model breaks:</p>
+<p>The model therefore fails in the following way:</p>
 
 <pre><code>training:  vocabulary = every word seen in the training text
 later:     model sees "doomscrolling"  →  not in the list  →  &lt;UNK&gt;</code></pre>
 
-<p><code>&lt;UNK&gt;</code> means "unknown word". Every word the model has not seen becomes this
-same token. So the model cannot tell <code>doomscrolling</code> apart from any other unknown
-word. They all look identical to it.</p>
+<p><code>&lt;UNK&gt;</code> stands for "unknown word". Every word the model has not seen becomes
+this same token, so the model cannot distinguish <code>doomscrolling</code> from any other
+unknown word; they are all identical as far as it is concerned.</p>
 
-<p>That is bad enough. But look closer at <code>doomscrolling</code>. It contains
-<code>scroll</code>, a word the model knows well. The meaning is sitting right there in the
-letters. Splitting on spaces throws that away.</p>
+<p>There is a further loss. <code>doomscrolling</code> contains <code>scroll</code>, a word the
+model knows well, so part of the meaning is available in the letters themselves. Splitting on
+spaces discards it.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>You have a fixed word list. Language keeps inventing new words. You are not allowed to use
-  <code>&lt;UNK&gt;</code>. What can you change?</p>
+  <span class="label">Exercise</span>
+  <p>Suppose the word list is fixed, language continues to produce new words, and
+  <code>&lt;UNK&gt;</code> is not available. What can be changed?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>Make the pieces <strong>smaller than words</strong>.</p>
-    <p>If your list holds word <em>parts</em>, you can spell any new word out of parts you
-    already have. Take this to the extreme and a list of single letters can spell every word
-    that exists.</p>
-    <p>But single letters are useless on their own. The letter <em>s</em> means nothing. And
-    sentences become very long lists of letters.</p>
-    <p>So you have a trade-off: <strong>big pieces carry meaning but miss new words. Small
-    pieces cover everything but carry little meaning.</strong> The answer is to sit in the
-    middle. That is what the next section does.</p>
+    <p>The pieces can be made <strong>smaller than words</strong>.</p>
+    <p>If the list holds word <em>parts</em>, any new word can be spelled out of parts already in
+    the list. Taken to the extreme, a list of single letters can spell every word that exists.</p>
+    <p>Single letters, however, carry no meaning individually: the letter <em>s</em> means
+    nothing on its own, and sentences become very long sequences of letters.</p>
+    <p>There is therefore a trade-off. <strong>Large pieces carry meaning but fail on new words;
+    small pieces cover everything but carry little meaning.</strong> The solution is to choose
+    pieces of intermediate size, which is what the next section describes.</p>
   </div>
 </div>
 
-<h2>Byte-Pair Encoding: let the data decide the pieces</h2>
+<h2>Byte-Pair Encoding</h2>
 
-<p>We want word parts. But who decides where to split? A linguist could mark every prefix and
-suffix in English by hand. That would take years, and it would not work for other languages.</p>
+<p>We want word parts, but something must decide where the splits fall. A linguist could mark
+every prefix and suffix in English by hand, but this would take years and would not transfer to
+other languages.</p>
 
-<p><strong>Byte-Pair Encoding</strong> (BPE) has a better idea. It learns the pieces by counting.
-The rule is simple:</p>
+<p><strong>Byte-Pair Encoding</strong> (BPE) instead learns the pieces by counting. The procedure
+is as follows:</p>
 
 <ol>
   <li>Start with a list of single characters.</li>
@@ -737,13 +740,13 @@ The rule is simple:</p>
   <li>Repeat <em>k</em> times.</li>
 </ol>
 
-<p>That is the whole algorithm. <em>k</em> is a number you choose. It decides how big your final
-list is.</p>
+<p>That is the entire algorithm. <em>k</em> is a parameter we choose, and it determines the size
+of the final list.</p>
 
-<h3>Working through an example</h3>
+<h3>A worked example</h3>
 
-<p>Here is a small set of words. The number on the left is how often each word appears. The
-<code>_</code> marks the end of a word.</p>
+<p>Consider the following small set of words. The number on the left is the frequency of each
+word, and <code>_</code> marks the end of a word.</p>
 
 <pre><code>5  l o w _
 2  l o w e s t _
@@ -753,8 +756,9 @@ list is.</p>
 
 list:  _, d, e, i, l, n, o, r, s, t, w</code></pre>
 
-<p>Now count the pairs. The pair <code>e r</code> appears in <code>newer</code> (6 times) and in
-<code>wider</code> (3 times). That is <strong>9</strong>, and no pair beats it. So we join it:</p>
+<p>We now count the pairs. The pair <code>e r</code> appears in <code>newer</code> (6 times) and
+in <code>wider</code> (3 times), giving a total of <strong>9</strong>, which no other pair
+exceeds. We therefore merge it:</p>
 
 <pre><code>merge 1:  e + r  →  er
 
@@ -764,20 +768,22 @@ list:  _, d, e, i, l, n, o, r, s, t, w</code></pre>
 3  w i d er _
 2  n e w _</code></pre>
 
-<p>Count again. Now <code>er _</code> appears 9 times, and this time nothing ties with it. Join it.
-Then <code>n e</code> appears 8 times (6 + 2). Join it. And so on:</p>
+<p>Counting again, <code>er _</code> now appears 9 times, with no tie, so we merge it. Next
+<code>n e</code> appears 8 times (6 + 2), and we merge that. Continuing in this way:</p>
 
 <div class="callout">
-  <span class="label">If you recount and get something different, you are not wrong</span>
-  <p>Sometimes two pairs tie for first place, and it happens three times in this small example:</p>
+  <span class="label">Ties between pairs</span>
+  <p>Two pairs sometimes tie for the highest count. This occurs three times in the example
+  above:</p>
   <pre><code>merge 1   e r  and  r _   both 9
 merge 3   n e  and  e w   both 8
 merge 5   l o  and  o w   both 7</code></pre>
-  <p>We picked the left-hand one each time.</p>
-  <p>"Take the most frequent pair" does not say what to do then, and it does not matter — a real
-  implementation just picks by some fixed rule so the same input always gives the same output.
-  Either choice leads somewhere sensible. If your hand-worked trace diverges from ours at a tie,
-  check the counts and then carry on with yours.</p>
+  <p>We take the left-hand pair in each case.</p>
+  <p>The instruction "take the most frequent pair" does not specify what to do when two pairs tie,
+  and the choice does not matter. A real implementation applies some fixed rule so that the same
+  input always produces the same output, and either choice leads to a reasonable vocabulary. If a
+  hand-worked trace diverges from ours at a tie, check the counts and then continue with your own
+  choice.</p>
 </div>
 
 <pre><code>merge 2:  er + _  →  er_
@@ -793,35 +799,36 @@ merge 6:  lo + w  →  low
 2  new _</code></pre>
 
 <div class="callout">
-  <span class="label">Look at what it learned</span>
-  <p>The algorithm created the symbol <code>er_</code>. In English, <em>-er</em> on the end of a
-  word means "more of something" — <em>wide</em> becomes <em>wider</em>. It is a real piece of
-  English grammar.</p>
-  <p><mark>Nobody told the algorithm any of this.</mark> It does not know what English is. It
-  only counted pairs. The grammar fell out of the counting.</p>
-  <p>It also learned that <code>low</code> and <code>new</code> are common enough to stay whole.
-  Common words stay in one piece. Rare words get split up.</p>
+  <span class="label">What the algorithm has learned</span>
+  <p>The algorithm has created the symbol <code>er_</code>. In English, <em>-er</em> at the end of
+  a word indicates a comparative: <em>wide</em> becomes <em>wider</em>. This is a genuine element
+  of English morphology, the subject introduced in SLP3 §2.2.</p>
+  <p><mark>None of this was supplied to the algorithm.</mark> It has no representation of English
+  and performs only frequency counting. The morphological unit emerges from the counts.</p>
+  <p>The algorithm has also determined that <code>low</code> and <code>new</code> are frequent
+  enough to remain whole. In general, frequent words stay in one piece and rare words are split
+  into parts.</p>
 </div>
 
-<h3>Why this fixes the problem</h3>
+<h3>Why this solves the vocabulary problem</h3>
 
-<p>Take the word <code>lower</code>. It is <strong>not</strong> in our training list above. The
-old approach would call it <code>&lt;UNK&gt;</code> and give up.</p>
+<p>Consider the word <code>lower</code>, which does not appear in the training list above. The
+whole-word approach would represent it as <code>&lt;UNK&gt;</code>.</p>
 
-<p>BPE splits it into <code>low</code> + <code>er_</code>. Both pieces are already in the list.
-The model knows <code>low</code>, and it knows what <code>er_</code> does to a word. So it can
-handle <code>lower</code> even though it has never seen it.</p>
+<p>BPE splits it into <code>low</code> + <code>er_</code>, both of which are already in the list.
+The model knows <code>low</code>, and it knows what <code>er_</code> contributes to a word, so it
+can represent <code>lower</code> despite never having seen it.</p>
 
-<p>No unknown <em>words</em>. That is the point of the whole method: any word you meet later can
-be spelled out of pieces you already have, all the way down to single characters if it comes to
-that.</p>
+<p>There are thus no unknown <em>words</em>. This is the central property of the method: any word
+encountered later can be spelled out of pieces already in the list, falling back to single
+characters if necessary.</p>
 
-<p>Unknown <strong>characters</strong> are a different matter. If a character never appeared in
-training — a script the model has never seen, a new emoji — it is not in the list either, and
-<code>&lt;UNK&gt;</code> comes back. That is a real gap, and it is why GPT models run BPE over
-<em>bytes</em> instead of characters: there are only 256 possible bytes, all of them are in the
-list from the start, so nothing can ever be unknown again. Same algorithm, one level lower
-down.</p>
+<p>Unknown <strong>characters</strong> are a separate matter. A character that never appeared in
+training, such as a script the model has not seen or a new emoji, is also absent from the list,
+and <code>&lt;UNK&gt;</code> returns. This is a genuine limitation, and it is why GPT models apply
+BPE to <em>bytes</em> rather than characters. There are only 256 possible bytes, all present in
+the list from the outset, so nothing can be unknown. The algorithm is the same, applied one level
+lower.</p>
 
 <div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
@@ -834,12 +841,12 @@ down.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>bigger list, fewer tokens</strong>.</p>
-    <p>Each merge adds one new symbol to the list. So more merges means a bigger list.</p>
-    <p>And each merge replaces two symbols with one. So the same text needs fewer tokens to
-    write down.</p>
-    <p>This is the trade-off. A big list means short text, but the model gets big and slow. A
-    small list means a small model, but the text becomes long. You cannot have both. Real systems
-    usually end up with a vocabulary of about 30,000 to 50,000 tokens — BERT has 30,522 and GPT-2
+    <p>Each merge adds one new symbol to the list, so more merges give a larger list.</p>
+    <p>Each merge also replaces two symbols with one, so the same text requires fewer tokens to
+    represent.</p>
+    <p>This is the trade-off. A large list gives short token sequences but a large and slow model;
+    a small list gives a small model but long token sequences. Both cannot be optimised at once.
+    Real systems generally settle on a vocabulary of roughly 30,000 to 50,000 tokens — BERT has 30,522 and GPT-2
     has 50,257. (The <em>merge</em> count is a little lower than that, because the starting
     characters are in the list before any merging happens.)</p>
   </div>
@@ -856,18 +863,18 @@ down.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>so merges cannot run past the end of one word</strong>.</p>
-    <p>Without the marker, BPE would count the last letter of one word and the first letter of
-    the next as a pair, just like any other. If that pair was common, it would join them. You
-    would get junk symbols that span two words.</p>
-    <p>It has a second use too. Because <code>er_</code> and <code>er</code> are different
-    symbols, you can always rebuild the original text exactly, spaces and all. That matters for
-    any model that has to <em>write</em> text, which you will meet in Unit III.</p>
+    <p>Without the marker, BPE would count the last letter of one word together with the first
+    letter of the next as a pair, like any other. If that pair were frequent, the two would be
+    merged, producing symbols that span a word boundary and correspond to nothing.</p>
+    <p>The marker has a second use. Because <code>er_</code> and <code>er</code> are distinct
+    symbols, the original text can always be reconstructed exactly, including its spaces. This
+    matters for any model that must <em>generate</em> text, as we see in Unit III.</p>
   </div>
 </div>
 
-<h2>Where this comes back</h2>
+<h2>Where subword tokenization is used</h2>
 
-<p>The models you meet later in this course use exactly this idea.</p>
+<p>The models introduced later in this course use exactly this idea.</p>
 
 <table>
   <tr><th>Model</th><th>What it uses</th><th>When you meet it</th></tr>
@@ -877,24 +884,26 @@ down.</p>
       <code>&lt;UNK&gt;</code> problem</td><td>Unit II</td></tr>
 </table>
 
-<p>When you use BERT later, you will see words come out looking like this:</p>
+<p>When we use BERT in Unit III, its tokenizer produces output of the following form:</p>
 
 <pre><code>"doomscrolling"  →  ["doom", "##scroll", "##ing"]</code></pre>
 
-<p>The <code>##</code> means "this joins to the piece before it". It carries the same information
-as the <code>_</code> in our example, but marks the opposite end: our <code>_</code> flags where a
-word <em>finishes</em>, while <code>##</code> flags a piece that is a <em>continuation</em> of the
-one before. Either way you can tell word boundaries from word insides, which is the only thing
-that matters. Once you know which convention you are looking at, you already understand it.</p>
+<p>The <code>##</code> prefix indicates that a piece attaches to the one before it. It carries the
+same information as the <code>_</code> in our example but marks the opposite end: <code>_</code>
+indicates where a word finishes, whereas <code>##</code> indicates that a piece is a continuation
+of the previous one. Either convention distinguishes word boundaries from word-internal
+positions, which is what matters.</p>
+
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The one thing to remember</span>
-  <p>Tokenization is not about splitting strings. It is about choosing the pieces your model is
-  allowed to think in. Choose whole words, and new words become unknown. Choose word parts, and
-  the model can handle anything.</p>
+  <span class="label">The main points</span>
+  <p>Tokenization is not simply a matter of splitting strings. It determines the units a model is
+  able to represent. If we choose whole words, new words become unknown; if we choose word parts,
+  the model can represent any word it encounters.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The best source on this topic is <strong><a
 href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter 2, "Words and Tokens"</a></strong>
@@ -903,23 +912,23 @@ from <em>Speech and Language Processing</em> by Jurafsky and Martin. It is free.
 <p><strong>Read two sections, and only these two:</strong></p>
 
 <ul>
-  <li><strong>§2.4 — Byte-Pair Encoding.</strong> This is the one that matters. It is the same
-      algorithm we worked through by hand, with the same <code>low / lowest / newer / wider /
-      new</code> example, so you will recognise it immediately.</li>
+  <li><strong>§2.4 — Byte-Pair Encoding.</strong> This is the more important of the two. It
+      presents the same algorithm we worked through by hand, using the same <code>low / lowest /
+      newer / wider / new</code> example.</li>
   <li><strong>§2.8 — rule-based tokenization.</strong> The Penn Treebank rules from earlier in
       this lesson, written out properly.</li>
 </ul>
 
-<p>If you want a third, <strong>§2.7</strong> does tokenization with plain Unix commands. It is
-short and it is a good trick to own.</p>
+<p>For a third section, <strong>§2.7</strong> performs tokenization using plain Unix commands. It
+is short and worth knowing.</p>
 
-<p>Two warnings about this chapter. Its sections are <em>not</em> in our order — BPE (§2.4) comes
-before the regex you read in week 1 (§2.6), so do not read straight through. And skip §2.3
-(Unicode) for now; that is next session.</p>
+<p>Two points of warning about this chapter. Its sections do not follow our order: BPE (§2.4)
+comes before the regular expressions read in week 1 (§2.6), so it should not be read straight
+through. Skip §2.3 (Unicode) for now, as that is the subject of the next session.</p>
 
-<p>BPE came from a paper by <a href="https://aclanthology.org/P16-1162/">Sennrich, Haddow and
-Birch (2016)</a>. The title says what it does: <em>Neural Machine Translation of Rare Words with
-Subword Units</em>. It is readable, and it is short.</p>
+<p>BPE was introduced by <a href="https://aclanthology.org/P16-1162/">Sennrich, Haddow and Birch
+(2016)</a>, in a paper titled <em>Neural Machine Translation of Rare Words with Subword
+Units</em>. It is short and readable.</p>
 
 
 

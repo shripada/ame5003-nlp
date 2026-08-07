@@ -1,0 +1,986 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 24 — Training an RNN: backprop through time and the vanishing gradient</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 24</p>
+  <h1>Training an RNN: backprop through time, and the vanishing gradient</h1>
+  <p class="subtitle">Last session ended on a promise the architecture makes and a question nobody
+  answered. This session answers it, and the answer is no — not by default. That "no" is the entire
+  reason the next session exists.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Where session 23 left off</h2>
+
+<p>Session 23 closed on a claim it deliberately refused to defend. Put it back on the board exactly
+as it was left:</p>
+
+<div class="callout">
+  <span class="label">Session 23's closing question</span>
+  <p>"The architecture <em>allows</em> a decision to depend on information from hundreds of words in
+  the past — whether that actually happens once you try to train one is next session's entire hour."</p>
+</div>
+
+<p>This is that hour. <mark>The honest answer is no, not by default.</mark> Everything below is the
+reason why, and the reason is not a bug in anyone's code — it falls out of the architecture session 23
+spent an hour praising.</p>
+
+<h2>What training an RNN means</h2>
+
+<p><code>U</code>, <code>W</code> and <code>V</code> are trained the way session 20's neuron was
+trained: pick a loss, compute how much each weight contributed to it, nudge every weight against its
+gradient, repeat. Nothing new there. What <em>is</em> new is the distance the blame has to travel.</p>
+
+<p>In sequence classification there is one loss, at the very end, after the last word. To improve, the
+network has to work out how much the weights used at <em>step 1</em> contributed to a mistake made at
+<em>step n</em>. Session 23's unrolled figure is the whole answer: the unrolled network is an ordinary
+feedforward network, so you differentiate backward along every arrow in that picture.</p>
+
+<div class="callout">
+  <span class="label">Backpropagation through time</span>
+  <p>SLP3 describes it as two passes. <strong>Forward:</strong> run the sequence, computing
+  <code>h_t</code> and <code>y_t</code>, accumulating the loss and saving every hidden state.
+  <strong>Backward:</strong> walk the sequence in reverse, computing the gradient at each step and
+  passing an error term back to the step before it. That is all "backpropagation through time" means
+  — <mark>ordinary backpropagation, applied to the unrolled picture.</mark></p>
+</div>
+
+<p>We are not deriving it. The mechanism matters here only for one consequence, which is what the rest
+of the session is about: <strong>to reach step 1, the gradient must pass through every step in
+between</strong>.</p>
+
+<h2>Why the effective memory is short</h2>
+
+<p>SLP3 gives <strong>two</strong> reasons, and they are different problems with different fixes. Both
+matter, and the first one matters more than it looks.</p>
+
+<div class="callout warn">
+  <span class="label">Reason 1: the hidden state has two roles</span>
+  <p>At every step, <code>h_t</code> and the weights that produce it are asked to do two things
+  simultaneously: <strong>provide what the current decision needs</strong>, and <strong>carry forward
+  what some future decision will need</strong>. One vector, two jobs, and no machinery whatsoever to
+  keep them apart. <mark>Whatever the current step finds useful will overwrite what a later step was
+  depending on</mark> — not because of any numerical problem, but because there is only one place to
+  put both.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Reason 2: the gradient is multiplied once per step</span>
+  <p><code>h_t</code> feeds into <code>h_{t+1}</code>, which feeds into <code>h_{t+2}</code>, and so
+  on. So during the backward pass the hidden layers are subject to <strong>repeated
+  multiplications</strong>, as many as the sequence is long. Multiply anything by the same factor a
+  hundred times and it goes to one of two places — <mark>zero, or infinity</mark>. SLP3's name for the
+  first outcome is the <strong>vanishing gradients problem</strong>.</p>
+</div>
+
+<h3>An example sentence</h3>
+
+<pre><code>The flights the airline was canceling were full.</code></pre>
+
+<p>This is SLP3's own example, and it is chosen carefully. Getting <code>was</code> right after
+<code>airline</code> is easy — the singular noun is one word away, and local context is exactly what a
+hidden state is good at. Getting <code>were</code> right is hard, for two separate reasons that map
+onto the two above:</p>
+
+<ul>
+  <li>The word that decides it — the plural <code>flights</code> — sits <strong>many steps back</strong>,
+  and everything in between has been writing into the same hidden state along the way.</li>
+  <li>The singular <code>airline</code> sits <strong>much closer</strong> and pulls the other way. The
+  nearby wrong answer is louder than the distant right one.</li>
+</ul>
+
+<p>That distance is exactly what reason 2's gradient has to survive, and exactly what reason 1's
+overloaded hidden state has to protect. <mark>The example is one sentence and it breaks the model
+twice.</mark></p>
+
+<h2>Returning to session 23's worked example</h2>
+
+<p>Nothing new is needed to see reason 2 arithmetically — session 23's hand-computed toy already
+contains it. That toy was:</p>
+
+<pre><code>h_t = U·h_{t-1} + W·x_t          with U = 0.5, W = 1, h₀ = 0</code></pre>
+
+<p>Differentiate one step: <code>∂h_t/∂h_{t-1} = U</code>. Every step contributes exactly one factor
+of <code>U</code>, so reaching back from step <em>n</em> to step 1 multiplies <code>n−1</code> of
+them together:</p>
+
+<pre><code>∂h_n/∂h₁  =  U^(n−1)</code></pre>
+
+<div class="callout">
+  <span class="label">The value of <code>U</code> used in session 23</span>
+  <p><code>U = 0.5</code> — <strong>already below 1</strong>. The toy the room computed forward by
+  hand last session, with numbers chosen only because they were easy, was a <em>vanishing</em> case
+  the entire time. <mark>No new example is needed. This is last session's arithmetic, read
+  backwards.</mark></p>
+</div>
+
+<table>
+  <tr><th>steps back (<em>n</em>)</th><th><code>U = 0.5</code></th><th><code>U = 1.5</code></th></tr>
+  <tr><td>1</td><td>1</td><td>1</td></tr>
+  <tr><td>2</td><td>0.5</td><td>1.5</td></tr>
+  <tr><td>5</td><td>0.0625</td><td>5.0625</td></tr>
+  <tr><td>10</td><td>0.001953125</td><td>38.443359375</td></tr>
+  <tr><td>20</td><td>0.0000019073</td><td>2,216.84</td></tr>
+  <tr><td>50</td><td>0.0000000000000018</td><td>425,081,000</td></tr>
+</table>
+
+<p>Twenty words back, a gradient of <strong>0.0000019</strong> is not a small learning signal. It is
+no learning signal — the weight that would have captured the long-range dependency is updated by an
+amount that rounds away. And a fifty-word sentence is not a long document; it is one paragraph.</p>
+
+<div class="callout warn">
+  <span class="label">Exploding gradients</span>
+  <p>Change one number, <code>U = 1.5</code> instead of <code>0.5</code>, and the same recurrence runs
+  the other way: 38 after ten steps, four hundred million after fifty. <mark>Same architecture, same
+  formula, opposite failure.</mark> Below 1 it dies; above 1 it detonates. Only a factor of exactly 1
+  sits still, and nothing in training holds it there.</p>
+</div>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>Same toy, <code>U = 0.5</code>. What is <code>∂h₅/∂h₁</code> — the gradient reaching back four
+  steps?</p>
+  <p>Then answer a second question: what would <code>U</code> have to be for this quantity to
+  <em>grow</em> as you reach further back instead of shrinking?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><code>∂h₅/∂h₁ = U⁴ = 0.5⁴ = <strong>0.0625</strong></code>. Four steps back and already down to
+    six percent of the signal.</p>
+    <p>For it to grow, <code>|U| &gt; 1</code>. That is the exploding case in the table's right-hand
+    column — and it is worth noticing that <strong>nothing in the training procedure keeps
+    <code>U</code> near 1</strong>. It is a learned weight like any other. Vanishing is the common
+    outcome, not the only one.</p>
+  </div>
+</div>
+
+<h3>What the example omits</h3>
+
+<p>The toy has no activation function, which is why the arithmetic stayed inspectable. A real RNN
+squashes every step with <code>tanh</code>, and that adds one more factor to every step of the
+backward pass: <code>tanh′(z) = 1 − tanh²(z)</code>, which is <strong>at most 1</strong> and usually
+well below it. <mark>That factor only makes vanishing worse, never better</mark> — it cannot rescue a
+shrinking gradient, and it is not what causes the exploding case.</p>
+
+<figure>
+  <svg viewBox="0 0 620 300" role="img" aria-labelledby="bpttitle bpttdesc">
+    <title id="bpttitle">The same unrolled RNN as last session, with the gradient flowing backward
+    along the chain and picking up a factor of U at every step</title>
+    <desc id="bpttdesc">Four circles in a row along the middle, labelled h sub zero, h sub one, h sub
+    two and h sub three. Above h sub three sits a box labelled Loss, with an arrow pointing down into
+    h sub three. Arrows then run right to left along the chain: from h sub three back to h sub two,
+    from h sub two back to h sub one, and from h sub one back to h sub zero. Each of these backward
+    arrows is labelled with a multiplication by U, showing that the gradient is multiplied by the same
+    matrix once at every step it travels back. A caption beneath reads: one factor of U per step, so
+    the gradient shrinks or grows exponentially with distance.</desc>
+
+    <!-- loss -> h3 -->
+    <line class="fig-edge" x1="570" y1="78" x2="570" y2="128"></line>
+    <polygon class="fig-edge-h" points="570,138 573.5,128 566.5,128"></polygon>
+
+    <!-- h3 -> h2 (backward) -->
+    <line class="fig-edge" x1="528" y1="170" x2="417" y2="170"></line>
+    <polygon class="fig-edge-h" points="407,170 417,173.5 417,166.5"></polygon>
+    <text class="fig-label" x="473" y="157" text-anchor="middle">× U</text>
+
+    <!-- h2 -> h1 (backward) -->
+    <line class="fig-edge" x1="343" y1="170" x2="232" y2="170"></line>
+    <polygon class="fig-edge-h" points="222,170 232,173.5 232,166.5"></polygon>
+    <text class="fig-label" x="288" y="157" text-anchor="middle">× U</text>
+
+    <!-- h1 -> h0 (backward) -->
+    <line class="fig-edge" x1="158" y1="170" x2="79" y2="170"></line>
+    <polygon class="fig-edge-h" points="69,170 79,173.5 79,166.5"></polygon>
+    <text class="fig-label" x="118" y="157" text-anchor="middle">× U</text>
+
+    <!-- nodes -->
+    <circle class="fig-node-q" cx="55" cy="170" r="24"></circle>
+    <text class="fig-glyph" x="55" y="175" text-anchor="middle">h₀</text>
+    <circle class="fig-node" cx="200" cy="170" r="32"></circle>
+    <text class="fig-glyph" x="200" y="176" text-anchor="middle">h₁</text>
+    <circle class="fig-node" cx="385" cy="170" r="32"></circle>
+    <text class="fig-glyph" x="385" y="176" text-anchor="middle">h₂</text>
+    <circle class="fig-node" cx="570" cy="170" r="32"></circle>
+    <text class="fig-glyph" x="570" y="176" text-anchor="middle">h₃</text>
+    <circle class="fig-node-q" cx="570" cy="48" r="26"></circle>
+    <text class="fig-glyph" x="570" y="53" text-anchor="middle">Loss</text>
+
+    <text class="fig-axname" x="310" y="240" text-anchor="middle">one factor of U per step — so the gradient shrinks (or grows) exponentially with distance</text>
+    <text class="fig-axname" x="310" y="266" text-anchor="middle">the further back the word, the less of the error signal survives the trip</text>
+  </svg>
+  <figcaption>Session 23's figure, with the arrows reversed. Same chain, same three matrices — but
+  now we are watching the error signal travel from the loss at the end back toward the first word,
+  multiplied by <code>U</code> at every step it crosses. The shared weights that made the architecture
+  work are the same shared weights that make one number get multiplied by itself <em>n</em> times.</figcaption>
+</figure>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why does the gradient reaching an early timestep shrink toward zero in a long
+  sequence?</p>
+  <div class="q-opts">
+    <button class="opt">Because tanh saturates, and a saturated unit stops passing any signal at
+    all</button>
+    <button class="opt">Because a long sequence has too many parameters for the loss to update
+    them all</button>
+    <button class="opt">Because the same matrix <code>U</code> multiplies onto the gradient once per
+    step, so reaching back <em>n</em> steps multiplies by it <em>n</em> times</button>
+    <button class="opt">Because the loss is computed only at the final step, and earlier steps have
+    no loss of their own</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>repeated multiplication by the same <code>U</code>, once per
+    step</strong>.</p>
+    <p>The first option is a real contributing factor and a good instinct — <code>tanh′</code> is at
+    most 1, so it makes vanishing worse — but it is not the mechanism, and it cannot explain the
+    exploding case at all. The second is false in an instructive way: shared weights mean the
+    parameter count <em>does not grow</em> with sequence length, which was session 23's whole selling
+    point. <mark>The advantage and the defect are the same design decision.</mark> The fourth is true
+    of sequence classification but is not why the gradient shrinks — a single final loss would
+    backpropagate perfectly well if it were not multiplied down on the way.</p>
+  </div>
+</div>
+
+<h2>The solution, named</h2>
+
+<p>SLP3's framing of the answer is not about gradients at all. It is about <strong>context
+management</strong>: architectures designed to "explicitly manage the task of maintaining relevant
+context over time, by enabling the network to learn to forget information that is no longer needed and
+to remember information required for decisions still to come."</p>
+
+<p>Read that against reason 1 and it lines up exactly. If one vector doing two jobs is the problem,
+the fix is to <strong>give the two jobs separate machinery</strong> — a place to keep context that is
+not the same place the current decision is computed, and learned control over what enters and leaves
+it. That is the LSTM, and it is session 25's entire hour.</p>
+
+<div class="callout">
+  <span class="label">The gradient explanation</span>
+  <p>The same design happens to fix reason 2 as a side effect: the LSTM's cell state gives the
+  gradient a path where information is <em>added</em> from step to step rather than multiplied
+  through a weight matrix every time — and a sum does not decay exponentially the way a repeated
+  product does. <mark>This is the standard explanation, but it is not SLP3's framing</mark>, so do not
+  present it as the book's. Two reasons, two fixes, one architecture.</p>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">In SLP3's own framing, what does an LSTM change about a plain RNN?</p>
+  <div class="q-opts">
+    <button class="opt">It removes the recurrence, so no gradient has to travel backward through
+    time at all</button>
+    <button class="opt">It separates "carry information forward" from "serve the current decision,"
+    and lets the network learn what to keep and what to forget</button>
+    <button class="opt">It processes the sequence in both directions, so distant words are never
+    more than a few steps away</button>
+    <button class="opt">It trains on shorter sequences, so the gradient never has to reach back
+    very far</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>it gives the two jobs separate machinery, with learned control over
+    what is remembered and forgotten</strong>.</p>
+    <p>That is reason 1's fix, and it is why the LSTM looks the way it does. The gradient benefit is
+    real but secondary — if you remember the LSTM as "a trick to stop gradients vanishing," its actual
+    design will look arbitrary next session. The third option describes a bidirectional RNN, which is
+    a different idea and does not solve this problem; the fourth is a workaround people really do use,
+    and it works by giving up the long-range dependency rather than by fixing anything.</p>
+  </div>
+</div>
+
+<h2>Where this leaves T3.1</h2>
+
+<table>
+  <tr><th>Session</th><th>What it established</th></tr>
+  <tr><td>23</td><td>The architecture — hidden state, shared weights, one network for any sequence
+  length. It <em>allows</em> long-range memory.</td></tr>
+  <tr><td>24</td><td>The limit — one vector doing two jobs, and a gradient multiplied by the same
+  matrix once per step. It does not <em>get</em> long-range memory, not by default.</td></tr>
+  <tr><td>25</td><td>The response — separate the two jobs, learn what to keep. The LSTM exists
+  because of this session, not because of session 23.</td></tr>
+</table>
+
+<p>That closes <strong>T3.1</strong>. It is worth saying out loud that the two sessions were not
+"RNNs, part one and part two" — the first sold the architecture honestly and the second measured it
+honestly, and the gap between those two is where the next architecture comes from. <mark>This course
+has done that before</mark>: session 18's idf, session 19's cosine, session 21's analogy, session 22's
+"GloVe beats Word2Vec." Check the claim against the arithmetic, then keep the part that survives.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>Training an RNN means backpropagating one loss at the end of the sequence back through every
+  earlier step — ordinary backpropagation applied to the unrolled picture, which is all
+  "backpropagation through time" means. That trip goes wrong two ways at once: the hidden state is
+  asked to serve the current decision <em>and</em> carry information for later ones with no machinery
+  separating the two, and the gradient is multiplied by the same matrix <code>U</code> once per step,
+  so <code>∂h_n/∂h₁ = U^(n−1)</code> collapses to nothing when <code>|U| &lt; 1</code> and blows up
+  when <code>|U| &gt; 1</code>. Session 23's own toy, with <code>U = 0.5</code>, was already a
+  vanishing case: twenty steps back the gradient is 0.0000019, which is not a weak learning signal but
+  no learning signal. The fix is to stop making one vector do both jobs — an explicit, learned-control
+  context layer — which is the LSTM, and which is next session.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/13.pdf">Speech and Language
+Processing</a></strong>, chapter 13. Two places: <strong>§13.1.2</strong> for the two-pass description
+of backpropagation through time, and the <strong>opening pages of §13.5</strong> for the two reasons
+and the flights example. <mark>Stop at the sentence beginning "To address these issues…"</mark> —
+everything after it is next session, and reading it now will make the LSTM look like a list of parts
+rather than an answer to a problem.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0023-recurrent-neural-networks.html">← Session 23: The RNN — hidden state, shared weights</a>
+  <span>Session 25: the LSTM — coming soon</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

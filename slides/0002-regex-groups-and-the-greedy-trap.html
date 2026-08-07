@@ -531,9 +531,9 @@ strong { font-weight: 600; }
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where we got to">
+  <section class="slide slide--bullets" data-title="Where session 1 left off">
     <div class="slide-inner">
-      <h2>What we did last time</h2>
+      <h2>Where session 1 left off</h2>
       <ul>
         <li>Last session: describing the <strong>shape</strong> of text</li>
         <li>But finding the text is only half the job</li>
@@ -542,9 +542,9 @@ strong { font-weight: 600; }
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups: getting the pieces out">
+  <section class="slide slide--code" data-title="Groups">
     <div class="slide-inner">
-      <h2>Groups: getting the pieces out</h2>
+      <h2>Groups</h2>
       <pre><code>text     "Exam on 15/03/2026."
 pattern  (\d{2})/(\d{2})/(\d{4})
 
@@ -568,9 +568,9 @@ m.group(3)   # '2026'</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="A trap you will hit in the lab">
+  <section class="slide slide--split" data-title="How groups change findall">
     <div class="slide-inner">
-      <h2>A trap you will hit in the lab</h2>
+      <h2>How groups change findall</h2>
       <div class="split-grid">
         <div class="split-col bad">
           <p class="col-label">With groups</p>
@@ -596,7 +596,7 @@ m.group(3)   # '2026'</code></pre>
 
   <section class="slide slide--code" data-title="Non-capturing groups">
     <div class="slide-inner">
-      <h2>Want brackets, not capturing?</h2>
+      <h2>Non-capturing groups</h2>
       <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
 # ['15/03/2026', '01/04/2026']</code></pre>
       <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
@@ -604,9 +604,9 @@ m.group(3)   # '2026'</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation: this or that">
+  <section class="slide slide--code" data-title="Alternation">
     <div class="slide-inner">
-      <h2>Alternation: this or that</h2>
+      <h2>Alternation</h2>
       <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
 
 matches  15/03/2026
@@ -628,7 +628,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Word boundaries: the quiet bug">
+  <section class="slide slide--table" data-title="Word boundaries">
     <div class="slide-inner">
       <h2><code>\b</code> means word boundary</h2>
       <table>
@@ -641,7 +641,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="The same test in Kannada">
+  <section class="slide slide--split" data-title="Word boundaries in Kannada">
     <div class="slide-inner">
       <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
       <div class="split-grid">
@@ -663,18 +663,18 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="A better wrong answer">
+  <section class="slide slide--statement" data-title="Where does a word end?">
     <div class="slide-inner">
-      <p class="lede">Why this matters beyond regex</p>
-      <p>A good library gives you a <strong>better wrong answer</strong> — but still a wrong
-      one. The tool is not the fix. The method is.</p>
+      <p class="lede">Where does a word end?</p>
+      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
+      library is not the solution; a different method is.</p>
       <footer>Session 3 is about what to do instead.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The greedy trap">
+  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
     <div class="slide-inner">
-      <h2>Pull the tags out of this text</h2>
+      <h2>Extracting the tags from this text</h2>
       <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
       <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
       So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
@@ -683,7 +683,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
 
   <section class="slide slide--code" data-title="It matched the entire line">
     <div class="slide-inner">
-      <h2>Run it</h2>
+      <h2>The result</h2>
       <pre><code>regex.search(r"&lt;.*&gt;", text).group()
 
 # &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
@@ -691,7 +691,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Why: greedy by default">
+  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
     <div class="slide-inner">
       <h2>Quantifiers are greedy</h2>
       <ul>
@@ -726,9 +726,9 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The better fix">
+  <section class="slide slide--code" data-title="A more precise alternative">
     <div class="slide-inner">
-      <h2>The better fix</h2>
+      <h2>A more precise alternative</h2>
       <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
 # ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
       <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
@@ -772,13 +772,13 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
         <div class="q-fb">
           <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
           <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what you wanted — a tuple per match.</p>
+          what was wanted — a tuple per match.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Changing text, not just finding it">
+  <section class="slide slide--code" data-title="Substitution">
     <div class="slide-inner">
       <h2><code>regex.sub</code> reformats in one line</h2>
       <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
@@ -789,7 +789,7 @@ on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Putting it together: a small extractor">
+  <section class="slide slide--code" data-title="A worked example: a small extractor">
     <div class="slide-inner">
       <h2>Four fields, and the format is not the same on every line</h2>
       <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
@@ -821,14 +821,14 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Try this before the lab">
+  <section class="slide slide--recall" data-title="Exercise">
     <div class="slide-inner">
-      <h2>Try this before the lab</h2>
+      <h2>Exercise</h2>
       <div class="recall">
         <span class="label">Add a fifth field</span>
         <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
         brackets included.</p>
-        <p>Get two things right: the brackets are literal, and you don't want them in the
+        <p>Two points require care: the brackets are literal, and they should not appear in the
         captured value.</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
@@ -840,18 +840,18 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="What to remember">
+  <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
-      <p class="lede">What to remember</p>
-      <p>Quantifiers are <strong>greedy</strong> by default — they grab as much as they can.
-      When a match is far bigger than you expected, this is almost always why.</p>
-      <footer>Next: tokenization — where we take the \b problem seriously.</footer>
+      <p class="lede">Summary</p>
+      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
+      When a match is far larger than expected, this is almost always the reason.</p>
+      <footer>Next: tokenization, where we address the \b problem properly.</footer>
     </div>
   </section>
 
   <section class="slide slide--refs" data-title="References">
     <div class="slide-inner">
-      <h2>Read this next</h2>
+      <h2>Reading</h2>
       <ul class="ref-list">
         <li>
           <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language

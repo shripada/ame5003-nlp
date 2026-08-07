@@ -558,43 +558,43 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 08</p>
   <h1>Searching a collection</h1>
-  <p class="subtitle">The term-document incidence matrix, and answering Boolean queries with it —
-  a clean idea that works, right up until it does not fit in memory.</p>
+  <p class="subtitle">The term-document incidence matrix and how Boolean queries are answered
+  with it, together with the reason it does not scale to real collections.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>A change of gear</h2>
+<h2>Information retrieval</h2>
 
-<p>Everything so far — tokenizing, tagging, finding names — worked on <em>one</em> piece of text.
-Now the question changes: given a whole <strong>collection</strong> of documents, which ones match
-what I am looking for? This is <strong>information retrieval</strong>, and it is what a search
-engine does.</p>
+<p>Everything so far, including tokenization, tagging, and named entity recognition, operated on
+a single piece of text. We now ask a different question: given a whole <strong>collection</strong>
+of documents, which of them match what we are looking for? This is <strong>information
+retrieval</strong>, and it is what a search engine does.</p>
 
-<p>Start with the simplest useful kind of search: <strong>Boolean queries</strong>. You ask for
-documents using <code>AND</code>, <code>OR</code> and <code>NOT</code> — for example, over the
-plays of Shakespeare:</p>
+<p>We begin with the simplest useful form of search, the <strong>Boolean query</strong>, in which
+documents are requested using <code>AND</code>, <code>OR</code>, and <code>NOT</code>. Over the
+plays of Shakespeare, for example:</p>
 
 <pre><code>Brutus AND Caesar AND NOT Calpurnia</code></pre>
 
-<p>"Find the plays that contain both <em>Brutus</em> and <em>Caesar</em>, but not
-<em>Calpurnia</em>." How would you answer that over a large collection, quickly?</p>
+<p>This asks for the plays that contain both <em>Brutus</em> and <em>Caesar</em> but not
+<em>Calpurnia</em>. The question is how to answer it quickly over a large collection.</p>
 
-<h2>The obvious way, and why it is not enough</h2>
+<h2>Scanning every document</h2>
 
-<p>You could scan every document for the words, like <code>Ctrl-F</code> or the Unix
-<code>grep</code> tool. For one file that is fine. For a big collection it is far too slow — you
-re-read every document on every query. And it does not handle <code>NOT</code> or complex
-combinations cleanly, nor let you rank results later. We need the collection organised <em>in
-advance</em> so queries are fast.</p>
+<p>One approach is to scan every document for the words, as <code>Ctrl-F</code> or the Unix
+<code>grep</code> tool does. For a single file this is adequate. For a large collection it is far
+too slow, since every document is re-read on every query. It also handles <code>NOT</code> and
+complex combinations awkwardly, and provides no basis for ranking results later. What we need is
+for the collection to be organised <em>in advance</em>, so that queries are fast.</p>
 
 <h2>The term-document incidence matrix</h2>
 
-<p>Here is the first idea. Build a big table. One <strong>row per term</strong> (word), one
-<strong>column per document</strong>. Put a <strong>1</strong> where the term appears in that
-document, and a <strong>0</strong> where it does not.</p>
+<p>The first such organisation is a table with one <strong>row per term</strong> and one
+<strong>column per document</strong>. Each cell contains a <strong>1</strong> if the term appears
+in that document and a <strong>0</strong> if it does not.</p>
 
 <p>For a handful of terms across six Shakespeare plays, it looks like this
 (<code>1</code> = "the play contains this word"):</p>
@@ -614,19 +614,19 @@ document, and a <strong>0</strong> where it does not.</p>
   <tr><td><code>worser</code></td>    <td>1</td><td>0</td><td>1</td><td>1</td><td>1</td><td>0</td></tr>
 </table>
 
-<p>Each row is now a string of 0s and 1s — a <strong>bit vector</strong> — that says exactly which
-plays contain that word. Read the <code>Caesar</code> row: <code>1 1 0 1 1 1</code> — it appears in
-every play except <em>The Tempest</em>.</p>
+<p>Each row is now a string of 0s and 1s, a <strong>bit vector</strong>, recording exactly which
+plays contain that word. The <code>Caesar</code> row is <code>1 1 0 1 1 1</code>, so the word
+appears in every play except <em>The Tempest</em>.</p>
 
 <h2>Answering the query with bitwise operations</h2>
 
-<p>Once each term is a row of bits, a Boolean query is just <strong>bitwise arithmetic</strong> on
-those rows. Take the query back:</p>
+<p>Once each term is a row of bits, a Boolean query becomes <strong>bitwise arithmetic</strong>
+on those rows. Returning to the query:</p>
 
 <pre><code>Brutus AND Caesar AND NOT Calpurnia</code></pre>
 
-<p>Pull out the three rows and combine them column by column. <code>AND</code> keeps a 1 only where
-both have a 1; <code>NOT</code> flips every bit:</p>
+<p>We take the three rows and combine them column by column. <code>AND</code> retains a 1 only
+where both rows have a 1, and <code>NOT</code> inverts every bit:</p>
 
 <pre><code>Brutus            1 1 0 1 0 0
 Caesar            1 1 0 1 1 1
@@ -635,31 +635,33 @@ NOT Calpurnia     1 0 1 1 1 1     ← Calpurnia was 0 1 0 0 0 0, flipped
 Brutus AND Caesar             →   1 1 0 1 0 0
         AND NOT Calpurnia     →   1 0 0 1 0 0</code></pre>
 
-<p>The final vector is <code>1 0 0 1 0 0</code>. The 1s are in columns 1 and 4, so the answer is:</p>
+<p>The resulting vector is <code>1 0 0 1 0 0</code>. The 1s are in columns 1 and 4, so the
+answer is:</p>
 
 <pre><code>Antony and Cleopatra     Hamlet</code></pre>
 
-<p>That is the whole method. Every Boolean query becomes a few bitwise operations on the rows of
-the matrix — and bitwise operations are about as fast as a computer gets. It is genuinely elegant.</p>
+<p>This is the entire method. Every Boolean query reduces to a few bitwise operations on the
+rows of the matrix, and bitwise operations are among the fastest a computer performs.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>Using the matrix above, answer <code>Antony AND mercy</code>. Which plays come back?</p>
+  <span class="label">Exercise</span>
+  <p>Using the matrix above, evaluate <code>Antony AND mercy</code>. Which plays are
+  returned?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>Take the two rows and <code>AND</code> them column by column:</p>
+    <p>Combine the two rows with <code>AND</code>, column by column:</p>
     <pre><code>Antony   1 1 0 0 0 1
 mercy    1 0 1 1 1 1
 AND      1 0 0 0 0 1</code></pre>
-    <p>1s in columns 1 and 6 → <strong>Antony and Cleopatra</strong> and <strong>Macbeth</strong>.
-    Both words appear together only in those two plays.</p>
+    <p>The 1s are in columns 1 and 6, giving <strong>Antony and Cleopatra</strong> and
+    <strong>Macbeth</strong>. The two words occur together only in those plays.</p>
   </div>
 </div>
 
 <h2>Why this does not scale</h2>
 
-<p>The method is clean. The problem is the size of the table. Terms go down the side, documents
-across the top — so the matrix grows with <em>both</em>. Use the numbers from a realistic
+<p>The method itself is sound. The difficulty is the size of the table. Terms run down one axis
+and documents across the other, so the matrix grows with both. Consider the figures for a realistic
 collection:</p>
 
 <ul>
@@ -667,37 +669,37 @@ collection:</p>
   <li>about <strong>500,000</strong> distinct terms (rows)</li>
 </ul>
 
-<p>That is 500,000 × 1,000,000 = <strong>500 billion</strong> cells. Half a trillion 0s and 1s to
-store.</p>
+<p>This gives 500,000 × 1,000,000 = <strong>500 billion</strong> cells, or half a trillion 0s
+and 1s to store.</p>
 
-<p>Now the killer detail. Each document contains maybe a thousand distinct words, so each column
-has about a thousand 1s and 499,000 zeros. Across the whole matrix there are <strong>at most about
-a billion 1s</strong> — which means:</p>
+<p>The decisive detail is the distribution of those values. Each document contains perhaps a
+thousand distinct words, so each column holds about a thousand 1s and 499,000 zeros. Across the
+whole matrix there are <strong>at most about a billion 1s</strong>, which means:</p>
 
 <div class="callout warn">
   <span class="label">The matrix is almost entirely zeros</span>
   <p>Out of 500 billion cells, at most about 1 billion are 1s. <mark>That is 99.8% zeros.</mark></p>
-  <p>You would be spending almost all of your memory storing the fact that words are <em>absent</em>
-  from documents — which is nearly always true and almost never what you asked about. It will not
-  fit, and even if it did, it would be a colossal waste.</p>
+  <p>Almost all of the memory would be spent recording that words are <em>absent</em> from
+  documents, a fact that is nearly always true and rarely what the query asks about. The matrix will
+  not fit in memory, and if it did, storing it this way would still be wasteful.</p>
 </div>
 
-<p>So the incidence matrix is the right <em>idea</em> — organise the collection in advance so
-queries are fast — carried out the wrong way. The fix almost writes itself once you have seen the
-problem.</p>
+<p>The incidence matrix therefore embodies the right idea, namely organising the collection in
+advance so that queries are fast, in the wrong representation. The correction follows directly from
+the diagnosis.</p>
 
 <div class="recall">
-  <span class="label">One more before the next session</span>
-  <p>Almost every cell in the matrix is a 0, and the 0s carry no information you care about. What
-  is the obvious thing to change?</p>
+  <span class="label">Exercise</span>
+  <p>Almost every cell in the matrix is a 0, and those 0s carry no information we need. What
+  should be changed?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><strong>Stop storing the zeros. Record only the 1s.</strong></p>
-    <p>For each term, instead of a full row of mostly-zero bits, just keep a <em>list of the
-    documents it actually appears in</em>. That list is short, because a word is in few documents.
-    No space wasted on absence.</p>
-    <p>That structure is called an <strong>inverted index</strong>, and it is the whole of session
-    9 — and the thing you will build in lab 4.</p>
+    <p>For each term, instead of a full row of mostly-zero bits, keep a <em>list of the documents
+    in which it actually appears</em>. That list is short, because a given word occurs in few
+    documents, and no space is spent on absence.</p>
+    <p>This structure is called an <strong>inverted index</strong>. It is the subject of session 9
+    and the structure built in lab 4.</p>
   </div>
 </div>
 
@@ -712,9 +714,10 @@ problem.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>one term, as which documents it appears in</strong>.</p>
-    <p>Rows are terms, columns are documents. The <code>Caesar</code> row <code>1 1 0 1 1 1</code>
-    says <em>Caesar</em> appears in every play but the third. A Boolean query then combines these
-    rows with bitwise <code>AND</code>, <code>OR</code> and <code>NOT</code>.</p>
+    <p>Rows are terms and columns are documents. The <code>Caesar</code> row,
+    <code>1 1 0 1 1 1</code>, records that <em>Caesar</em> appears in every play but the third. A
+    Boolean query combines these rows with bitwise <code>AND</code>, <code>OR</code>, and
+    <code>NOT</code>.</p>
   </div>
 </div>
 
@@ -729,28 +732,30 @@ problem.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>it is almost all zeros, so it wastes nearly all its space</strong>.</p>
-    <p>A million documents by half a million terms is 500 billion cells, of which at most a billion
-    are 1s — about 99.8% zeros. The bitwise operations are fast; it is storing all that absence that
-    sinks it. Recording only the 1s is the fix, and that is the inverted index.</p>
+    <p>A million documents by half a million terms gives 500 billion cells, of which at most a
+    billion are 1s, or about 99.8% zeros. The bitwise operations themselves are fast; it is the
+    storage of all that absence that makes the approach impractical. Recording only the 1s is the
+    correction, and that is the inverted index.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>A term-document incidence matrix turns Boolean search into fast bitwise operations on rows of
-  0s and 1s, which is elegant and correct. But at real scale it is 99.8% zeros and cannot fit, so
-  the practical answer is to keep only the 1s — the inverted index of the next session.</p>
+  <span class="label">The main points</span>
+  <p>A term-document incidence matrix reduces Boolean search to fast bitwise operations on rows of
+  0s and 1s, and it is correct. At realistic scale, however, it is 99.8% zeros and does not fit in
+  memory, so the practical solution is to store only the 1s. That structure is the inverted index,
+  the subject of session 9.</p>
 </div>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://nlp.stanford.edu/IR-book/">Introduction to
-Information Retrieval</a></strong> by Manning, Raghavan and Schütze — free online. Read
-<strong>Chapter 1</strong>, "Boolean retrieval". This is where the Shakespeare example comes from,
-and it carries straight into the next lesson. Note the switch of textbook: for the search half of
-Unit I, this book is the primary source, not Jurafsky and Martin.</p>
+Information Retrieval</a></strong> by Manning, Raghavan, and Schütze, available free online. Read
+<strong>chapter 1</strong>, "Boolean retrieval", which is the source of the Shakespeare example and
+continues directly into the next session. Note the change of textbook: for the retrieval half of
+Unit I this book is the primary source rather than Jurafsky and Martin.</p>
 
 
 

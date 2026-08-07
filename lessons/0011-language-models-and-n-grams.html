@@ -566,25 +566,25 @@ figcaption {
 
 
 
-<h2>A different question</h2>
+<h2>From finding text to predicting text</h2>
 
-<p>Unit I was about <strong>finding</strong> text. You cleaned it, tagged it, indexed it, and ranked
-it. Every technique assumed the text already existed and your job was to locate the right piece
-of it.</p>
+<p>Unit I was concerned with <strong>finding</strong> text. We cleaned it, tagged it, indexed it,
+and ranked it. Every technique assumed the text already existed and that the task was to locate the
+relevant part of it.</p>
 
-<p>Unit II asks something else: can a machine <strong>predict</strong> text? Given the words so far,
-what word comes next?</p>
+<p>Unit II asks a different question: can a machine <strong>predict</strong> text? Given the words
+so far, what word comes next?</p>
 
 <pre><code>I want to eat Indian ____</code></pre>
 
-<p>You filled that in without effort — probably <code>food</code>. Maybe <code>curry</code>. Almost
-certainly not <code>helicopter</code>. You did not look anything up. You used what you know about how
-English sentences usually go. A <strong>language model</strong> is a machine that does the same
+<p>Most readers supply <code>food</code>, or perhaps <code>curry</code>, and almost certainly not
+<code>helicopter</code>. No lookup is involved; the prediction comes from knowledge of how English
+sentences typically proceed. A <strong>language model</strong> is a system that does the same
 thing.</p>
 
-<h2>What a language model actually is</h2>
+<h2>What a language model is</h2>
 
-<p>The definition is short:</p>
+<p>The definition is brief.</p>
 
 <div class="callout">
   <span class="label">Definition</span>
@@ -593,9 +593,9 @@ thing.</p>
   came before.</p>
 </div>
 
-<p>Those two sound like different jobs but they are one job. If you can score how likely each next
-word is, you can score a whole sentence by working through it word by word. And if you can score a
-whole sentence, you can compare sentences:</p>
+<p>These appear to be two different tasks but are in fact one. If we can score how likely each
+next word is, we can score a whole sentence by proceeding through it word by word; and if we can
+score a whole sentence, we can compare sentences:</p>
 
 <table>
   <tr><th>sentence</th><th>probability</th></tr>
@@ -604,38 +604,38 @@ whole sentence, you can compare sentences:</p>
   <tr><td>eat Indian I food want to</td><td>near zero</td></tr>
 </table>
 
-<p>Notice what the model is <em>not</em> doing. It is not deciding whether the sentence is true, or
-polite, or a good idea. It only says how likely those words are to appear in that order, in the kind
-of text it learned from. That is the whole job.</p>
+<p>Note what the model does not do. It makes no judgement about whether the sentence is true,
+polite, or sensible. It reports only how likely those words are to appear in that order in the kind
+of text it was trained on.</p>
 
-<h3>Why anyone wants this</h3>
+<h3>Applications</h3>
 
-<p>Prediction turns out to be useful almost everywhere:</p>
+<p>Prediction proves useful in a wide range of applications:</p>
 
 <ul>
-  <li><strong>Autocomplete and phone keyboards</strong> — the three words above your keyboard are a
-  language model's top three guesses.</li>
-  <li><strong>Speech recognition</strong> — the microphone heard something between "recognise speech"
-  and "wreck a nice beach". The sounds are nearly identical; the language model picks the sequence
-  that is far more likely.</li>
-  <li><strong>Spelling and grammar correction</strong> — "their are two" scores badly, "there are two"
-  scores well.</li>
-  <li><strong>Machine translation</strong> — of several legal translations, pick the one that reads
-  like real language.</li>
-  <li><strong>Generating text</strong> — predict a word, add it, predict again. Repeat.</li>
+  <li><strong>Autocomplete and phone keyboards.</strong> The three suggested words above a phone
+  keyboard are a language model's three highest-probability predictions.</li>
+  <li><strong>Speech recognition.</strong> The microphone receives something between "recognise
+  speech" and "wreck a nice beach". The acoustic signals are nearly identical, and the language
+  model selects the far more probable sequence.</li>
+  <li><strong>Spelling and grammar correction.</strong> "their are two" receives a low probability
+  and "there are two" a high one.</li>
+  <li><strong>Machine translation.</strong> Among several grammatical translations, the model
+  selects the one that reads most like natural language.</li>
+  <li><strong>Text generation.</strong> Predict a word, append it, and predict again.</li>
 </ul>
 
-<p>That last one deserves its own heading, because it is where this course is going.</p>
+<p>The last of these requires further discussion, since it is where the course is heading.</p>
 
-<h2>Yes — this is what ChatGPT is</h2>
+<h2>The relation to large language models</h2>
 
-<p>It is worth being direct about this now rather than at the end of the unit. <strong>A large
-language model is a language model.</strong> Same definition, no asterisk: it takes the words so
-far and produces a probability for every possible next word. Then it picks one, appends it, and runs
-again. That loop is how a page of text appears one word at a time.</p>
+<p>It is worth stating this now rather than at the end of the unit. <strong>A large language
+model is a language model</strong>, under exactly the definition given above: it takes the words so
+far and produces a probability for every possible next word, then selects one, appends it, and
+repeats. This loop is how a page of text is produced one word at a time.</p>
 
-<p>So what is different? Not the <em>question</em> — the question is identical. What differs is
-<strong>how the probabilities are worked out</strong>:</p>
+<p>The question being answered is therefore identical. What differs is <strong>how the
+probabilities are computed</strong>:</p>
 
 <table>
   <tr><th></th><th>n-gram model (this unit)</th><th>large language model</th></tr>
@@ -645,32 +645,35 @@ again. That loop is how a page of text appears one word at a time.</p>
   <tr><td>Can you inspect it?</td><td>yes, completely</td><td>not really</td></tr>
 </table>
 
-<p>The rest of this course is, in a real sense, one long walk down that middle column — from counting
-to neural networks, ending at transformers in Unit III. <mark>Starting with n-grams is not learning
-an obsolete thing before the real thing. It is learning the real thing in the one form where you can
-see every moving part.</mark> Every idea you meet later — context, prediction, the trouble with rare
-words, measuring how good a model is — shows up first here, in a version small enough to check by
-hand.</p>
+<p>The remainder of the course moves down that middle column, from counting to neural networks
+and finally to transformers in Unit III. <mark>Beginning with n-grams is not a matter of studying an
+obsolete method before the real one; it is studying the same problem in the one form whose every
+component can be inspected.</mark> Every idea introduced later — context, prediction, the difficulty
+posed by rare words, and the measurement of model quality — appears first here, in a version small
+enough to verify by hand.</p>
 
-<h2>The hard part: context is too long</h2>
+<h2>Why the full context cannot be used</h2>
 
-<p>To predict the next word properly you would want to use <em>everything</em> before it. That is the
-honest version of the problem:</p>
+<p>To predict the next word properly, we would want to use everything preceding it. Stated
+exactly, the quantity we want is:</p>
 
 <pre><code>P(food | I want to eat Indian)</code></pre>
 
-<p>Read that as "the probability of <code>food</code> given <code>I want to eat Indian</code>". Fine
-for five words. But a model has to handle any history at all — and most sentences of eight or more
-words have never been written down before, anywhere. You cannot learn from examples you do not have.
-The longer the history you insist on, the more certain it is that you have never seen it.</p>
+<p>This reads as "the probability of <code>food</code> given <code>I want to eat Indian</code>".
+It is manageable for five words, but a model must handle any history at all, and most sequences of
+eight or more words have never been written down anywhere. A model that learns from examples cannot
+learn from examples it does not have, and the longer the history required, the more certain it is
+that the history has never been observed.</p>
 
-<p>So we make a trade. Instead of the whole history, use only the <strong>last few words</strong>:</p>
+<p>We therefore make a trade. Instead of the whole history, we use only the <strong>last few
+words</strong>:</p>
 
 <pre><code>P(food | I want to eat Indian)   ← everything (impossible)
 P(food | Indian)                 ← just the last word (easy)</code></pre>
 
-<p>Short histories repeat constantly. <code>Indian food</code> appears everywhere. That trade — throw
-away the distant past, keep a small window — is the idea behind n-grams.</p>
+<p>Short histories recur constantly; <code>Indian food</code> appears frequently in any corpus.
+This trade, discarding the distant history and retaining a small window, is the idea underlying
+n-grams.</p>
 
 <h2>What an n-gram is</h2>
 
@@ -680,8 +683,8 @@ away the distant past, keep a small window — is the idea behind n-grams.</p>
   text.</p>
 </div>
 
-<p>You get them by sliding a window of width n along the sentence, one step at a time. Take the
-sentence <code>I want to eat Indian food</code>:</p>
+<p>They are obtained by sliding a window of width n along the sentence one step at a time.
+For the sentence <code>I want to eat Indian food</code>:</p>
 
 <table>
   <tr><th>n</th><th>name</th><th>the n-grams</th><th>how many</th></tr>
@@ -696,9 +699,9 @@ sentence <code>I want to eat Indian food</code>:</p>
           <code>eat Indian food</code></td><td>4</td></tr>
 </table>
 
-<p>A sentence of <strong>T</strong> words gives <strong>T − n + 1</strong> n-grams. The windows
-overlap — every word except the ones at the ends belongs to several n-grams. That overlap is the
-point: it is how the model sees each word in more than one context.</p>
+<p>A sentence of <strong>T</strong> words yields <strong>T − n + 1</strong> n-grams. The windows
+overlap, so every word except those at the ends belongs to several n-grams. This overlap is
+essential, since it is how the model observes each word in more than one context.</p>
 
 <p>An <strong>n-gram language model</strong> predicts the next word using the previous
 <strong>n − 1</strong> words as its context:</p>
@@ -710,13 +713,14 @@ point: it is how the model sees each word in more than one context.</p>
   <tr><td>trigram</td><td>the previous 2 words</td><td>what usually follows <code>eat Indian</code>?</td></tr>
 </table>
 
-<p>A unigram model has no context, so it just guesses common words — it would happily produce "the of
-and to a". A bigram model at least keeps neighbours together. A trigram model sounds noticeably more
-like language. More context, better predictions.</p>
+<p>A unigram model has no context and therefore predicts common words, producing output such as
+"the of and to a". A bigram model at least preserves adjacent pairs, and a trigram model produces
+output noticeably closer to natural language. More context yields better predictions.</p>
 
-<h3>So why not use a very large n?</h3>
+<h3>Why n cannot be large</h3>
 
-<p>Because the number of possible n-grams explodes. With a vocabulary of 50,000 words:</p>
+<p>The reason is that the number of possible n-grams grows extremely rapidly. With a vocabulary
+of 50,000 words:</p>
 
 <table>
   <tr><th>model</th><th>possible sequences</th></tr>
@@ -726,29 +730,29 @@ like language. More context, better predictions.</p>
   <tr><td>4-gram</td><td>6,250,000,000,000,000,000</td></tr>
 </table>
 
-<p>Each step up multiplies by the whole vocabulary. There is not enough text in the world to have
-seen most trigrams even once, let alone often enough to learn from. So the counts you need get
-thinner and thinner as n grows.</p>
+<p>Each increase in n multiplies the count by the size of the whole vocabulary. There is not
+enough text in existence to have observed most trigrams even once, let alone often enough to
+estimate a probability from. The counts therefore become sparser as n grows.</p>
 
-<p><mark>This is the central tension of n-gram models: more context predicts better, but more context
-means less data to learn it from.</mark> In practice people settle around trigrams to 5-grams. Later
-in this unit, neural models get around the tension entirely — that is precisely why they took
-over.</p>
+<p><mark>This is the central tension in n-gram models: more context gives better predictions, but
+more context leaves less data from which to estimate it.</mark> In practice, trigram to 5-gram
+models are typical. Later in this unit, neural models avoid the tension entirely, which is the
+principal reason they displaced n-grams.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>A bigram model is asked to continue: <code>the students opened their</code>. It predicts using
-  only <code>their</code>. What information has it thrown away, and what kind of mistake does that
-  invite?</p>
+  <span class="label">Exercise</span>
+  <p>A bigram model is asked to continue <code>the students opened their</code>, predicting from
+  <code>their</code> alone. What information has been discarded, and what kind of error does this
+  make likely?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>It has thrown away <code>the students opened</code> — the part that tells you the answer is
-    probably <code>books</code>, <code>laptops</code>, or <code>notes</code>. All the model sees is
-    <code>their</code>, which is followed by almost any noun in English: <code>hands</code>,
-    <code>car</code>, <code>parents</code>.</p>
-    <p>So it will produce something grammatical but off-topic. That is the signature n-gram failure:
-    locally fine, globally nonsense. The word that decides the answer — <code>opened</code> — sat just
-    outside the window.</p>
+    <p>It has discarded <code>the students opened</code>, which is the part indicating that the
+    answer is probably <code>books</code>, <code>laptops</code>, or <code>notes</code>. The model
+    sees only <code>their</code>, which can be followed by almost any noun in English:
+    <code>hands</code>, <code>car</code>, <code>parents</code>.</p>
+    <p>The output will therefore be grammatical but unrelated to the topic. This is the
+    characteristic n-gram failure: locally well-formed and globally incoherent. The word determining
+    the answer, <code>opened</code>, lay just outside the window.</p>
   </div>
 </div>
 
@@ -764,9 +768,10 @@ over.</p>
   <div class="q-fb">
     <p>Correct answer: <strong>it gives a probability to a word sequence, so it can predict the next
     word</strong>.</p>
-    <p>Scoring a sequence and predicting the next word are the same ability seen from two sides.
-    Nothing about truth is involved — a language model will happily rate a confident false sentence as
-    very likely, because likely means "reads like real language", not "is correct".</p>
+    <p>Scoring a sequence and predicting the next word are the same capability viewed from two
+    directions. Truth is not involved: a language model will assign a high probability to a
+    confidently stated false sentence, because "likely" here means "resembles real language", not
+    "is correct".</p>
   </div>
 </div>
 
@@ -782,33 +787,34 @@ over.</p>
   <div class="q-fb">
     <p>Correct answer: <strong>longer sequences almost never repeat, so there is too little
     data</strong>.</p>
-    <p>The number of possible n-grams is the vocabulary size raised to the power n, so it explodes.
-    Most 10-word runs have never been written down even once, and a model that learns from counts
-    cannot learn from a run it has never seen.</p>
+    <p>The number of possible n-grams is the vocabulary size raised to the power n, which grows
+    extremely quickly. Most 10-word sequences have never been written down even once, and a model
+    that estimates from counts cannot estimate from a sequence it has never observed.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>A language model gives a probability to a sequence of words, which is the same as predicting the
-  next word — and that single ability is behind autocomplete, speech recognition, translation, and
-  ChatGPT alike. An n-gram model does it the simplest possible way: forget the far history and look
-  only at the previous n − 1 words, trading accuracy for having enough data to work with.</p>
+  <span class="label">The main points</span>
+  <p>A language model assigns a probability to a sequence of words, which is equivalent to
+  predicting the next word. This single capability underlies autocomplete, speech recognition,
+  machine translation, and large language models alike. An n-gram model implements it in the
+  simplest possible way, discarding the distant history and using only the previous n − 1 words,
+  which trades accuracy for having sufficient data from which to estimate.</p>
 </div>
 
-<p>Next session we make this concrete. Where do the probabilities actually come from? The answer is
-counting — count how often <code>Indian food</code> appears, compare it with how often
-<code>Indian</code> appears, and you have a real number. That brings in the chain rule and the
-assumption that lets us throw the far history away.</p>
+<p>Session 12 makes this concrete by addressing where the probabilities come from. The answer is
+counting: count how often <code>Indian food</code> appears, compare that with how often
+<code>Indian</code> appears, and the result is a probability. This introduces the chain rule and the
+assumption that permits discarding the distant history.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
-Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>chapter 3</strong>
-("N-gram Language Models") — free online. Read the opening sections, up to where it starts computing
-probabilities; that part is next session's material.</p>
+Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>chapter 3</strong>,
+"N-gram Language Models", available free online. Read the opening sections up to the point where the
+chapter begins computing probabilities; that material belongs to session 12.</p>
 
 
 

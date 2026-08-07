@@ -558,47 +558,48 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit I · Session 04</p>
   <h1>Cleaning up text</h1>
-  <p class="subtitle">Normalization and stop words — deciding which differences in text do not
-  matter, and erasing them. The catch is that "does not matter" depends on the job.</p>
+  <p class="subtitle">Normalization and stop words: deciding which differences in text do not
+  matter and removing them. What counts as irrelevant depends on the task.</p>
 </header>
 
 <div class="wrap">
 
 
 
-<h2>Where we are</h2>
+<h2>Where session 3 left off</h2>
 
-<p>In session 3 you split text into <strong>tokens</strong>. So you now have a list of pieces.
-But look at these tokens:</p>
+<p>In session 3 we split text into <strong>tokens</strong>, so we now have a list of pieces.
+Consider the following tokens:</p>
 
 <pre><code>"US"   "us"   "U.S."   "Us"</code></pre>
 
-<p>To you, some of these are the same and some are not. To the computer they are four different
-strings — nothing links them. Before you count words or search text, you usually want to
-collapse the differences that <em>do not matter</em> into one form.</p>
+<p>A human reader regards some of these as the same and others as different. To the computer they
+are four distinct strings, with nothing connecting them. Before counting words or searching text,
+we usually want to collapse the differences that do not matter into a single form.</p>
 
-<p>That collapsing is called <strong>normalization</strong>. Here is the definition to hold on
-to for the whole lesson:</p>
+<p>This collapsing is called <strong>normalization</strong>. The following definition holds for
+the whole lesson:</p>
 
 <div class="callout">
-  <span class="label">What normalization is</span>
-  <p><mark>Normalization deliberately destroys information you have judged irrelevant.</mark></p>
-  <p>That is not a side effect. It is the whole point. You are throwing away detail on purpose, so
-  that things you consider "the same" really do count as the same. The skill is deciding
-  <em>what</em> is safe to throw away — and that decision depends entirely on the task.</p>
+  <span class="label">Normalization</span>
+  <p><mark>Normalization deliberately destroys information that we have judged to be
+  irrelevant.</mark></p>
+  <p>This is not a side effect but the purpose of the operation. We discard detail on purpose, so
+  that items we consider equivalent are counted as equivalent. The difficulty lies in deciding
+  what is safe to discard, and that decision depends entirely on the task.</p>
 </div>
 
 <h2>Case folding</h2>
 
-<p>The most common step: make everything lowercase.</p>
+<p>The most common normalization step is to convert all text to lowercase.</p>
 
 <pre><code>"AMAZING"   "Amazing"   "amazing"   →   "amazing"</code></pre>
 
-<p>Three strings become one. Now every spelling of the word counts together when you count or
-search. For most Unit I work — counting words, searching documents — this is exactly what you
-want.</p>
+<p>Three strings become one, so every capitalisation of the word is counted together when we count
+or search. For most of the work in Unit I, namely counting words and searching documents, this is
+the desired behaviour.</p>
 
-<p>But notice what you just lost:</p>
+<p>Note, however, what has been lost:</p>
 
 <ul>
   <li><code>US</code> (the country) and <code>us</code> (the word) both become <code>us</code>.
@@ -607,31 +608,31 @@ want.</p>
   <li><code>Polish</code> (from Poland) and <code>polish</code> (for shoes) merge.</li>
 </ul>
 
-<p>Case was carrying real meaning, and lowercasing threw it away. For search that is usually a
-fair trade — a user typing <code>apple</code> probably wants the company too. For a task where
-the capital letter is the signal, it is a mistake. You have to decide.</p>
+<p>In each case the capitalisation carried real meaning, and lowercasing discarded it. For search
+this is usually an acceptable trade, since a user typing <code>apple</code> probably wants results
+about the company as well. For a task in which the capital letter is the signal, it is an error.
+The choice has to be made deliberately.</p>
 
 <div class="recall">
-  <span class="label">Think about this before reading on</span>
-  <p>You are building a system to pull <strong>company names</strong> out of news articles. Your
-  first step is to lowercase everything, out of habit. What did you just break?</p>
+  <span class="label">Exercise</span>
+  <p>Suppose we are building a system to extract <strong>company names</strong> from news
+  articles, and the first step is to lowercase everything. What has this broken?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>You erased the main clue you had. In English, a capital letter in the middle of a sentence
-    is a strong hint that a word is a name — <code>Apple</code>, <code>Rao</code>,
-    <code>Manipal</code>. Lowercase everything and <code>Apple</code> becomes
-    <code>apple</code>, and the signal is gone.</p>
-    <p>This is the lesson in one example: a cleaning step that helps one task
-    (<em>searching</em>) hurts another (<em>finding names</em>). There is no "correct"
-    normalization. There is only "correct for this job".</p>
+    <p>It removes the principal clue available. In English, a capital letter in the middle of a
+    sentence is a strong indication that a word is a name: <code>Apple</code>, <code>Rao</code>,
+    <code>Manipal</code>. After lowercasing, <code>Apple</code> becomes <code>apple</code> and the
+    signal is gone.</p>
+    <p>This illustrates the general point: a cleaning step that helps one task (searching) harms
+    another (finding names). There is no normalization that is correct in general, only
+    normalization that is correct for a particular task.</p>
   </div>
 </div>
 
-<h2>Unicode: when identical-looking text is not equal</h2>
+<h2>Unicode normalization</h2>
 
-<p>Here is a trap that catches people who have never thought about it. Two strings can look
-<strong>exactly the same</strong> on screen and still not be equal, because Unicode sometimes
-stores the same character in more than one way.</p>
+<p>Two strings can appear identical on screen and still compare as unequal, because Unicode
+sometimes provides more than one way to store the same character.</p>
 
 <pre><code>a = "café"     # é stored as ONE character
 b = "café"     # é stored as  e + a separate accent mark
@@ -640,96 +641,96 @@ a == b    →    False
 len(a)    →    4
 len(b)    →    5</code></pre>
 
-<p>They print identically. One stores <code>é</code> as a single character; the other stores a
-plain <code>e</code> followed by a floating accent mark that sits on top of it. If a user types
-one form and your stored text has the other, your lookup silently fails — no error, just a match
-that never happens.</p>
+<p>The two strings print identically. One stores <code>é</code> as a single character, while the
+other stores a plain <code>e</code> followed by a separate combining accent mark. If a user types
+one form and the stored text contains the other, the lookup fails without raising an error; the
+match simply never occurs.</p>
 
-<p>The fix is <strong>Unicode normalization</strong>: force every string into one standard form
-before you compare. The common choice is called <strong>NFC</strong>.</p>
+<p>The solution is <strong>Unicode normalization</strong>: convert every string to one standard
+form before comparing. The usual choice is <strong>NFC</strong>.</p>
 
 <pre><code>normalize("NFC", a) == normalize("NFC", b)    →    True</code></pre>
 
 <div class="callout warn">
-  <span class="label">This matters more here, not less</span>
-  <p>This is not a European-accent curiosity. Indian scripts are <em>built</em> from base letters
-  plus combining marks, so the same Kannada or Devanagari word can easily arrive in two encodings
-  that look the same and compare unequal.</p>
-  <p>It is the same family of problem as <a href="0002-regex-groups-and-the-greedy-trap.html">the
-  <code>regex</code>-not-<code>re</code> issue</a>: Indian text has structure that naive handling
-  gets wrong. A simple rule of thumb covers both: <strong>use <code>regex</code> to split,
-  and <code>NFC</code> to compare.</strong> Normalize text to NFC the moment it enters your
-  system, and this entire class of bug disappears.</p>
+  <span class="label">Why this matters for Indian scripts</span>
+  <p>This is not a peculiarity of European accents. Indian scripts are composed of base letters
+  together with combining marks, so the same Kannada or Devanagari word can readily arrive in two
+  encodings that look identical and compare as unequal.</p>
+  <p>This belongs to the same family of problems as the <code>regex</code>-versus-<code>re</code>
+  issue in <a href="0002-regex-groups-and-the-greedy-trap.html">session 2</a>: Indian text has
+  structure that naive handling gets wrong. One rule covers both cases: <strong>use
+  <code>regex</code> to split and <code>NFC</code> to compare.</strong> Normalizing text to NFC as
+  it enters the system removes this entire class of error.</p>
 </div>
 
-<h2>Punctuation, numbers, and the rest</h2>
+<h2>Punctuation, numbers, and accents</h2>
 
-<p>The other normalization steps are smaller and more obvious, and all of them are the same kind
-of decision — keep it or drop it, depending on the task:</p>
+<p>The remaining normalization steps are smaller, and each involves the same kind of decision:
+whether to keep or discard a distinction, depending on the task.</p>
 
 <ul>
-  <li><strong>Punctuation.</strong> For counting words you usually strip it, so that
-      <code>cat,</code> and <code>cat</code> match. For finding sentence boundaries, or reading
-      emoticons in a review, you keep it.</li>
-  <li><strong>Numbers.</strong> Sometimes you replace every number with a single marker like
-      <code>&lt;NUM&gt;</code>, because the exact value does not matter. Sometimes — a price, a
-      date, an amount — it is the whole point.</li>
+  <li><strong>Punctuation.</strong> For counting words it is usually stripped, so that
+      <code>cat,</code> and <code>cat</code> match. It is retained for finding sentence
+      boundaries, or for reading emoticons in a review.</li>
+  <li><strong>Numbers.</strong> Every number is sometimes replaced with a single marker such as
+      <code>&lt;NUM&gt;</code>, because the exact value does not matter. In other tasks, such as
+      those involving prices, dates, or amounts, the value is precisely what matters.</li>
   <li><strong>Accents and spelling.</strong> <code>résumé</code> → <code>resume</code>,
-      <code>colour</code> → <code>color</code>. Helpful for search, harmful if the difference
-      carries meaning.</li>
+      <code>colour</code> → <code>color</code>. This helps search and harms any task in which the
+      difference carries meaning.</li>
 </ul>
 
-<p>There is no fixed recipe. Each of these is a small version of the same question: is this
-difference noise, or is it signal, <em>for the job I am doing</em>?</p>
+<p>There is no fixed procedure. Each of these decisions is an instance of the same question: for
+the task at hand, is this difference noise or signal?</p>
 
 <h2>Stop words</h2>
 
-<p><strong>Stop words</strong> are the very common, low-content words — <code>the</code>,
-<code>is</code>, <code>of</code>, <code>a</code>, <code>and</code>. They appear in almost every
-sentence, so on their own they say little about what a text is <em>about</em>. A long tradition
-in text search removes them, to let the content words stand out.</p>
+<p><strong>Stop words</strong> are very common words carrying little content, such as
+<code>the</code>, <code>is</code>, <code>of</code>, <code>a</code>, and <code>and</code>. They
+appear in almost every sentence, so individually they indicate little about what a text is about.
+There is a long tradition in text search of removing them so that the content words stand out.</p>
 
-<p>Ready-made lists exist. NLTK's English list has about 200 words. Removing them is a one-liner:
-keep only the tokens that are not on the list.</p>
+<p>Ready-made lists are available; NLTK's English list contains about 200 words. Removing them
+requires only keeping the tokens that are not on the list.</p>
 
 <pre><code>"this is one of the best phones I have ever bought"
         ↓  remove stop words
 "best phones ever bought"</code></pre>
 
-<p>What remains — <code>best</code>, <code>phones</code>, <code>bought</code> — is the gist. For
-search and for finding the topic of a document (which is most of Unit I's information-retrieval
-work), that is a genuine win: less to store, and the words that matter stand out.</p>
+<p>What remains, namely <code>best</code>, <code>phones</code>, and <code>bought</code>, conveys
+the substance of the sentence. For search and for identifying the topic of a document, which is
+most of the information-retrieval work in Unit I, this is a real improvement: there is less to
+store, and the informative words are more prominent.</p>
 
-<h2>The obvious step that is often the mistake</h2>
+<h2>When removing stop words is a mistake</h2>
 
-<p>Now look at what is actually <em>on</em> a standard stop-word list. NLTK's list includes these
-words:</p>
+<p>We now examine what a standard stop-word list actually contains. NLTK's list includes the
+following words:</p>
 
 <pre><code>not    no    nor    against    only    very</code></pre>
 
-<p>Every one of those changes the meaning of a sentence. And <code>not</code> — the single most
-important word for saying something is bad — is treated as noise and thrown away. Watch what that
-does to a product review:</p>
+<p>Every one of these changes the meaning of a sentence. In particular <code>not</code>, the most
+important word available for expressing a negative judgement, is treated as noise and discarded.
+Consider the effect on a product review:</p>
 
 <pre><code>"would not recommend"
         ↓  remove stop words
 "would recommend"</code></pre>
 
-<p>Removing stop words turned the sentence into its <strong>exact opposite</strong>. A sentiment
-system fed the second line would read an angry review as a happy one. This is the same lesson as
-VADER failing on <em>nightmare</em> back in lab 1: the obvious, routine step is sometimes the one
-that destroys your meaning.</p>
+<p>Removing stop words has reversed the meaning of the sentence. A sentiment system given the
+second line would classify a negative review as positive. This is the same phenomenon as VADER's
+failure on <em>nightmare</em> in lab 1: a routine preprocessing step can destroy the very
+information the task depends on.</p>
 
 <div class="callout">
-  <span class="label">When to remove stop words, and when not to</span>
-  <p><strong>Remove them</strong> when you want the topic or keywords, and function words are just
-  noise — search and information retrieval. You will do exactly this in lab 4.</p>
-  <p><strong>Keep them</strong> when meaning depends on those words — sentiment, question
-  answering, anything where <em>not</em> matters. As the glossary puts it: <em>"to be or not to
-  be"</em> is entirely stop words.</p>
-  <p>Modern systems, in fact, tend to remove <em>fewer</em> stop words than older ones did —
-  because the models that read the text can now use those small words instead of tripping over
-  them.</p>
+  <span class="label">When to remove stop words</span>
+  <p><strong>Remove them</strong> when the goal is the topic or the keywords and function words
+  are noise, as in search and information retrieval. This is what we do in lab 4.</p>
+  <p><strong>Keep them</strong> when meaning depends on those words, as in sentiment analysis,
+  question answering, and any task in which <em>not</em> matters. As the glossary notes,
+  <em>"to be or not to be"</em> consists entirely of stop words.</p>
+  <p>Modern systems in fact remove fewer stop words than older ones did, because the models that
+  process the text are now able to use these words rather than being confused by them.</p>
 </div>
 
 <div class="quiz" data-answer="1">
@@ -744,9 +745,9 @@ that destroys your meaning.</p>
   <div class="q-fb">
     <p>Correct answer: <strong>case can carry meaning, and merging it cannot be undone</strong>.</p>
     <p>Once <code>US</code> and <code>us</code> have both become <code>us</code>, nothing in the
-    text tells you which was which. The distinction is gone for good. That is fine when the
-    distinction was noise for your task, and a real loss when it was signal. Normalization is
-    a one-way door — that is exactly why the choice matters.</p>
+    text indicates which was which. The distinction is permanently lost. This is acceptable when
+    the distinction was noise for the task and a genuine loss when it was signal. Normalization
+    cannot be reversed, which is why the choice matters.</p>
   </div>
 </div>
 
@@ -762,33 +763,32 @@ that destroys your meaning.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>deciding whether a review is positive or negative</strong>.</p>
-    <p>Sentiment lives in exactly the words a stop-word list throws away — <code>not</code>,
-    <code>no</code>, <code>very</code>. Strip them and <em>"would not recommend"</em> becomes
-    <em>"would recommend"</em>. The other three tasks care about content words, so removing the
+    <p>Sentiment is carried by exactly the words a stop-word list discards: <code>not</code>,
+    <code>no</code>, and <code>very</code>. Removing them turns <em>"would not recommend"</em>
+    into <em>"would recommend"</em>. The other three tasks depend on content words, so removing
     function words helps them.</p>
   </div>
 </div>
 
-<h2>The one thing to remember</h2>
+<h2>Summary</h2>
 
 <div class="callout">
-  <span class="label">The whole lesson in two sentences</span>
-  <p>Every cleaning step — lowercasing, stripping punctuation, removing stop words — throws
-  information away on purpose. Whether that helps or hurts depends entirely on the job, so there
-  is no single correct way to clean text: you assemble the steps to fit the task in front of
-  you.</p>
+  <span class="label">The main points</span>
+  <p>Every cleaning step — lowercasing, stripping punctuation, removing stop words — discards
+  information deliberately. Whether this helps or harms depends entirely on the task, so there is
+  no single correct way to clean text. The steps are assembled to suit the task at hand.</p>
 </div>
 
-<p>Next session takes the last cleaning step — cutting words down to a root form, with
-<strong>stemming and lemmatization</strong> — which is where <code>studies</code> becomes
-<code>studi</code> or <code>study</code> depending on which tool you reach for.</p>
+<p>Session 5 covers the remaining cleaning step, reducing words to a root form by
+<strong>stemming and lemmatization</strong>, where <code>studies</code> becomes either
+<code>studi</code> or <code>study</code> depending on the method used.</p>
 
-<h2>Read this next</h2>
+<h2>Reading</h2>
 
-<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">Chapter
-2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin — free online.
-Read section 2.3, "Word Normalization, Lemmatization and Stemming". It is short, and it covers
-this lesson and the next one together.</p>
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/2.pdf">chapter
+2 of <em>Speech and Language Processing</em></a></strong> by Jurafsky and Martin, available free
+online. Read §2.3, "Word Normalization, Lemmatization and Stemming", which is short and covers
+both this session and the next.</p>
 
 
 
