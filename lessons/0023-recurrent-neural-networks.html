@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 23 — The RNN: hidden state, shared weights</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 23</p>
+  <h1>The RNN: hidden state, shared weights</h1>
+  <p class="subtitle">A feedforward layer is a fixed-size hammer; text is not a fixed-size nail. An
+  RNN reuses the same small hammer once per word, carrying a running summary — the hidden state —
+  forward from one word to the next.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>The five minutes this session owes you</h2>
+
+<p>Session 20's board, back up, nothing re-derived — just the shapes put back in front of the room.
+A neuron is one weighted sum plus a squashing function:</p>
+
+<pre><code>y = f( Σ wᵢxᵢ + b )</code></pre>
+
+<p>Stack several neurons and it becomes a matrix multiply, <code>z = Wx</code>, one row of
+<code>W</code> per neuron. Weights are not counted, the way session 16's Naïve Bayes weights were —
+they start as arbitrary numbers and get <strong>fitted</strong>, nudged by gradient descent until the
+whole thing predicts well. That is everything session 20 built, and it is everything this session
+needs. Nothing else from session 20 is re-taught.</p>
+
+<h2>The wall every representation so far has hit</h2>
+
+<p>Session 20's feedforward layer needs a <strong>fixed-size</strong> input vector — the matrix
+<code>W</code> has a fixed number of columns, and that number cannot change from one input to the
+next. Every variable-length-text representation this course has built so far dodged that same wall,
+the same way:</p>
+
+<ul>
+  <li><strong>CBOW</strong> (session 21) <em>averaged</em> the context words down to one vector,
+  whatever the window size.</li>
+  <li><strong>Lab 8</strong>, last week, did the same thing to build a document vector from GloVe and
+  Word2Vec — average every word's vector, get one fixed-size vector back.</li>
+</ul>
+
+<p>Both tricks paid the same price, and lab 8 <em>measured</em> it: TF-IDF beat both averaged-embedding
+representations, decisively. That price is not one problem — it is two:</p>
+
+<div class="callout">
+  <span class="label">Two separate problems, not one</span>
+  <p><strong>Fixed size.</strong> A network built for a 10-word input cannot take a 50-word input
+  without redesign.</p>
+  <p><strong>Order-blindness.</strong> Averaging is commutative — <code>avg(a, b, c) = avg(c, b, a)</code>,
+  <em>exactly</em>, not approximately. Whatever order the words carried, it is gone before the network
+  ever sees the vector.</p>
+</div>
+
+<p>The second claim is worth not taking on faith. Real vectors, <code>glove-wiki-gigaword-100</code>
+(the same cached file lab 8 used):</p>
+
+<pre><code>avg(GloVe[dog], GloVe[bites], GloVe[man])
+avg(GloVe[man], GloVe[bites], GloVe[dog])
+
+cos( · , · )  =  0.9999999999999998</code></pre>
+
+<div class="callout warn">
+  <span class="label">⚠️ Not "close to 1" — mathematically incapable of being anything else</span>
+  <p>That is not a clean <code>1.0</code> — floating-point addition is not perfectly order-invariant,
+  so <code>a+b+c</code> and <code>c+b+a</code> can differ in the last bit. <mark>The rounding noise in
+  the seventeenth digit is not evidence that order mattered even a little</mark> — it is exactly the
+  precision floating-point arithmetic has to give. The same computation on <code>"the movie was good,
+  not bad"</code> against <code>"the movie was bad, not good"</code> — six identical words, two
+  orders — gives <code>0.9999999999999999</code>. Averaging does not merely do a <em>poor</em> job of
+  keeping order. It cannot keep order, by construction: it is a sum divided by a count, and addition
+  does not care what order you add in.</p>
+</div>
+
+<h2>The fix: stop trying to see the whole sentence at once</h2>
+
+<p>Feed the network one word at a time instead. Give it a <strong>hidden state</strong> — a vector it
+carries from step to step — so that word 50 is processed with a summary of words 1–49 already folded
+in. Nothing about the network's <em>size</em> depends on how long the sentence is, because at every
+step the network only ever looks at one word plus one hidden state.</p>
+
+<div class="callout">
+  <span class="label">One move, both problems</span>
+  <p><strong>Fixed size</strong> stops being a constraint, because the network's input at every step
+  is always "one word vector plus one hidden-state vector" — the same shape whether the sentence is
+  three words or three hundred. <strong>Order-blindness</strong> stops being automatic, because the
+  hidden state at step <em>t</em> is built from the hidden state at step <em>t</em>−1, which was built
+  from the one before that — a specific, order-dependent chain of updates, not a symmetric sum.</p>
+</div>
+
+<p>This is the promise session 22 closed on: "the third [problem, blindness to order] is the reason
+Unit III opens with a model built to process a sequence <em>as</em> a sequence, one step at a time."
+This is that promise, kept.</p>
+
+<h2>The recurrence, stated plainly</h2>
+
+<p>Three matrices, new names, same idea as session 20 — a matrix times a vector, added, squashed:</p>
+
+<pre><code>h_t = g( U h_{t-1}  +  W x_t )        the hidden state, updated
+y_t = f( V h_t )                       an output, if this step produces one</code></pre>
+
+<p><code>x_t</code> is the current word's vector. <code>h_{t-1}</code> is everything the network has
+carried forward so far. <code>W</code> reads the new word; <code>U</code> reads the running memory;
+<code>V</code> turns the memory into an output, when there is one to produce. <code>g</code> is
+conventionally <strong>tanh</strong> here rather than session 20's sigmoid — it squashes into
+<code>[-1, 1]</code> instead of <code>[0, 1]</code>, and the zero-centred range keeps a value that
+gets fed back into itself, over and over, from drifting all one direction.</p>
+
+<p>Walk the shapes the way session 20 walked <code>Wx + b</code>: if the hidden state is
+300-dimensional and each word vector is 100-dimensional, <code>U</code> is 300×300, <code>W</code> is
+300×100, and <code>V</code> is whatever the output needs — one row per class, for example.</p>
+
+<div class="callout">
+  <span class="label">The session's real payload: the weights do not change</span>
+  <p><code>U</code>, <code>W</code>, <code>V</code> are the <em>same three matrices</em>, reused at
+  every timestep. Not three-hundred sets of weights for a three-hundred-word document and three for a
+  three-word sentence — <mark>one set, applied again and again</mark>. A thousand-word document and a
+  three-word sentence use the identical parameter count. This is the thing session 20's feedforward
+  layer could not do at all — its weight matrix is sized to one fixed input, full stop.</p>
+</div>
+
+<figure>
+  <svg viewBox="0 0 620 340" role="img" aria-labelledby="rnntitle rnndesc">
+    <title id="rnntitle">An RNN unrolled in time across three steps, with the same three weight
+    matrices reused at every step</title>
+    <desc id="rnndesc">A chain of four circles running left to right along the middle, labelled h
+    sub zero, h sub one, h sub two, h sub three, each connected to the next by an arrow labelled U.
+    Below h sub one, h sub two and h sub three, a smaller circle labelled x sub one, x sub two and x
+    sub three respectively feeds upward into it, each arrow labelled W. Above h sub one, h sub two
+    and h sub three, a smaller circle labelled y sub one, y sub two and y sub three respectively
+    receives an arrow from it, each arrow labelled V. Every U arrow carries the same label, every W
+    arrow carries the same label, every V arrow carries the same label — the point of the figure is
+    that these are the same three matrices at every step, not three different sets.</desc>
+
+    <!-- h0 -> h1 -->
+    <line class="fig-edge" x1="79.0" y1="170.0" x2="158.0" y2="170.0"></line>
+    <polygon class="fig-edge-h" points="168.0,170.0 158.0,173.5 158.0,166.5"></polygon>
+    <text class="fig-label" x="118" y="157" text-anchor="middle">U</text>
+    <!-- x1 -> h1 -->
+    <line class="fig-edge" x1="200.0" y1="270.0" x2="200.0" y2="212.0"></line>
+    <polygon class="fig-edge-h" points="200.0,202.0 203.5,212.0 196.5,212.0"></polygon>
+    <text class="fig-label" x="216" y="238" text-anchor="middle">W</text>
+    <!-- h1 -> y1 -->
+    <line class="fig-edge" x1="200.0" y1="138.0" x2="200.0" y2="80.0"></line>
+    <polygon class="fig-edge-h" points="200.0,70.0 203.5,80.0 196.5,80.0"></polygon>
+    <text class="fig-label" x="216" y="108" text-anchor="middle">V</text>
+    <!-- h1 -> h2 -->
+    <line class="fig-edge" x1="232.0" y1="170.0" x2="343.0" y2="170.0"></line>
+    <polygon class="fig-edge-h" points="353.0,170.0 343.0,173.5 343.0,166.5"></polygon>
+    <text class="fig-label" x="288" y="157" text-anchor="middle">U</text>
+    <!-- x2 -> h2 -->
+    <line class="fig-edge" x1="385.0" y1="270.0" x2="385.0" y2="212.0"></line>
+    <polygon class="fig-edge-h" points="385.0,202.0 388.5,212.0 381.5,212.0"></polygon>
+    <text class="fig-label" x="401" y="238" text-anchor="middle">W</text>
+    <!-- h2 -> y2 -->
+    <line class="fig-edge" x1="385.0" y1="138.0" x2="385.0" y2="80.0"></line>
+    <polygon class="fig-edge-h" points="385.0,70.0 388.5,80.0 381.5,80.0"></polygon>
+    <text class="fig-label" x="401" y="108" text-anchor="middle">V</text>
+    <!-- h2 -> h3 -->
+    <line class="fig-edge" x1="417.0" y1="170.0" x2="528.0" y2="170.0"></line>
+    <polygon class="fig-edge-h" points="538.0,170.0 528.0,173.5 528.0,166.5"></polygon>
+    <text class="fig-label" x="473" y="157" text-anchor="middle">U</text>
+    <!-- x3 -> h3 -->
+    <line class="fig-edge" x1="570.0" y1="270.0" x2="570.0" y2="212.0"></line>
+    <polygon class="fig-edge-h" points="570.0,202.0 573.5,212.0 566.5,212.0"></polygon>
+    <text class="fig-label" x="586" y="238" text-anchor="middle">W</text>
+    <!-- h3 -> y3 -->
+    <line class="fig-edge" x1="570.0" y1="138.0" x2="570.0" y2="80.0"></line>
+    <polygon class="fig-edge-h" points="570.0,70.0 573.5,80.0 566.5,80.0"></polygon>
+    <text class="fig-label" x="586" y="108" text-anchor="middle">V</text>
+
+    <!-- nodes drawn after edges so lines tuck under the circle boundary -->
+    <circle class="fig-node-q" cx="55" cy="170" r="24"></circle>
+    <text class="fig-glyph" x="55" y="175" text-anchor="middle">h₀</text>
+
+    <circle class="fig-node" cx="200" cy="170" r="32"></circle>
+    <text class="fig-glyph" x="200" y="176" text-anchor="middle">h₁</text>
+    <circle class="fig-node-q" cx="200" cy="292" r="22"></circle>
+    <text class="fig-glyph" x="200" y="297" text-anchor="middle">x₁</text>
+    <circle class="fig-node-q" cx="200" cy="48" r="22"></circle>
+    <text class="fig-glyph" x="200" y="53" text-anchor="middle">y₁</text>
+
+    <circle class="fig-node" cx="385" cy="170" r="32"></circle>
+    <text class="fig-glyph" x="385" y="176" text-anchor="middle">h₂</text>
+    <circle class="fig-node-q" cx="385" cy="292" r="22"></circle>
+    <text class="fig-glyph" x="385" y="297" text-anchor="middle">x₂</text>
+    <circle class="fig-node-q" cx="385" cy="48" r="22"></circle>
+    <text class="fig-glyph" x="385" y="53" text-anchor="middle">y₂</text>
+
+    <circle class="fig-node" cx="570" cy="170" r="32"></circle>
+    <text class="fig-glyph" x="570" y="176" text-anchor="middle">h₃</text>
+    <circle class="fig-node-q" cx="570" cy="292" r="22"></circle>
+    <text class="fig-glyph" x="570" y="297" text-anchor="middle">x₃</text>
+    <circle class="fig-node-q" cx="570" cy="48" r="22"></circle>
+    <text class="fig-glyph" x="570" y="53" text-anchor="middle">y₃</text>
+
+    <text class="fig-axname" x="310" y="325" text-anchor="middle">same U, same W, same V — every step</text>
+  </svg>
+  <figcaption>The same network, drawn once per timestep instead of once. <code>h₀</code> is the
+  starting hidden state, usually all zeros. Every <code>U</code> arrow is the identical matrix, every
+  <code>W</code> arrow is the identical matrix, every <code>V</code> arrow is the identical matrix —
+  three matrices, reused, not three-per-step. This is SLP3's Fig 13.4, redrawn. (It draws an output
+  at <em>every</em> step, which is the sequence-labeling shape; the classification setup later in this
+  session keeps only the last step and drops <code>y₁</code> and <code>y₂</code> entirely.)</figcaption>
+</figure>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What makes an RNN handle a 3-word sentence and a 300-word document with the
+  <em>same</em> network, without redesigning anything?</p>
+  <div class="q-opts">
+    <button class="opt">The hidden state is padded or truncated to a fixed length before
+    training</button>
+    <button class="opt">The weights <code>U</code>, <code>W</code>, <code>V</code> are reused at
+    every timestep, so parameter count never depends on sequence length</button>
+    <button class="opt">Longer documents are split into fixed-size chunks and averaged
+    afterward</button>
+    <button class="opt">The network has a separate copy of its weights for every possible sequence
+    length, and picks the right one at runtime</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the same three matrices are reused at every step</strong>.</p>
+    <p>Nothing about <code>U</code>, <code>W</code>, or <code>V</code>'s shape mentions sequence
+    length — they map "one word plus one hidden state" to "one new hidden state," and that mapping is
+    applied once per word, however many words there are. A three-word sentence runs the loop three
+    times; a three-hundred-word document runs it three hundred times; the network being run is
+    identical both times.</p>
+  </div>
+</div>
+
+<h2>By hand, with numbers small enough to track</h2>
+
+<p>A tiny synthetic RNN — one-dimensional hidden state, clean integers, no activation function.
+<mark>Real RNNs squash every step with tanh</mark>; this toy skips it purely so the arithmetic stays
+inspectable on the page:</p>
+
+<pre><code>U = 0.5     W = 1     h₀ = 0     x₁ = 2     x₂ = 3
+
+h₁ = U·h₀ + W·x₁ = 0.5·0 + 1·2 = 2
+h₂ = U·h₁ + W·x₂ = 0.5·2 + 1·3 = 4</code></pre>
+
+<p>The numbers themselves are forgettable — the structure is the point. Look at <code>h₂</code>'s
+formula: it contains <code>h₁</code>, which already contained <code>h₀</code>. The chain reaches back
+indefinitely, <strong>in principle</strong> — nothing in the formula stops <code>h₁₀₀</code> from
+depending, through an unbroken chain, on <code>h₀</code>. Whether it reaches back indefinitely in
+<em>practice</em> is a different question, and this session is not going to answer it.</p>
+
+<div class="recall">
+  <span class="label">Work this out before revealing</span>
+  <p>Same toy RNN. You are told <code>h₀ = 0</code>, <code>U = 0.5</code>, <code>W = 1</code>,
+  <code>h₁ = 2</code>, and the next input is <code>x₂ = 3</code>. Compute <code>h₂</code> yourself.
+  Then answer: does <code>h₂</code>'s formula mention <code>h₀</code> anywhere?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><code>h₂ = U·h₁ + W·x₂ = 0.5·2 + 1·3 = 4</code>.</p>
+    <p>No — <code>h₂</code>'s formula mentions only <code>h₁</code> and <code>x₂</code>.
+    <code>h₀</code> only enters <em>through</em> <code>h₁</code>, one step removed. Every hidden state
+    reaches back only one step at a time, chained — which is exactly the shape of thing that can, in
+    principle, either carry information a long way or lose it a long way. Which one happens is
+    session 24's question.</p>
+  </div>
+</div>
+
+<h2>What comes out the other end</h2>
+
+<p>The same architecture supports two different shapes of output, and this session commits to one of
+them as the running example.</p>
+
+<p><strong>Sequence labeling</strong> produces an output at every step — a tag for every word, the way
+session 6's POS tagging assigns one label per token. One line, no worked example here.</p>
+
+<p><strong>Sequence classification</strong> — the direct continuation of lab 8 — produces one output
+at the very end. Run the whole sequence through, take the <strong>final</strong> hidden state
+<code>h_n</code>, and feed it to a <em>separate</em> small feedforward classifier with its own weight
+matrix, which softmaxes into however many classes the task has:</p>
+
+<pre><code>h_n  =  the hidden state after the last word
+ŷ    =  softmax( W_c h_n )        W_c belongs to the classifier, not to the RNN</code></pre>
+
+<div class="callout warn">
+  <span class="label">⚠️ <code>W_c</code> is not <code>V</code> — this is where the diagram stops
+  applying</span>
+  <p>In a classifier there are no per-step outputs at all: no <code>y₁</code>, no <code>y₂</code>,
+  nothing until the last word has been read. <mark>So <code>V</code> — the RNN's hidden→output matrix
+  from the figure above — is simply not used here.</mark> The classification head is an extra,
+  separately-sized matrix bolted onto the end, and it has one row per <em>class</em> (two, for
+  positive/negative sentiment), not one row per whatever the RNN's per-step output was. SLP3 draws
+  exactly this in Fig 13.8: an RNN, then a feedforward network hanging off <code>h_n</code>.</p>
+</div>
+
+<p>SLP3 calls this <strong>end-to-end training</strong>: the loss comes from the classification
+decision alone, at the very last step, and backpropagates first through the classifier's own weights,
+then into <code>h_n</code>, and from there back through the whole chain — every <code>U</code>, every
+<code>W</code>, all the way to the first word. Nothing is trained to produce a good intermediate
+representation directly; a good representation is whatever falls out of training the final decision
+to be correct.</p>
+
+<h2>The contrast lab 8 earns</h2>
+
+<p>SLP3 §13.3.2 itself offers an alternative to using just <code>h_n</code>: <strong>pooling</strong>
+— averaging <em>all</em> the hidden states instead of keeping only the last one. That deserves one
+careful paragraph, because it sounds like it walks straight back into beat 2's trap.</p>
+
+<div class="callout">
+  <span class="label">Pooling RNN hidden states is not lab 8's mistake, wearing a disguise</span>
+  <p>Lab 8 averaged <strong>raw word vectors</strong> — context-free, order-blind by construction,
+  exactly the problem beat 2 computed. Pooling <strong>RNN hidden states</strong> averages
+  <code>h_1, h_2, …, h_n</code> — and every single <code>h_i</code> already encodes everything that
+  came before position <em>i</em>, folded in by the recurrence one step at a time. <mark>The order
+  information was built into each vector before the average, not thrown away by it.</mark> Averaging
+  is not inherently the enemy. Averaging <em>context-free</em> vectors was lab 8's problem,
+  specifically — and an RNN's hidden states are not context-free.</p>
+</div>
+
+<p>The same point, computed rather than argued. Push both token orderings from beat 2's example
+through a <strong>hand-rolled, randomly-initialised</strong> RNN — untrained, on purpose, because
+session 24 has not happened yet:</p>
+
+<pre><code>h(dog bites man)  ≠  h(man bites dog)         componentwise, exactly
+cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
+
+<div class="callout warn">
+  <span class="label">⚠️ Don't oversell this</span>
+  <p>An untrained RNN's final hidden state has never been taught to do anything useful with the order
+  it sees — <code>0.138</code> is not a meaningful similarity score in any sense a trained model's
+  output would be. The claim here is narrower and does not depend on training at all: <strong>the
+  architecture is <em>capable</em> of seeing order; averaging raw vectors is not</strong>, a fact about
+  the two functions themselves, independent of what either has been trained to accomplish with that
+  capability. Compare the two cosines side by side — averaging's <code>0.9999999999999998</code>
+  against the untrained RNN's <code>0.138</code> — and the gap is the whole argument.</p>
+</div>
+
+<div class="quiz" data-answer="3">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Why can lab 8's averaged embeddings not distinguish <code>dog bites man</code>
+  from <code>man bites dog</code>, while even an <em>untrained</em> RNN's final hidden state can?</p>
+  <div class="q-opts">
+    <button class="opt">The RNN has more parameters, so it memorises more about each specific
+    sentence</button>
+    <button class="opt">Averaging uses GloVe vectors and the RNN uses Word2Vec vectors, which encode
+    order differently</button>
+    <button class="opt">The untrained RNN has already learned that word order matters, from its
+    random initialisation</button>
+    <button class="opt">Averaging is order-independent by construction — a sum divided by a count —
+    while the hidden state is a function of a specific, order-dependent sequence of updates</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>averaging cannot see order because addition is commutative; the RNN's
+    recurrence is not</strong>.</p>
+    <p>Nothing about training enters into it — an untrained RNN's weights are arbitrary, but the
+    <em>function</em> <code>h_t = g(Uh_{t-1} + Wx_t)</code> still depends on which word arrived at
+    which step, because <code>h_{t-1}</code> feeds into <code>h_t</code> and not the reverse.
+    Averaging has no such asymmetry at all, trained or not — it is mathematically incapable of telling
+    two reorderings apart, which is what beat 2's cosine of <code>0.9999999999999998</code>
+    demonstrated directly.</p>
+  </div>
+</div>
+
+<h2>Where this leaves the wall from beat 2</h2>
+
+<table>
+  <tr><th></th><th>Averaged embedding (CBOW, lab 8)</th><th>RNN</th></tr>
+  <tr><td>handles variable length by</td><td>collapsing to one fixed vector first</td>
+      <td>looping the same small network once per word</td></tr>
+  <tr><td>order-sensitive?</td><td>no — commutative by construction</td>
+      <td>yes — each step depends on the specific history before it</td></tr>
+  <tr><td>parameters vs. sequence length</td><td>fixed, but information is discarded to get there</td>
+      <td>fixed (<code>U</code>, <code>W</code>, <code>V</code> reused every step) — nothing
+      discarded to achieve it</td></tr>
+</table>
+
+<h2>The honest cliffhanger</h2>
+
+<p>SLP3 itself claims the recurrent connection can let a decision "depend on information from
+hundreds of words in the past." State the claim, then question it, then stop:</p>
+
+<div class="callout warn">
+  <span class="label">⚠️ The architecture allows it. Whether it happens is a different question.</span>
+  <p>This session showed you the architecture <em>allows</em> a decision to depend on information from
+  hundreds of words back — beat 5's toy made the chain visible, link by link, with nothing in the
+  formula that breaks it. <mark>Whether that actually happens once you try to train one is next
+  session's entire hour</mark> — and the honest answer is not the one the architecture's name
+  promises.</p>
+</div>
+
+<p>Unit II ended on "blind to order," and this session is the fix. Unit III's first real complication
+is that the fix has a limit nobody in this room has stated yet.</p>
+
+<div class="callout">
+  <span class="label">The whole lesson in four sentences</span>
+  <p>A feedforward layer needs a fixed-size input, and every trick this course has used to get one —
+  averaging context words, averaging a whole document — is mathematically incapable of seeing word
+  order, because addition is commutative. An RNN instead processes one word at a time, carrying a
+  hidden state <code>h_t = g(Uh_{t-1} + Wx_t)</code> forward, so the same three matrices
+  <code>U</code>, <code>W</code>, <code>V</code> handle a three-word sentence and a three-hundred-word
+  document identically, and the hidden state at any step is a specific, order-dependent function of
+  everything before it. For classification, the final hidden state <code>h_n</code> feeds a softmax,
+  trained end-to-end; pooling all the hidden states is a legitimate alternative precisely because each
+  one already encodes what came before it, unlike lab 8's raw-vector averaging. What this session did
+  not show is whether that "everything before it" reaches back hundreds of words in practice, only
+  that the architecture does not forbid it — that question is session 24's.</p>
+</div>
+
+<h2>Read this next</h2>
+
+<p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/13.pdf">Speech and
+Language Processing</a></strong>, chapter 13, §13.1 (the recurrence and the unrolled figure) and
+§13.3.2 (sequence classification and the pooling alternative). §13.1.2's one paragraph on training
+names backpropagation through time without opening it — session 24 opens it.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0022-glove.html">← Session 22: GloVe</a>
+  <span>Session 24: backpropagation through time — coming soon</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

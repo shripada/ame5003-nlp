@@ -569,7 +569,7 @@ figcaption {
 
 <h2>Where Unit II has got to</h2>
 
-<p>Six sessions ago a document was a row of ones and zeros — session 8's incidence matrix, present or
+<p>Back in session 8 a document was a row of ones and zeros — the incidence matrix, present or
 absent, nothing in between. Session 17 kept a count instead of a bit. Session 18 reweighted that count
 by how rare the word was. Session 19 stopped comparing lengths and started comparing angles. Session 21
 threw all of that out and replaced <em>counting</em> with <em>predicting</em>: delete a word, guess it,
@@ -606,22 +606,27 @@ is</strong>. Take two words that mean different things but share a domain — <c
 <div class="recall">
   <span class="label">Work this out before reading on</span>
   <p>Two drinks, <code>espresso</code> and <code>juice</code>, and two probe words, counted across some
-  corpus:</p>
+  corpus. Both drinks happen to appear equally often — each has a total of <strong>10,000</strong>
+  co-occurrences with all words — so their counts are directly comparable:</p>
   <pre><code>X(espresso, sugar)     =   5        X(juice, sugar)     =  45
 X(espresso, caffeine)  =  80        X(juice, caffeine)  =   4</code></pre>
-  <p>Work out the ratio <code>X(espresso, k) / X(juice, k)</code> for each probe word <code>k</code>.
-  Which word is each ratio "about"? And if a third probe word gave a ratio close to <strong>1</strong>,
-  what would that tell you?</p>
+  <p>Work out the ratio <code>P(k | espresso) / P(k | juice)</code> for each probe word
+  <code>k</code>. Which word is each ratio "about"? And if a third probe word gave a ratio close to
+  <strong>1</strong>, what would that tell you?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>sugar</code>: 5/45 ≈ <strong>0.11</strong> — small, so <code>sugar</code> belongs to
-    <code>juice</code>, not <code>espresso</code>.</p>
-    <p><code>caffeine</code>: 80/4 = <strong>20</strong> — large, so <code>caffeine</code> belongs to
-    <code>espresso</code>.</p>
+    <p><code>sugar</code>: (5/10,000) ÷ (45/10,000) = 5/45 ≈ <strong>0.11</strong> — small, so
+    <code>sugar</code> belongs to <code>juice</code>, not <code>espresso</code>.</p>
+    <p><code>caffeine</code>: (80/10,000) ÷ (4/10,000) = 80/4 = <strong>20</strong> — large, so
+    <code>caffeine</code> belongs to <code>espresso</code>.</p>
     <p>A ratio near 1 would mean the probe word is <strong>equally associated with both, or with
     neither</strong> — it carries no information for telling the two target words apart. That is the
     whole trick: <mark>a plain probability just says "these two words show up together often or
     rarely"; the ratio says which of two candidate words a third word actually belongs to.</mark></p>
+    <p>⚠️ The equal totals are what let the two 10,000s cancel and the raw counts be compared
+    directly. That is a convenience of this exercise, not a rule — in the real table below the two
+    words have very different totals, and dividing raw count by raw count would give the wrong
+    answer.</p>
   </div>
 </div>
 
@@ -629,17 +634,27 @@ X(espresso, caffeine)  =  80        X(juice, caffeine)  =   4</code></pre>
 window of 10, top 20,000 words by frequency:</p>
 
 <table>
-  <tr><th></th><th><code>solid</code></th><th><code>gas</code></th><th><code>water</code></th><th><code>fashion</code></th></tr>
-  <tr><td><code>ice</code></td>   <td>30</td><td>14</td><td>128</td><td>2</td></tr>
-  <tr><td><code>steam</code></td> <td>2</td> <td>12</td><td>30</td> <td>0</td></tr>
+  <tr><th></th><th><code>solid</code></th><th><code>gas</code></th><th><code>water</code></th><th><code>fashion</code></th><th>row total</th></tr>
+  <tr><td><code>ice</code></td>   <td>30</td><td>14</td><td>128</td><td>2</td><td>32,068</td></tr>
+  <tr><td><code>steam</code></td> <td>2</td> <td>12</td><td>30</td> <td>0</td><td>8,024</td></tr>
 </table>
 
-<pre><code>ratio = P(k | ice) / P(k | steam)
+<p><mark>The row totals are not decoration — they are what makes this a ratio of probabilities rather
+than a ratio of counts.</mark> <code>ice</code> occurs about four times as often as <code>steam</code>
+in this corpus, so every one of its raw counts is inflated by roughly the same factor.
+<code>P(k | ice)</code> is the row-<code>ice</code> count divided by 32,068, and
+<code>P(k | steam)</code> is the row-<code>steam</code> count divided by 8,024:</p>
 
-solid    3.75    ← larger, correctly:   ice relates to solid more than steam does
-gas      0.29    ← smaller, correctly:  steam relates to gas more than ice does
-water    1.07    ← near 1, correctly:   both relate to water about equally
-fashion  ∞        ← steam and fashion co-occur ZERO times in this corpus</code></pre>
+<pre><code>ratio = P(k | ice) / P(k | steam) = (Xᵢₖ / 32,068) / (Xₛₖ / 8,024)
+
+solid    (30/32,068) / (2/8,024)  = 3.75    ← larger, correctly:   ice relates to solid more than steam does
+gas      (14/32,068) / (12/8,024) = 0.29    ← smaller, correctly:  steam relates to gas more than ice does
+water   (128/32,068) / (30/8,024) = 1.07    ← near 1, correctly:   both relate to water about equally
+fashion  (2/32,068)  / (0/8,024)  = ∞       ← steam and fashion co-occur ZERO times in this corpus</code></pre>
+
+<p>Skip the normalisation and <code>solid</code> comes out at 30/2 = 15 rather than 3.75 — the same
+direction, but a number that says <code>ice</code> is fifteen times more solid-ish than
+<code>steam</code>, when most of that factor is just <code>ice</code> being the commoner word.</p>
 
 <p>Three of four land exactly where the paper's table says they should. The fourth did not fail —
 it hit session 13's zero problem from the other side. <code>fashion</code> is meant to be the
@@ -856,7 +871,8 @@ were fundamentally better at separating antonyms, this table would lean one way.
 
 <h2>Unit II, end to end</h2>
 
-<p>Nine sessions, one arc, never stated as a single line until now:</p>
+<p>Six representations, one arc running from session 8 to today, never stated as a single line until
+now:</p>
 
 <table>
   <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
@@ -922,7 +938,12 @@ Factorization</em> (NeurIPS 2014), and <strong>Levy, Goldberg and Dagan</strong>
 Distributional Similarity with Lessons Learned from Word2Vec</em> (TACL 2015).</p>
 
 <p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and Language Processing</a></strong>
-chapter 5 covers GloVe alongside Word2Vec and is the gentler first read.</p>
+gives GloVe <strong>two sentences</strong>, in <strong>§5.5.3 "Other kinds of static embeddings"</strong>
+— it names the method, says it is based on ratios of probabilities from the co-occurrence matrix, and
+moves on. Useful for placing GloVe among the static embeddings, but it is <em>not</em> a substitute for
+the paper on this topic. Read §5.5.3 for the placement and Pennington §3 for the method. Worth noting
+that the same two sentences also state Levy &amp; Goldberg's result below — the book agrees with the
+honest answer.</p>
 
 
 
@@ -938,7 +959,7 @@ chapter 5 covers GloVe alongside Word2Vec and is the gentler first read.</p>
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
   <a href="0021-word2vec-cbow-and-skip-gram.html">← Session 21: Word2Vec — CBOW and Skip-gram</a>
-  <span>Unit III begins — Session 23</span>
+  <a href="0023-recurrent-neural-networks.html">Session 23: The RNN — hidden state, shared weights →</a>
 </nav>
 
 <script>

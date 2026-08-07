@@ -1235,19 +1235,31 @@ figcaption {
 
 <dl class="term">
   <dt>RNN <span class="sym">Recurrent Neural Network</span></dt>
-  <dd>Processes a sequence one step at a time, carrying a hidden state. Weights shared across
-  timesteps.</dd>
+  <dd>Processes a sequence one step at a time, carrying a hidden state:
+  <code>h_t = g(Uh_{t-1} + Wx_t)</code>, with <code>g</code> conventionally <strong>tanh</strong>.
+  <code>U</code>, <code>W</code> and a third matrix <code>V</code> (hidden→output,
+  <code>y_t = f(Vh_t)</code>) are the <em>same three matrices at every timestep</em> — a
+  thousand-word document and a three-word sentence use identical parameter count. Fixes the
+  fixed-size-input wall that forced CBOW and lab 8's document vectors to average, and — unlike
+  averaging — the hidden state is a specific, order-dependent function of everything before it.
+  For sequence classification, the final <code>h_n</code> feeds a softmax, trained end-to-end;
+  for sequence labeling (POS tagging), every step produces its own output. Session 23.</dd>
 </dl>
 
 <dl class="term">
   <dt>Hidden state</dt>
-  <dd>The vector an RNN carries forward — its compressed memory of everything seen so far.</dd>
+  <dd>The vector an RNN carries forward — its compressed memory of everything seen so far, updated
+  at every step by <code>h_t = g(Uh_{t-1} + Wx_t)</code>. Because each <code>h_t</code> is built
+  from <code>h_{t-1}</code> rather than from a symmetric sum, <strong>pooling</strong> (averaging)
+  a sequence's hidden states is not the same mistake as averaging raw word vectors — order was
+  already folded into each <code>h_t</code> before the average, not thrown away by it. Session 23.</dd>
 </dl>
 
 <dl class="term">
   <dt>Vanishing gradient</dt>
   <dd>Gradients shrink multiplicatively over long backprop paths, so plain RNNs cannot learn
-  long-range dependencies. The disease; LSTM is the treatment.</dd>
+  long-range dependencies. The disease; LSTM is the treatment. (The recurrence this describes is
+  Session 23's; whether it actually happens in practice is Session 24's.)</dd>
 </dl>
 
 <dl class="term">
