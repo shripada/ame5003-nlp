@@ -570,9 +570,9 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 22</p>
   <h1>GloVe</h1>
-  <p class="subtitle">One loss function, one co-occurrence matrix, twenty minutes of new material.
-  What earns the hour is the question it puts next to Word2Vec — and the honest answer, which is not
-  the one GloVe's own paper gives.</p>
+  <p class="subtitle">One loss function and one co-occurrence matrix. What makes the session worth
+  an hour is the question it raises about Word2Vec, and the answer, which is not the one GloVe's own
+  paper gives.</p>
 </header>
 
 <div class="wrap">
@@ -581,26 +581,27 @@ figcaption {
 
 <h2>Where Unit II stands</h2>
 
-<p>Back in session 8 a document was a row of ones and zeros — the incidence matrix, present or
-absent, nothing in between. Session 17 kept a count instead of a bit. Session 18 reweighted that count
-by how rare the word was. Session 19 stopped comparing lengths and started comparing angles. Session 21
-threw all of that out and replaced <em>counting</em> with <em>predicting</em>: delete a word, guess it,
-keep the weights. Today asks the question that move raises but never answered: <mark>was predicting
-actually necessary, or would counting have worked all along if we had counted the right thing?</mark></p>
+<p>In session 8 a document was a row of ones and zeros: the incidence matrix, recording presence
+or absence and nothing in between. Session 17 replaced the bit with a count. Session 18 reweighted
+that count by how rare the word was. Session 19 replaced comparison by length with comparison by
+angle. Session 21 set all of this aside and replaced <em>counting</em> with <em>predicting</em>:
+delete a word, predict it, and keep the weights. This session asks the question that move raises and
+does not answer: <mark>was prediction necessary, or would counting have worked all along, given the
+right quantity to count?</mark></p>
 
 <h2>GloVe's objection to Word2Vec</h2>
 
-<p>Word2Vec slides a window across the corpus and, at every position, asks one question and throws the
-window away. Slide it across a billion tokens and you will pass the pair <code>(ice, steam)</code> —
-not literally adjacent, but both near words like <code>water</code> and <code>cold</code> — thousands
-of separate times, and the model never once holds the <em>total</em>. Every window is a fresh,
-context-free glimpse.</p>
+<p>Word2Vec slides a window across the corpus and, at each position, asks one question and then
+discards the window. Over a billion tokens it will encounter the pair <code>(ice, steam)</code> —
+not adjacent, but both near words such as <code>water</code> and <code>cold</code> — thousands of
+separate times, and the model never holds the <em>total</em>. Each window is treated
+independently.</p>
 
 <div class="callout">
   <span class="label">GloVe's argument</span>
-  <p>The corpus already contains the total. Count how often every word appears near every other word,
-  once, and you have a table that Word2Vec spent an entire training run approximating one window at a
-  time. <mark>Global Vectors: build the global co-occurrence matrix, then fit vectors to it
+  <p>The corpus already contains the total. Counting once how often every word appears near every
+  other word produces a table that Word2Vec spends an entire training run approximating one window
+  at a time. <mark>Global Vectors: build the global co-occurrence matrix, then fit vectors to it
   directly.</mark></p>
 </div>
 
@@ -610,10 +611,10 @@ context-free glimpse.</p>
 some window of word <em>i</em>, counted across the whole corpus. That much is just session 19's
 pie/data/computer table, scaled up to every word against every word.</p>
 
-<p>The paper's actual contribution is not the matrix — co-occurrence matrices are old. It is the claim
-that <strong>a single probability is not the informative quantity; a ratio of two probabilities
-is</strong>. Take two words that mean different things but share a domain — <code>ice</code> and
-<code>steam</code> — and a handful of probe words:</p>
+<p>The paper's contribution is not the matrix, since co-occurrence matrices long predate it. It is
+the claim that <strong>a single probability is not the informative quantity, and a ratio of two
+probabilities is</strong>. Consider two words with different meanings from a shared domain,
+<code>ice</code> and <code>steam</code>, together with several probe words.</p>
 
 <div class="recall">
   <span class="label">Exercise</span>
@@ -631,19 +632,20 @@ X(espresso, caffeine)  =  80        X(juice, caffeine)  =   4</code></pre>
     <code>sugar</code> belongs to <code>juice</code>, not <code>espresso</code>.</p>
     <p><code>caffeine</code>: (80/10,000) ÷ (4/10,000) = 80/4 = <strong>20</strong> — large, so
     <code>caffeine</code> belongs to <code>espresso</code>.</p>
-    <p>A ratio near 1 would mean the probe word is <strong>equally associated with both, or with
-    neither</strong> — it carries no information for telling the two target words apart. That is the
-    whole trick: <mark>a plain probability just says "these two words show up together often or
-    rarely"; the ratio says which of two candidate words a third word actually belongs to.</mark></p>
-    <p>⚠️ The equal totals are what let the two 10,000s cancel and the raw counts be compared
-    directly. That is a convenience of this exercise, not a rule — in the real table below the two
-    words have very different totals, and dividing raw count by raw count would give the wrong
-    answer.</p>
+    <p>A ratio near 1 would indicate that the probe word is <strong>equally associated with both,
+    or with neither</strong>, and therefore carries no information for distinguishing the two target
+    words. This is the central point: <mark>a plain probability states only that two words co-occur
+    often or rarely, whereas the ratio states which of two candidate words a third word belongs
+    with.</mark></p>
+    <p>The equal totals are what allow the two values of 10,000 to cancel and the raw counts to be
+    compared directly. That is a convenience of this exercise rather than a general rule: in the
+    table below the two words have very different totals, and dividing one raw count by another
+    would give the wrong answer.</p>
   </div>
 </div>
 
-<p>Now the same idea, computed for real. <code>text8</code> (Wikipedia text, ~17 million tokens), a
-window of 10, top 20,000 words by frequency:</p>
+<p>The same calculation on real data follows, using <code>text8</code> (Wikipedia text, about 17
+million tokens), a window of 10, and the top 20,000 words by frequency:</p>
 
 <table>
   <tr><th></th><th><code>solid</code></th><th><code>gas</code></th><th><code>water</code></th><th><code>fashion</code></th><th>row total</th></tr>
@@ -664,29 +666,30 @@ gas      (14/32,068) / (12/8,024) = 0.29    ← smaller, correctly:  steam relat
 water   (128/32,068) / (30/8,024) = 1.07    ← near 1, correctly:   both relate to water about equally
 fashion  (2/32,068)  / (0/8,024)  = ∞       ← steam and fashion co-occur ZERO times in this corpus</code></pre>
 
-<p>Skip the normalisation and <code>solid</code> comes out at 30/2 = 15 rather than 3.75 — the same
-direction, but a number that says <code>ice</code> is fifteen times more solid-ish than
-<code>steam</code>, when most of that factor is just <code>ice</code> being the commoner word.</p>
+<p>Omitting the normalisation gives <code>solid</code> a value of 30/2 = 15 rather than 3.75. The
+direction is the same, but the number implies that <code>ice</code> is fifteen times more associated
+with <code>solid</code> than <code>steam</code> is, when most of that factor is simply
+<code>ice</code> being the more frequent word.</p>
 
-<p>Three of four land exactly where the paper's table says they should. The fourth did not fail —
-it hit session 13's zero problem from the other side. <code>fashion</code> is meant to be the
-"irrelevant to both" probe, sitting near 1. In a corpus of 17 million tokens, <code>steam</code> and
-<code>fashion</code> simply never appear within ten words of each other, so the ratio divides by zero
-instead of landing near 1.</p>
+<p>Three of the four probes fall where the paper's table indicates. The fourth did not fail but
+encountered session 13's zero problem in a new setting. <code>fashion</code> is intended as the
+probe that is irrelevant to both, giving a ratio near 1. In a corpus of 17 million tokens,
+<code>steam</code> and <code>fashion</code> never occur within ten words of each other, so the ratio
+divides by zero rather than approaching 1.</p>
 
 <div class="callout warn">
   <span class="label">The zero problem, again</span>
-  <p>Pennington et al. trained on <strong>6 billion</strong> tokens, about 350× this corpus. At that
-  scale, two arbitrary words almost always co-occur <em>some</em> nonzero number of times purely by
-  chance, so their ratio lands near 1 as the theory predicts. At 17 million tokens, rare pairings can
-  and do hit exactly zero. <mark>Sparse counts break in the same place they always break</mark> — this
-  is session 13's smoothing problem wearing a different matrix.</p>
+  <p>Pennington et al. trained on <strong>6 billion</strong> tokens, about 350 times this corpus.
+  At that scale two arbitrary words almost always co-occur some nonzero number of times by chance,
+  so their ratio approaches 1 as the theory predicts. At 17 million tokens, rare pairings reach
+  exactly zero. <mark>Sparse counts fail in the same place they always fail</mark>: this is session
+  13's smoothing problem in a different matrix.</p>
 </div>
 
 <h2>From ratio to loss</h2>
 
-<p>The ratio argument says: whatever the vectors end up encoding, it should be possible to recover
-that ratio from them. GloVe's move is to ask the vectors to predict the <em>log</em> of the raw count
+<p>The ratio argument requires that whatever the vectors encode, the ratio should be recoverable
+from them. GloVe's approach is to fit the vectors to the <em>logarithm</em> of the raw count
 directly, one pair at a time:</p>
 
 <pre><code>wᵢᵀ w̃ⱼ  +  bᵢ  +  b̃ⱼ   =   log Xᵢⱼ</code></pre>
@@ -699,8 +702,8 @@ cell of <code>X</code>, and you have GloVe's loss (weighting term <code>f</code>
 
 <pre><code>J  =  Σᵢⱼ f(Xᵢⱼ) · (wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ − log Xᵢⱼ)²</code></pre>
 
-<p>Why the log, specifically? Because a <em>difference</em> of dot products is exactly a
-<em>ratio</em> of counts once you exponentiate back:</p>
+<p>The logarithm is used because a <em>difference</em> of dot products corresponds exactly to a
+<em>ratio</em> of counts under exponentiation:</p>
 
 <div class="callout">
   <span class="label">The algebraic identity</span>
@@ -711,32 +714,33 @@ cell of <code>X</code>, and you have GloVe's loss (weighting term <code>f</code>
   "fit a count" into "fit the ratio that actually carries meaning".</mark></p>
 </div>
 
-<p>The paper's own derivation — starting from the ratio and working forward to this equation — runs
-three pages. None of it is needed to use the result, so it is skipped here on purpose.</p>
+<p>The paper's derivation, which starts from the ratio and works forward to this equation, runs to
+three pages. None of it is required in order to use the result, and it is omitted here.</p>
 
 <h2>Weighting the loss</h2>
 
-<p>Squared error on <code>log Xᵢⱼ</code> has a problem session 18 already gave a name to: a handful of
-extremely frequent pairs — <code>(the, of)</code>, <code>(a, the)</code> — would dominate the loss and
-drown out everything else, exactly the way one enormous raw count once drowned out idf. GloVe's fix is
-the same shape as session 18's log-damping: a weighting function that caps how much any single pair can
-contribute.</p>
+<p>Squared error on <code>log Xᵢⱼ</code> has a problem session 18 already named. A small number of
+extremely frequent pairs, such as <code>(the, of)</code> and <code>(a, the)</code>, would dominate
+the loss and suppress everything else, in the same way that one very large raw count previously
+overwhelmed idf. GloVe's correction has the same form as session 18's log damping: a weighting
+function that caps how much any single pair can contribute.</p>
 
 <pre><code>f(x) = (x / x_max)^α   if x &lt; x_max
 f(x) = 1                otherwise         (paper's values: x_max = 100, α = 3/4)</code></pre>
 
-<p>Frequent pairs are capped at full weight instead of being allowed to grow without bound; very rare
-pairs (co-occurring once or twice) are down-weighted too, since a single accidental co-occurrence is
-mostly noise. <mark>Same complaint as session 18, same shape of fix, different matrix.</mark></p>
+<p>Frequent pairs are capped at full weight rather than growing without bound, and very rare
+pairs, co-occurring once or twice, are also down-weighted, since a single accidental co-occurrence
+is largely noise. <mark>The same problem as in session 18, the same form of correction, applied to a
+different matrix.</mark></p>
 
 <h2>Two vectors, added</h2>
 
-<p>Look back at the loss: there are two matrices, <code>w</code> and <code>w̃</code>, exactly like
-Word2Vec's <code>E</code> and <code>W'</code>. Session 21 said "some implementations offer to average
-the two together; hardly anybody does." <strong>GloVe is the implementation that does</strong> — the
-paper reports that summing <code>w + w̃</code> for each word (a cheap ensembling trick, since both
-were fit to the same data from slightly different roles) gives marginally better vectors than either
-alone, and every released GloVe file already has this done for you.</p>
+<p>Returning to the loss, there are two matrices, <code>w</code> and <code>w̃</code>, corresponding
+to Word2Vec's <code>E</code> and <code>W'</code>. Session 21 noted that some implementations offer to
+average the two together and that this is rarely done. <strong>GloVe is the implementation that does
+it.</strong> The paper reports that summing <code>w + w̃</code> for each word gives marginally better
+vectors than either matrix alone, since both were fit to the same data in slightly different roles,
+and every released GloVe file has this already applied.</p>
 
 <div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
@@ -771,9 +775,10 @@ alone, and every released GloVe file already has this done for you.</p>
   <tr><td>the pitch</td><td>prediction beats counting</td><td>you already had the counts — use them</td></tr>
 </table>
 
-<p>Both stories sound decisive. Here is what real vectors from both actually give, side by side —
-session 21's GoogleNews Word2Vec against <code>glove-wiki-gigaword-300</code> (Wikipedia + Gigaword,
-6B tokens, 400,000 words), nearest neighbours by cosine for the same five words:</p>
+<p>Both accounts sound decisive. The following compares what real vectors from each actually
+produce: session 21's GoogleNews Word2Vec against <code>glove-wiki-gigaword-300</code> (Wikipedia and
+Gigaword, 6 billion tokens, 400,000 words), giving nearest neighbours by cosine for the same five
+words.</p>
 
 <table>
   <tr><th>word</th><th>Word2Vec (session 21)</th><th>GloVe</th></tr>
@@ -794,9 +799,9 @@ session 21's GoogleNews Word2Vec against <code>glove-wiki-gigaword-300</code> (W
       <td>queen 0.634, prince 0.620, monarch 0.590</td></tr>
 </table>
 
-<p>That is about as close as two different methods, trained on different corpora with different
-preprocessing, are ever going to agree. Every top neighbour is either identical or a plainly related
-word. <mark>Nothing here supports either paper's marketing.</mark></p>
+<p>This is close to the maximum agreement two different methods trained on different corpora with
+different preprocessing could show. Every top neighbour is either identical or an obviously related
+word. <mark>Nothing here supports the claims either paper makes for its own approach.</mark></p>
 
 <h3>The analogy task</h3>
 
@@ -808,15 +813,15 @@ king − man + woman, excluding nothing (rank the whole vocabulary):
     Word2Vec:  king 0.8449 ← nearest is itself,  then queen 0.7301
     GloVe:     king 0.8066 ← nearest is itself,  then queen 0.6896</code></pre>
 
-<p>The same honest correction session 21 made about Word2Vec applies here without changes: the vector
-lands near <code>king</code>, not <em>on</em> <code>queen</code>, in both representations, and
-<code>queen</code> is the best non-input answer in both. Same phenomenon, same overstatement in the
-popular telling, two unrelated training methods.</p>
+<p>The correction session 21 made about Word2Vec applies here unchanged: the vector lands near
+<code>king</code> rather than on <code>queen</code>, in both representations, and <code>queen</code>
+is the best non-input answer in both. The same phenomenon and the same overstatement appear across
+two unrelated training methods.</p>
 
 <h3>The difference on <code>good</code></h3>
 
-<p>Session 21's least comfortable finding was <code>bad</code> sitting second-nearest to
-<code>good</code> in Word2Vec, at 0.719. Check the same query in GloVe:</p>
+<p>Session 21's most awkward finding was <code>bad</code> ranking second-nearest to
+<code>good</code> in Word2Vec, at 0.719. The same query in GloVe gives:</p>
 
 <pre><code>good  →  better 0.766, really 0.736, always 0.717, you 0.707, well 0.705,
          excellent 0.704, very 0.697, things 0.694, think 0.690, way 0.684
@@ -825,14 +830,15 @@ cos(good, bad) = 0.645          ← real, but doesn't crack the top ten</code></
 
 <div class="callout warn">
   <span class="label">What this result does not show</span>
-  <p><code>bad</code> is nowhere in GloVe's top ten neighbours of <code>good</code>, where it was rank
-  two in Word2Vec. It would be tempting to conclude GloVe solved the antonym problem. <mark>It did
-  not</mark> — 0.645 is still a high cosine, close behind the tenth-ranked word, and this GloVe file
-  used different preprocessing (lower-cased), a different corpus (Wikipedia + Gigaword vs. Google
-  News) and different training hyperparameters. The more defensible reading: <strong>two representations
-  of "similar" trained on different data with different settings disagree at the margins</strong>, which
-  is itself evidence for the next paragraph — the differences that show up are about corpus and tuning,
-  not about which architecture is fundamentally smarter.</p>
+  <p><code>bad</code> does not appear in GloVe's top ten neighbours of <code>good</code>, where it
+  ranked second in Word2Vec. It would be natural to conclude that GloVe has solved the antonym
+  problem. <mark>It has not.</mark> 0.645 is still a high cosine, close behind the tenth-ranked
+  word, and this GloVe file used different preprocessing (lower-cased), a different corpus
+  (Wikipedia and Gigaword rather than Google News), and different training hyperparameters. The more
+  defensible reading is that <strong>two representations of similarity, trained on different data
+  with different settings, disagree at the margins</strong>. That reading supports the point made
+  below: the observed differences concern corpus and tuning rather than which architecture is
+  fundamentally better.</p>
 </div>
 
 <table>
@@ -843,8 +849,9 @@ cos(good, bad) = 0.645          ← real, but doesn't crack the top ten</code></
   <tr><td><code>always</code> ↔ <code>never</code></td><td>0.601</td><td>0.720</td></tr>
 </table>
 
-<p>No consistent pattern — GloVe is lower on two pairs and higher on the other two. If GloVe's counting
-were fundamentally better at separating antonyms, this table would lean one way. It does not.</p>
+<p>There is no consistent pattern: GloVe is lower on two pairs and higher on the other two. If
+GloVe's use of counts were fundamentally better at separating antonyms, this table would lean in one
+direction. It does not.</p>
 
 <div class="callout">
   <span class="label">The current answer</span>
@@ -883,8 +890,7 @@ were fundamentally better at separating antonyms, this table would lean one way.
 
 <h2>Unit II, end to end</h2>
 
-<p>Six representations, one arc running from session 8 to today, never stated as a single line until
-now:</p>
+<p>Six representations form a single sequence running from session 8 to this one:</p>
 
 <table>
   <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
@@ -896,32 +902,31 @@ now:</p>
   <tr><td>22</td><td>GloVe</td><td>count context globally, fit vectors to the counts directly</td></tr>
 </table>
 
-<p><mark>Sparse to dense. Counted to learned.</mark> Every representation in this course from session
-8 onward is an answer to the same question — "how do I turn a word or a document into numbers a
-machine can compare?" — and each session's answer fixed something the previous one got wrong at the
-cost of something it could still explain about itself. Sessions 21 and 22 are where that trade-off
-becomes hardest to see: a 300-dimensional vector no longer has any single number you can point to and
-say what it means.</p>
+<p><mark>Sparse to dense, and counted to learned.</mark> Every representation in this course from
+session 8 onward answers the same question: how to turn a word or a document into numbers a machine
+can compare. Each session's answer corrected something the previous one got wrong, at the cost of
+some of the previous one's interpretability. Sessions 21 and 22 are where that trade-off is most
+pronounced: a 300-dimensional vector contains no single number whose meaning can be stated.</p>
 
 <h2>What none of this fixes</h2>
 
-<p>Word2Vec and GloVe share every limitation session 21 closed on, because both give a document exactly
-the same kind of building block — one dense vector per word type.</p>
+<p>Word2Vec and GloVe share every limitation session 21 identified, because both supply the same
+kind of building block: one dense vector per word type.</p>
 
 <ul>
-  <li><strong>One vector per word, no matter how many things it means.</strong> <code>bank</code> still
-  gets a single point in space, wherever "river" and "money" senses average out to.</li>
-  <li><strong>Frozen at training time.</strong> A word absent from the training corpus has no vector at
-  all — session 3's vocabulary problem, untouched. A GloVe file trained in 2014 knows nothing built
-  after 2014, same as Word2Vec's 2013 file.</li>
-  <li><strong>Blind to order.</strong> Both are fit from unordered or window-based co-occurrence.
-  Neither can tell you anything about a <em>sequence</em> — only about which words tend to keep company
-  with which others.</li>
+  <li><strong>One vector per word, regardless of how many senses it has.</strong> <code>bank</code>
+  receives a single point in space, wherever the river and financial senses average out to.</li>
+  <li><strong>Fixed at training time.</strong> A word absent from the training corpus has no vector
+  at all, which is session 3's vocabulary problem unchanged. A GloVe file trained in 2014 contains
+  nothing coined after 2014, as with Word2Vec's 2013 file.</li>
+  <li><strong>Blind to order.</strong> Both are fit from unordered or window-based co-occurrence, so
+  neither represents a <em>sequence</em>, only which words tend to occur alongside which
+  others.</li>
 </ul>
 
-<p>Every one of those three is a Unit III topic. Contextual embeddings fix the first. Nothing before
-Unit III fixes the second. The third is the reason Unit III opens with a model built to process a
-sequence <em>as</em> a sequence, one step at a time.</p>
+<p>All three are Unit III topics. Contextual embeddings address the first, and nothing before Unit
+III addresses the second. The third is why Unit III opens with a model built to process a sequence
+<em>as</em> a sequence, one step at a time.</p>
 
 <h2>Summary</h2>
 

@@ -581,8 +581,8 @@ figcaption {
 
 <h2>Where session 23 left off</h2>
 
-<p>Session 23 closed on a claim it deliberately refused to defend. Put it back on the board exactly
-as it was left:</p>
+<p>Session 23 closed on a claim it deliberately did not defend, restated here exactly as it was
+left:</p>
 
 <div class="callout">
   <span class="label">Session 23's closing question</span>
@@ -590,20 +590,22 @@ as it was left:</p>
   the past — whether that actually happens once you try to train one is next session's entire hour."</p>
 </div>
 
-<p>This is that hour. <mark>The honest answer is no, not by default.</mark> Everything below is the
-reason why, and the reason is not a bug in anyone's code — it falls out of the architecture session 23
-spent an hour praising.</p>
+<p>This session answers it. <mark>The answer is no, not by default.</mark> What follows is the
+reason, and the reason is not a defect in any implementation: it follows from the architecture
+session 23 described.</p>
 
 <h2>What training an RNN means</h2>
 
-<p><code>U</code>, <code>W</code> and <code>V</code> are trained the way session 20's neuron was
-trained: pick a loss, compute how much each weight contributed to it, nudge every weight against its
-gradient, repeat. Nothing new there. What <em>is</em> new is the distance the blame has to travel.</p>
+<p><code>U</code>, <code>W</code>, and <code>V</code> are trained as session 20's neuron was
+trained: choose a loss, compute how much each weight contributed to it, adjust every weight against
+its gradient, and repeat. None of that is new. What is new is the distance the error signal must
+travel.</p>
 
-<p>In sequence classification there is one loss, at the very end, after the last word. To improve, the
-network has to work out how much the weights used at <em>step 1</em> contributed to a mistake made at
-<em>step n</em>. Session 23's unrolled figure is the whole answer: the unrolled network is an ordinary
-feedforward network, so you differentiate backward along every arrow in that picture.</p>
+<p>In sequence classification there is a single loss, computed at the end after the last word. To
+improve, the network must determine how much the weights used at <em>step 1</em> contributed to an
+error made at <em>step n</em>. Session 23's unrolled figure supplies the answer: the unrolled network
+is an ordinary feedforward network, so we differentiate backward along every arrow in that
+figure.</p>
 
 <div class="callout">
   <span class="label">Backpropagation through time</span>
@@ -614,73 +616,71 @@ feedforward network, so you differentiate backward along every arrow in that pic
   — <mark>ordinary backpropagation, applied to the unrolled picture.</mark></p>
 </div>
 
-<p>We are not deriving it. The mechanism matters here only for one consequence, which is what the rest
-of the session is about: <strong>to reach step 1, the gradient must pass through every step in
+<p>We do not derive it here. The mechanism matters for one consequence, which is the subject of the
+rest of the session: <strong>to reach step 1, the gradient must pass through every step in
 between</strong>.</p>
 
 <h2>Why the effective memory is short</h2>
 
-<p>SLP3 gives <strong>two</strong> reasons, and they are different problems with different fixes. Both
-matter, and the first one matters more than it looks.</p>
+<p>SLP3 gives <strong>two</strong> reasons. They are different problems with different solutions,
+and the first is more important than it may appear.</p>
 
 <div class="callout warn">
   <span class="label">Reason 1: the hidden state has two roles</span>
-  <p>At every step, <code>h_t</code> and the weights that produce it are asked to do two things
-  simultaneously: <strong>provide what the current decision needs</strong>, and <strong>carry forward
-  what some future decision will need</strong>. One vector, two jobs, and no machinery whatsoever to
-  keep them apart. <mark>Whatever the current step finds useful will overwrite what a later step was
-  depending on</mark> — not because of any numerical problem, but because there is only one place to
-  put both.</p>
+  <p>At every step, <code>h_t</code> and the weights producing it are required to do two things at
+  once: <strong>supply what the current decision needs</strong> and <strong>carry forward what a
+  future decision will need</strong>. There is one vector for both purposes and no machinery
+  separating them. <mark>Whatever the current step finds useful will overwrite what a later step
+  depends on</mark>, not because of any numerical problem but because there is only one place to
+  store both.</p>
 </div>
 
 <div class="callout warn">
   <span class="label">Reason 2: the gradient is multiplied once per step</span>
   <p><code>h_t</code> feeds into <code>h_{t+1}</code>, which feeds into <code>h_{t+2}</code>, and so
-  on. So during the backward pass the hidden layers are subject to <strong>repeated
-  multiplications</strong>, as many as the sequence is long. Multiply anything by the same factor a
-  hundred times and it goes to one of two places — <mark>zero, or infinity</mark>. SLP3's name for the
-  first outcome is the <strong>vanishing gradients problem</strong>.</p>
+  on. During the backward pass the hidden layers are therefore subject to <strong>repeated
+  multiplications</strong>, as many as the sequence is long. Multiplying any quantity by the same
+  factor a hundred times sends it to one of two limits, <mark>zero or infinity</mark>. SLP3's name
+  for the first outcome is the <strong>vanishing gradients problem</strong>.</p>
 </div>
 
 <h3>An example sentence</h3>
 
 <pre><code>The flights the airline was canceling were full.</code></pre>
 
-<p>This is SLP3's own example, and it is chosen carefully. Getting <code>was</code> right after
-<code>airline</code> is easy — the singular noun is one word away, and local context is exactly what a
-hidden state is good at. Getting <code>were</code> right is hard, for two separate reasons that map
-onto the two above:</p>
+<p>This is SLP3's own example and is chosen carefully. Predicting <code>was</code> after
+<code>airline</code> is easy, since the singular noun is one word away and local context is what a
+hidden state handles well. Predicting <code>were</code> is difficult, for two separate reasons
+corresponding to the two above:</p>
 
 <ul>
-  <li>The word that decides it — the plural <code>flights</code> — sits <strong>many steps back</strong>,
-  and everything in between has been writing into the same hidden state along the way.</li>
-  <li>The singular <code>airline</code> sits <strong>much closer</strong> and pulls the other way. The
-  nearby wrong answer is louder than the distant right one.</li>
+  <li>The word that determines it, the plural <code>flights</code>, sits <strong>many steps
+  back</strong>, and everything between has been writing into the same hidden state.</li>
+  <li>The singular <code>airline</code> sits <strong>much closer</strong> and favours the wrong
+  answer. The nearby incorrect cue is stronger than the distant correct one.</li>
 </ul>
 
-<p>That distance is exactly what reason 2's gradient has to survive, and exactly what reason 1's
-overloaded hidden state has to protect. <mark>The example is one sentence and it breaks the model
-twice.</mark></p>
+<p>That distance is what reason 2's gradient must survive and what reason 1's overloaded hidden state
+must preserve. <mark>A single sentence exhibits both failures.</mark></p>
 
 <h2>Returning to session 23's worked example</h2>
 
-<p>Nothing new is needed to see reason 2 arithmetically — session 23's hand-computed toy already
-contains it. That toy was:</p>
+<p>No new example is required to see reason 2 arithmetically, since session 23's hand-computed
+example already contains it. That example was:</p>
 
 <pre><code>h_t = U·h_{t-1} + W·x_t          with U = 0.5, W = 1, h₀ = 0</code></pre>
 
-<p>Differentiate one step: <code>∂h_t/∂h_{t-1} = U</code>. Every step contributes exactly one factor
-of <code>U</code>, so reaching back from step <em>n</em> to step 1 multiplies <code>n−1</code> of
-them together:</p>
+<p>Differentiating one step gives <code>∂h_t/∂h_{t-1} = U</code>. Every step contributes exactly
+one factor of <code>U</code>, so reaching back from step <em>n</em> to step 1 multiplies
+<code>n−1</code> of them together:</p>
 
 <pre><code>∂h_n/∂h₁  =  U^(n−1)</code></pre>
 
 <div class="callout">
   <span class="label">The value of <code>U</code> used in session 23</span>
-  <p><code>U = 0.5</code> — <strong>already below 1</strong>. The toy the room computed forward by
-  hand last session, with numbers chosen only because they were easy, was a <em>vanishing</em> case
-  the entire time. <mark>No new example is needed. This is last session's arithmetic, read
-  backwards.</mark></p>
+  <p><code>U = 0.5</code>, which is <strong>already below 1</strong>. The example computed forward
+  by hand in session 23, with values chosen only for ease of arithmetic, was a <em>vanishing</em>
+  case throughout. <mark>This is session 23's arithmetic, read backwards.</mark></p>
 </div>
 
 <table>
@@ -693,16 +693,18 @@ them together:</p>
   <tr><td>50</td><td>0.0000000000000018</td><td>425,081,000</td></tr>
 </table>
 
-<p>Twenty words back, a gradient of <strong>0.0000019</strong> is not a small learning signal. It is
-no learning signal — the weight that would have captured the long-range dependency is updated by an
-amount that rounds away. And a fifty-word sentence is not a long document; it is one paragraph.</p>
+<p>Twenty words back, a gradient of <strong>0.0000019</strong> is not a small learning signal but
+effectively none: the weight that would have captured the long-range dependency is updated by an
+amount that rounds to zero. A fifty-word sentence is not a long document; it is a single
+paragraph.</p>
 
 <div class="callout warn">
   <span class="label">Exploding gradients</span>
-  <p>Change one number, <code>U = 1.5</code> instead of <code>0.5</code>, and the same recurrence runs
-  the other way: 38 after ten steps, four hundred million after fifty. <mark>Same architecture, same
-  formula, opposite failure.</mark> Below 1 it dies; above 1 it detonates. Only a factor of exactly 1
-  sits still, and nothing in training holds it there.</p>
+  <p>Changing one value, <code>U = 1.5</code> instead of <code>0.5</code>, makes the same
+  recurrence run in the opposite direction: 38 after ten steps and four hundred million after fifty.
+  <mark>The same architecture and the same formula produce the opposite failure.</mark> Below 1 the
+  gradient vanishes; above 1 it grows without bound. Only a factor of exactly 1 is stable, and
+  nothing in training keeps it there.</p>
 </div>
 
 <div class="recall">
@@ -713,22 +715,22 @@ amount that rounds away. And a fifty-word sentence is not a long document; it is
   <em>grow</em> as you reach further back instead of shrinking?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>∂h₅/∂h₁ = U⁴ = 0.5⁴ = <strong>0.0625</strong></code>. Four steps back and already down to
-    six percent of the signal.</p>
-    <p>For it to grow, <code>|U| &gt; 1</code>. That is the exploding case in the table's right-hand
-    column — and it is worth noticing that <strong>nothing in the training procedure keeps
-    <code>U</code> near 1</strong>. It is a learned weight like any other. Vanishing is the common
-    outcome, not the only one.</p>
+    <p><code>∂h₅/∂h₁ = U⁴ = 0.5⁴ = <strong>0.0625</strong></code>. Four steps back, the signal is
+    already down to six per cent.</p>
+    <p>For the quantity to grow, <code>|U| &gt; 1</code>. That is the exploding case in the table's
+    right-hand column. Note that <strong>nothing in the training procedure keeps <code>U</code> near
+    1</strong>; it is a learned weight like any other. Vanishing is the more common outcome, not the
+    only one.</p>
   </div>
 </div>
 
 <h3>What the example omits</h3>
 
-<p>The toy has no activation function, which is why the arithmetic stayed inspectable. A real RNN
-squashes every step with <code>tanh</code>, and that adds one more factor to every step of the
+<p>The example has no activation function, which is why its arithmetic remained inspectable. A real
+RNN squashes every step with <code>tanh</code>, which adds one further factor to every step of the
 backward pass: <code>tanh′(z) = 1 − tanh²(z)</code>, which is <strong>at most 1</strong> and usually
-well below it. <mark>That factor only makes vanishing worse, never better</mark> — it cannot rescue a
-shrinking gradient, and it is not what causes the exploding case.</p>
+well below it. <mark>That factor makes vanishing worse and never better.</mark> It cannot recover a
+shrinking gradient, and it is not the cause of the exploding case.</p>
 
 <figure>
   <svg viewBox="0 0 620 300" role="img" aria-labelledby="bpttitle bpttdesc">
@@ -816,18 +818,18 @@ management</strong>: architectures designed to "explicitly manage the task of ma
 context over time, by enabling the network to learn to forget information that is no longer needed and
 to remember information required for decisions still to come."</p>
 
-<p>Read that against reason 1 and it lines up exactly. If one vector doing two jobs is the problem,
-the fix is to <strong>give the two jobs separate machinery</strong> — a place to keep context that is
-not the same place the current decision is computed, and learned control over what enters and leaves
-it. That is the LSTM, and it is session 25's entire hour.</p>
+<p>Read against reason 1, this corresponds exactly. If the problem is one vector serving two
+purposes, the solution is to <strong>give the two purposes separate machinery</strong>: a place to
+hold context that is not where the current decision is computed, together with learned control over
+what enters and leaves it. That is the LSTM, and it is the subject of session 25.</p>
 
 <div class="callout">
   <span class="label">The gradient explanation</span>
-  <p>The same design happens to fix reason 2 as a side effect: the LSTM's cell state gives the
-  gradient a path where information is <em>added</em> from step to step rather than multiplied
-  through a weight matrix every time — and a sum does not decay exponentially the way a repeated
-  product does. <mark>This is the standard explanation, but it is not SLP3's framing</mark>, so do not
-  present it as the book's. Two reasons, two fixes, one architecture.</p>
+  <p>The same design also addresses reason 2, as a consequence rather than a goal. The LSTM's cell
+  state gives the gradient a path along which information is <em>added</em> from step to step rather
+  than multiplied through a weight matrix, and a sum does not decay exponentially as a repeated
+  product does. <mark>This is the standard explanation but not SLP3's framing</mark>, and should not
+  be attributed to the book. Two reasons, two solutions, one architecture.</p>
 </div>
 
 <div class="quiz" data-answer="1">
@@ -866,24 +868,26 @@ it. That is the LSTM, and it is session 25's entire hour.</p>
   because of this session, not because of session 23.</td></tr>
 </table>
 
-<p>That closes <strong>T3.1</strong>. It is worth saying out loud that the two sessions were not
-"RNNs, part one and part two" — the first sold the architecture honestly and the second measured it
-honestly, and the gap between those two is where the next architecture comes from. <mark>This course
-has done that before</mark>: session 18's idf, session 19's cosine, session 21's analogy, session 22's
-"GloVe beats Word2Vec." Check the claim against the arithmetic, then keep the part that survives.</p>
+<p>This closes <strong>T3.1</strong>. The two sessions were not simply parts one and two of a
+treatment of RNNs: the first described the architecture accurately and the second measured it
+accurately, and the gap between the two is where the next architecture comes from. <mark>The same
+pattern has appeared throughout this course</mark>: session 18's idf, session 19's cosine, session
+21's analogy, and session 22's comparison of GloVe with Word2Vec. In each case the claim is checked
+against the arithmetic and what survives is kept.</p>
 
 <div class="callout">
   <span class="label">The main points</span>
-  <p>Training an RNN means backpropagating one loss at the end of the sequence back through every
-  earlier step — ordinary backpropagation applied to the unrolled picture, which is all
-  "backpropagation through time" means. That trip goes wrong two ways at once: the hidden state is
-  asked to serve the current decision <em>and</em> carry information for later ones with no machinery
-  separating the two, and the gradient is multiplied by the same matrix <code>U</code> once per step,
-  so <code>∂h_n/∂h₁ = U^(n−1)</code> collapses to nothing when <code>|U| &lt; 1</code> and blows up
-  when <code>|U| &gt; 1</code>. Session 23's own toy, with <code>U = 0.5</code>, was already a
-  vanishing case: twenty steps back the gradient is 0.0000019, which is not a weak learning signal but
-  no learning signal. The fix is to stop making one vector do both jobs — an explicit, learned-control
-  context layer — which is the LSTM, and which is next session.</p>
+  <p>Training an RNN means backpropagating one loss, computed at the end of the sequence, back
+  through every earlier step. This is ordinary backpropagation applied to the unrolled network, which
+  is all that "backpropagation through time" denotes. The process fails in two ways at once. The
+  hidden state is required to serve the current decision <em>and</em> carry information for later
+  ones, with no machinery separating the two; and the gradient is multiplied by the same matrix
+  <code>U</code> once per step, so that <code>∂h_n/∂h₁ = U^(n−1)</code> collapses to nothing when
+  <code>|U| &lt; 1</code> and grows without bound when <code>|U| &gt; 1</code>. Session 23's own
+  example, with <code>U = 0.5</code>, was already a vanishing case: twenty steps back the gradient is
+  0.0000019, which is effectively no learning signal at all. The solution is to stop requiring one
+  vector to serve both purposes, by adding an explicit context layer with learned control. That is
+  the LSTM, and it is the subject of session 25.</p>
 </div>
 
 <h2>Reading</h2>
@@ -891,9 +895,9 @@ has done that before</mark>: session 18's idf, session 19's cosine, session 21's
 <p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/13.pdf">Speech and Language
 Processing</a></strong>, chapter 13. Two places: <strong>§13.1.2</strong> for the two-pass description
 of backpropagation through time, and the <strong>opening pages of §13.5</strong> for the two reasons
-and the flights example. <mark>Stop at the sentence beginning "To address these issues…"</mark> —
-everything after it is next session, and reading it now will make the LSTM look like a list of parts
-rather than an answer to a problem.</p>
+and the flights example. <mark>Stop at the sentence beginning "To address these issues…"</mark>
+Everything after it belongs to session 25, and reading it now would present the LSTM as a list of
+components rather than as a response to a problem.</p>
 
 
 

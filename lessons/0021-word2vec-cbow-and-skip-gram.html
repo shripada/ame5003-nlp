@@ -581,7 +581,7 @@ figcaption {
 
 <h2>Where session 20 left off</h2>
 
-<p>Here is what was on the board at the end of session 20:</p>
+<p>Session 20 ended with the following sentence:</p>
 
 <div class="callout">
   <span class="label">The sentence promised in session 20</span>
@@ -589,24 +589,23 @@ figcaption {
   softmax, and does gradient descent on the cross-entropy loss."</strong></p>
 </div>
 
-<p>An hour of prerequisites was spent so that this sentence would be readable, and by now it should
-be. Today we build the model it describes, and then we find out that the prediction it makes is
-something we throw away.</p>
+<p>Session 20 existed so that this sentence would be readable. This session builds the model it
+describes, and then establishes that the prediction the model makes is discarded.</p>
 
 <h2>The distributional hypothesis</h2>
 
-<p>The idea underneath all of this is older than any of the machinery, and it is one line — J. R.
-Firth, 1957:</p>
+<p>The idea underlying all of this is older than any of the machinery, and is due to J. R. Firth
+in 1957:</p>
 
 <div class="callout">
   <span class="label">Definition</span>
   <p><mark>"You shall know a word by the company it keeps."</mark></p>
-  <p>Words that turn up in similar contexts tend to mean similar things. That is the whole premise,
-  and every embedding method in this course rests on it.</p>
+  <p>Words occurring in similar contexts tend to have similar meanings. This is the entire
+  premise, and every embedding method in this course depends on it.</p>
 </div>
 
-<p>You have already seen it work. Session 19 ended on this table — counts of how often each word
-appears near three others:</p>
+<p>We have already seen this hold. Session 19 ended with the following table, giving counts of
+how often each word appears near three others:</p>
 
 <table>
   <tr><th></th><th><code>pie</code></th><th><code>data</code></th><th><code>computer</code></th></tr>
@@ -618,41 +617,41 @@ appears near three others:</p>
 <pre><code>cos(cherry, information)   =  0.018
 cos(digital, information)  =  0.996</code></pre>
 
-<p>Nobody told that model what any word means. It counted which words appeared nearby, and cosine
-sorted the results correctly.</p>
+<p>No information about meaning was supplied. The counts record which words appeared nearby, and
+cosine ordered the results correctly.</p>
 
-<p>⚠️ One thing to notice before we move on, because it will save confusion later. Those vectors have
-<strong>three</strong> dimensions, hand-picked to make the point. With only three axes, two words
-that both load on <code>data</code> and <code>computer</code> have almost nowhere else to differ, so
-the cosine runs hot — 0.996. <mark>The 300-dimension vectors we build today spread similarity out
-over far more room and simply do not produce numbers like that.</mark> A cosine of 0.996 here and a
-cosine of 0.996 there are not the same claim, and later today we will see exactly how differently
-the two representations behave.</p>
+<p>One point should be established before we continue, as it prevents confusion later. Those
+vectors have <strong>three</strong> dimensions, chosen to illustrate the point. With only three
+axes, two words that both load on <code>data</code> and <code>computer</code> have very little room
+in which to differ, so the cosine is high at 0.996. <mark>The 300-dimensional vectors built in this
+session distribute similarity over far more room and do not produce values of that
+kind.</mark> A cosine of 0.996 in one representation and 0.996 in another are not equivalent
+claims, and later in this session we measure how differently the two representations behave.</p>
 
-<p>So the premise already works. What Word2Vec changes is the verb:</p>
+<p>The premise therefore already works. What Word2Vec changes is the verb.</p>
 
 <div class="callout">
   <span class="label">What this session adds</span>
   <p>Every method in Unit II so far has <strong>counted</strong> the company a word keeps —
   bag-of-words, TF-IDF, that table above. Word2Vec <strong>predicts</strong> it instead.</p>
-  <p><mark>Stop counting the context. Start predicting it, and keep what the model had to learn in
-  order to predict well.</mark></p>
+  <p><mark>Rather than counting the context, we predict it, and keep whatever the model had to
+  learn in order to predict well.</mark></p>
 </div>
 
 <h2>The prediction task is a pretext</h2>
 
-<p>Here is the task Word2Vec trains on. Take a sentence, delete a word, and ask the model to guess
-what was deleted:</p>
+<p>The task Word2Vec trains on is as follows. Take a sentence, delete a word, and ask the model
+to identify what was deleted:</p>
 
 <pre><code>a  great  _____  about  hope</code></pre>
 
-<p>Stop and notice how useless this is. Nobody has a problem that is solved by filling in blanks in
-sentences we already have the answers to. We are not building this because we want it.</p>
+<p>The task itself is of no practical use. Nobody requires a system that fills in blanks in
+sentences whose answers are already known, and the task is not the reason for building the model.</p>
 
-<p>We are building it because of what a model has to <em>become</em> in order to do it well. To
-guess <code>film</code> from that context, the model must have arranged its internal numbers so that
-words appearing in similar company end up with similar numbers — because that is the only structure
-in the data that helps. The prediction is a pretext. <mark>The weights are the product.</mark></p>
+<p>The reason is what a model must become in order to perform the task well. To predict
+<code>film</code> from that context, the model must have arranged its internal numbers so that
+words appearing in similar company have similar numbers, because that is the only structure in the
+data that helps. The prediction is a pretext. <mark>The weights are the product.</mark></p>
 
 <div class="callout">
   <span class="label">No labelled data is required</span>
@@ -665,8 +664,8 @@ in the data that helps. The prediction is a pretext. <mark>The weights are the p
   the supervision signal is manufactured from the input itself. It is how every large language
   model in Unit III is trained, at enormous scale, and Word2Vec is the first example of it you will
   meet.</span></p>
-  <p>That is the reason this approach took over. Not that it is cleverer, but that it can eat
-  everything.</p>
+  <p>This is why the approach became dominant: not because it is more sophisticated, but because
+  the quantity of available training data is effectively unlimited.</p>
 </div>
 
 <h2>CBOW</h2>
@@ -679,11 +678,12 @@ side of the target:</p>
 └──────┘         └──────────┘
  context           context          target = film</code></pre>
 
-<p>"Bag of words" is in the name for the reason it always is: the four context words go in as an
-unordered set. <code>a great</code> and <code>great a</code> would give exactly the same input,
-because we are about to average them.</p>
+<p>"Bag of words" appears in the name for the usual reason: the four context words enter as an
+unordered set. <code>a great</code> and <code>great a</code> give exactly the same input, because
+they are about to be averaged.</p>
 
-<p>Now the pipeline, with session 20's shapes unchanged — vocabulary of 10,000, vectors of 300:</p>
+<p>The pipeline follows, with session 20's shapes unchanged, for a vocabulary of 10,000 and vectors
+of 300 numbers:</p>
 
 <pre><code>E   embedding matrix    10000 × 300     one row per word in the vocabulary
 x   averaged context      300           mean of a few rows of E — one vector
@@ -711,10 +711,10 @@ p   probabilities       10000           = softmax(z)</code></pre>
   <p><strong>All of them — including the four rows of <code>E</code> we just looked up.</strong>
   Those rows are weights, exactly as session 20 flagged, so gradient descent adjusts them like
   anything else.</p>
-  <p>That is the whole training loop. Slide the window one word along, do it again. Do it a few
-  billion times, and the rows of <code>E</code> have been pushed into an arrangement where words
-  used in similar company sit in similar directions. <mark>Nobody ever wrote down what any word
-  means.</mark></p>
+  <p>That is the entire training loop. The window slides one word along and the process repeats.
+  After a few billion repetitions, the rows of <code>E</code> have been adjusted into an
+  arrangement in which words used in similar company point in similar directions. <mark>No
+  definition of any word was ever supplied.</mark></p>
 </div>
 
 <h2>Skip-gram</h2>
@@ -803,51 +803,53 @@ the words around it — each context word as its own separate prediction:</p>
   <strong>four</strong>, one per context word.</figcaption>
 </figure>
 
-<p>That last sentence in the caption is the practical difference, and it decides which one people
-actually use.</p>
+<p>The final sentence of that caption states the practical difference between the two, and it
+determines which is used in practice.</p>
 
 <div class="callout">
   <span class="label">Choosing between CBOW and skip-gram</span>
-  <p><strong>Skip-gram, usually.</strong> It squeezes four training examples out of the window where
-  CBOW gets one, so the same corpus teaches it more — and that extra signal matters most for
-  <em>rare</em> words, which appear too seldom for CBOW to learn much about them.</p>
-  <p>The cost is time: four predictions per position rather than one. <strong>CBOW is faster and
-  does slightly better on frequent words</strong>, because averaging four context vectors smooths
-  out noise.</p>
-  <p>Both are in the same 2013 paper and both ship in every implementation. If you are choosing
-  blind, choose Skip-gram.</p>
+  <p><strong>Skip-gram is the usual choice.</strong> It produces four training examples from a
+  window where CBOW produces one, so the same corpus provides more signal, and the additional
+  signal matters most for <em>rare</em> words, which occur too infrequently for CBOW to learn much
+  about them.</p>
+  <p>The cost is time, since there are four predictions per position rather than one.
+  <strong>CBOW is faster and performs slightly better on frequent words</strong>, because averaging
+  four context vectors reduces noise.</p>
+  <p>Both appear in the same 2013 paper and both are available in every implementation. In the
+  absence of a specific reason to prefer CBOW, use Skip-gram.</p>
 </div>
 
 <h2>Each word has two vectors</h2>
 
-<p>Look back at the shape block. <code>E</code> has one row per vocabulary word, and so does
-<code>W'</code>. Those are two different sets of numbers for the same word, and both are being
+<p>Returning to the shapes given above, <code>E</code> has one row per vocabulary word and so
+does <code>W'</code>. These are two distinct sets of numbers for the same word, and both are
 trained:</p>
 
 <pre><code>word w's INPUT vector    v_w  =  row w of E      used when w appears as context
 word w's OUTPUT vector   u_w  =  row w of W'     used when w is the thing being predicted</code></pre>
 
-<p>The score the model gives to word <code>w</code> is <code>u_w · x</code> — the dot product of
-<code>w</code>'s output vector with the averaged context. So every word is playing two roles, and
-the model keeps separate numbers for each.</p>
+<p>The score the model assigns to word <code>w</code> is <code>u_w · x</code>, the dot product of
+<code>w</code>'s output vector with the averaged context. Every word therefore plays two roles, and
+the model maintains separate numbers for each.</p>
 
 <div class="callout">
   <span class="label">As promised in session 20</span>
   <p>Last session's second quiz said: when training stops, <em>"you throw away the rest of the
   network and keep that matrix"</em>. This is the rest of the network. <mark><code>W'</code> is
   discarded.</mark></p>
-  <p>The word vectors everybody uses — the ones in every downloadable Word2Vec file — are the rows
-  of <code>E</code>. The output vectors did their job during training and are dropped on the floor.
-  Some implementations offer to average the two together instead; hardly anybody does.</p>
+  <p>The word vectors in general use, including those in every downloadable Word2Vec file, are
+  the rows of <code>E</code>. The output vectors serve their purpose during training and are then
+  discarded. Some implementations offer to average the two sets together; this is rarely done.</p>
 </div>
 
 <h2>The cost of the softmax</h2>
 
-<p>Everything above is correct and none of it can be run. The problem is the softmax denominator.</p>
+<p>Everything above is correct and none of it is practical to run. The difficulty is the softmax
+denominator.</p>
 
-<p>To turn scores into probabilities you must divide by the sum over the <em>whole vocabulary</em>.
-So to make one prediction — to adjust the weights by one training example — you need a score for
-every word you know. Put real numbers on that:</p>
+<p>Converting scores into probabilities requires dividing by the sum over the <em>whole
+vocabulary</em>. Making one prediction, and therefore adjusting the weights by one training
+example, requires a score for every word in the vocabulary. With realistic figures:</p>
 
 <pre><code>vocabulary                   1,000,000 words
 corpus                   1,000,000,000 tokens  (a small corpus, by 2013 standards)
@@ -857,19 +859,20 @@ training examples                10⁹           (CBOW; Skip-gram makes ~10× mo
                             ──────────────
 per pass over the corpus         10¹⁵ exponentials</code></pre>
 
-<p>Ten to the fifteenth. At a billion exponentials a second — which is generous — that is
-<strong>about 11.6 days</strong>, for one pass over a corpus that was considered small. Mikolov's
-paper trained on 100 billion words.</p>
+<p>At a billion exponentials per second, which is a generous rate, 10¹⁵ exponentials require
+<strong>about 11.6 days</strong> for one pass over a corpus that was considered small at the time.
+Mikolov's paper trained on 100 billion words.</p>
 
-<p>And note where the cost is. It is not in the answer, it is in the normalising. We want to know
-about <em>one</em> word, and softmax makes us score a million to find out.</p>
+<p>Note where the cost lies. It is not in producing the answer but in normalising it. We want
+information about <em>one</em> word, and softmax requires scoring a million to obtain it.</p>
 
 <h2>Negative sampling</h2>
 
-<p>The fix is not a faster softmax. It is a different question.</p>
+<p>The solution is not a faster softmax but a different question.</p>
 
-<p>Instead of asking <em>"which of my million words goes here?"</em> — one enormous decision — ask
-<em>"is this pair real?"</em>, which is a yes-or-no decision, and ask it a handful of times:</p>
+<p>Instead of asking which of a million words belongs in this position, which is one very large
+decision, we ask whether a given pair is real, which is a binary decision, and ask it a small
+number of times:</p>
 
 <pre><code>real pair:        (film, about)      ← actually appeared together    → say YES
 invented pairs:   (film, kubernetes)                                 → say NO
@@ -877,8 +880,8 @@ invented pairs:   (film, kubernetes)                                 → say NO
                   (film, thirteen)                                   → say NO
                   ...  k of them, drawn at random</code></pre>
 
-<p>Now the model only has to separate the true pair from <code>k</code> fakes. The scoring function
-is one dot product squashed into a probability:</p>
+<p>The model now has only to distinguish the true pair from <code>k</code> invented ones. The
+scoring function is a single dot product mapped into a probability:</p>
 
 <pre><code>P(this pair is real)  =  σ(u · v)          where σ(z) = 1 / (1 + e^(−z))</code></pre>
 
@@ -906,8 +909,8 @@ one.</p>
   <tr><td>negative sampling, <code>k = 5</code></td><td>6 sigmoids</td><td>6 × 10⁹</td><td><strong>6 seconds</strong></td></tr>
 </table>
 
-<p>Roughly <strong>167,000 times less arithmetic</strong>, and the vectors that come out are as good
-or better. That is why Word2Vec was a moment rather than a paper.</p>
+<p>This is roughly <strong>167,000 times less arithmetic</strong>, and the resulting vectors are
+as good or better. This is why Word2Vec had the influence it did.</p>
 
 <div class="recall">
   <span class="label">Exercise</span>
@@ -925,9 +928,9 @@ or better. That is why Word2Vec was a moment rather than a paper.</p>
     <p><strong>Skip-gram:</strong> input is <code>on</code>'s row of <code>E</code>, and there are
     <strong>four</strong> separate training examples — (on → cat), (on → sat), (on → the),
     (on → mat). Same position, four times the signal.</p>
-    <p>One thing worth noticing: the context is a <em>set</em>. CBOW would produce the identical
-    input if the sentence read <code>sat cat on mat the</code>, because averaging destroys order —
-    which is the "bag of words" in the name, and the same trade session 17 made.</p>
+    <p>Note that the context is a <em>set</em>. CBOW would produce an identical input if the
+    sentence read <code>sat cat on mat the</code>, because averaging destroys order. This is the
+    "bag of words" in the name, and the same trade made in session 17.</p>
   </div>
 </div>
 
@@ -984,13 +987,13 @@ or better. That is why Word2Vec was a moment rather than a paper.</p>
 
 <h2>Evaluating the vectors</h2>
 
-<p>Everything below was computed from <strong>the real thing</strong> — the vectors Mikolov's team
-released in 2013, trained on about 100 billion words of Google News, 300 numbers per word. We loaded
-the 300,000 most frequent.<span class="sidenote">Nothing on this page is quoted from a paper or from
-memory. If a number here looks surprising, it surprised me too.</span></p>
+<p>Everything below was computed from the vectors Mikolov's team released in 2013, trained on
+about 100 billion words of Google News, with 300 numbers per word. The 300,000 most frequent were
+loaded.<span class="sidenote">No number on this page is quoted from a paper or from memory; each
+was computed directly from the released vectors.</span></p>
 
-<p>The first question is the simplest: take a word, and ask which other words have the most similar
-vector. Sorted by cosine, which is session 19's formula doing exactly the job it was built for:</p>
+<p>The simplest question is to take a word and ask which other words have the most similar vector,
+sorted by cosine, which is session 19's formula applied to the task it was designed for:</p>
 
 <table>
   <tr><th>word</th><th>nearest neighbours, by cosine</th></tr>
@@ -1001,11 +1004,11 @@ vector. Sorted by cosine, which is session 19's formula doing exactly the job it
   <tr><td><code>king</code></td><td>kings 0.714, queen 0.651, monarch 0.641, crown_prince 0.620, prince 0.616</td></tr>
 </table>
 
-<p>That is a lot better than it has any right to be. Nobody supplied a dictionary, a thesaurus or a
-single label. A model that was only ever asked to guess missing words has placed <code>terrible</code>
-next to <code>horrible</code> and <code>battle</code> next to <code>skirmish</code> — and
-<code>movie</code> next to <code>film</code> at 0.868, which happens to be our worked example's
-word.<span class="sidenote"><code>battle</code>, <code>good</code>, <code>fool</code> and
+<p>No dictionary, thesaurus, or label was supplied. A model asked only to predict missing words
+has placed <code>terrible</code> next to <code>horrible</code>, <code>battle</code> next to
+<code>battles</code> and <code>fight</code>, and <code>movie</code> next to <code>film</code> at
+0.868, which is the word used in the worked example
+above.<span class="sidenote"><code>battle</code>, <code>good</code>, <code>fool</code> and
 <code>wit</code> are the four words we counted across four Shakespeare plays in sessions 17 to 19.
 Back then each was one column of a matrix. Here each is 300 learned numbers.</span></p>
 
@@ -1013,8 +1016,8 @@ Back then each was one column of a matrix. Here each is 300 learned numbers.</sp
 
 <pre><code>good   →   great 0.729,  bad 0.719,  terrific 0.689,  decent 0.684,  nice 0.684</code></pre>
 
-<p><code>bad</code> is the <em>second</em> nearest word to <code>good</code>. It is not a glitch, and
-it is not rare:</p>
+<p><code>bad</code> is the <em>second</em> nearest word to <code>good</code>. This is neither an
+error nor an isolated case:</p>
 
 <table>
   <tr><th>pair</th><th>cosine</th></tr>
@@ -1026,23 +1029,22 @@ it is not rare:</p>
 
 <div class="callout">
   <span class="label">A limitation of the distributional hypothesis</span>
-  <p>Ask why and the answer is uncomfortable but obvious. <em>"The film was good"</em> and
-  <em>"the film was bad"</em> are the same sentence. Antonyms appear in nearly
-  <strong>identical company</strong> — that is what makes them antonyms rather than unrelated words.
-  So a method that only sees company cannot separate them.</p>
-  <p><mark>These vectors encode distribution, not meaning.</mark> Usually that is close enough to
-  meaning to be useful, and sometimes it is exactly wrong. Hold on to this: it is the reason
-  averaged word vectors turn out to be a mediocre sentiment feature, which is a thing lab 8 gets to
-  measure rather than take our word for.</p>
+  <p>The reason is straightforward. <em>"The film was good"</em> and <em>"the film was bad"</em>
+  occur in the same positions in the same kinds of sentence. Antonyms appear in nearly
+  <strong>identical company</strong>, which is what makes them antonyms rather than unrelated
+  words, so a method that observes only company cannot separate them.</p>
+  <p><mark>These vectors encode distribution, not meaning.</mark> That is usually close enough to
+  meaning to be useful, and occasionally exactly wrong. This is the reason averaged word vectors
+  turn out to be a mediocre sentiment feature, which lab 8 measures directly.</p>
 </div>
 
 <h2>The <code>king − man + woman</code> analogy</h2>
 
-<p>You have probably met this result. Word vectors support a kind of arithmetic: take
-<code>king</code>, subtract <code>man</code>, add <code>woman</code>, and the vector you land on is
-supposed to be <code>queen</code>. Gender as a direction you can travel in.</p>
+<p>This result is widely reported. Word vectors are said to support a form of arithmetic: take
+<code>king</code>, subtract <code>man</code>, add <code>woman</code>, and the resulting vector is
+<code>queen</code>, with gender behaving as a direction in the space.</p>
 
-<p>Here is what the vectors say when you ask them the way the standard tools ask:</p>
+<p>Querying the vectors as the standard tools do gives:</p>
 
 <pre><code>most_similar(positive=['king', 'woman'], negative=['man'])
 
@@ -1052,12 +1054,12 @@ supposed to be <code>queen</code>. Gender as a direction you can travel in.</p>
     crown_prince    0.5499
     prince          0.5377</code></pre>
 
-<p>It works. Out of 300,000 words, from a model that was never told anything about royalty or
-gender, <code>queen</code> comes first.</p>
+<p>The result holds: out of 300,000 words, from a model given no information about royalty or
+gender, <code>queen</code> ranks first.</p>
 
-<p>Now the part the popular telling leaves out. That function <strong>silently removes the three
-input words</strong> from the answers before ranking them. Build the same vector by hand and rank
-the whole vocabulary with nothing excluded:</p>
+<p>The usual account omits one detail. That function <strong>removes the three input words</strong>
+from the candidates before ranking them. Constructing the same vector directly and ranking the
+whole vocabulary with nothing excluded gives:</p>
 
 <table>
   <tr><th>rank</th><th>word</th><th>cosine with <code>king − man + woman</code></th></tr>
@@ -1067,24 +1069,25 @@ the whole vocabulary with nothing excluded:</p>
   <tr><td>4</td><td><code>princess</code></td><td>0.6156</td></tr>
 </table>
 
-<p>The nearest word to <code>king − man + woman</code> is <code>king</code>, by a clear margin. Which
-makes sense the moment you look at the arithmetic rather than the story: we started at
-<code>king</code> and made a modest adjustment, so of course we are still nearest to where we
-started. <code>queen</code> is the nearest word that <em>is not one of the words we put in</em>.</p>
+<p>The nearest word to <code>king − man + woman</code> is <code>king</code>, by a clear margin.
+This follows from the arithmetic: we began at <code>king</code> and made a modest adjustment, so
+the result remains nearest to its starting point. <code>queen</code> is the nearest word that is
+not one of the inputs.</p>
 
 <div class="callout warn">
   <span class="label">What the analogy does and does not show</span>
-  <p><strong>The result is real.</strong> Out of 300,000 words, the second-place finisher is
-  <code>queen</code> and the next three are <code>monarch</code>, <code>princess</code> and
-  <code>crown_prince</code>. That neighbourhood did not have to come out right and nobody arranged
-  it. It is a genuinely remarkable thing about vectors trained to fill in blanks.</p>
-  <p><strong>And the telling is overstated.</strong> <mark>"The vector equals queen" is not what
-  happens</mark> — the vector lands near <code>king</code>, in a royal neighbourhood, and
-  <code>queen</code> is the best non-input answer in it. That is a weaker and more interesting claim
-  than arithmetic.</p>
+  <p><strong>The result is genuine.</strong> Out of 300,000 words, second place is
+  <code>queen</code> and the next three are <code>monarch</code>, <code>princess</code>, and
+  <code>crown_prince</code>. That neighbourhood was not arranged by anyone and did not have to come
+  out correctly. It is a substantial property of vectors trained only to predict missing words.</p>
+  <p><strong>The usual description overstates it.</strong> <mark>The vector does not equal
+  <code>queen</code></mark>. It lands near <code>king</code>, within a neighbourhood of royal
+  terms, and <code>queen</code> is the closest answer that is not an input. That is a weaker claim
+  than exact arithmetic, and a more informative one.</p>
 </div>
 
-<p>It is also worth asking whether the first example was lucky. Three more, each shown both ways:</p>
+<p>It is worth establishing whether the first example was representative. Three further analogies
+are shown, each computed both ways:</p>
 
 <table>
   <tr><th>analogy</th><th>expected</th><th>excluding inputs</th><th>excluding nothing</th></tr>
@@ -1104,24 +1107,23 @@ started. <code>queen</code> is the nearest word that <em>is not one of the words
 
 <p><small>* an input word, which the standard function would have removed.</small></p>
 
-<p>One out of three lands the textbook answer in first place. The other two put it
-<strong>second</strong>, behind a word from the right neighbourhood — <code>Milan</code> for
-<code>Rome</code>, <code>larger</code> for <code>smaller</code>. Notice that
-<code>bigger − big + small</code> comes out closest to <code>larger</code>, which is the opposite of
-the intended direction and still obviously the right <em>region</em>.</p>
+<p>One of the three places the expected answer first. The other two place it <strong>second</strong>,
+behind a word from the correct neighbourhood: <code>Milan</code> in place of <code>Rome</code>, and
+<code>larger</code> in place of <code>smaller</code>. Note that <code>bigger − big + small</code>
+comes out closest to <code>larger</code>, which is the opposite of the intended direction while
+still being the correct region of the space.</p>
 
-<p>So: the analogy behaviour is real, it is loose, and quoting it as arithmetic oversells it. That is
-about the resolution these vectors have.</p>
+<p>The analogy behaviour is therefore real but approximate, and describing it as arithmetic
+overstates it. This is the resolution these vectors provide.</p>
 
 <h2>A correction to session 19</h2>
 
-<p>Session 19 said something about embeddings that today's vectors let us check, and it is worth
-checking because it turns out to be half wrong. The claim was that unlike count vectors, whose
-cosines run 0 to 1, embeddings <em>"have negative components, and their cosines really do go down
-to −1"</em>.</p>
+<p>Session 19 made a claim about embeddings that these vectors allow us to check, and the claim
+turns out to be half correct. It stated that, unlike count vectors, whose cosines run from 0 to 1,
+embeddings <em>"have negative components, and their cosines really do go down to −1"</em>.</p>
 
-<p>The first half is right and the second is not. Take 4,000 random words and every cosine between
-them — about sixteen million pairs:</p>
+<p>The first part is correct and the second is not. Taking 4,000 random words and every cosine
+between them, about sixteen million pairs:</p>
 
 <pre><code>mean cosine            +0.066
 median                 +0.058
@@ -1130,27 +1132,28 @@ median                 +0.058
 minimum found          -0.270
 fraction negative       17.4%</code></pre>
 
-<p>Negative cosines do happen, so the 0-to-1 floor of count vectors is genuinely gone. But nothing
-comes remotely near −1. Searching all 300,000 words for the vector <em>most opposed</em> to
-<code>good</code> turns up −0.185, and for <code>king</code>, −0.202.</p>
+<p>Negative cosines do occur, so the lower bound of 0 that applies to count vectors is genuinely
+absent. No value approaches −1, however. Searching all 300,000 words for the vector most opposed to
+<code>good</code> gives −0.185, and for <code>king</code>, −0.202.</p>
 
 <div class="callout">
   <span class="label">The correct statement</span>
   <p>Trained embeddings do not spread over the whole sphere. They sit in a fairly narrow cone, and
   almost every pair of words is <em>slightly</em> positively aligned. <mark>The formula's range is
   −1 to 1; the data's range is roughly −0.3 to 1.</mark></p>
-  <p>Which matters practically: with count vectors, a cosine of 0.3 was a weak signal. Here it is
-  above the 99th percentile — <strong>unusually similar</strong>. A cosine only means something
-  against the distribution of cosines that representation actually produces.</p>
+  <p>This matters in practice. With count vectors, a cosine of 0.3 was a weak signal; here it is
+  above the 99th percentile and indicates <strong>unusual similarity</strong>. A cosine is
+  interpretable only against the distribution of cosines that the representation actually
+  produces.</p>
 </div>
 
 <h2>What this does not fix</h2>
 
-<p>Two limits, both of which the next few sessions live with.</p>
+<p>There are two limitations, both of which persist through the next several sessions.</p>
 
-<p><strong>Session 3's vocabulary problem survives untouched.</strong> A word that was not in the
-training corpus has no row in <code>E</code>, so it has no vector — not a bad vector, none at all.
-These vectors were trained in 2013, so:</p>
+<p><strong>Session 3's vocabulary problem is unaffected.</strong> A word absent from the training
+corpus has no row in <code>E</code> and therefore no vector at all, rather than a poor one. These
+vectors were trained in 2013:</p>
 
 <pre><code>podcast    in vocab          COVID        NOT IN VOCAB
 tweeted    in vocab          selfie       NOT IN VOCAB
@@ -1162,33 +1165,33 @@ of <code>bank</code>:</p>
 
 <pre><code>bank  →  banks 0.744, banking 0.690, Bank 0.670, lender 0.634, banker 0.609, depositors 0.603</code></pre>
 
-<p>Every one of them is the money sense. The river sense is not ranked lower — it is
-<em>absent</em>, because there is only one vector and the more common sense has claimed all of it.
-Same with <code>bat</code>, whose neighbours are <code>batsman</code>, <code>batting</code> and
-<code>wicket_keeper</code>, with nothing at all about the animal.</p>
+<p>Every one of these is the financial sense. The river sense is not ranked lower but
+<em>absent</em>, because there is a single vector and the more frequent sense has taken all of it.
+The same applies to <code>bat</code>, whose neighbours are <code>batsman</code>,
+<code>batting</code>, and <code>wicket_keeper</code>, with nothing relating to the animal.</p>
 
 <p><mark>One word, one vector, no matter how many things the word means.</mark> Fixing that is what
 contextual embeddings do, and that is Unit III.</p>
 
 <h2>Where Unit II stands</h2>
 
-<p>We have dense vectors, learned rather than counted, that put similar words near each other well
-enough to be genuinely useful — and that confuse antonyms, know nothing after 2013, and give
-<code>bank</code> one meaning.</p>
+<p>We now have dense vectors, learned rather than counted, which place similar words near each
+other well enough to be useful, and which also confuse antonyms, contain nothing after 2013, and
+assign <code>bank</code> a single meaning.</p>
 
-<p>Session 20 opened by quoting lab 7's two baselines: <strong>0.809</strong> from raw counts,
-<strong>0.823</strong> from sublinear TF-IDF, on 2,000 movie reviews. The obvious question is
-whether these vectors beat that.</p>
+<p>Session 20 opened by quoting lab 7's two baselines: <strong>0.809</strong> from raw counts and
+<strong>0.823</strong> from sublinear TF-IDF, on 2,000 movie reviews. The question is whether these
+vectors improve on that.</p>
 
 <div class="callout">
   <span class="label">The current answer</span>
-  <p><strong>We do not know, and it is not obvious.</strong> Lab 8 measures it.</p>
-  <p>There is a real reason for doubt, and you have already seen it: <code>good</code> and
-  <code>bad</code> have a cosine of 0.719. Average the word vectors of a review and the positive and
-  negative words partly cancel — which is not a problem TF-IDF has, because TF-IDF keeps them as
-  separate features. <mark>A better representation of words is not automatically a better
-  representation of documents.</mark></p>
-  <p>Do not let anyone tell you the answer before lab 8 does.</p>
+  <p><strong>This is not yet established, and the answer is not obvious.</strong> Lab 8 measures
+  it.</p>
+  <p>There is a specific reason for doubt, already visible above: <code>good</code> and
+  <code>bad</code> have a cosine of 0.719. Averaging the word vectors of a review causes the
+  positive and negative words to partly cancel, which is not a problem TF-IDF has, since TF-IDF
+  keeps them as separate features. <mark>A better representation of words is not automatically a
+  better representation of documents.</mark></p>
 </div>
 
 <h2>Summary</h2>
