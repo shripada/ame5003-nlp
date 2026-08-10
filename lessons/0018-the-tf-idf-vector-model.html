@@ -580,7 +580,7 @@ figcaption {
 
 <h2>Where session 17 left off</h2>
 
-<p>Session 17 ended with a question. Here is the table again:</p>
+<p>Session 17 ended with an unresolved problem. The table is repeated here:</p>
 
 <table>
   <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
@@ -590,43 +590,44 @@ figcaption {
   <tr><td><code>wit</code></td>   <td>20</td><td>15</td><td>2</td><td>3</td></tr>
 </table>
 
-<p><code>good</code> has the largest counts in the table — 114, 80, 62, 89 — and it is the least
-useful word in it, because it is large everywhere. Raw counts reward a word for being common when
-what we want is a word that is <strong>distinctive</strong>.</p>
+<p><code>good</code> has the largest counts in the table, 114, 80, 62, and 89, and it is the
+least useful word in it, because it is large everywhere. Raw counts reward a word for being common
+when what we want is a word that is <strong>distinctive</strong>.</p>
 
-<p>You already know the fix. Session 10 used TF-IDF to rank search results. Today it goes
-<em>inside the vector</em> rather than inside a score.</p>
+<p>The correction has already appeared: session 10 used TF-IDF to rank search results. Here it goes
+inside the vector rather than inside a score.</p>
 
 <h2>Term frequency and inverse document frequency, restated</h2>
 
-<p>Both of these are session 10's, and neither changes. This is a recap.</p>
+<p>Both quantities are as defined in session 10, and neither changes. This section is a
+restatement.</p>
 
-<p><strong>Term frequency</strong> — how much a document uses a word, with diminishing returns, so
-that 100 occurrences is not a hundred times more meaningful than one:</p>
+<p><strong>Term frequency</strong> measures how much a document uses a word, with diminishing
+returns, so that 100 occurrences is not a hundred times more informative than one:</p>
 
 <pre><code>tf  =  1 + log₁₀(count)     when count &gt; 0
 tf  =  0                    when count = 0</code></pre>
 
-<p><strong>Inverse document frequency</strong> — how rare the word is across the collection, where
-<code>df</code> is the number of documents containing it and <code>N</code> is the size of the
-collection:</p>
+<p><strong>Inverse document frequency</strong> measures how rare the word is across the
+collection, where <code>df</code> is the number of documents containing it and <code>N</code> is
+the size of the collection:</p>
 
 <pre><code>idf  =  log₁₀(N / df)</code></pre>
 
-<p>One property of that second formula carries the whole hour, so notice it now:</p>
+<p>One property of the second formula is used throughout this session:</p>
 
 <div class="callout">
   <span class="label">Definitions</span>
   <p>If a word appears in <em>every</em> document, then <code>df = N</code>, so
   <code>idf = log₁₀(N/N) = log₁₀(1) = <strong>0</strong></code>.</p>
-  <p>Not small. Not nearly zero. <mark>Exactly zero</mark> — and anything multiplied by exactly
-  zero is gone.</p>
+  <p>The value is not small or approximately zero but <mark>exactly zero</mark>, and any quantity
+  multiplied by exactly zero is zero.</p>
 </div>
 
 <h2>The Shakespeare corpus</h2>
 
-<p>Shakespeare wrote 37 plays, so <code>N = 37</code>. Here is <code>df</code> and
-<code>idf</code> for nine words across that whole collection:<span class="sidenote">SLP3 3rd ed.,
+<p>Shakespeare wrote 37 plays, so <code>N = 37</code>. The following table gives <code>df</code>
+and <code>idf</code> for nine words across that collection:<span class="sidenote">SLP3 3rd ed.,
 §11.1.2, Fig. 11.5. The idf column is <code>log₁₀(37/df)</code> — every value here was recomputed
 from the df counts rather than copied.</span></p>
 
@@ -710,36 +711,36 @@ from the df counts rather than copied.</span></p>
   </svg>
   <figcaption>The nine words ordered by idf. <code>Romeo</code> appears in one play out of 37 and
   scores highest; <code>battle</code>, in 21 plays, is already down to 0.246. The bottom two words
-  have <strong>no bar because their idf is exactly zero</strong> — <code>good</code> and
-  <code>sweet</code> turn up in all 37 plays, so they cannot tell any of them apart.</figcaption>
+  have <strong>no bar because their idf is exactly zero</strong>: <code>good</code> and
+  <code>sweet</code> occur in all 37 plays and therefore distinguish none of them.</figcaption>
 </figure>
 
 <div class="recall">
   <span class="label">Exercise</span>
-  <p><code>good</code> occurs <strong>114 times</strong> in <em>As You Like It</em> — the biggest
-  number anywhere in our table. It also appears in all <strong>37</strong> of the 37 plays. What is
-  its tf-idf weight?</p>
+  <p><code>good</code> occurs <strong>114 times</strong> in <em>As You Like It</em>, the largest
+  count anywhere in the table, and it appears in all <strong>37</strong> plays. What is its tf-idf
+  weight?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><code>tf = 1 + log₁₀(114) = 3.057</code>, which is a healthy weight.</p>
     <p><code>idf = log₁₀(37/37) = log₁₀(1) = 0</code>.</p>
     <p><code>tf-idf = 3.057 × 0 = <strong>0</strong></code>.</p>
-    <p>Now the question that matters: <em>would a bigger count have helped?</em> Suppose
-    <code>good</code> occurred 10,000 times. Then <code>tf = 5.0</code> — and
-    <code>5.0 × 0</code> is still <strong>0</strong>.</p>
-    <p><mark>No amount of term frequency can rescue a word with zero idf.</mark> Session 17's
-    recall box said <code>good</code> should be dropped. TF-IDF drops it for us, automatically, and
-    it does so exactly — not approximately.</p>
+    <p>It is worth asking whether a larger count would have helped. Suppose <code>good</code>
+    occurred 10,000 times. Then <code>tf = 5.0</code>, and <code>5.0 × 0</code> is still
+    <strong>0</strong>.</p>
+    <p><mark>No term frequency can compensate for an idf of zero.</mark> The exercise in session 17
+    concluded that <code>good</code> should be dropped. TF-IDF drops it automatically, and does so
+    exactly rather than approximately.</p>
   </div>
 </div>
 
 <h2>Re-weighting the matrix</h2>
 
-<p>Multiply the two pieces together, cell by cell:</p>
+<p>We multiply the two quantities together, cell by cell:</p>
 
 <pre><code>tf-idf  =  tf × idf  =  (1 + log₁₀ count) × log₁₀(N / df)</code></pre>
 
-<p>Here are the tf values for our four plays first:</p>
+<p>The tf values for the four plays are:</p>
 
 <table>
   <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
@@ -749,10 +750,10 @@ from the df counts rather than copied.</span></p>
   <tr><td><code>wit</code></td>   <td>2.301</td><td>2.176</td><td>1.301</td><td>1.477</td></tr>
 </table>
 
-<p>Notice how much the log has already flattened things: <code>good</code>'s counts ranged from 62
-to 114, and its tf now ranges from 2.79 to 3.06. That was the point of the first logarithm.</p>
+<p>Note how much the logarithm has already compressed the range: <code>good</code>'s counts ran
+from 62 to 114, and its tf now runs from 2.79 to 3.06. This is what the first logarithm is for.</p>
 
-<p>Now multiply each row by its idf from the table above:</p>
+<p>We now multiply each row by its idf from the table above:</p>
 
 <table>
   <tr><th></th><th>idf</th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
@@ -762,20 +763,22 @@ to 114, and its tf now ranges from 2.79 to 3.06. That was the point of the first
   <tr><td><code>wit</code></td>   <td>0.037</td><td>0.085</td><td>0.080</td><td>0.048</td><td>0.054</td></tr>
 </table>
 
-<p>The <code>good</code> row is now four zeros. The word with the largest numbers in the original
-table contributes <strong>nothing at all</strong> to any document's position. Session 17's recall
-box has been paid in full, by arithmetic rather than by our judgement.</p>
+<p>The <code>good</code> row is now four zeros. The word with the largest values in the original
+table contributes nothing to any document's position. The judgement made in session 17's exercise
+has been reproduced by arithmetic.</p>
 
 <h2>What else the weighting removed</h2>
 
-<p>Read the rest of that table honestly. <code>fool</code> is down to hundredths. <code>wit</code>
-is not much better. The only row with any life left in it is <code>battle</code>.</p>
+<p>The rest of the table requires attention. <code>fool</code> has fallen to hundredths and
+<code>wit</code> is little better. The only row retaining appreciable weight is
+<code>battle</code>.</p>
 
-<p>And <code>fool</code> and <code>wit</code> were <em>the words that separated the comedies</em>.
+<p><code>fool</code> and <code>wit</code>, however, were the words that separated the comedies.
 Session 17's plot worked because <em>As You Like It</em> and <em>Twelfth Night</em> sat high on the
-<code>fool</code> axis. That axis has just been crushed to almost nothing.</p>
+<code>fool</code> axis, and that axis has been reduced to almost nothing.</p>
 
-<p>So measure the damage. Distance between the re-weighted document vectors:</p>
+<p>We can measure the effect directly. The distances between the re-weighted document vectors
+are:</p>
 
 <table>
   <tr><th>pair</th><th>distance</th></tr>
@@ -785,57 +788,62 @@ Session 17's plot worked because <em>As You Like It</em> and <em>Twelfth Night</
   <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.521</td></tr>
 </table>
 
-<p><strong>After weighting, <em>As You Like It</em> is closer to a history play than to the other
-comedy.</strong> Session 17's clustering did not sharpen. It fell apart.</p>
+<p>After weighting, <em>As You Like It</em> is closer to a history play than to the other comedy.
+The clustering seen in session 17 has not sharpened; it has disappeared.</p>
 
-<p>There is no point re-drawing the scatter plot: with only <code>battle</code> carrying any
-weight, all four plays land strung out along a single line.</p>
+<p>Redrawing the scatter plot would not be informative: with only <code>battle</code> carrying
+appreciable weight, all four plays fall along a single line.</p>
 
 <h2>Why this happens</h2>
 
-<p>The tempting reading is "tf-idf failed here". That is the wrong reading, and getting it right is
-worth more than the technique itself.</p>
+<p>The obvious reading of this result is that TF-IDF has failed. That reading is incorrect, and
+understanding why matters more than the technique itself.</p>
 
 <div class="callout">
   <span class="label">The main idea</span>
   <p><mark>idf is a property of the <strong>collection</strong>, not of the document.</mark></p>
-  <p>Nothing about <em>As You Like It</em> changed. What changed is that we asked how distinctive
-  its words are <em>among 37 Shakespeare plays</em> — and Shakespeare uses <code>fool</code> in 36
-  of them and <code>wit</code> in 34. Within his collected works, those words are wallpaper.</p>
+  <p>Nothing about <em>As You Like It</em> has changed. What changed is that we asked how
+  distinctive its words are <em>among 37 Shakespeare plays</em>, and Shakespeare uses
+  <code>fool</code> in 36 of them and <code>wit</code> in 34. Within his collected works, those
+  words are close to universal.</p>
 </div>
 
-<p>Say that a different way. <code>fool</code> and <code>wit</code> are genuinely excellent words
-for telling a comedy from a history <em>in general</em>. In a collection of all English books they
-would have high idf and carry real signal. Put the same words in a collection made entirely of
-Shakespeare, and they carry none. The words did not change; the collection did.</p>
+<p>Stated another way: <code>fool</code> and <code>wit</code> are genuinely good words for
+distinguishing a comedy from a history <em>in general</em>. In a collection of all English books
+they would have high idf and carry real signal. In a collection consisting entirely of Shakespeare
+they carry none. The words did not change; the collection did.</p>
 
-<p>So the honest summary of what just happened is this — and it is worth saying out loud:</p>
+<p>The result can therefore be summarised as follows.</p>
 
 <div class="callout">
   <span class="label">What the numbers show</span>
-  <p>TF-IDF did not break our example. It <strong>measured</strong> it, and the measurement says
-  these four words cannot tell Shakespeare's plays apart, because Shakespeare uses them in nearly
-  all of them. That is a fact about the collection we did not have ten minutes ago.</p>
+  <p>TF-IDF did not break the example. It <strong>measured</strong> it, and the measurement shows
+  that these four words cannot distinguish Shakespeare's plays, because Shakespeare uses them in
+  nearly all of them. That is a fact about the collection which we did not have before.</p>
 </div>
 
 <h2>Choosing better dimensions</h2>
 
-<p>The answer is sitting in the idf table. If the task is to tell Shakespeare's plays apart, choose
-words whose idf is actually high in <em>this</em> collection:</p>
+<p>The idf table already contains the answer. If the task is to distinguish Shakespeare's plays,
+we should choose words whose idf is high in <em>this</em> collection:</p>
 
 <ul>
-  <li><code>Romeo</code> — idf 1.57, in exactly one play. It picks out that play alone.</li>
-  <li><code>Falstaff</code> — idf 0.966, in four. It groups the Henry plays and nothing else.</li>
-  <li><code>forest</code> — idf 0.489, in twelve. Pastoral comedies and not much else.</li>
+  <li><code>Romeo</code>, idf 1.57, occurring in exactly one play. It identifies that play
+  alone.</li>
+  <li><code>Falstaff</code>, idf 0.966, occurring in four. It groups the Henry plays and nothing
+  else.</li>
+  <li><code>forest</code>, idf 0.489, occurring in twelve, largely the pastoral comedies.</li>
 </ul>
 
-<p>Those words would separate the plays cleanly, because they are rare <em>here</em>. We picked
-<code>battle</code>, <code>good</code>, <code>fool</code> and <code>wit</code> in session 17
-because they made a tidy picture with raw counts — and raw counts flattered them.</p>
+<p>These words would separate the plays cleanly, because they are rare in this collection.
+<code>battle</code>, <code>good</code>, <code>fool</code>, and <code>wit</code> were chosen in
+session 17 because they produced a clear picture under raw counts, and raw counts overstated their
+value.</p>
 
-<p>Which leaves us better off than we started. We did not just weight a matrix; we found out our
-features were bad, and we found out from the numbers rather than from a hunch. <mark>A method that
-reports "your features are poor for this collection" is doing its job, not failing at it.</mark></p>
+<p>This leaves us better informed than before. We have not merely weighted a matrix; we have
+established that our features were poorly chosen, and established it from the numbers rather than
+by judgement. <mark>A method that reports that the chosen features are poor for a collection is
+working correctly, not failing.</mark></p>
 
 <div class="quiz" data-answer="1">
   <span class="q-num">Question 1 of 2</span>
@@ -853,11 +861,11 @@ reports "your features are poor for this collection" is doing its job, not faili
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong><code>Falstaff</code></strong>, idf 0.966.</p>
-    <p>Appearing in only 4 plays is precisely what makes it useful — seeing it rules out 33 of the
-    37 immediately. The other three options all reason from <em>coverage</em>, and coverage is the
-    opposite of what a discriminating feature needs. <code>fool</code> (36 plays) and
-    <code>sweet</code> (all 37) are near-worthless here for that reason, and <code>sweet</code>'s
-    weight is exactly zero.</p>
+    <p>Appearing in only 4 plays is precisely what makes it useful, since observing it eliminates
+    33 of the 37 immediately. The other three options all reason from <em>coverage</em>, which is
+    the opposite of what a discriminating feature requires. <code>fool</code>, in 36 plays, and
+    <code>sweet</code>, in all 37, are of little use here for that reason, and
+    <code>sweet</code>'s weight is exactly zero.</p>
   </div>
 </div>
 
@@ -878,11 +886,11 @@ reports "your features are poor for this collection" is doing its job, not faili
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>every weight changes</strong>.</p>
-    <p>The tf values do not move — those are counts inside the document, and the document is
-    untouched. But every idf does, because <code>df</code> and <code>N</code> both come from the
-    collection. <code>fool</code> and <code>wit</code> are rare among modern novels and would go
-    from near-zero to genuinely informative; <code>good</code> would stop being a zero the moment
-    one novel omits it.</p>
+    <p>The tf values do not change, since those are counts within the document and the document
+    is unaltered. Every idf does change, because <code>df</code> and <code>N</code> both derive
+    from the collection. <code>fool</code> and <code>wit</code> are rare among modern novels and
+    would move from near-zero to genuinely informative, and <code>good</code> would cease to be
+    zero as soon as one novel omitted it.</p>
     <p>This is why the last option is wrong too: idf does not scale up uniformly with
     <code>N</code>, it depends on each word's own <code>df</code>. <mark>A tf-idf vector is not a
     description of a document. It is a description of a document <em>relative to a
@@ -892,30 +900,30 @@ reports "your features are poor for this collection" is doing its job, not faili
 
 <h2>A remaining problem</h2>
 
-<p>There is a second thing wrong with measuring distance between document vectors, and it has
-nothing to do with weighting.</p>
+<p>There is a second problem with measuring distance between document vectors, unrelated to
+weighting.</p>
 
-<p>Take <em>Julius Caesar</em>'s column from the raw table — <code>[7, 62, 1, 2]</code> — and
-imagine a document that is the same text pasted twice. Every count doubles:</p>
+<p>Take <em>Julius Caesar</em>'s column from the raw table, <code>[7, 62, 1, 2]</code>, and
+consider a document consisting of the same text repeated twice. Every count doubles:</p>
 
 <pre><code>d   =  [ 7,  62, 1, 2]     vector length  62.43
 2d  =  [14, 124, 2, 4]     vector length 124.87
 
 Euclidean distance between them:  62.43</code></pre>
 
-<p>A distance of 62.43, when the largest distance in our whole weighted matrix was 0.521. By that
-measure these are wildly different documents. <strong>They are the same play, printed twice.</strong></p>
+<p>The distance is 62.43, where the largest distance in the entire weighted matrix was 0.521. By
+this measure the two documents are extremely different. They are the same play, printed twice.</p>
 
-<p>The problem is that doubling a vector does not move it — it stretches it. Both vectors point in
-<em>exactly</em> the same direction; one is simply longer. And length here means nothing but
-document length, which is not what we wanted to measure at all.</p>
+<p>The problem is that doubling a vector does not move it but lengthens it. Both vectors point in
+exactly the same direction and one is simply longer. Length here reflects nothing but document
+length, which is not the quantity we intended to measure.</p>
 
 <div class="callout">
   <span class="label">Where session 19 starts</span>
-  <p>What we want from two documents is <strong>direction, not magnitude</strong>. A long document
-  and a short document about the same subject should count as similar.</p>
-  <p>There is a standard measure that does exactly this, and on the two vectors above it returns
-  <strong>1.0000</strong> — perfectly identical. Next session derives it.</p>
+  <p>What we want to compare is <strong>direction, not magnitude</strong>. A long document and a
+  short document on the same subject should be counted as similar.</p>
+  <p>There is a standard measure with exactly this property, and on the two vectors above it
+  returns <strong>1.0000</strong>, indicating identical direction. Session 19 derives it.</p>
 </div>
 
 <h2>Summary</h2>
@@ -923,11 +931,12 @@ document length, which is not what we wanted to measure at all.</p>
 <div class="callout">
   <span class="label">The main points</span>
   <p>TF-IDF weights each cell of the term-document matrix by <code>(1 + log₁₀ count) ×
-  log₁₀(N/df)</code>, so that common words shrink and distinctive words dominate — and a word in
-  every document collapses to exactly zero. But <em>distinctive</em> is measured against a
-  particular collection, so the same word can be highly informative in one collection and worthless
-  in another. When our four Shakespeare words nearly all collapsed, that was not tf-idf failing; it
-  was tf-idf telling us those words were a poor description of <em>this</em> collection.</p>
+  log₁₀(N/df)</code>, so that common words are reduced and distinctive words dominate, and a word
+  appearing in every document collapses to exactly zero. What counts as <em>distinctive</em>,
+  however, is measured against a particular collection, so the same word can be highly informative
+  in one collection and worthless in another. When our four Shakespeare words nearly all collapsed,
+  that was not a failure of TF-IDF but a report that those words describe <em>this</em> collection
+  poorly.</p>
 </div>
 
 <h2>Reading</h2>

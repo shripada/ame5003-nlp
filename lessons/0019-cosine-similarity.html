@@ -580,8 +580,8 @@ figcaption {
 
 <h2>Where session 18 left off</h2>
 
-<p>Here is the board from the end of last session, exactly as we left it. <em>Julius Caesar</em>'s
-raw column, and a document that is the same play printed twice:</p>
+<p>Session 18 ended with the following. <em>Julius Caesar</em>'s raw column, and a document
+consisting of the same play printed twice:</p>
 
 <pre><code>d   =  [ 7,  62, 1, 2]     length  62.43
 2d  =  [14, 124, 2, 4]     length 124.87
@@ -589,21 +589,21 @@ raw column, and a document that is the same play printed twice:</p>
 Euclidean distance   62.43   →  "completely different documents"
 cosine                1.0000 →  "identical documents"</code></pre>
 
-<p>Two measurements, same pair of vectors, opposite verdicts. One of them says the same play printed
-twice is as far apart as anything in our whole collection. The other says the two are the same
-thing.</p>
+<p>Two measurements on the same pair of vectors give opposite results. The first reports that a
+play and the same play printed twice are as far apart as anything in the collection. The second
+reports that they are identical.</p>
 
-<p>The second one is right, and by the end of the hour you will have derived it.</p>
+<p>The second is correct, and this session derives it.</p>
 
 <h2>Why Euclidean distance is unsuitable</h2>
 
-<p>Draw the vectors instead of listing them. Every document vector starts at the origin and ends at
-a point. Euclidean distance measures the gap between the two <em>tips</em>. That is a perfectly good
-question to ask — it is just not the question we have.</p>
+<p>Consider the vectors drawn rather than listed. Every document vector begins at the origin and
+ends at a point, and Euclidean distance measures the gap between the two endpoints. That is a
+well-defined quantity; it is simply not the one we want.</p>
 
-<p>Doubling a document does not swing it round. It pushes the tip further out <em>along the very
-same line</em>. The direction is untouched. So if we measure the angle between two vectors instead
-of the gap between their tips, doubling a document changes nothing at all.</p>
+<p>Doubling a document does not rotate its vector. It moves the endpoint further out along the same
+line, leaving the direction unchanged. If we measure the angle between two vectors instead of the
+gap between their endpoints, doubling a document changes nothing.</p>
 
 <figure>
   <svg viewBox="0 0 560 300" role="img" aria-labelledby="figtitle figdesc">
@@ -676,9 +676,9 @@ of the gap between their tips, doubling a document changes nothing at all.</p>
 
 <div class="callout">
   <span class="label">The idea, before the formula</span>
-  <p>Document length is mostly a fact about <em>how much someone wrote</em>. It is not what we
-  wanted to measure. <mark>Compare direction, not magnitude</mark> — and a long document and a short
-  document on the same subject will come out similar, which is exactly what we would want.</p>
+  <p>Vector length here reflects mainly how much was written, which is not the quantity we set
+  out to measure. <mark>We should compare direction rather than magnitude</mark>, so that a long
+  document and a short document on the same subject are counted as similar.</p>
 </div>
 
 <h2>The dot product</h2>
@@ -687,35 +687,36 @@ of the gap between their tips, doubling a document changes nothing at all.</p>
 
 <pre><code>a · b  =  Σ aᵢbᵢ  =  a₁b₁ + a₂b₂ + ... + aₙbₙ</code></pre>
 
-<p>It is already a rough similarity score. It is large when the two vectors have big values in the
-<em>same</em> positions, and it is exactly zero when they have no position where both are non-zero —
-two documents with no words in common.</p>
+<p>This is already an approximate similarity score. It is large when the two vectors have large
+values in the same positions, and exactly zero when there is no position at which both are
+non-zero, which is the case for two documents sharing no words.</p>
 
-<p>But it has the flaw we are trying to remove, and it has it badly. Take our two vectors:</p>
+<p>It also has the defect we are trying to remove, in a pronounced form. Taking our two
+vectors:</p>
 
 <pre><code>d · d   =  7×7 + 62×62 + 1×1 + 2×2      =  3898
 d · 2d  =  7×14 + 62×124 + 1×2 + 2×4    =  7796</code></pre>
 
-<p>The dot product of the doubled document with itself is twice as large — not because it is twice
-as relevant, but because it is twice as long. A frequent word, or a long document, wins on the dot
-product for no reason but size.</p>
+<p>The dot product involving the doubled document is twice as large, not because the document is
+twice as relevant but because it is twice as long. A frequent word, or a long document, scores
+highly on the dot product for reasons of size alone.</p>
 
 <h2>Normalising by vector length</h2>
 
-<p>So divide each vector by its own length. That is the whole fix:</p>
+<p>The correction is to divide each vector by its own length:</p>
 
 <pre><code>            a · b
 cos(a, b) = ───────
             |a| |b|          where  |a| = √(Σ aᵢ²)</code></pre>
 
-<p>Read the denominator as an instruction rather than as algebra. Dividing a vector by its own
-length turns it into a <strong>unit vector</strong> — same direction, length exactly 1. So:</p>
+<p>The denominator is best read as an instruction rather than as algebra. Dividing a vector by
+its own length produces a <strong>unit vector</strong>: same direction, length exactly 1.</p>
 
 <div class="callout">
   <span class="label">How to think about cosine similarity</span>
-  <p><mark>Cosine similarity is just the dot product of two unit vectors.</mark></p>
-  <p>Shrink both vectors down to length 1, which throws away everything except which way they point,
-  and <em>then</em> compare them. Nothing about triangles or the unit circle is needed to use
+  <p><mark>Cosine similarity is the dot product of two unit vectors.</mark></p>
+  <p>Both vectors are reduced to length 1, which discards everything except the direction in which
+  they point, and only then compared. No trigonometry is required to use
   this.<span class="sidenote">The name comes from a fact of linear algebra:
   <code>a · b = |a||b| cos θ</code>, so dividing by the two lengths leaves exactly
   <code>cos θ</code>, the cosine of the angle between them. Useful to know, never needed to
@@ -724,7 +725,8 @@ length turns it into a <strong>unit vector</strong> — same direction, length e
 
 <h2>Completing the calculation</h2>
 
-<p>Take the formula to <code>d</code> and <code>2d</code> and watch what happens to the 2:</p>
+<p>Applying the formula to <code>d</code> and <code>2d</code>, we can follow what becomes of the
+factor of 2:</p>
 
 <pre><code>d · 2d  =  Σ dᵢ(2dᵢ)  =  2 Σ dᵢ²  =  2 |d|²        =  7796
 |d|                                                =  62.434
@@ -734,13 +736,13 @@ length turns it into a <strong>unit vector</strong> — same direction, length e
 cos(d, 2d) = ─────────── = ───────── = 1
              |d| · 2|d|     2 |d|²</code></pre>
 
-<p>The 2 appears once in the numerator and once in the denominator and cancels. The answer is not
-0.9999-something. It is <strong>exactly 1</strong>, and it would be exactly 1 for any multiple —
-tripled, halved, times a thousand.</p>
+<p>The factor of 2 appears once in the numerator and once in the denominator and cancels. The
+result is not approximately 1 but <strong>exactly 1</strong>, and it would be exactly 1 for any
+multiple: tripled, halved, or multiplied by a thousand.</p>
 
-<p>And nothing in that derivation was about our particular numbers. <mark>Scaling a vector cannot
-change its cosine with anything.</mark> That is the property we went looking for, and it is now
-proved rather than asserted.</p>
+<p>Nothing in that derivation depended on our particular numbers. <mark>Scaling a vector cannot
+change its cosine with any other vector.</mark> This is the property we required, and it is now
+proved rather than assumed.</p>
 
 <div class="recall">
   <span class="label">Exercise (no calculator)</span>
@@ -752,11 +754,11 @@ b = [30, 0]</code></pre>
   <div class="answer">
     <p>Euclidean distance: <code>√((30−3)² + 0²) = <strong>27</strong></code>.</p>
     <p>Cosine: <code>(3×30 + 0×0) / (3 × 30) = 90/90 = <strong>1</strong></code>.</p>
-    <p>The two measurements disagree as loudly as they possibly can, on a pair of vectors small
-    enough to check in your head. <code>b</code> is <code>a</code> ten times over — same direction,
-    ten times the length. Distance reports 27. Cosine reports identical.</p>
-    <p>This is the doubling demo with the arithmetic stripped out. If the 1.0000 above felt like it
-    depended on <em>Julius Caesar</em>'s particular counts, this shows it does not.</p>
+    <p>The two measurements disagree as strongly as they can, on a pair of vectors small enough
+    to check without a calculator. <code>b</code> is <code>a</code> multiplied by ten: same
+    direction, ten times the length. Distance reports 27; cosine reports identity.</p>
+    <p>This is the doubling example with the arithmetic removed. It shows that the result of 1.0000
+    above did not depend on <em>Julius Caesar</em>'s particular counts.</p>
   </div>
 </div>
 
@@ -766,9 +768,9 @@ b = [30, 0]</code></pre>
 for vectors at right angles, down to <strong>−1</strong> for vectors pointing in opposite
 directions.</p>
 
-<p>But for the vectors we have been building throughout this unit — counts, tf, tf-idf —
-<strong>the range is only 0 to 1</strong>. Here is why, and it is worth a moment because it is a
-fact about our data rather than about the formula:</p>
+<p>For the vectors built throughout this unit, namely counts, tf, and tf-idf, <strong>the range
+is only 0 to 1</strong>. The reason is worth stating, because it is a fact about our data rather
+than about the formula.</p>
 
 <div class="callout">
   <span class="label">Why a count vector's cosine is never negative</span>
@@ -777,27 +779,27 @@ fact about our data rather than about the formula:</p>
   the one corner of the space where nothing is negative.</p>
   <p>The dot product <code>Σ aᵢbᵢ</code> is then a sum of products of non-negative numbers, which
   cannot be negative. Lengths are always positive. So the whole fraction is <code>≥ 0</code>.</p>
-  <p>Read geometrically: two vectors in the same corner can be at most 90° apart. They can never
-  point <em>away</em> from each other, so the cosine bottoms out at 0.</p>
+  <p>Geometrically, two vectors in the same orthant can be at most 90° apart. They can never
+  point away from each other, so the cosine has a lower bound of 0.</p>
 </div>
 
-<p>⚠️ Say that as "for count vectors", because it stops being true soon. The word embeddings in
-sessions 21–22 have negative components, so their cosines <em>can</em> come out negative and the
-0 floor is gone. Same formula, wider range.<span class="sidenote">How much wider is a question worth
+<p>This holds for count vectors specifically, and ceases to hold shortly. The word embeddings in
+sessions 21 and 22 have negative components, so their cosines can be negative and the lower bound
+of 0 no longer applies. The formula is the same; the range is wider.<span class="sidenote">How much wider is a question worth
 measuring rather than assuming, and session 21 measures it on real embeddings: negative cosines do
 occur, but they bottom out around −0.3 rather than −1. Trained vectors sit in a narrower cone than
 the formula allows.</span></p>
 
-<p>For now: <strong>1 means same direction, 0 means no words in common.</strong></p>
+<p>For the present: <strong>1 means the same direction, and 0 means no words in common.</strong></p>
 
 <h2>Returning to the Shakespeare corpus</h2>
 
-<p>Session 18 ended badly on purpose. After tf-idf weighting, <em>As You Like It</em> was closer to
-<em>Julius Caesar</em> (a history) than to <em>Twelfth Night</em> (its fellow comedy). Session 17's
-tidy clustering had fallen apart.</p>
+<p>Session 18 ended with an unresolved failure. After tf-idf weighting, <em>As You Like It</em>
+was closer to <em>Julius Caesar</em>, a history, than to <em>Twelfth Night</em>, its fellow comedy,
+and the clustering from session 17 had disappeared.</p>
 
-<p>So: does cosine rescue it? Take session 18's tf-idf vectors, unchanged, and measure the angle
-instead of the distance:<span class="sidenote">Every cosine on this page was computed from the
+<p>The question is whether cosine recovers it. We take session 18's tf-idf vectors unchanged and
+measure the angle rather than the distance:<span class="sidenote">Every cosine on this page was computed from the
 matrices in sessions 17 and 18, not copied from anywhere.</span></p>
 
 <table>
@@ -808,11 +810,11 @@ matrices in sessions 17 and 18, not copied from anywhere.</span></p>
   <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.110</td></tr>
 </table>
 
-<p>No. It is still wrong, and wrong in the same direction — a comedy sitting closer to a history than
-to a comedy. That is not a disappointment, it is the point:</p>
+<p>It does not. The result is wrong in the same direction as before, with a comedy closer to a
+history than to a comedy.</p>
 
-<p>It is worth seeing exactly <em>why</em> those four numbers came out so strangely, because the
-reason is visible in the weighted vectors themselves:</p>
+<p>The reason these four numbers come out as they do is visible in the weighted vectors
+themselves:</p>
 
 <table>
   <tr><th>play</th><th><code>battle</code></th><th><code>good</code></th><th><code>fool</code></th><th><code>wit</code></th></tr>
@@ -822,30 +824,32 @@ reason is visible in the weighted vectors themselves:</p>
   <tr><td><em>Henry V</em></td><td>0.520</td><td>0</td><td>0.019</td><td>0.054</td></tr>
 </table>
 
-<p><code>battle</code> is the only weight with any size left. So for the three plays that
-<em>have</em> a <code>battle</code> count, direction is set almost entirely by that one word, and
-they end up pointing nearly the same way — which is why <em>As You Like It</em> ↔ <em>Julius
-Caesar</em> is 0.971. They are not similar; they are just both dominated by the same surviving
+<p><code>battle</code> is the only weight of appreciable size. For the three plays that have a
+<code>battle</code> count, direction is therefore determined almost entirely by that one word, and
+they end up pointing in nearly the same direction. This is why <em>As You Like It</em> ↔ <em>Julius
+Caesar</em> is 0.971. The plays are not similar; both are dominated by the same surviving
 feature.</p>
 
-<p><em>Twelfth Night</em> is the interesting one. It never uses <code>battle</code> at all, so its
-weighted vector is <code>[0, 0, 0.033, 0.080]</code> — it has <mark>no component at all on the one
-axis that still matters</mark>, and it is left pointing off on the leftovers. That is where 0.343
-and 0.110 come from. Not "a bit less similar": <em>almost at right angles to everything else</em>.</p>
+<p><em>Twelfth Night</em> is the informative case. It never uses <code>battle</code>, so its
+weighted vector is <code>[0, 0, 0.033, 0.080]</code>. It has <mark>no component on the one axis
+that still carries weight</mark>, and its direction is set by the remaining near-zero values. This
+is the source of 0.343 and 0.110, which represent not slightly lower similarity but a position
+close to perpendicular to the other three plays.</p>
 
 <div class="callout">
   <span class="label">The central result</span>
   <p><mark>Cosine fixes a length problem, not a feature problem.</mark></p>
-  <p>Session 18's trouble was never that the vectors were the wrong length. It was that after
-  weighting, <code>good</code> was exactly zero and <code>fool</code> and <code>wit</code> were down
-  to hundredths, so <code>battle</code> was the only feature left with any size to it — and
-  <em>direction is then decided almost entirely by how much</em> <code>battle</code> <em>a play
-  has</em>. Measuring the angle between bad features gives you the angle between bad features. No
-  similarity measure can recover information that is not in the vector.</p>
+  <p>Session 18's difficulty was never that the vectors were the wrong length. It was that after
+  weighting, <code>good</code> was exactly zero and <code>fool</code> and <code>wit</code> were
+  reduced to hundredths, leaving <code>battle</code> as the only feature of appreciable size, so
+  that direction is determined almost entirely by a play's <code>battle</code> count. Measuring the
+  angle between poor features yields the angle between poor features. No similarity measure can
+  recover information that is not present in the vector.</p>
 </div>
 
-<p>Now change the vectors instead of the measure. Go back to session 17's matrix, keep the log
-damping on the counts, and leave idf out entirely — no reweighting, just <code>1 + log₁₀(count)</code>:</p>
+<p>We now change the vectors instead of the measure. Returning to session 17's matrix, we keep
+the logarithmic damping on the counts and omit idf entirely, using only
+<code>1 + log₁₀(count)</code>:</p>
 
 <table>
   <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
@@ -855,7 +859,7 @@ damping on the counts, and leave idf out entirely — no reweighting, just <code
   <tr><td><code>wit</code></td>   <td>2.301</td><td>2.176</td><td>1.301</td><td>1.477</td></tr>
 </table>
 
-<p>All six cosines between those four columns:</p>
+<p>All six cosines between those four columns are:</p>
 
 <table>
   <tr><th>pair (log-tf vectors, no idf)</th><th>cosine</th></tr>
@@ -867,34 +871,33 @@ damping on the counts, and leave idf out entirely — no reweighting, just <code
   <tr><td><em>Twelfth Night</em> ↔ <em>Julius Caesar</em></td><td>0.806</td></tr>
 </table>
 
-<p>Read the first two rows against the last four. <strong>Every play's nearest neighbour is now its
-own genre-mate</strong> — the comedies pair at 0.975, the histories at 0.993, and all four
-cross-genre pairs come in below both. Session 17's clustering is back.</p>
+<p>Comparing the first two rows against the last four, <strong>every play's nearest neighbour is
+now a play of its own genre</strong>: the comedies pair at 0.975, the histories at 0.993, and all
+four cross-genre pairs fall below both. The clustering from session 17 has been recovered.</p>
 
-<p>Worth comparing against raw counts, and worth being exact about it. On the unlogged counts the
-ranking actually comes out right too — but look at the margin. <em>As You Like It</em> ↔
-<em>Twelfth Night</em> is 0.9499, and <em>As You Like It</em> ↔ <em>Henry V</em> is 0.9490. The
-comedy pair does win, <mark>by nine ten-thousandths</mark>.</p>
+<p>It is worth comparing this against raw counts precisely. On the unlogged counts the ranking also
+comes out correct, but the margin is very small. <em>As You Like It</em> ↔ <em>Twelfth Night</em>
+is 0.9499 and <em>As You Like It</em> ↔ <em>Henry V</em> is 0.9490, so the comedy pair wins
+<mark>by nine ten-thousandths</mark>.</p>
 
-<p>That is not a result, it is a coin landing on its edge. <code>good</code>'s enormous counts
-dominate every vector and drag all four plays into pointing very nearly the same way, so every
-cosine is crushed up against 1 and the genre signal survives only in the fourth decimal place. The
-log damping is what pulls those numbers apart — 0.975 against 0.934 is a gap you could defend to
-somebody.</p>
+<p>A margin of that size is not a usable result. <code>good</code>'s very large counts dominate
+every vector and pull all four plays into nearly the same direction, so every cosine is compressed
+against 1 and the genre signal survives only in the fourth decimal place. The logarithmic damping
+is what separates the values: 0.975 against 0.934 is a difference that can be relied on.</p>
 
 <div class="callout">
   <span class="label">The three comparisons together</span>
-  <p><strong>Raw counts + cosine</strong> — technically right, practically useless. The genre pairs
-  do come out on top, by less than a thousandth, because one common word dominates and everything
-  looks alike.</p>
-  <p><strong>tf-idf + cosine</strong> — worse. On <em>this</em> collection idf zeroed the words that
-  carried the genre signal.</p>
-  <p><strong>log-tf + cosine</strong> — the genres separate cleanly.</p>
-  <p>Which is not "idf is bad". idf answers a different question — <em>how distinctive is this word
-  in this collection</em> — and across 37 Shakespeare plays, <code>fool</code> and <code>wit</code>
-  honestly are not. Everything session 18 concluded still stands. What today adds is that
-  <mark>the weighting and the similarity measure are two separate choices, and both of them
-  show up in the answer.</mark></p>
+  <p><strong>Raw counts with cosine</strong>: correct in ranking and unusable in practice. The
+  genre pairs do come out on top, by less than a thousandth, because one common word dominates and
+  all four documents look alike.</p>
+  <p><strong>tf-idf with cosine</strong>: worse. On this collection, idf reduced to zero the words
+  carrying the genre signal.</p>
+  <p><strong>log-tf with cosine</strong>: the genres separate cleanly.</p>
+  <p>This does not show that idf is a poor method. idf answers a different question, namely how
+  distinctive a word is within a given collection, and across 37 Shakespeare plays
+  <code>fool</code> and <code>wit</code> are not distinctive. Session 18's conclusions stand. What
+  this session adds is that <mark>the weighting and the similarity measure are two separate
+  choices, and both appear in the result.</mark></p>
 </div>
 
 <div class="quiz" data-answer="1">
@@ -968,34 +971,35 @@ this is SLP3's own example — counts of how often each word appears near <code>
 <pre><code>cos(cherry, information)      =  0.018
 cos(digital, information)     =  0.996</code></pre>
 
-<p><code>information</code> is far closer to <code>digital</code> than to <code>cherry</code>, which
-is obviously right — and notice nobody told the model anything about meaning. It only counted which
-words turn up nearby.</p>
+<p><code>information</code> is far closer to <code>digital</code> than to <code>cherry</code>,
+which is the correct result. No information about meaning was supplied; only the counts of which
+words occur nearby.</p>
 
-<p>Notice also that <code>information</code>'s vector is much longer than <code>digital</code>'s
-(5188 against 2371) because it is simply a more frequent word. The raw dot product would have made
-every comparison with <code>information</code> look strong for that reason alone. Cosine divides
-that away and asks only about direction.</p>
+<p>Note also that <code>information</code>'s vector is much longer than <code>digital</code>'s,
+5188 against 2371, because it is simply a more frequent word. The raw dot product would have made
+every comparison involving <code>information</code> appear strong for that reason alone. Cosine
+divides this out and compares direction only.</p>
 
-<p>Hold on to this table. <strong>A word represented as a vector of the company it keeps</strong> is
-the whole idea behind sessions 21–22, and cosine is how those vectors get compared.</p>
+<p>This table is worth retaining. <strong>A word represented as a vector of the words it occurs
+alongside</strong> is the central idea of sessions 21 and 22, and cosine is how those vectors are
+compared.</p>
 
 <h2>Where cosine similarity is used later</h2>
 
-<p>This is the most-used formula in the course, and it is worth naming the places you will meet it
-again.</p>
+<p>This is the most frequently used formula in the course, and the places it recurs are worth
+naming.</p>
 
 <ul>
-  <li><strong>Search.</strong> Session 10 ranked documents by summing tf-idf scores. What a real
-  engine does is turn the query into a vector too and rank every document by its cosine with the
-  query. SLP3 works a tiny example: for the query <code>sweet love</code>, a document containing both
+  <li><strong>Search.</strong> Session 10 ranked documents by summing tf-idf scores. A real
+  engine instead represents the query as a vector as well and ranks every document by its cosine
+  with that query vector. SLP3 works a tiny example: for the query <code>sweet love</code>, a document containing both
   words scores 0.747 and one containing only <code>sweet</code> scores 0.0779 — same formula, one
   vector of which happens to be a query.</li>
   <li><strong>Embeddings, sessions 21–22.</strong> Every "which words are similar to this one"
   question is a cosine. Every nearest-neighbour list is sorted by cosine.</li>
-  <li><strong>Everything built on embeddings after that.</strong> Retrieval, clustering,
-  recommendation, duplicate detection. When a modern system says two things are similar, it has
-  almost always taken a cosine.</li>
+  <li><strong>Everything built on embeddings thereafter:</strong> retrieval, clustering,
+  recommendation, and duplicate detection. When a modern system reports that two things are
+  similar, a cosine has almost always been computed.</li>
 </ul>
 
 <h2>Summary</h2>

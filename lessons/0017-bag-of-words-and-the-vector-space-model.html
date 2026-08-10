@@ -581,34 +581,34 @@ figcaption {
 
 <h2>Bag of words</h2>
 
-<p>Last session we classified a film review, and to do it we threw away the word order and kept a
-count for each word. We never gave that a name. It has one:</p>
+<p>In session 16 we classified a film review by discarding word order and keeping a count for
+each word. That representation has a name.</p>
 
 <div class="callout">
   <span class="label">Definition</span>
-  <p>Represent a document by <strong>which words it contains and how often</strong>, discarding
-  the order entirely. A bag, not a list — you can see what is in it, but not what came first.</p>
+  <p>A <strong>bag of words</strong> represents a document by which words it contains and how
+  often, discarding the order entirely. The name is precise: a bag has contents but no sequence,
+  unlike a list.</p>
 </div>
 
-<p>The name is doing honest work. A bag really does lose something, and it is worth being blunt
-about how much:</p>
+<p>It is worth being explicit about how much this discards:</p>
 
 <pre><code>"the film was good, not bad"      →   the·1  film·1  was·1  good·1  not·1  bad·1
 "the film was bad, not good"      →   the·1  film·1  was·1  good·1  not·1  bad·1</code></pre>
 
-<p>Opposite meanings, <strong>identical representations</strong>. No amount of cleverness later can
-recover a distinction that was destroyed here. We accept it anyway, for the reason session 15 gave:
-word identity carries most of the signal, word order costs far more to model than it repays. But
-know what you traded.</p>
+<p>The two sentences have opposite meanings and identical representations. No subsequent
+processing can recover a distinction destroyed at this point. We accept the loss for the reason
+given in session 15: word identity carries most of the signal, and word order is expensive to
+model relative to what it contributes. The trade should nonetheless be made knowingly.</p>
 
 <h2>Where this has already appeared</h2>
 
-<p>In session 8 we made a table for Boolean search: one row per term, one column per document, a
-1 where the term appears and a 0 where it does not. The <strong>term-document incidence
-matrix</strong>.</p>
+<p>In session 8 we built a table for Boolean search with one row per term and one column per
+document, containing a 1 where the term appears and a 0 where it does not. This was the
+<strong>term-document incidence matrix</strong>.</p>
 
-<p>Now make one change. Instead of "does this word appear?", record <strong>how many times</strong>
-it appears. Here are four Shakespeare plays and four
+<p>We now make a single change. Instead of recording whether a word appears, we record how many
+times it appears. The following table gives four Shakespeare plays and four
 words:<span class="sidenote">SLP3 3rd ed., §11.1, Fig. 11.3. Counts read from the live chapter,
 August 2026. Note these are four <em>different</em> plays from session 8's six — only
 <em>Julius Caesar</em> is in both — because these are the ones with published counts.</span></p>
@@ -621,44 +621,44 @@ August 2026. Note these are four <em>different</em> plays from session 8's six �
   <tr><td><code>wit</code></td>   <td>20</td><td>15</td><td>2</td><td>3</td></tr>
 </table>
 
-<p>Small change, and it buys a lot. A 1 said <em>this play contains the word</em>. A 58 says
-<em>this play is substantially about fools</em>. We have gone from <strong>contains</strong> to
-<strong>how much about</strong>.</p>
+<p>The change is small and its consequences are not. A 1 recorded that a play contains the word.
+A 58 indicates that the play is substantially concerned with fools. We have moved from
+<strong>contains</strong> to <strong>how much about</strong>.</p>
 
 <h2>Columns as vectors</h2>
 
-<p>Session 8 read this table in <strong>rows</strong> — each row a string of bits saying which
-plays contain a word, which is what Boolean queries need.</p>
+<p>Session 8 read this table in <strong>rows</strong>, each row a string of bits recording which
+plays contain a given word, which is what Boolean queries require.</p>
 
-<p>Read it in <strong>columns</strong> instead. Take <em>As You Like It</em>:</p>
+<p>We now read it in <strong>columns</strong> instead. Taking <em>As You Like It</em>:</p>
 
 <pre><code>As You Like It   =   [ 1, 114, 36, 20 ]
                        ↑   ↑    ↑   ↑
                     battle good fool wit</code></pre>
 
-<p>That is a list of four numbers. A list of numbers is a <strong>vector</strong>. And a vector of
-length four is a <strong>point in four-dimensional space</strong> — one axis per word, and the
+<p>This is a list of four numbers, which is to say a <strong>vector</strong>. A vector of length
+four is a <strong>point in four-dimensional space</strong>: there is one axis per word, and the
 document's position along each axis is how often it uses that word.</p>
 
 <div class="callout">
   <span class="label">The central idea</span>
   <p>Every document becomes a <strong>point in a space with one dimension per vocabulary
-  word</strong>. The collection becomes a cloud of points.</p>
-  <p>And once documents are points, <mark>documents that are close together use words in similar
-  proportions — which is to say, they are about similar things.</mark> Meaning has become
-  position.</p>
-  <p>This is called the <strong>vector space model</strong>, and everything in the rest of this
-  course lives inside it.</p>
+  word</strong>, and the collection becomes a set of points in that space.</p>
+  <p>Once documents are points, <mark>documents lying close together use words in similar
+  proportions, which is to say they concern similar subjects.</mark> Meaning has been converted
+  into position.</p>
+  <p>This is the <strong>vector space model</strong>, and the remainder of the course operates
+  within it.</p>
 </div>
 
-<p>Session 8's matrix could answer one kind of question: does this document contain these words?
-Useful, and limited. The vector space model answers a different kind: <em>which of these documents
-resemble each other?</em> Nothing in Unit I could do that.</p>
+<p>Session 8's matrix answered one kind of question: does this document contain these words? The
+vector space model answers a different one: which of these documents resemble each other? Nothing
+in Unit I could answer the second.</p>
 
 <h3>Plotting two of the dimensions</h3>
 
-<p>Four dimensions cannot be drawn, so take two of them — <code>battle</code> and <code>fool</code>
-— and plot the four plays on those axes alone:</p>
+<p>Four dimensions cannot be drawn, so we take two of them, <code>battle</code> and
+<code>fool</code>, and plot the four plays on those axes alone.</p>
 
 <figure>
   <svg viewBox="0 0 520 340" role="img" aria-labelledby="figtitle figdesc">
@@ -710,57 +710,58 @@ resemble each other?</em> Nothing in Unit I could do that.</p>
     <text class="fig-ptname" x="424" y="267" text-anchor="middle">Henry V</text>
   </svg>
   <figcaption>The four plays positioned by how often they use <code>battle</code> and
-  <code>fool</code>. Nobody told the model which plays are comedies. The two comedies landed
-  together in the top left and the two histories landed together along the bottom, purely from
-  word counts.</figcaption>
+  <code>fool</code>. No genre information was supplied. The two comedies fall together in the upper
+  left and the two histories along the bottom, from word counts alone.</figcaption>
 </figure>
 
-<p>That picture is the payoff. <em>As You Like It</em> and <em>Twelfth Night</em> are comedies;
-<em>Julius Caesar</em> and <em>Henry V</em> are histories. The grouping was not put there by
-anyone — it fell out of counting two words.</p>
+<p><em>As You Like It</em> and <em>Twelfth Night</em> are comedies; <em>Julius Caesar</em> and
+<em>Henry V</em> are histories. The grouping was not imposed by anyone; it follows from counting
+two words.</p>
 
-<p>Real vectors have tens of thousands of dimensions rather than two, so we cannot draw them. But
-the closeness is still there, and it can still be measured. <strong>How</strong> to measure it is
+<p>Real vectors have tens of thousands of dimensions rather than two and cannot be drawn. The
+proximity is nonetheless present and can still be measured. How to measure it is the subject of
 session 19.</p>
 
 <h3>Rows as vectors</h3>
 
-<p>We turned the columns into document vectors. The rows work the same way: <code>fool</code> is
-<code>[36, 58, 1, 4]</code> — a word represented by the documents it appears in.</p>
+<p>We have treated the columns as document vectors. The rows behave the same way:
+<code>fool</code> is <code>[36, 58, 1, 4]</code>, a word represented by the documents in which it
+appears.</p>
 
-<p>That is a smaller idea here and an enormous one shortly. If a word can be a vector, then words
-have positions, and words with similar positions are used in similar contexts — which is most of
-the way to what a word <em>means</em>. That is where sessions 21 and 22 go, and it starts here.</p>
+<p>This is a minor observation here and a substantial one later. If a word can be a vector, then
+words have positions, and words with similar positions are used in similar contexts, which is a
+large part of what a word means. Sessions 21 and 22 develop this, and it begins here.</p>
 
 <h2>Sparsity</h2>
 
-<p>Our table had four words. A real vocabulary has 50,000, so every document vector has 50,000
-numbers in it — and a 200-word review can be non-zero in at most 200 of them. Over 99% of every
-vector is zero.</p>
+<p>Our table contained four words. A real vocabulary contains 50,000, so every document vector
+has 50,000 components, and a 200-word review can be non-zero in at most 200 of them. Over 99% of
+every vector is zero.</p>
 
-<p>Such a vector is called <strong>sparse</strong>, and storing it literally would be absurd: a
+<p>Such a vector is called <strong>sparse</strong>, and storing it directly is impractical: a
 million documents by 50,000 words is fifty billion cells, almost all of them 0.</p>
 
-<p>Which is exactly why session 9 built the <strong>inverted index</strong> — a structure that
-stores only the non-zero entries. The vector space model is how we <em>think</em> about documents;
-the inverted index is how we <em>store</em> them. Same information, and the storage question was
-solved before we needed it.</p>
+<p>This is why session 9 built the <strong>inverted index</strong>, a structure that stores only
+the non-zero entries. The vector space model is how we reason about documents; the inverted index
+is how we store them. The information is the same, and the storage problem was solved before we
+needed it here.</p>
 
 <div class="recall">
   <span class="label">Exercise</span>
-  <p>Look at the table again. <code>good</code> has the largest counts by far — 114, 80, 62, 89 —
-  in every single play. If you had to drop one of the four words from the representation, which
-  should go, and why?</p>
+  <p>Consider the table again. <code>good</code> has by far the largest counts, 114, 80, 62, and
+  89, in every play. If one of the four words had to be dropped from the representation, which
+  should it be, and why?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><strong>Drop <code>good</code></strong>, despite it having the biggest numbers by a wide
+    <p><code>good</code> should be dropped, despite having the largest values by a wide
     margin.</p>
-    <p>It appears a lot in <em>all four</em> plays, so it never helps you tell them apart. On the
-    plot it would push every play far along the same axis and separate nothing. Meanwhile
-    <code>battle</code> — whose counts are tiny — cleanly splits the histories from the comedies.</p>
-    <p><mark>A word is useful in proportion to how well it distinguishes documents, not how often
-    it occurs.</mark> Raw counts get this backwards, and they get it worst for exactly the words
-    that are most common.</p>
+    <p>It occurs frequently in all four plays and therefore never helps to distinguish them. On the
+    plot it would push every play far along the same axis and separate nothing.
+    <code>battle</code>, whose counts are small, separates the histories from the comedies
+    cleanly.</p>
+    <p><mark>A word is useful in proportion to how well it distinguishes documents, not to how
+    often it occurs.</mark> Raw counts reverse this, and they do so most severely for exactly the
+    most common words.</p>
   </div>
 </div>
 
@@ -776,9 +777,10 @@ solved before we needed it.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>one document, placed by how often it uses each word</strong>.</p>
-    <p>Columns are documents, rows are words — so a column is a document vector with one dimension
-    per vocabulary word. The first option describes a <em>row</em>, which is also a useful vector
-    (it represents a word) and is where word embeddings come from in sessions 21–22.</p>
+    <p>Columns are documents and rows are words, so a column is a document vector with one
+    dimension per vocabulary word. The first option describes a <em>row</em>, which is also a
+    useful vector, since it represents a word, and is the basis of the word embeddings in sessions
+    21 and 22.</p>
   </div>
 </div>
 
@@ -796,7 +798,8 @@ solved before we needed it.</p>
     order</strong>.</p>
     <p>Both sentences contain the same three words once each, so both produce exactly the same
     vector. The information was destroyed at representation time and nothing downstream can recover
-    it. That is the cost of the model, accepted deliberately — not a bug to be fixed later.</p>
+    it. This is a known cost of the model, accepted deliberately, rather than a defect to be
+    corrected later.</p>
   </div>
 </div>
 
@@ -804,28 +807,29 @@ solved before we needed it.</p>
 
 <div class="callout">
   <span class="label">The main points</span>
-  <p>Bag of words represents a document by its word counts with the order thrown away, which turns
-  each document into a vector — a point in a space with one dimension per vocabulary word. Once
-  documents are points, documents that sit close together use words in similar proportions and are
-  therefore about similar things, and that single idea is what makes search, similarity and every
-  embedding in this course possible.</p>
+  <p>Bag of words represents a document by its word counts, with the order discarded, which turns
+  each document into a vector: a point in a space with one dimension per vocabulary word. Once
+  documents are points, those lying close together use words in similar proportions and therefore
+  concern similar subjects. This single idea is what makes search, similarity, and every embedding
+  in this course possible.</p>
 </div>
 
-<p>One problem is already visible, and the recall box above is it. <code>good</code> has the
-biggest counts in the table and is the least informative word in it. Raw counts reward words for
-being common, when what we actually want is words that are <em>distinctive</em>.</p>
+<p>One problem is already visible, and the exercise above states it. <code>good</code> has the
+largest counts in the table and is the least informative word in it. Raw counts reward words for
+being common, when what we want is words that are distinctive.</p>
 
-<p>You have met the fix already — session 10 used TF-IDF to rank search results. Next session puts
-it inside the vector instead of inside a score, and re-weights this exact table. What comes out is
-not what you would guess from the plot above.</p>
+<p>The correction has already appeared: session 10 used TF-IDF to rank search results. Session 18
+places it inside the vector rather than inside a score and re-weights this same table. The result
+is not what the plot above would suggest.</p>
 
 <h2>Reading</h2>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
-Language Processing</a></strong> (Jurafsky &amp; Martin, 3rd edition), <strong>§11.1</strong>
-("The Vector Space Model", inside the Information Retrieval chapter) — free online, and the source
-of the Shakespeare counts. <strong>Note this is chapter 11, not chapter 5</strong> — chapter 5 in
-this edition covers word embeddings and explicitly leaves this material to chapter 11.
+Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>§11.1</strong>, "The
+Vector Space Model", within the Information Retrieval chapter. It is available free online and is
+the source of the Shakespeare counts. <strong>Note that this is chapter 11, not chapter 5</strong>:
+chapter 5 in this edition covers word embeddings and explicitly defers this material to chapter
+11.
 <a href="https://nlp.stanford.edu/IR-book/">Introduction to Information Retrieval</a> chapter 6
 covers the same model from the search side.</p>
 

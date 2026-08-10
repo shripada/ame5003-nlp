@@ -570,8 +570,9 @@ figcaption {
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 20</p>
   <h1>Neural networks in one hour</h1>
-  <p class="subtitle">Nothing today is usable on its own, and that is deliberate. This hour is the
-  machinery next session needs — five ideas, each one picked because Word2Vec uses it.</p>
+  <p class="subtitle">Nothing in this session is usable on its own, which is deliberate. It
+  supplies the machinery session 21 requires: five ideas, each selected because Word2Vec uses
+  it.</p>
 </header>
 
 <div class="wrap">
@@ -580,60 +581,64 @@ figcaption {
 
 <h2>Why this session introduces no new task</h2>
 
-<p>Sessions 17, 18 and 19 built vectors by <strong>counting</strong> and <strong>weighting</strong>.
-Count the words, damp the counts with a log, reweight with idf, compare with a cosine. Every step was
-something you could do by hand, and every session ended with a method you could use that day.</p>
+<p>Sessions 17, 18, and 19 built vectors by <strong>counting</strong> and
+<strong>weighting</strong>: count the words, damp the counts with a logarithm, reweight with idf,
+and compare with a cosine. Every step could be carried out by hand, and every session ended with a
+usable method.</p>
 
-<p>Session 21 builds word vectors a different way: it <strong>learns</strong> them. Nobody counts
-anything into the vector. The vector starts as random numbers and gets adjusted, over and over, until
-it is good at a prediction task. That is a completely different kind of machine, and it needs
-machinery we have not got.</p>
+<p>Session 21 builds word vectors differently: it <strong>learns</strong> them. Nothing is counted
+into the vector. The vector begins as random numbers and is adjusted repeatedly until it performs
+well on a prediction task. This is a different kind of system, and it requires machinery we do not
+yet have.</p>
 
-<p>So today is the machinery. <mark>Nothing in this hour is usable on its own</mark> — there is no
-method at the end, no dataset, nothing to run. It exists so that next session is not magic.</p>
+<p>This session supplies that machinery. <mark>Nothing here is usable on its own</mark>: there is
+no method at the end, no dataset, and nothing to run. It exists so that no step in session 21 is
+unexplained.</p>
 
 <div class="callout">
   <span class="label">The result this session is aiming at</span>
   <p>Lab 7 measured sentiment classification on 2,000 real movie reviews and left two baselines on
   the table: <strong>0.809</strong> accuracy from raw counts, <strong>0.823</strong> from sublinear
   TF-IDF. Those are what counting and weighting get you.</p>
-  <p>Word2Vec is the next entry in that table. It is worth an hour of prerequisites only if learned
-  vectors can beat 0.823 — and that is a question we will be able to answer, not assert.</p>
+  <p>Word2Vec is the next entry in that table. An hour of prerequisites is justified only if
+  learned vectors can improve on 0.823, and that is a question we will be able to answer by
+  measurement rather than assertion.</p>
 </div>
 
 <h2>Where this has already appeared</h2>
 
-<p>Here is session 16's classifier, in log space, exactly as we wrote it:</p>
+<p>Session 16's classifier, in log space, was:</p>
 
 <pre><code>best class  =  argmax   log P(c)  +  Σ log P(w | c)
                 c in C             w in d</code></pre>
 
-<p>And here is the object we are about to define, which is supposedly the foundation of modern
-NLP:</p>
+<p>The object we are about to define, which underlies the neural models in the rest of the
+course, is:</p>
 
 <pre><code>score  =  b  +  Σ wᵢ xᵢ
                  i</code></pre>
 
-<p>Look at the shape of them. <code>log P(c)</code> is a constant added on regardless of the
-document — that is <code>b</code>. Each <code>log P(w|c)</code> is a fixed number attached to a
-word, multiplied by how many times that word occurs — that is <code>wᵢxᵢ</code>. Naïve Bayes in log
-space <strong>is a weighted sum of features</strong>. You built one in session 16 and nobody called
-it a neural anything.</p>
+<p>Compare their shapes. <code>log P(c)</code> is a constant added regardless of the document,
+which is <code>b</code>. Each <code>log P(w|c)</code> is a fixed number attached to a word,
+multiplied by the number of times that word occurs, which is <code>wᵢxᵢ</code>. Naïve Bayes in log
+space <strong>is a weighted sum of features</strong>. We built one in session 16 without calling it
+a neural network.</p>
 
 <div class="callout">
   <span class="label">The essential difference</span>
   <p><mark>Naïve Bayes' weights are counted. A neuron's weights are fitted.</mark></p>
-  <p>Session 16 got its weights by counting how often each word appeared in each class and taking a
-  log. There was no choice involved and no adjustment — count, divide, done. A neuron's weights start
-  as arbitrary numbers and are <em>nudged</em> until the whole thing predicts well.</p>
-  <p>That is what buys us things counting cannot do. Counting cannot notice that a feature is
-  useless; fitting can drive its weight to zero. Counting cannot notice that two features only matter
-  together; fitting a second layer can.</p>
+  <p>Session 16 obtained its weights by counting how often each word appeared in each class and
+  taking a logarithm. No choice or adjustment was involved: count, divide, and the weights are
+  fixed. A neuron's weights begin as arbitrary numbers and are adjusted until the model predicts
+  well.</p>
+  <p>This is what makes possible things counting cannot do. Counting cannot detect that a feature
+  is useless, whereas fitting can drive its weight to zero. Counting cannot detect that two
+  features matter only in combination, whereas fitting a second layer can.</p>
 </div>
 
 <h2>The neuron</h2>
 
-<p>A neuron is a weighted sum, plus a constant, pushed through one function. That is the entire
+<p>A neuron is a weighted sum, plus a constant, passed through one function. That is the entire
 object:</p>
 
 <pre><code>y  =  f( Σ wᵢxᵢ + b )</code></pre>
@@ -691,16 +696,17 @@ non-linear step. The sum inside is often written <code>z</code> and called the
     <text class="fig-label" x="412" y="232" text-anchor="middle">f(·)</text>
     <text class="fig-axname" x="330" y="262" text-anchor="middle">one number in, one number out</text>
   </svg>
-  <figcaption>The whole object. Everything to the left of the split is arithmetic you did in session
-  16; everything modern is on the right of it, and it is one function.</figcaption>
+  <figcaption>The complete object. Everything to the left of the split is the arithmetic carried
+  out in session 16; the only addition is the single function on the right.</figcaption>
 </figure>
 
 <h3>A worked example</h3>
 
-<p>Take three features from a movie review — how many times it contains <code>great</code>,
-<code>the</code> and <code>awful</code> — and a neuron with plausible weights already in place.
-<mark>These weights were chosen to make a point, not trained</mark> — nothing on this page fits
-anything; that is lab 8's job. The arithmetic below is real:</p>
+<p>Consider three features from a movie review, namely how many times it contains
+<code>great</code>, <code>the</code>, and <code>awful</code>, together with a neuron whose weights
+are already set. <mark>These weights were chosen to illustrate a point rather than trained</mark>;
+nothing on this page is fitted to any data, which is lab 8's subject. The arithmetic below is
+exact:</p>
 
 <pre><code>w  =  [ 1.4,  0.0, -1.9 ]      b = -1.0
                                         f = sigmoid
@@ -713,25 +719,25 @@ review B:  x = [0, 5, 3]
            z = 1.4×0 + 0.0×5 + (-1.9)×3 - 1.0  =  -6.7
            y = sigmoid(-6.7)  =  0.001</code></pre>
 
-<p>The output is a number between 0 and 1 and reads naturally as "probability this review is
-positive". Review A gets 0.858, review B gets 0.001.</p>
+<p>The output is a number between 0 and 1 and can be read as the probability that the review is
+positive. Review A receives 0.858 and review B 0.001.</p>
 
-<p>Worth stopping on the middle weight. <code>the</code> carries a weight of
-<strong>essentially zero</strong>, so it contributes nothing to either verdict however often it
-appears — and a weight near zero is a thing fitting <em>can</em> arrive at. Session 16 could not.
-Naïve Bayes counted <code>the</code> in both classes and dutifully carried two nearly-equal log
-terms around forever, which is exactly why we spent session 4 on stop-word lists. <mark>Fitted
-weights can make some of our preprocessing unnecessary</mark> — the model can learn to ignore a
-word rather than being told to.</p>
+<p>The middle weight deserves attention. <code>the</code> carries a weight of essentially zero, so
+it contributes nothing to either result however often it appears, and a weight near zero is
+something fitting can arrive at on its own. Session 16 could not. Naïve Bayes counted
+<code>the</code> in both classes and carried two nearly equal log terms indefinitely, which is why
+session 4 was spent on stop-word lists. <mark>Fitted weights can make some preprocessing
+unnecessary</mark>, since the model can learn to ignore a word rather than being instructed to.</p>
 
 <div class="callout">
   <span class="label">The sigmoid</span>
   <p><code>σ(z) = 1 / (1 + e<sup>−z</sup>)</code></p>
-  <p>It takes any number at all and squashes it into <code>(0, 1)</code>. Large positive
-  <code>z</code> → near 1, large negative → near 0, and <code>σ(0) = 0.5</code> exactly. That is why
-  its output is readable as a probability, and it is why we are showing it today: session 21's
-  negative sampling scores a word pair as <code>σ(u·v)</code>, precisely this function on precisely a
-  dot product.<span class="sidenote">The other activation you will meet is <strong>ReLU</strong>,
+  <p>It maps any real number into the interval <code>(0, 1)</code>. Large positive <code>z</code>
+  gives a value near 1, large negative <code>z</code> gives a value near 0, and
+  <code>σ(0) = 0.5</code> exactly. This is why its output can be read as a probability, and it is
+  why we introduce it here: session 21's negative sampling scores a word pair as
+  <code>σ(u·v)</code>, which is this function applied to a dot
+  product.<span class="sidenote">The other activation you will meet is <strong>ReLU</strong>,
   <code>f(z) = max(0, z)</code> — pass positives through, flatten negatives to zero. It is the
   default in everything from session 23 onward, because it is cheap and it does not squash gradients
   to nothing. We will introduce it properly when Unit III needs it.</span></p>
@@ -739,29 +745,30 @@ word rather than being told to.</p>
 
 <h2>Why the non-linearity is necessary</h2>
 
-<p>The obvious question: why bother with <code>f</code>? Why not just take the weighted sum and stack
-those?</p>
+<p>It is reasonable to ask why <code>f</code> is needed at all, rather than simply stacking
+weighted sums.</p>
 
-<p>Because a stack of linear layers is a linear layer. Feed one into another:</p>
+<p>The reason is that a stack of linear layers is itself a linear layer. Feeding one into
+another:</p>
 
 <pre><code>layer 1:   h  =  W₁x
 layer 2:   y  =  W₂h  =  W₂(W₁x)  =  (W₂W₁)x  =  Wx</code></pre>
 
-<p><code>W₂W₁</code> is just some other matrix. Three layers collapse the same way, and so do
-thirty. <mark>Without a non-linearity, depth buys you nothing at all</mark> — a hundred-layer linear
-network can compute exactly what one layer can. The activation function is the thing that stops the
-collapse, and it is the entire reason "deep" learning is a phrase.</p>
+<p><code>W₂W₁</code> is simply another matrix. Three layers collapse in the same way, as do
+thirty. <mark>Without a non-linearity, depth provides nothing</mark>: a hundred-layer linear
+network computes exactly what one layer computes. The activation function is what prevents this
+collapse, and it is the reason depth is meaningful at all.</p>
 
 <div class="callout warn">
   <span class="label">Word2Vec is deliberately shallow</span>
-  <p>Say this now, because next session will otherwise look like it contradicts the paragraph above.
-  <strong>Word2Vec has no hidden non-linearity.</strong> CBOW is: average some vectors, one matrix
-  multiply, softmax. That is it.</p>
-  <p>The collapse argument is about <em>depth</em>, and Word2Vec is not deep — being shallow is the
-  point of it, and it is why the thing can train on a billion words on a laptop from 2013. Depth
-  starts in Unit III.</p>
-  <p>You will still see a sigmoid in session 21, in negative sampling. It is not a hidden layer; it
-  is turning one dot product into one probability.</p>
+  <p>This must be stated now, or session 21 will appear to contradict the paragraph above.
+  <strong>Word2Vec has no hidden non-linearity.</strong> CBOW consists of averaging some vectors,
+  one matrix multiply, and a softmax.</p>
+  <p>The collapse argument concerns <em>depth</em>, and Word2Vec is not deep. Being shallow is
+  deliberate, and it is why the model can be trained on a billion words on modest hardware. Depth
+  begins in Unit III.</p>
+  <p>A sigmoid does appear in session 21, in negative sampling. It is not a hidden layer; it
+  converts a single dot product into a single probability.</p>
 </div>
 
 <h2>A layer is a matrix multiply</h2>
@@ -773,13 +780,13 @@ Rather than write out one sum per neuron, stack the rows into a matrix and write
 
     W is (out × in)     x is (in)     b is (out)     y is (out)</code></pre>
 
-<p>Nothing has changed. Row <code>i</code> of <code>W</code> times <code>x</code> is exactly neuron
-<code>i</code>'s weighted sum, and there are as many rows as there are neurons. This is notation, not
-a new idea, and it is worth doing once so that <code>Wx + b</code> is readable on sight next
-session.</p>
+<p>Nothing has changed. Row <code>i</code> of <code>W</code> multiplied by <code>x</code> is
+exactly neuron <code>i</code>'s weighted sum, and there are as many rows as neurons. This is
+notation rather than a new idea, introduced here so that <code>Wx + b</code> is immediately
+readable in session 21.</p>
 
-<p>Here is that notation with session 21's actual shapes in it, so that when you see them you have
-seen them before. Vocabulary of 10,000 words, vectors of 300 numbers:</p>
+<p>The same notation with session 21's actual shapes, for a vocabulary of 10,000 words and vectors
+of 300 numbers:</p>
 
 <pre><code>E   embedding matrix    10000 × 300     one row per word in the vocabulary
 x   averaged context      300           mean of a few rows of E — one vector
@@ -790,12 +797,11 @@ p   probabilities       10000           = softmax(z)</code></pre>
 <div class="callout">
   <span class="label">The point session 21 depends on</span>
   <p><mark>The word vectors <em>are</em> a weight matrix.</mark></p>
-  <p><code>E</code> above is a layer's weights, fitted by the same nudging as any other weights. When
-  session 21 finishes training and says "here are the word vectors" — those are the rows of
-  <code>E</code>. There is no separate step where vectors get extracted from the model. The vectors
-  were the model.</p>
-  <p>This surprises everybody the first time. It is worth being surprised by now rather than next
-  week.</p>
+  <p><code>E</code> above is a layer's weights, fitted by the same procedure as any other weights.
+  When session 21 finishes training and refers to the word vectors, it means the rows of
+  <code>E</code>. There is no separate step in which vectors are extracted from the model; the
+  vectors are part of the model.</p>
+  <p>This is worth establishing now rather than in session 21, where it is easy to miss.</p>
 </div>
 
 <h2>Softmax</h2>
@@ -804,14 +810,14 @@ p   probabilities       10000           = softmax(z)</code></pre>
 <strong>probability distribution over the whole vocabulary</strong>, because it is predicting which
 word sits in the middle of a context. Ten thousand words in, ten thousand probabilities out.</p>
 
-<p>We have been handling distributions over words since session 11, but always built from counts.
-Softmax builds one from <em>arbitrary scores</em>:</p>
+<p>We have worked with distributions over words since session 11, but always built from counts.
+Softmax constructs one from arbitrary scores:</p>
 
 <pre><code>              e^(zᵢ)
 softmax(z)ᵢ = ────────
               Σⱼ e^(zⱼ)</code></pre>
 
-<p>Exponentiate every score, then divide each by the total. Worked on three scores:</p>
+<p>Every score is exponentiated and then divided by the total. Applied to three scores:</p>
 
 <table>
   <tr><th>word</th><th>score <code>z</code></th><th><code>e^z</code></th><th>probability</th></tr>
@@ -826,12 +832,12 @@ because <code>e^z</code> is positive whatever <code>z</code> was — including f
 everything <strong>sums to 1</strong>, because we divided by the total. That is the definition of a
 distribution, so the output can be handed straight to anything that expects probabilities.</p>
 
-<p>Notice what the exponential did. <code>bank</code> beat <code>river</code> by 2.0 on the scores —
-a modest lead. In probability it beats it by a factor of <strong>7.4</strong>. That is not a fact
-about these numbers: a gap of 2 always becomes a ratio of <code>e² = 7.39</code>, and a gap of 5
-becomes a ratio of 148. <mark>Softmax exaggerates. Small differences in score become large
-differences in probability</mark>, which is what the "soft" and the "max" in the name are
-about.<span class="sidenote">Adding the same constant to every score changes nothing — it multiplies
+<p>Note the effect of the exponential. <code>bank</code> exceeded <code>river</code> by 2.0 on
+the scores, a modest margin. In probability it exceeds it by a factor of <strong>7.4</strong>. This
+is not specific to these numbers: a gap of 2 always becomes a ratio of <code>e² = 7.39</code>, and
+a gap of 5 becomes a ratio of 148. <mark>Softmax exaggerates, turning small differences in score
+into large differences in probability</mark>, which is what the name refers
+to.<span class="sidenote">Adding the same constant to every score changes nothing — it multiplies
 top and bottom by the same <code>e^c</code>. Real implementations exploit this by subtracting the
 largest score first, so <code>e^z</code> never overflows. Same underflow worry as session 16, same
 family of fix.</span></p>
@@ -848,30 +854,30 @@ family of fix.</span></p>
     <code>11.107</code>.</p>
     <p>Divide each by that total: <strong>0.665, 0.245, 0.090</strong>. (They sum to 1, as they
     must.)</p>
-    <p>Now the second question, which is the point of the exercise. The three scores are
-    <em>evenly spaced</em> — 2, 1, 0, each one step apart. The probabilities are not: the first gap
-    is <strong>0.420</strong> and the second is only <strong>0.155</strong>. Equal steps in score,
-    wildly unequal steps in probability.</p>
-    <p>Both gaps are the same <em>ratio</em> — <code>0.665/0.245 ≈ 0.245/0.090 ≈ 2.718</code>, which
-    is <code>e¹</code> — but ratios near the top of a distribution are worth far more absolute
-    probability than ratios near the bottom. This is the exaggeration, done by hand rather than
-    asserted.</p>
+    <p>The second question is the point of the exercise. The three scores are evenly spaced at 2,
+    1, and 0, each one step apart. The probabilities are not: the first gap is
+    <strong>0.420</strong> and the second only <strong>0.155</strong>. Equal steps in score produce
+    very unequal steps in probability.</p>
+    <p>Both gaps represent the same <em>ratio</em>, since
+    <code>0.665/0.245 ≈ 0.245/0.090 ≈ 2.718</code>, which is <code>e¹</code>. A given ratio near the
+    top of a distribution corresponds to far more absolute probability than the same ratio near the
+    bottom. This is the exaggeration described above, computed rather than asserted.</p>
   </div>
 </div>
 
 <h2>The loss function</h2>
 
-<p>Softmax gave us a distribution. Suppose the correct word was <code>river</code> and we gave it
-0.113. How bad is that, as a number?</p>
+<p>Softmax has given us a distribution. Suppose the correct word was <code>river</code> and the
+model assigned it 0.113. We need a number expressing how poor that is.</p>
 
-<p>The answer the whole field uses is <strong>cross-entropy loss</strong>, and for a single
-prediction it is plain:</p>
+<p>The standard measure is <strong>cross-entropy loss</strong>, which for a single prediction
+is:</p>
 
 <pre><code>loss  =  − log( probability the model gave the correct answer )</code></pre>
 
-<p>That is all of it. Every other word's probability is ignored — but only apparently, because
-raising the right word's probability necessarily lowers the others, softmax having made them sum to
-1. Three cases from the table above:</p>
+<p>That is the whole definition. Every other word's probability is ignored, though only
+apparently: raising the correct word's probability necessarily lowers the others, since softmax
+constrains them to sum to 1. Three cases from the table above:</p>
 
 <table>
   <tr><th>if the correct word was</th><th>we said</th><th>loss</th></tr>
@@ -880,36 +886,40 @@ raising the right word's probability necessarily lowers the others, softmax havi
   <tr><td><code>money</code></td> <td>0.051</td><td><strong>2.980</strong> — badly wrong, large penalty</td></tr>
 </table>
 
-<p>A confident correct answer costs almost nothing; a confident wrong answer costs a lot; and if the
-model ever gave the correct word a probability of exactly 0, the loss would be infinite. Which is
-sensible, and is the same reason session 13 could not tolerate a zero probability.</p>
+<p>A confident correct answer costs almost nothing and a confident wrong answer costs a great
+deal. If the model ever assigned the correct word a probability of exactly 0, the loss would be
+infinite, which is appropriate and is the same reason session 13 could not tolerate a zero
+probability.</p>
 
 <div class="callout">
   <span class="label">This loss under another name</span>
   <p>Session 14 defined <strong>perplexity</strong> as the exponentiated average of exactly this
   quantity — the average of <code>−log P(next word)</code> across a test set, exponentiated.</p>
-  <p>So cross-entropy loss is not new machinery. It is the thing that was inside perplexity all
-  along, used directly rather than dressed up as a branching factor. <mark>Minimising cross-entropy
-  and minimising perplexity are the same act.</mark></p>
+  <p>Cross-entropy loss is therefore not new machinery. It is the quantity that was inside
+  perplexity all along, used directly rather than expressed as a branching factor.
+  <mark>Minimising cross-entropy and minimising perplexity are the same operation.</mark></p>
 </div>
 
 <h2>Gradient descent</h2>
 
-<p>We now have a number that says how wrong the model is, and the model is a pile of weights. The
-last question is how to change the weights to make that number smaller.</p>
+<p>We now have a number expressing how wrong the model is, and the model is a collection of
+weights. The remaining question is how to change those weights so that the number becomes
+smaller.</p>
 
-<p>Think of the loss as a landscape. Every possible setting of the weights is a position, and the
-loss is the height at that position. We want to get to the bottom. We cannot see the landscape — it
-has hundreds of thousands of dimensions and we only ever stand at one point in it — but at any point
-we can work out the <strong>gradient</strong>: which direction is uphill, and how steeply.</p>
+<p>Consider the loss as a surface. Every possible setting of the weights is a position, and the
+loss is the height at that position. We want to reach the lowest point. The surface cannot be
+observed directly, since it has hundreds of thousands of dimensions and we occupy only one point in
+it, but at any point we can compute the <strong>gradient</strong>: the direction of steepest
+increase, and its steepness.</p>
 
-<p>So: work out which way is uphill, take a small step the other way, repeat.</p>
+<p>The procedure is therefore to compute which direction is uphill, take a small step in the
+opposite direction, and repeat.</p>
 
 <pre><code>w  ←  w  −  η · (gradient of the loss with respect to w)</code></pre>
 
-<p><code>η</code> (eta) is the <strong>learning rate</strong>, and it is just how big a step to take.
-Too small and this takes forever; too large and you stride straight over the bottom and up the far
-side.</p>
+<p><code>η</code> (eta) is the <strong>learning rate</strong>, which sets the size of each step.
+Too small and convergence is very slow; too large and each step overshoots the minimum and lands on
+the far side.</p>
 
 <figure>
   <svg viewBox="0 0 560 300" role="img" aria-labelledby="gdtitle gddesc">
@@ -951,11 +961,11 @@ side.</p>
     <text class="fig-axname" x="292" y="292" text-anchor="middle">each step:  w ← w − η · gradient</text>
   </svg>
   <figcaption>Gradient descent on a single weight, with η = 0.2 and a loss of <code>(w−3)²</code>.
-  The steps are the real iterates. They shrink automatically as the curve flattens, because the
-  gradient <em>is</em> the steepness — near the bottom there is little slope left to push you.</figcaption>
+  The points are the actual iterates. The steps shrink automatically as the curve flattens, because
+  the gradient is the steepness: near the minimum there is little slope remaining.</figcaption>
 </figure>
 
-<p>Those are real numbers, and they are small enough to check:</p>
+<p>The values are given below and are small enough to verify by hand:</p>
 
 <table>
   <tr><th>step</th><th><code>w</code></th><th>loss <code>(w−3)²</code></th><th>gradient <code>2(w−3)</code></th></tr>
@@ -967,24 +977,24 @@ side.</p>
   <tr><td>5</td><td>2.767</td><td>0.054</td><td>−0.467</td></tr>
 </table>
 
-<p>The gradient is negative throughout, so <code>w − η·(negative)</code> moves <code>w</code> to the
-right, towards 3. Notice it never quite arrives, and does not need to — the loss is 0.054 after five
-steps and heading to nothing.</p>
+<p>The gradient is negative throughout, so <code>w − η·(negative)</code> moves <code>w</code>
+towards 3. Note that it never exactly arrives, and does not need to: the loss is 0.054 after five
+steps and continues to decrease.</p>
 
-<p>Real training differs from that table in scale, not in kind. Instead of one weight there are
-millions, so the gradient is a list of millions of numbers, one per weight, all updated at once.
-Instead of one loss there is an average over a batch of examples. But the line
-<code>w ← w − η·gradient</code> is unchanged, and it is the line that trains every model in the rest
-of this course.</p>
+<p>Real training differs from this table in scale rather than in kind. Instead of one weight there
+are millions, so the gradient is a list of millions of numbers, one per weight, all updated
+together, and instead of one loss there is an average over a batch of examples. The line
+<code>w ← w − η·gradient</code> is unchanged, and it is what trains every model in the remainder of
+the course.</p>
 
 <div class="callout">
   <span class="label">Backpropagation</span>
   <p>Getting the gradient for a weight buried deep inside a network means differentiating a function
   composed of many others. <strong>Backpropagation is the chain rule applied systematically,
   working backwards from the loss</strong>, reusing each layer's result to get the one before it.</p>
-  <p>That is what you need to know today. It is derived properly in SLP3 §6.6 and it is worth reading
-  eventually, but no session in this course asks you to do it by hand — PyTorch computes gradients
-  for you, and it computes them by doing exactly that.</p>
+  <p>That is sufficient for our purposes. It is derived properly in SLP3 §6.6 and is worth reading
+  eventually, but no session in this course requires it to be carried out by hand. PyTorch computes
+  gradients automatically, by exactly this procedure.</p>
 </div>
 
 <div class="quiz" data-answer="2">
@@ -1042,7 +1052,7 @@ of this course.</p>
 
 <h2>Putting the pieces together</h2>
 
-<p>Here is a sentence from next session. An hour ago it was noise. Read it now:</p>
+<p>The following sentence is from session 21. It should now be readable in full:</p>
 
 <div class="callout">
   <span class="label">Session 21, first ten minutes</span>
@@ -1050,7 +1060,7 @@ of this course.</p>
   softmax, and does gradient descent on the cross-entropy loss."</strong></p>
 </div>
 
-<p>Five nouns. Take them one at a time.</p>
+<p>It contains five terms, taken in turn below.</p>
 
 <table>
   <tr><th>the phrase</th><th>what it means, from today</th></tr>
@@ -1087,33 +1097,33 @@ of this course.</p>
   </tr>
 </table>
 
-<p>That last row is where the whole thing turns over. The word vectors are not an output of training,
-sitting somewhere at the end. They are <em>parameters being trained</em>, adjusted on every single
-example, pushed a little at a time until words that appear in similar contexts have ended up with
-similar vectors. Nobody ever told the model what any word means.</p>
+<p>The last row is the essential point. The word vectors are not an output produced at the end of
+training. They are <em>parameters being trained</em>, adjusted on every example, moved slightly at
+a time until words appearing in similar contexts have similar vectors. No information about meaning
+was supplied to the model.</p>
 
 <div class="callout warn">
   <span class="label">What this session has and has not covered</span>
-  <p>This was a compressed prerequisite and it left a great deal out: backpropagation is named and
-  not derived; there is nothing here on optimisers, regularisation, dropout, batching, or how you
-  actually choose a learning rate; and the softmax over 10,000 words we just described is
-  ruinously expensive to compute, which is why session 21 spends half its time not computing it.</p>
-  <p>You now know enough to read session 21 without any step being magic. That is the whole and only
-  claim.</p>
+  <p>This was a compressed prerequisite and a great deal was omitted. Backpropagation is named
+  rather than derived; there is nothing here on optimisers, regularisation, dropout, batching, or
+  how a learning rate is chosen in practice; and the softmax over 10,000 words described above is
+  extremely expensive to compute, which is why session 21 spends much of its time avoiding it.</p>
+  <p>What this session establishes is enough to follow session 21 with no unexplained step. That is
+  its only claim.</p>
 </div>
 
 <h2>Summary</h2>
 
 <div class="callout">
   <span class="label">The main points</span>
-  <p>A neuron is a weighted sum plus a bias pushed through one non-linear function,
-  <code>y = f(Σwᵢxᵢ + b)</code> — the same shape as session 16's log-space Naïve Bayes score, except
-  the weights are fitted rather than counted. Stack neurons and the sums become one matrix multiply,
-  <code>Wx + b</code>; the non-linearity is what keeps a stack from collapsing into a single layer.
-  Softmax turns any list of scores into a probability distribution by exponentiating and dividing by
-  the total, exaggerating the gaps as it goes. And training is one line — measure how wrong you are
-  with <code>−log</code> of the probability you gave the right answer, then repeatedly nudge every
-  weight downhill by <code>w ← w − η·gradient</code>.</p>
+  <p>A neuron is a weighted sum plus a bias passed through one non-linear function,
+  <code>y = f(Σwᵢxᵢ + b)</code>. This has the same form as session 16's log-space Naïve Bayes score,
+  except that the weights are fitted rather than counted. Stacking neurons turns the sums into a
+  single matrix multiply, <code>Wx + b</code>, and the non-linearity is what prevents a stack from
+  collapsing into one layer. Softmax converts any list of scores into a probability distribution by
+  exponentiating and dividing by the total, exaggerating the differences in the process. Training is
+  a single line: measure the error as <code>−log</code> of the probability assigned to the correct
+  answer, then repeatedly adjust every weight by <code>w ← w − η·gradient</code>.</p>
 </div>
 
 <h2>Reading</h2>
