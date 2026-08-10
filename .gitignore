@@ -20,6 +20,14 @@ desktop.ini
 *.swo
 *~
 
+# Virtual environments. The classroom demos are run with `uv sync`, which
+# creates classroom/.venv — hundreds of megabytes of installed packages that
+# must never be committed. uv recreates it from uv.lock in seconds.
+.venv/
+venv/
+env/
+.python-version.local
+
 # Students may open the notebooks locally before forking to Colab
 .ipynb_checkpoints/
 __pycache__/

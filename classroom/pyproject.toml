@@ -1,0 +1,20 @@
+[project]
+name = "classroom"
+version = "0.1.0"
+description = "Scratch workspace for running NLP course code live in class"
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "gensim>=4.4.0",
+    "matplotlib>=3.11.1",
+    "nltk>=3.10.0",
+    "numpy>=2.5.1",
+    "regex>=2026.7.19",
+    "scikit-learn>=1.9.0",
+    "spacy>=3.8.14",
+]
+
+[dependency-groups]
+dev = [
+    "pdbpp>=0.12.1",
+]
