@@ -509,6 +509,18 @@ figcaption {
 .fig-head-b { fill: var(--ok); }
 .fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
 .fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }

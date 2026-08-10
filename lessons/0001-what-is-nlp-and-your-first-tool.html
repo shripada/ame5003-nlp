@@ -509,6 +509,18 @@ figcaption {
 .fig-head-b { fill: var(--ok); }
 .fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
 .fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -582,6 +594,67 @@ noticing:</p>
 
 <p>We will cover every one of these. By the end of the course you will have built simplified
 versions of most of them.</p>
+
+<h2>How NLP relates to artificial intelligence</h2>
+
+<p>Three terms appear alongside NLP constantly, and they are related but not interchangeable.</p>
+
+<ul>
+  <li><strong>Artificial intelligence</strong> (AI) is the broadest: getting a computer to do
+  something that previously required a person.</li>
+  <li><strong>Machine learning</strong> is one approach to that. Rather than writing the rules
+  ourselves, we supply examples and the program derives the rules from them.</li>
+  <li><strong>Deep learning</strong> is one kind of machine learning, using networks of many
+  layers. It is the subject of Unit III.</li>
+</ul>
+
+<p>Each of these is contained in the one before it. NLP is not a fourth item in the list. NLP is a
+<em>problem</em> — human language — and the three above are approaches that can be brought to bear
+on it.</p>
+
+<figure>
+  <svg viewBox="0 0 620 420" role="img" aria-labelledby="aititle aidesc">
+    <title id="aititle">How NLP overlaps artificial intelligence, machine learning and deep
+    learning</title>
+    <desc id="aidesc">Three nested circles on the right: artificial intelligence contains machine
+    learning, which contains deep learning. A large NLP circle on the left overlaps machine
+    learning and deep learning, but extends well outside artificial intelligence altogether. A
+    smaller linguistic processing circle sits further left, overlapping NLP and lying entirely
+    outside artificial intelligence. A computer vision circle at the lower right also overlaps
+    machine learning and deep learning while extending outside artificial intelligence, showing
+    that NLP is one problem area among several.</desc>
+
+    <circle class="fig-set fig-set-ai" cx="420" cy="190" r="165"></circle>
+    <circle class="fig-set fig-set-ml" cx="430" cy="205" r="120"></circle>
+    <circle class="fig-set fig-set-dl" cx="440" cy="220" r="70"></circle>
+    <circle class="fig-set fig-set-nlp" cx="270" cy="250" r="135"></circle>
+    <circle class="fig-set fig-set-side" cx="132" cy="188" r="72"></circle>
+    <circle class="fig-set fig-set-side" cx="500" cy="320" r="85"></circle>
+
+    <text class="fig-setname" x="420" y="55">Artificial intelligence</text>
+    <text class="fig-setname" x="430" y="112">Machine learning</text>
+    <text class="fig-setname" x="440" y="225">Deep learning</text>
+    <text class="fig-setname" x="200" y="315">NLP</text>
+    <text class="fig-setname-sm" x="118" y="182">Linguistic</text>
+    <text class="fig-setname-sm" x="118" y="199">processing</text>
+    <text class="fig-setname-sm" x="516" y="368">Computer vision</text>
+  </svg>
+  <figcaption>NLP overlaps machine learning without being contained by it. The part of the NLP
+  circle outside artificial intelligence is where this course begins: the regular expressions in
+  sessions 1 and 2 are NLP, and nothing in them learns anything. Computer vision is drawn to show
+  that NLP is one problem area among several, not the only one these methods are applied to.</figcaption>
+</figure>
+
+<p>The position of the NLP circle is the part worth reading carefully. Some of NLP lies inside
+machine learning, and a substantial part lies outside it, overlapping instead with the older
+discipline of <strong>linguistic processing</strong>. A regular expression that extracts every date
+from a document is doing NLP, and it learns nothing: we wrote the rule ourselves. That is the whole
+of Unit I.</p>
+
+<p>The problem of language has been approached in three ways, in roughly this historical order:
+hand-written rules, then machine learning, then deep learning. <mark>This course follows the same
+order, one unit at a time</mark>, which is why session 2 is a regular expression and session 20 is a
+neural network.</p>
 
 <h2>Why language is hard for computers</h2>
 
