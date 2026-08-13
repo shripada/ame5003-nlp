@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -688,28 +834,26 @@ what remains is a per-word figure comparable across texts of different sizes.</p
 <p><strong>Perplexity</strong> is the probability of the test set, inverted, and normalised per
 token:</p>
 
-<pre><code>PP(W)  =  P(w₁ w₂ … w_N) ^ (−1/N)
-
-       =  the N-th root of  1 / P(W)</code></pre>
+<div class="meq"><math data-tex="\mathrm{PP}(W) = P(w_1 w_2 \ldots w_N)^{-1/N} = \sqrt[N]{\frac{1}{P(W)}}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>P</mi><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><msub><mi>w</mi><mn>2</mn></msub><mo>…</mo><msub><mi>w</mi><mi>N</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></msup><mo>=</mo><mroot><mfrac><mn>1</mn><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac><mi>N</mi></mroot></mrow></math></div>
 
 <p>Two separate operations are combined in this expression, and it is worth distinguishing
 them:</p>
 
 <ul>
-  <li>The <strong>−1</strong> inverts the probability, so that a high probability becomes a low
+  <li>The <math data-tex="-1"><mrow><mo form="prefix" stretchy="false">−</mo><mn>1</mn></mrow></math> inverts the probability, so that a high probability becomes a low
   number. <strong>Lower perplexity is therefore better</strong>, which is the most commonly
   misremembered property of the measure.</li>
-  <li>The <strong>1/N</strong> takes the N-th root, which removes the effect of length, converting
+  <li>The <math data-tex="1/N"><mrow><mn>1</mn><mi>/</mi><mi>N</mi></mrow></math> takes the <math data-tex="N"><mi>N</mi></math>-th root, which removes the effect of length, converting
   a whole-text probability into a per-token quantity.</li>
 </ul>
 
 <div class="callout">
-  <span class="label">What N counts</span>
-  <p><strong>N is the number of tokens the model predicted</strong> — so it
+  <span class="label">What <math data-tex="N"><mi>N</mi></math> counts</span>
+  <p><strong><math data-tex="N"><mi>N</mi></math> is the number of tokens the model predicted</strong> — so it
   <em>includes</em> <code>&lt;/s&gt;</code> and <em>excludes</em> <code>&lt;s&gt;</code>. Exactly
-  the same rule that made V = 10 rather than 11 last session: <code>&lt;s&gt;</code> is only ever
-  context, never a prediction.</p>
-  <p>Our four-sentence corpus contains 26 such tokens. If N is wrong, every perplexity computed
+  the same rule that made <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math> rather than 11 last session: <code>&lt;s&gt;</code> is only
+  ever context, never a prediction.</p>
+  <p>Our four-sentence corpus contains 26 such tokens. If <math data-tex="N"><mi>N</mi></math> is wrong, every perplexity computed
   below is wrong as well, and nothing will indicate the error.</p>
 </div>
 
@@ -719,11 +863,11 @@ them:</p>
 approximately the number of choices the model was effectively selecting between at each step, its
 <strong>average branching factor</strong>.</p>
 
-<p>Consider the simplest possible model over our vocabulary of V = 10, one that has learned nothing
-and treats every next token as equally likely with probability 1/10. Its perplexity on any test text
-is exactly <strong>10</strong>:</p>
+<p>Consider the simplest possible model over our vocabulary of <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math>, one that has learned
+nothing and treats every next token as equally likely with probability <math data-tex="1/10"><mrow><mn>1</mn><mi>/</mi><mn>10</mn></mrow></math>. Its perplexity
+on any test text is exactly <strong>10</strong>:</p>
 
-<pre><code>PP  =  ((1/10)^N) ^ (−1/N)  =  10</code></pre>
+<div class="meq"><math data-tex="\mathrm{PP} = \left(\left(\tfrac{1}{10}\right)^{N}\right)^{-1/N} = 10" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>10</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mi>N</mi></msup><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></msup><mo>=</mo><mn>10</mn></mrow></math></div>
 
 <p>The value is ten because at every position the model selects blindly among ten options. This
 is the standard any real model must improve on. A model with perplexity 4 over the same vocabulary
@@ -759,7 +903,7 @@ improve on 10.</p>
 <p>Session 12 scored <code>I want to eat Indian food</code> at 1/3. It has 7 predicted tokens
 (<code>I want to eat Indian food &lt;/s&gt;</code>), so:</p>
 
-<pre><code>PP  =  (1/3) ^ (−1/7)  =  3 ^ (1/7)  =  1.17</code></pre>
+<div class="meq"><math data-tex="\mathrm{PP} = \left(\tfrac{1}{3}\right)^{-1/7} = 3^{1/7} = 1.17" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><msup><mn>3</mn><mrow><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><mn>1.17</mn></mrow></math></div>
 
 <p>The value is 1.17 against a reference of 10, so the model is behaving as though it identified
 the next word almost exactly at every step.</p>
@@ -780,11 +924,12 @@ the next word almost exactly at every step.</p>
 is composed entirely of words it does know: <code>I want Chinese food</code>. All four words are in
 the vocabulary.</p>
 
-<pre><code>P(I want Chinese food)
-  =  3/4  ×  3/3  ×  0/3  ×  1/1  ×  4/4       ← count(want Chinese) = 0
-  =  0
+<div class="meq"><math data-tex="P(\text{I want Chinese food}) = \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{0}{3} \times \tfrac{1}{1} \times \tfrac{4}{4} = 0" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want Chinese food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>0</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>1</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>4</mn></mfrac></mstyle><mo>=</mo><mn>0</mn></mrow></math></div>
 
-PP  =  0 ^ (−1/5)  =  1/0  =  ∞</code></pre>
+<p>The third factor is zero because <math data-tex="\mathrm{count}(\text{want Chinese}) = 0"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>want Chinese</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>, and the
+perplexity that follows is a division by zero:</p>
+
+<div class="meq"><math data-tex="\mathrm{PP} = 0^{-1/5} = \frac{1}{0} = \infty" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mo>=</mo><msup><mn>0</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><mfrac><mn>1</mn><mn>0</mn></mfrac><mo>=</mo><mi>∞</mi></mrow></math></div>
 
 <p>The perplexity is infinite. This is not a large number but an undefined one, arising from
 division by zero, and the sentence itself is perfectly ordinary; it merely pairs two words the
@@ -798,8 +943,9 @@ to report.</p>
 
 <h3>4 · The same sentence, add-one smoothed → 4.69</h3>
 
-<p>We now apply session 13's add-one estimate, <code>(count(w₁w₂) + 1) / (count(w₁) + V)</code>,
-with V = 10:</p>
+<p>We now apply session 13's add-one estimate,
+<math data-tex="\bigl(\mathrm{count}(w_1 w_2) + 1\bigr) / \bigl(\mathrm{count}(w_1) + V\bigr)"><mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mpadded lspace="0"><mi>count</mi></mpadded><mo form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><msub><mi>w</mi><mn>2</mn></msub><mo form="postfix" stretchy="false">)</mo><mo>+</mo><mn>1</mn><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mi>/</mi><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mpadded lspace="0"><mi>count</mi></mpadded><mo form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo form="postfix" stretchy="false">)</mo><mo>+</mo><mi>V</mi><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></math>, with
+<math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math>:</p>
 
 <table>
   <tr><th>bigram</th><th>counts</th><th>add-one probability</th></tr>
@@ -810,9 +956,10 @@ with V = 10:</p>
   <tr><td><code>food &lt;/s&gt;</code></td>  <td>4 / 4</td><td>5/14 = 0.357</td></tr>
 </table>
 
-<pre><code>P  =  4/14 × 4/13 × 1/13 × 2/11 × 5/14  =  0.000439
-
-PP =  0.000439 ^ (−1/5)  =  4.69</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+P &amp;= \tfrac{4}{14} \times \tfrac{4}{13} \times \tfrac{1}{13} \times \tfrac{2}{11} \times \tfrac{5}{14} = 0.000439 \\
+\mathrm{PP} &amp;= 0.000439^{-1/5} = 4.69
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>P</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>14</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>13</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>13</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>11</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>5</mn><mn>14</mn></mfrac></mstyle><mo>=</mo><mn>0.000439</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>PP</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msup><mn>0.000439</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><mn>4.69</mn></mrow></mtd></mtr></mtable></math></div>
 
 <p>The result is <strong>4.69</strong>, and this number is meaningful. Over a vocabulary of 10,
 the model behaves as though selecting between roughly five options at each step rather than ten.
@@ -822,9 +969,9 @@ From four sentences of training text, this is a legitimate result.</p>
 
 <table>
   <tr><th>model, and what it was scored on</th><th>perplexity</th></tr>
-  <tr><td>knows nothing (uniform over V = 10)</td><td>10</td></tr>
+  <tr><td>knows nothing (uniform over <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math>)</td><td>10</td></tr>
   <tr><td>bigram MLE, scored on a <em>training</em> sentence</td><td>1.17 — meaningless</td></tr>
-  <tr><td>bigram MLE, scored on a <em>test</em> sentence</td><td>∞ — unusable</td></tr>
+  <tr><td>bigram MLE, scored on a <em>test</em> sentence</td><td><math data-tex="\infty"><mi>∞</mi></math> — unusable</td></tr>
   <tr><td>bigram add-one, scored on a <em>test</em> sentence</td><td><strong>4.69</strong></td></tr>
 </table>
 
@@ -837,7 +984,7 @@ From four sentences of training text, this is a legitimate result.</p>
 
 <p>One qualification applies throughout: perplexity is normally computed over a <strong>whole test
 set</strong> rather than a single sentence. The probabilities of all its sentences are multiplied
-together and N is the total token count. Single sentences are used here only because four training
+together and <math data-tex="N"><mi>N</mi></math> is the total token count. Single sentences are used here only because four training
 sentences are all we have. A test set of one sentence would be of no practical value, being far too
 small to be representative.</p>
 
@@ -902,15 +1049,17 @@ test.</p>
   <span class="label">Exercise</span>
   <p>Session 12 scored two sentences: <code>I want Indian food</code> at 1/4 = 0.250 and
   <code>she wants to eat Indian food</code> at 1/6 = 0.167. By raw probability the first ranks
-  higher. What does perplexity give? Take N as 5 and 7 respectively.</p>
+  higher. What does perplexity give? Take <math data-tex="N"><mi>N</mi></math> as 5 and 7 respectively.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>PP(I want Indian food) = (1/4)^(−1/5) = 4^(1/5) = <strong>1.320</strong></code><br>
-    <code>PP(she wants to eat Indian food) = (1/6)^(−1/7) = 6^(1/7) = <strong>1.292</strong></code></p>
+    <div class="meq"><math data-tex="\begin{aligned}
+\mathrm{PP}(\text{I want Indian food}) &amp;= \left(\tfrac{1}{4}\right)^{-1/5} = 4^{1/5} = 1.320 \\
+\mathrm{PP}(\text{she wants to eat Indian food}) &amp;= \left(\tfrac{1}{6}\right)^{-1/7} = 6^{1/7} = 1.292
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>4</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><msup><mn>4</mn><mrow><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><mn>1.320</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>she wants to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>6</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><msup><mn>6</mn><mrow><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><mn>1.292</mn></mrow></mtd></mtr></mtable></math></div>
     <p>Perplexity reverses the ranking. The longer sentence had the lower raw probability but the
     better per-token score, having simply two more words to account for. Raw probability was partly
     measuring length, and perplexity divides that effect out.</p>
-    <p>This is the −1/N term operating as intended. Note, however, what it is for: length
+    <p>This is the <math data-tex="-1/N"><mrow><mo form="prefix" stretchy="false">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></math> term operating as intended. Note, however, what it is for: length
     normalisation is what permits comparison of a model's performance across test sets of different
     sizes. Perplexity is a measure of <strong>models</strong>, not a ranking of sentences, and it
     should not be understood as a method for deciding which sentence is better English.</p>
@@ -942,7 +1091,7 @@ test.</p>
   <div class="q-opts">
     <button class="opt">Because test sets are far too large for the arithmetic to stay finite</button>
     <button class="opt">Because a single unseen n-gram makes P = 0, and perplexity inverts it</button>
-    <button class="opt">Because unsmoothed models have no vocabulary limit, so N is unbounded</button>
+    <button class="opt">Because unsmoothed models have no vocabulary limit, so <math data-tex="N"><mi>N</mi></math> is unbounded</button>
     <button class="opt">Because perplexity needs probabilities that sum to more than 1 to work</button>
   </div>
   <div class="q-fb">

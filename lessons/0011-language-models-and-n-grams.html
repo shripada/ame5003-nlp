@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -669,7 +815,7 @@ enough to verify by hand.</p>
 <p>To predict the next word properly, we would want to use everything preceding it. Stated
 exactly, the quantity we want is:</p>
 
-<pre><code>P(food | I want to eat Indian)</code></pre>
+<div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
 <p>This reads as "the probability of <code>food</code> given <code>I want to eat Indian</code>".
 It is manageable for five words, but a model must handle any history at all, and most sequences of
@@ -680,10 +826,10 @@ that the history has never been observed.</p>
 <p>We therefore make a trade. Instead of the whole history, we use only the <strong>last few
 words</strong>:</p>
 
-<pre><code>P(food | I want to eat Indian)   ← everything (impossible)
-P(food | Indian)                 ← just the last word (easy)</code></pre>
+<div class="meq"><math data-tex="P(\text{food} \mid \text{Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
-<p>Short histories recur constantly; <code>Indian food</code> appears frequently in any corpus.
+<p>The first form conditions on everything and is impossible to estimate; the second conditions on
+the last word alone and is easy. Short histories recur constantly; <code>Indian food</code> appears frequently in any corpus.
 This trade, discarding the distant history and retaining a small window, is the idea underlying
 n-grams.</p>
 

@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -609,18 +755,16 @@ unexplained.</p>
 
 <p>Session 16's classifier, in log space, was:</p>
 
-<pre><code>best class  =  argmax   log P(c)  +  Σ log P(w | c)
-                c in C             w in d</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \log P(c) + \sum_{w \in d} \log P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mrow><mspace width="0.1667em"></mspace><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
 <p>The object we are about to define, which underlies the neural models in the rest of the
 course, is:</p>
 
-<pre><code>score  =  b  +  Σ wᵢ xᵢ
-                 i</code></pre>
+<div class="meq"><math data-tex="\mathrm{score} = b + \sum_i w_i x_i" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>score</mi></mpadded><mo>=</mo><mi>b</mi><mo>+</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub></mrow></math></div>
 
-<p>Compare their shapes. <code>log P(c)</code> is a constant added regardless of the document,
-which is <code>b</code>. Each <code>log P(w|c)</code> is a fixed number attached to a word,
-multiplied by the number of times that word occurs, which is <code>wᵢxᵢ</code>. Naïve Bayes in log
+<p>Compare their shapes. <math data-tex="\log P(c)"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a constant added regardless of the document,
+which is <math data-tex="b"><mi>b</mi></math>. Each <math data-tex="\log P(w \mid c)"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a fixed number attached to a word,
+multiplied by the number of times that word occurs, which is <math data-tex="w_i x_i"><mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub></mrow></math>. Naïve Bayes in log
 space <strong>is a weighted sum of features</strong>. We built one in session 16 without calling it
 a neural network.</p>
 
@@ -641,11 +785,11 @@ a neural network.</p>
 <p>A neuron is a weighted sum, plus a constant, passed through one function. That is the entire
 object:</p>
 
-<pre><code>y  =  f( Σ wᵢxᵢ + b )</code></pre>
+<div class="meq"><math data-tex="y = f\!\left(\sum_i w_i x_i + b\right)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
-<p><code>x</code> are the inputs, <code>w</code> the weights, <code>b</code> the
-<strong>bias</strong>, and <code>f</code> the <strong>activation function</strong> — the one
-non-linear step. The sum inside is often written <code>z</code> and called the
+<p><math data-tex="x"><mi>x</mi></math> are the inputs, <math data-tex="w"><mi>w</mi></math> the weights, <math data-tex="b"><mi>b</mi></math> the
+<strong>bias</strong>, and <math data-tex="f"><mi>f</mi></math> the <strong>activation function</strong> — the one
+non-linear step. The sum inside is often written <math data-tex="z"><mi>z</mi></math> and called the
 <em>pre-activation</em>.</p>
 
 <figure>
@@ -708,16 +852,16 @@ are already set. <mark>These weights were chosen to illustrate a point rather th
 nothing on this page is fitted to any data, which is lab 8's subject. The arithmetic below is
 exact:</p>
 
-<pre><code>w  =  [ 1.4,  0.0, -1.9 ]      b = -1.0
-                                        f = sigmoid
+<div class="meq"><math data-tex="w = [\,1.4,\, 0.0,\, -1.9\,] \qquad b = -1.0 \qquad f = \sigma" display="block" class="tml-display" style="display:block math;"><mrow><mi>w</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>1.4</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mo>−</mo><mn>1.9</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mspace width="2em"></mspace><mi>b</mi><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mn>1.0</mn><mspace width="2em"></mspace><mi>f</mi><mo>=</mo><mi>σ</mi></mrow></math></div>
 
-review A:  x = [2, 5, 0]
-           z = 1.4×2 + 0.0×5 + (-1.9)×0 - 1.0  =  1.8
-           y = sigmoid(1.8)   =  0.858
-
-review B:  x = [0, 5, 3]
-           z = 1.4×0 + 0.0×5 + (-1.9)×3 - 1.0  =  -6.7
-           y = sigmoid(-6.7)  =  0.001</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+\text{review A:} \quad x &amp;= [\,2,\, 5,\, 0\,] \\
+z &amp;= 1.4{\times}2 + 0.0{\times}5 + (-1.9){\times}0 - 1.0 = 1.8 \\
+y &amp;= \sigma(1.8) = 0.858 \\[4pt]
+\text{review B:} \quad x &amp;= [\,0,\, 5,\, 3\,] \\
+z &amp;= 1.4{\times}0 + 0.0{\times}5 + (-1.9){\times}3 - 1.0 = -6.7 \\
+y &amp;= \sigma(-6.7) = 0.001
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>review A:</mtext><mspace width="1em"></mspace><mi>x</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>2</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>5</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>z</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>1.4</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>2</mn><mo>+</mo><mn>0.0</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>5</mn><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>1.9</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>0</mn><mo>−</mo><mn>1.0</mn><mo>=</mo><mn>1.8</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>y</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1.8</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.858</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>review B:</mtext><mspace width="1em"></mspace><mi>x</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>5</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>3</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>z</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>1.4</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>0</mn><mo>+</mo><mn>0.0</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>5</mn><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>1.9</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>3</mn><mo>−</mo><mn>1.0</mn><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mn>6.7</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>y</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>6.7</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.001</mn></mrow></mtd></mtr></mtable></math></div>
 
 <p>The output is a number between 0 and 1 and can be read as the probability that the review is
 positive. Review A receives 0.858 and review B 0.001.</p>
@@ -731,30 +875,32 @@ unnecessary</mark>, since the model can learn to ignore a word rather than being
 
 <div class="callout">
   <span class="label">The sigmoid</span>
-  <p><code>σ(z) = 1 / (1 + e<sup>−z</sup>)</code></p>
-  <p>It maps any real number into the interval <code>(0, 1)</code>. Large positive <code>z</code>
-  gives a value near 1, large negative <code>z</code> gives a value near 0, and
-  <code>σ(0) = 0.5</code> exactly. This is why its output can be read as a probability, and it is
+  <div class="meq"><math data-tex="\sigma(z) = \frac{1}{1 + e^{-z}}" display="block" class="tml-display" style="display:block math;"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mi>z</mi></mrow></msup></mrow></mfrac></mrow></math></div>
+  <p>It maps any real number into the interval <math data-tex="(0, 1)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>. Large positive <math data-tex="z"><mi>z</mi></math>
+  gives a value near 1, large negative <math data-tex="z"><mi>z</mi></math> gives a value near 0, and
+  <math data-tex="\sigma(0) = 0.5"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.5</mn></mrow></math> exactly. This is why its output can be read as a probability, and it is
   why we introduce it here: session 21's negative sampling scores a word pair as
-  <code>σ(u·v)</code>, which is this function applied to a dot
+  <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, which is this function applied to a dot
   product.<span class="sidenote">The other activation you will meet is <strong>ReLU</strong>,
-  <code>f(z) = max(0, z)</code> — pass positives through, flatten negatives to zero. It is the
+  <math data-tex="f(z) = \max(0, z)"><mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — pass positives through, flatten negatives to zero. It is the
   default in everything from session 23 onward, because it is cheap and it does not squash gradients
   to nothing. We will introduce it properly when Unit III needs it.</span></p>
 </div>
 
 <h2>Why the non-linearity is necessary</h2>
 
-<p>It is reasonable to ask why <code>f</code> is needed at all, rather than simply stacking
+<p>It is reasonable to ask why <math data-tex="f"><mi>f</mi></math> is needed at all, rather than simply stacking
 weighted sums.</p>
 
 <p>The reason is that a stack of linear layers is itself a linear layer. Feeding one into
 another:</p>
 
-<pre><code>layer 1:   h  =  W₁x
-layer 2:   y  =  W₂h  =  W₂(W₁x)  =  (W₂W₁)x  =  Wx</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+\text{layer 1:} \quad h &amp;= W_1 x \\
+\text{layer 2:} \quad y &amp;= W_2 h = W_2 (W_1 x) = (W_2 W_1) x = W x
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>layer 1:</mtext><mspace width="1em"></mspace><mi>h</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>layer 2:</mtext><mspace width="1em"></mspace><mi>y</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msub><mi>W</mi><mn>2</mn></msub><mi>h</mi><mo>=</mo><msub><mi>W</mi><mn>2</mn></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>x</mi><mo>=</mo><mi>W</mi><mi>x</mi></mrow></mtd></mtr></mtable></math></div>
 
-<p><code>W₂W₁</code> is simply another matrix. Three layers collapse in the same way, as do
+<p><math data-tex="W_2 W_1"><mrow><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub></mrow></math> is simply another matrix. Three layers collapse in the same way, as do
 thirty. <mark>Without a non-linearity, depth provides nothing</mark>: a hundred-layer linear
 network computes exactly what one layer computes. The activation function is what prevents this
 collapse, and it is the reason depth is meaningful at all.</p>
@@ -776,30 +922,36 @@ collapse, and it is the reason depth is meaningful at all.</p>
 <p>Put several neurons side by side, all reading the same inputs. Each has its own row of weights.
 Rather than write out one sum per neuron, stack the rows into a matrix and write it once:</p>
 
-<pre><code>y  =  f( Wx + b )
+<div class="meq"><math data-tex="y = f(Wx + b)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
-    W is (out × in)     x is (in)     b is (out)     y is (out)</code></pre>
+<table>
+  <tr><th><math data-tex="W"><mi>W</mi></math></th><th><math data-tex="x"><mi>x</mi></math></th><th><math data-tex="b"><mi>b</mi></math></th><th><math data-tex="y"><mi>y</mi></math></th></tr>
+  <tr><td>out × in</td><td>in</td><td>out</td><td>out</td></tr>
+</table>
 
-<p>Nothing has changed. Row <code>i</code> of <code>W</code> multiplied by <code>x</code> is
-exactly neuron <code>i</code>'s weighted sum, and there are as many rows as neurons. This is
-notation rather than a new idea, introduced here so that <code>Wx + b</code> is immediately
+<p>Nothing has changed. Row <math data-tex="i"><mi>i</mi></math> of <math data-tex="W"><mi>W</mi></math> multiplied by <math data-tex="x"><mi>x</mi></math> is
+exactly neuron <math data-tex="i"><mi>i</mi></math>'s weighted sum, and there are as many rows as neurons. This is
+notation rather than a new idea, introduced here so that <math data-tex="Wx + b"><mrow><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow></math> is immediately
 readable in session 21.</p>
 
 <p>The same notation with session 21's actual shapes, for a vocabulary of 10,000 words and vectors
 of 300 numbers:</p>
 
-<pre><code>E   embedding matrix    10000 × 300     one row per word in the vocabulary
-x   averaged context      300           mean of a few rows of E — one vector
-W'  output matrix       10000 × 300     one row per word again, on the way out
-z   scores              10000           = W'x     one score per vocabulary word
-p   probabilities       10000           = softmax(z)</code></pre>
+<table>
+  <tr><th></th><th>what it is</th><th>shape</th><th>note</th></tr>
+  <tr><td><math data-tex="E"><mi>E</mi></math></td><td>embedding matrix</td><td>10000 × 300</td><td>one row per word in the vocabulary</td></tr>
+  <tr><td><math data-tex="x"><mi>x</mi></math></td><td>averaged context</td><td>300</td><td>mean of a few rows of <math data-tex="E"><mi>E</mi></math> — one vector</td></tr>
+  <tr><td><math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math></td><td>output matrix</td><td>10000 × 300</td><td>one row per word again, on the way out</td></tr>
+  <tr><td><math data-tex="z"><mi>z</mi></math></td><td>scores</td><td>10000</td><td><math data-tex="z = W&#x27;x"><mrow><mi>z</mi><mo>=</mo><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mi>x</mi></mrow></math>, one score per vocabulary word</td></tr>
+  <tr><td><math data-tex="p"><mi>p</mi></math></td><td>probabilities</td><td>10000</td><td><math data-tex="p = \mathrm{softmax}(z)"><mrow><mi>p</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td></tr>
+</table>
 
 <div class="callout">
   <span class="label">The point session 21 depends on</span>
   <p><mark>The word vectors <em>are</em> a weight matrix.</mark></p>
-  <p><code>E</code> above is a layer's weights, fitted by the same procedure as any other weights.
+  <p><math data-tex="E"><mi>E</mi></math> above is a layer's weights, fitted by the same procedure as any other weights.
   When session 21 finishes training and refers to the word vectors, it means the rows of
-  <code>E</code>. There is no separate step in which vectors are extracted from the model; the
+  <math data-tex="E"><mi>E</mi></math>. There is no separate step in which vectors are extracted from the model; the
   vectors are part of the model.</p>
   <p>This is worth establishing now rather than in session 21, where it is easy to miss.</p>
 </div>
@@ -813,14 +965,12 @@ word sits in the middle of a context. Ten thousand words in, ten thousand probab
 <p>We have worked with distributions over words since session 11, but always built from counts.
 Softmax constructs one from arbitrary scores:</p>
 
-<pre><code>              e^(zᵢ)
-softmax(z)ᵢ = ────────
-              Σⱼ e^(zⱼ)</code></pre>
+<div class="meq"><math data-tex="\mathrm{softmax}(z)_i = \frac{e^{z_i}}{\sum_j e^{z_j}}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>softmax</mi></mpadded><msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>i</mi></msub><mo>=</mo><mfrac><msup><mi>e</mi><msub class="tml-sml-pad"><mi>z</mi><mi>i</mi></msub></msup><mrow><msub><mo movablelimits="false">∑</mo><mi>j</mi></msub><msup><mi>e</mi><msub class="tml-sml-pad"><mi>z</mi><mi>j</mi></msub></msup></mrow></mfrac></mrow></math></div>
 
 <p>Every score is exponentiated and then divided by the total. Applied to three scores:</p>
 
 <table>
-  <tr><th>word</th><th>score <code>z</code></th><th><code>e^z</code></th><th>probability</th></tr>
+  <tr><th>word</th><th>score <math data-tex="z"><mi>z</mi></math></th><th><math data-tex="e^z"><msup><mi>e</mi><mi class="tml-sml-pad">z</mi></msup></math></th><th>probability</th></tr>
   <tr><td><code>bank</code></td>  <td>3.0</td><td>20.086</td><td><strong>0.836</strong></td></tr>
   <tr><td><code>river</code></td> <td>1.0</td><td>2.718</td> <td>0.113</td></tr>
   <tr><td><code>money</code></td> <td>0.2</td><td>1.221</td> <td>0.051</td></tr>
@@ -828,30 +978,30 @@ softmax(z)ᵢ = ────────
 </table>
 
 <p>Two properties, and they are the two we need. Everything comes out <strong>positive</strong>,
-because <code>e^z</code> is positive whatever <code>z</code> was — including for negative scores. And
+because <math data-tex="e^z"><msup><mi>e</mi><mi class="tml-sml-pad">z</mi></msup></math> is positive whatever <math data-tex="z"><mi>z</mi></math> was — including for negative scores. And
 everything <strong>sums to 1</strong>, because we divided by the total. That is the definition of a
 distribution, so the output can be handed straight to anything that expects probabilities.</p>
 
 <p>Note the effect of the exponential. <code>bank</code> exceeded <code>river</code> by 2.0 on
 the scores, a modest margin. In probability it exceeds it by a factor of <strong>7.4</strong>. This
-is not specific to these numbers: a gap of 2 always becomes a ratio of <code>e² = 7.39</code>, and
+is not specific to these numbers: a gap of 2 always becomes a ratio of <math data-tex="e^2 = 7.39"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">2</mn></msup><mo>=</mo><mn>7.39</mn></mrow></math>, and
 a gap of 5 becomes a ratio of 148. <mark>Softmax exaggerates, turning small differences in score
 into large differences in probability</mark>, which is what the name refers
 to.<span class="sidenote">Adding the same constant to every score changes nothing — it multiplies
-top and bottom by the same <code>e^c</code>. Real implementations exploit this by subtracting the
-largest score first, so <code>e^z</code> never overflows. Same underflow worry as session 16, same
+top and bottom by the same <math data-tex="e^c"><msup><mi>e</mi><mi class="tml-sml-pad">c</mi></msup></math>. Real implementations exploit this by subtracting the
+largest score first, so <math data-tex="e^z"><msup><mi>e</mi><mi class="tml-sml-pad">z</mi></msup></math> never overflows. Same underflow worry as session 16, same
 family of fix.</span></p>
 
 <div class="recall">
   <span class="label">Exercise (calculator allowed)</span>
   <p>A model produces three scores:</p>
-  <pre><code>z = [2, 1, 0]</code></pre>
+  <div class="meq"><math data-tex="z = [\,2,\, 1,\, 0\,]" display="block" class="tml-display" style="display:block math;"><mrow><mi>z</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>2</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math></div>
   <p>What distribution does softmax turn them into? And which is bigger — the gap between the first
   two probabilities, or the gap between the last two?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>e² = 7.389</code>, <code>e¹ = 2.718</code>, <code>e⁰ = 1.000</code>. They sum to
-    <code>11.107</code>.</p>
+    <p><math data-tex="e^2 = 7.389"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">2</mn></msup><mo>=</mo><mn>7.389</mn></mrow></math>, <math data-tex="e^1 = 2.718"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">1</mn></msup><mo>=</mo><mn>2.718</mn></mrow></math>, <math data-tex="e^0 = 1.000"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">0</mn></msup><mo>=</mo><mn>1.000</mn></mrow></math>. They sum to
+    <math data-tex="11.107"><mn>11.107</mn></math>.</p>
     <p>Divide each by that total: <strong>0.665, 0.245, 0.090</strong>. (They sum to 1, as they
     must.)</p>
     <p>The second question is the point of the exercise. The three scores are evenly spaced at 2,
@@ -859,7 +1009,7 @@ family of fix.</span></p>
     <strong>0.420</strong> and the second only <strong>0.155</strong>. Equal steps in score produce
     very unequal steps in probability.</p>
     <p>Both gaps represent the same <em>ratio</em>, since
-    <code>0.665/0.245 ≈ 0.245/0.090 ≈ 2.718</code>, which is <code>e¹</code>. A given ratio near the
+    <math data-tex="0.665/0.245 \approx 0.245/0.090 \approx 2.718"><mrow><mn>0.665</mn><mi>/</mi><mn>0.245</mn><mo>≈</mo><mn>0.245</mn><mi>/</mi><mn>0.090</mn><mo>≈</mo><mn>2.718</mn></mrow></math>, which is <math data-tex="e^1"><msup><mi>e</mi><mn class="tml-sml-pad">1</mn></msup></math>. A given ratio near the
     top of a distribution corresponds to far more absolute probability than the same ratio near the
     bottom. This is the exaggeration described above, computed rather than asserted.</p>
   </div>
@@ -873,7 +1023,7 @@ model assigned it 0.113. We need a number expressing how poor that is.</p>
 <p>The standard measure is <strong>cross-entropy loss</strong>, which for a single prediction
 is:</p>
 
-<pre><code>loss  =  − log( probability the model gave the correct answer )</code></pre>
+<div class="meq"><math data-tex="\mathrm{loss} = -\log\bigl(\text{probability the model gave the correct answer}\bigr)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>loss</mi></mpadded><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mtext>probability the model gave the correct answer</mtext><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></math></div>
 
 <p>That is the whole definition. Every other word's probability is ignored, though only
 apparently: raising the correct word's probability necessarily lowers the others, since softmax
@@ -894,7 +1044,7 @@ probability.</p>
 <div class="callout">
   <span class="label">This loss under another name</span>
   <p>Session 14 defined <strong>perplexity</strong> as the exponentiated average of exactly this
-  quantity — the average of <code>−log P(next word)</code> across a test set, exponentiated.</p>
+  quantity — the average of <math data-tex="-\log P(\text{next word})"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>next word</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> across a test set, exponentiated.</p>
   <p>Cross-entropy loss is therefore not new machinery. It is the quantity that was inside
   perplexity all along, used directly rather than expressed as a branching factor.
   <mark>Minimising cross-entropy and minimising perplexity are the same operation.</mark></p>
@@ -915,9 +1065,9 @@ increase, and its steepness.</p>
 <p>The procedure is therefore to compute which direction is uphill, take a small step in the
 opposite direction, and repeat.</p>
 
-<pre><code>w  ←  w  −  η · (gradient of the loss with respect to w)</code></pre>
+<div class="meq"><math data-tex="w \leftarrow w - \eta \cdot \left(\text{gradient of the loss with respect to } w\right)" display="block" class="tml-display" style="display:block math;"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mtext>gradient of the loss with respect to </mtext><mi>w</mi><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
-<p><code>η</code> (eta) is the <strong>learning rate</strong>, which sets the size of each step.
+<p><math data-tex="\eta"><mi>η</mi></math> (eta) is the <strong>learning rate</strong>, which sets the size of each step.
 Too small and convergence is very slow; too large and each step overshoots the minimum and lands on
 the far side.</p>
 
@@ -960,7 +1110,8 @@ the far side.</p>
     <!-- the update rule, restated under the picture -->
     <text class="fig-axname" x="292" y="292" text-anchor="middle">each step:  w ← w − η · gradient</text>
   </svg>
-  <figcaption>Gradient descent on a single weight, with η = 0.2 and a loss of <code>(w−3)²</code>.
+  <figcaption>Gradient descent on a single weight, with <math data-tex="\eta = 0.2"><mrow><mi>η</mi><mo>=</mo><mn>0.2</mn></mrow></math> and a loss of
+  <math data-tex="(w-3)^2"><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></math>.
   The points are the actual iterates. The steps shrink automatically as the curve flattens, because
   the gradient is the steepness: near the minimum there is little slope remaining.</figcaption>
 </figure>
@@ -968,7 +1119,7 @@ the far side.</p>
 <p>The values are given below and are small enough to verify by hand:</p>
 
 <table>
-  <tr><th>step</th><th><code>w</code></th><th>loss <code>(w−3)²</code></th><th>gradient <code>2(w−3)</code></th></tr>
+  <tr><th>step</th><th><math data-tex="w"><mi>w</mi></math></th><th>loss <math data-tex="(w-3)^2"><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></math></th><th>gradient <math data-tex="2(w-3)"><mrow><mn>2</mn><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
   <tr><td>start</td><td>0.000</td><td>9.000</td><td>−6.000</td></tr>
   <tr><td>1</td><td>1.200</td><td>3.240</td><td>−3.600</td></tr>
   <tr><td>2</td><td>1.920</td><td>1.166</td><td>−2.160</td></tr>
@@ -977,14 +1128,14 @@ the far side.</p>
   <tr><td>5</td><td>2.767</td><td>0.054</td><td>−0.467</td></tr>
 </table>
 
-<p>The gradient is negative throughout, so <code>w − η·(negative)</code> moves <code>w</code>
+<p>The gradient is negative throughout, so <math data-tex="w - \eta \cdot (\text{negative})"><mrow><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>negative</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> moves <math data-tex="w"><mi>w</mi></math>
 towards 3. Note that it never exactly arrives, and does not need to: the loss is 0.054 after five
 steps and continues to decrease.</p>
 
 <p>Real training differs from this table in scale rather than in kind. Instead of one weight there
 are millions, so the gradient is a list of millions of numbers, one per weight, all updated
 together, and instead of one loss there is an average over a batch of examples. The line
-<code>w ← w − η·gradient</code> is unchanged, and it is what trains every model in the remainder of
+<math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math> is unchanged, and it is what trains every model in the remainder of
 the course.</p>
 
 <div class="callout">
@@ -1013,7 +1164,7 @@ the course.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>the stack collapses</strong>.</p>
-    <p><code>W₂(W₁x) = (W₂W₁)x</code>, and <code>W₂W₁</code> is simply another matrix. A hundred
+    <p><math data-tex="W_2 (W_1 x) = (W_2 W_1) x"><mrow><msub><mi>W</mi><mn>2</mn></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>x</mi></mrow></math>, and <math data-tex="W_2 W_1"><mrow><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub></mrow></math> is simply another matrix. A hundred
     linear layers can compute exactly what one linear layer can compute — you have spent a hundred
     times the arithmetic to buy nothing. The activation function is what breaks the collapse, and it
     is the only reason depth is worth having.</p>
@@ -1039,8 +1190,8 @@ the course.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>the weight matrix of the first layer</strong>.</p>
-    <p>There is no extraction step and no afterwards. The embedding matrix <code>E</code> is
-    <code>10000 × 300</code> — a row of 300 weights for each of 10,000 words — and it is fitted by
+    <p>There is no extraction step and no afterwards. The embedding matrix <math data-tex="E"><mi>E</mi></math> is
+    <math data-tex="10000 \times 300"><mrow><mn>10000</mn><mo>×</mo><mn>300</mn></mrow></math> — a row of 300 weights for each of 10,000 words — and it is fitted by
     the same gradient descent as every other weight in the model. <mark>When training stops, you
     throw away the rest of the network and keep that matrix.</mark> The word vectors were the model's
     weights all along.</p>
@@ -1076,8 +1227,8 @@ the course.</p>
   </tr>
   <tr>
     <td><strong>multiplies by an output matrix</strong></td>
-    <td>A layer: <code>z = W'x</code>. 300 numbers in, one score per vocabulary word out —
-    10,000 of them. Row <em>w</em> of <code>W'</code> is word <em>w</em>'s vector on the way
+    <td>A layer: <math data-tex="z = W&#x27;x"><mrow><mi>z</mi><mo>=</mo><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mi>x</mi></mrow></math>. 300 numbers in, one score per vocabulary word out —
+    10,000 of them. Row <em>w</em> of <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math> is word <em>w</em>'s vector on the way
     out.</td>
   </tr>
   <tr>
@@ -1087,13 +1238,13 @@ the course.</p>
   </tr>
   <tr>
     <td><strong>cross-entropy loss</strong></td>
-    <td><code>−log</code> of the probability it gave the word that was actually there. Small when
+    <td><math data-tex="-\log"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></mrow></math> of the probability it gave the word that was actually there. Small when
     the guess was good.</td>
   </tr>
   <tr>
     <td><strong>gradient descent</strong></td>
-    <td><code>w ← w − η·gradient</code>, applied to every weight — including every number in
-    <code>E</code>. Which is to say: <em>including the word vectors themselves</em>.</td>
+    <td><math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math>, applied to every weight — including every number in
+    <math data-tex="E"><mi>E</mi></math>. Which is to say: <em>including the word vectors themselves</em>.</td>
   </tr>
 </table>
 
@@ -1117,13 +1268,13 @@ was supplied to the model.</p>
 <div class="callout">
   <span class="label">The main points</span>
   <p>A neuron is a weighted sum plus a bias passed through one non-linear function,
-  <code>y = f(Σwᵢxᵢ + b)</code>. This has the same form as session 16's log-space Naïve Bayes score,
+  <math data-tex="y = f(\sum_i w_i x_i + b)"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mo movablelimits="false">∑</mo><mi>i</mi></msub><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. This has the same form as session 16's log-space Naïve Bayes score,
   except that the weights are fitted rather than counted. Stacking neurons turns the sums into a
-  single matrix multiply, <code>Wx + b</code>, and the non-linearity is what prevents a stack from
+  single matrix multiply, <math data-tex="Wx + b"><mrow><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow></math>, and the non-linearity is what prevents a stack from
   collapsing into one layer. Softmax converts any list of scores into a probability distribution by
   exponentiating and dividing by the total, exaggerating the differences in the process. Training is
-  a single line: measure the error as <code>−log</code> of the probability assigned to the correct
-  answer, then repeatedly adjust every weight by <code>w ← w − η·gradient</code>.</p>
+  a single line: measure the error as <math data-tex="-\log"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></mrow></math> of the probability assigned to the correct
+  answer, then repeatedly adjust every weight by <math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math>.</p>
 </div>
 
 <h2>Reading</h2>

@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 25 — The LSTM: two vectors, three gates</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 25</p>
+  <h1>The LSTM: two vectors, and three gates that manage them</h1>
+  <p class="subtitle">Session 24 found two problems. The first one — one vector asked to do two jobs
+  — is what this architecture is built to fix. The gates are how it does the managing, not what the
+  design is about.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Where session 24 left off</h2>
+
+<p>Session 24 gave two reasons why an RNN's effective memory is short. Both are worth having on the
+board before anything new is said, in SLP3's order:</p>
+
+<ol>
+  <li>The hidden layer is asked to do <strong>two jobs at once</strong> — serve the current decision,
+  and carry information forward for future ones. There is one vector for both, and no machinery
+  separating them.</li>
+  <li>The gradient is <strong>multiplied once per step</strong> on the backward pass, driving it
+  toward zero over any real distance.</li>
+</ol>
+
+<p>Session 24 was told to stop reading at a particular sentence. That sentence is where this session
+starts, and it states the design goal in the book's own words:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §13.5</span>
+  <p>"To address these issues, more complex network architectures have been designed to explicitly
+  manage the task of maintaining relevant context over time, by <strong>enabling the network to learn
+  to forget information that is no longer needed</strong> and <strong>to remember information required
+  for decisions still to come</strong>."</p>
+</div>
+
+<p>Notice what that sentence is about, and what it is not about. It is about managing context. It
+says nothing about gradients. <mark>The architecture that follows is a response to reason 1.</mark>
+It happens to help with reason 2 as well, and we will get to that, but taking the gradient as the
+motivation makes the rest of the hour look like an arbitrary list of parts.</p>
+
+<h2>The claim this session makes</h2>
+
+<p>SLP3 divides the work into two subproblems: "removing information no longer needed from the
+context, and adding information likely to be needed for later decision making." And then the clause
+that matters most:</p>
+
+<div class="callout">
+  <span class="label">The design decision</span>
+  <p>"The key to solving both problems is to <strong>learn how to manage this context rather than
+  hard-coding a strategy into the architecture</strong>."</p>
+</div>
+
+<p>This course has made that move three times already. Session 4 hard-coded a strategy with a
+stop-word list — a fixed decision about which words do not matter. Session 5 hard-coded one with a
+stemmer's rules. Session 20 replaced counted weights with fitted ones. <mark>This is the same trade
+applied to memory: do not decide in advance what to forget, learn it.</mark> Fourth time, and by now
+the room has the vocabulary for it.</p>
+
+<h2>The one structural change: a second vector</h2>
+
+<p>Before any gate is mentioned, there is a single change to the shape of the unit, and it is the
+change that answers reason 1.</p>
+
+<p>The RNN had one vector, <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>. The LSTM adds an <strong>explicit context layer</strong>
+<math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math>, which runs alongside it. Two vectors, one per job:</p>
+
+<table>
+  <tr><th>vector</th><th>job</th></tr>
+  <tr><td><math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math></td><td>carry information forward — the long-term memory of the
+  unit</td></tr>
+  <tr><td><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math></td><td>serve the current step — what the unit outputs now, and what the
+  next step's gates read</td></tr>
+</table>
+
+<p>That is the architecture. Everything else in this session is the machinery that manages the two,
+and the gates exist because <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> exists — not the other way round. A student who
+remembers one thing about the LSTM should remember that there are two lines running through it
+rather than one.</p>
+
+<h2>The gate design pattern, taught once</h2>
+
+<p>All three gates are the same construction with different weights. SLP3 states the pattern
+directly:</p>
+
+<p>A feedforward layer, then a sigmoid, then a pointwise multiplication with the layer being
+gated.</p>
+
+<p>The sigmoid is doing something specific here. It pushes its outputs toward 0 or 1, so multiplying
+by it acts as a <strong>soft binary mask</strong>: a component of the gate near 1 lets the
+corresponding value through nearly unchanged, and a component near 0 erases it. Values in between
+attenuate. Because the gate is computed from weights, <mark>the mask is learned rather than
+fixed</mark>, which is the "rather than hard-coding a strategy" clause made concrete.</p>
+
+<div class="callout">
+  <span class="label">The sigmoid's third job in this course</span>
+  <p>Session 20 used it to make a score readable as a probability. Session 21 used it to score a
+  word pair in negative sampling. Here it is a mask. <mark>Same function, three different
+  jobs</mark> — the function does not carry a meaning, the surrounding architecture assigns it
+  one.</p>
+</div>
+
+<p>One piece of notation, used by all three gates. <strong><math data-tex="\odot"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">⊙</mo></math></strong> is the
+<strong>element-wise product</strong>: multiply two vectors of the same length position by position,
+producing a third vector of that length. SLP3 notes it is also called the Hadamard product. It is
+not a dot product and it is not a matrix multiply — nothing is summed, and no dimension changes.</p>
+
+<h2>The three gates</h2>
+
+<p>These are SLP3's equations 13.20 to 13.27, in the chapter's order and with the chapter's
+numbering, so the reading matches. Each gate takes the same two inputs — the previous hidden state
+<math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> and the current input <math data-tex="x_t"><msub><mi>x</mi><mi>t</mi></msub></math> — and differs only in its weights and in
+what it multiplies.</p>
+
+<h3>The forget gate: what to delete</h3>
+
+<div class="meq" data-eqno="13.20"><math data-tex="f_t = \sigma(U_f h_{t-1} + W_f x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>f</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>f</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.20)</span></div>
+<div class="meq" data-eqno="13.21"><math data-tex="k_t = c_{t-1} \odot f_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>k</mi><mi>t</mi></msub><mo>=</mo><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>⊙</mo><msub><mi>f</mi><mi>t</mi></msub></mrow></math><span class="eqno">(13.21)</span></div>
+
+<p>The gate is computed, then multiplied into the previous context. Where <math data-tex="f_t"><msub><mi>f</mi><mi>t</mi></msub></math> is near
+0, that part of the context is erased; where it is near 1, it survives. <math data-tex="k_t"><msub><mi>k</mi><mi>t</mi></msub></math> is the part
+of the old context that is being kept.</p>
+
+<h3>The add gate: what to write</h3>
+
+<div class="meq" data-eqno="13.22"><math data-tex="g_t = \tanh(U_g h_{t-1} + W_g x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>g</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>g</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.22)</span></div>
+<div class="meq" data-eqno="13.23"><math data-tex="i_t = \sigma(U_i h_{t-1} + W_i x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>i</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>i</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>i</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.23)</span></div>
+<div class="meq" data-eqno="13.24"><math data-tex="j_t = g_t \odot i_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>j</mi><mi>t</mi></msub><mo>=</mo><msub><mi>g</mi><mi>t</mi></msub><mo>⊙</mo><msub><mi>i</mi><mi>t</mi></msub></mrow></math><span class="eqno">(13.24)</span></div>
+
+<p>Two things happen here and they are worth keeping apart. <math data-tex="g_t"><msub><mi>g</mi><mi>t</mi></msub></math> is the
+<strong>candidate</strong> — the new information extracted from this step's input, which could be
+written into context. <math data-tex="i_t"><msub><mi>i</mi><mi>t</mi></msub></math> is the gate that decides <em>how much of it actually
+is</em>. Their product <math data-tex="j_t"><msub><mi>j</mi><mi>t</mi></msub></math> is what gets written.</p>
+
+<div class="callout warn">
+  <span class="label"><math data-tex="g_t"><msub><mi>g</mi><mi>t</mi></msub></math> is not a gate</span>
+  <p>It is content, and it is computed <em>exactly as a plain RNN computes its hidden state</em>:
+  the same two weight matrices applied to the same two inputs, squashed by <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math>.
+  <mark>The old RNN is still in there</mark>, as one line of a larger unit. It is also the only
+  <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> of the four — the three gates all use <math data-tex="\sigma"><mi>σ</mi></math>, because a gate needs to be
+  a mask between 0 and 1, while content needs to be able to be negative.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">A naming collision you will meet immediately</span>
+  <p>SLP3 calls this the <strong>add gate</strong>. Olah — the second reading for this session — and
+  essentially every other source call it the <strong>input gate</strong>, which is why its symbol is
+  <math data-tex="i_t"><msub><mi>i</mi><mi>t</mi></msub></math>. <mark>Same gate, same equation, two names.</mark> There is no fourth gate. This
+  is the same kind of collision as session 23's, where one book's <math data-tex="W"><mi>W</mi></math> and <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math>
+  were another's <math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math> and <math data-tex="V"><mi>V</mi></math>.</p>
+</div>
+
+<h3>The new context</h3>
+
+<div class="meq" data-eqno="13.25"><math data-tex="c_t = j_t + k_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math><span class="eqno">(13.25)</span></div>
+
+<p>What was kept, plus what was written. That is the whole update, and it is an addition. Hold on to
+that; it returns at the end of the session.</p>
+
+<h3>The output gate: what this step needs now</h3>
+
+<div class="meq" data-eqno="13.26"><math data-tex="o_t = \sigma(U_o h_{t-1} + W_o x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>o</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>o</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>o</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.26)</span></div>
+<div class="meq" data-eqno="13.27"><math data-tex="h_t = o_t \odot \tanh(c_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>o</mi><mi>t</mi></msub><mo>⊙</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>c</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.27)</span></div>
+
+<p>The context is now up to date, and the last question is how much of it this particular step
+should expose. <math data-tex="o_t"><msub><mi>o</mi><mi>t</mi></msub></math> answers that. <mark>This is the separation of the two jobs, in one
+line</mark>: the unit can hold something in <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> and still emit almost nothing in
+<math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>. The next section shows exactly that happening.</p>
+
+<table>
+  <tr><th>gate</th><th>decides</th><th>equations</th></tr>
+  <tr><td><strong>forget</strong></td><td>what to delete from context</td><td>13.20–21</td></tr>
+  <tr><td><strong>add</strong> (input)</td><td>what to write into context</td><td>13.22–24</td></tr>
+  <tr><td>—</td><td>the new context, <math data-tex="c_t = j_t + k_t"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math></td><td>13.25</td></tr>
+  <tr><td><strong>output</strong></td><td>what to emit at this step</td><td>13.26–27</td></tr>
+</table>
+
+<h2>A worked example</h2>
+
+<p>Everything here is one-dimensional, so <math data-tex="\odot"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">⊙</mo></math> is ordinary multiplication and every value
+is a single number. The gate values are <strong>given, not derived from weights</strong> — the
+question being asked is what the context line does, not where a sigmoid comes from. Session 20 did
+the same thing with its chosen weights <math data-tex="[\,1.4,\, 0.0,\, -1.9\,]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>1.4</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mo>−</mo><mn>1.9</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and for the same reason.</p>
+
+<p>One value connects the two. If a gate's pre-activation were <math data-tex="-4"><mrow><mo form="prefix" stretchy="false">−</mo><mn>4</mn></mrow></math>, then
+<math data-tex="\sigma(-4) = 0.0180"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>4</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.0180</mn></mrow></math> — which is the sort of number appearing in the <code>f</code> column
+below. The gates are computed; we are simply starting after the computation.</p>
+
+<p>Start from <math data-tex="c_0 = 0"><mrow><msub><mi>c</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow></math>. Three steps: write something, hold it, then wipe it.</p>
+
+<table>
+  <tr><th>step</th><th><code>f</code></th><th><code>i</code></th><th><code>g</code></th>
+      <th><code>o</code></th><th><math data-tex="k = c_{t-1} \odot f"><mrow><mi>k</mi><mo>=</mo><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>⊙</mo><mi>f</mi></mrow></math></th><th><math data-tex="j = g \odot i"><mrow><mi>j</mi><mo>=</mo><mi>g</mi><mo>⊙</mo><mi>i</mi></mrow></math></th>
+      <th><math data-tex="c_t = j + k"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><mi>j</mi><mo>+</mo><mi>k</mi></mrow></math></th><th><math data-tex="h_t = o \odot \tanh(c_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>o</mi><mo>⊙</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>c</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
+  <tr><td>1 · write</td><td>0.02</td><td>0.95</td><td>+0.80</td><td>0.90</td>
+      <td>0.0000</td><td>+0.7600</td><td><strong>0.7600</strong></td><td>0.5770</td></tr>
+  <tr><td>2 · hold</td><td>0.98</td><td>0.03</td><td>−0.50</td><td>0.10</td>
+      <td>0.7448</td><td>−0.0150</td><td><strong>0.7298</strong></td><td>0.0623</td></tr>
+  <tr><td>3 · wipe</td><td>0.01</td><td>0.05</td><td>+0.10</td><td>0.95</td>
+      <td>0.0073</td><td>+0.0050</td><td><strong>0.0123</strong></td><td>0.0117</td></tr>
+</table>
+
+<p><strong>Row 2 is the entire session.</strong> The context arrives at 0.7600 and leaves at 0.7298 —
+a loss of <strong>4%</strong> — while the unit emits <math data-tex="h = 0.0623"><mrow><mi>h</mi><mo>=</mo><mn>0.0623</mn></mrow></math>, which is nearly
+nothing. Whatever step 2's input was, it was not written into memory (<math data-tex="i = 0.03"><mrow><mi>i</mi><mo>=</mo><mn>0.03</mn></mrow></math> shut the
+candidate out) and it was not reported (<math data-tex="o = 0.10"><mrow><mi>o</mi><mo>=</mo><mn>0.10</mn></mrow></math>). The unit is
+<strong>remembering without acting</strong>.</p>
+
+<div class="callout">
+  <span class="label">Why row 2 matters</span>
+  <p><mark>A plain RNN cannot do that.</mark> In an RNN, <code>h</code> <em>is</em> the memory — the
+  vector it emits is the vector it carries. Emitting nearly zero therefore means remembering nearly
+  zero. The two jobs are one vector, which is session 24's reason 1 stated as arithmetic. Here they
+  are two vectors, and row 2 is what the separation buys.</p>
+</div>
+
+<p>Rows 1 and 3 are the other two behaviours. Row 1 writes: the forget gate is near 0 but there is
+nothing yet to forget, and <math data-tex="i = 0.95"><mrow><mi>i</mi><mo>=</mo><mn>0.95</mn></mrow></math> lets the candidate through almost intact. Row 3
+wipes: <math data-tex="f = 0.01"><mrow><mi>f</mi><mo>=</mo><mn>0.01</mn></mrow></math> deletes what was held, and the context drops to 0.0123. Note that
+<math data-tex="o = 0.95"><mrow><mi>o</mi><mo>=</mo><mn>0.95</mn></mrow></math> in row 3 — the output gate is wide open, and the unit still emits almost
+nothing, because there is nothing left in context to emit. <strong>The gates control different
+things and they are genuinely independent.</strong></p>
+
+<figure>
+  <svg viewBox="0 0 700 400" role="img" aria-labelledby="lstmtitle lstmdesc">
+    <title id="lstmtitle">Three LSTM timesteps drawn as two horizontal lines, a context line above
+    and a hidden state line below</title>
+    <desc id="lstmdesc">Two long horizontal lines run left to right across the figure. The upper line
+    is labelled c, the context. At each of three timesteps it passes through a small circle marked
+    with a multiplication symbol, labelled forget gate f, and then a small circle marked with a plus
+    symbol, labelled add j. It carries no weight matrix anywhere along its length. The lower line is
+    labelled h, the hidden state, and consists of three circles labelled h one, h two and h three,
+    joined left to right. Each h node receives an input x from below, and a vertical arrow runs from
+    the context line down into each h node labelled output gate o times tanh of c. Faint dashed
+    arrows run from each h node up to the next timestep's forget gate, showing that the gates are
+    computed from the previous hidden state and the current input. A caption reads: on the c line
+    there is a multiply by a gate and an add, and no weight matrix at all.</desc>
+
+    <!-- context line -->
+    <line class="fig-edge" x1="30" y1="95" x2="668" y2="95"></line>
+    <polygon class="fig-edge-h" points="678,95 668,98.5 668,91.5"></polygon>
+    <text class="fig-axname" x="30" y="70">c — context</text>
+
+    <!-- hidden line -->
+    <line class="fig-edge" x1="30" y1="255" x2="668" y2="255"></line>
+    <polygon class="fig-edge-h" points="678,255 668,258.5 668,251.5"></polygon>
+    <text class="fig-axname" x="30" y="300">h — hidden state</text>
+
+    <!-- step 1 -->
+    <circle class="fig-gate" cx="90" cy="95" r="14"></circle>
+    <text class="fig-gate-t" x="90" y="100">⊙</text>
+    <text class="fig-label" x="90" y="130" text-anchor="middle">f₁</text>
+    <circle class="fig-gate" cx="140" cy="95" r="14"></circle>
+    <text class="fig-gate-t" x="140" y="100">+</text>
+    <text class="fig-label" x="140" y="130" text-anchor="middle">j₁</text>
+    <line class="fig-edge" x1="190" y1="109" x2="190" y2="219"></line>
+    <polygon class="fig-edge-h" points="190,229 193.5,219 186.5,219"></polygon>
+    <circle class="fig-node" cx="190" cy="255" r="26"></circle>
+    <text class="fig-glyph" x="190" y="261" text-anchor="middle">h₁</text>
+    <line class="fig-edge" x1="190" y1="345" x2="190" y2="291"></line>
+    <polygon class="fig-edge-h" points="190,281 193.5,291 186.5,291"></polygon>
+    <text class="fig-label" x="190" y="362" text-anchor="middle">x₁</text>
+
+    <!-- step 2 -->
+    <circle class="fig-gate" cx="290" cy="95" r="14"></circle>
+    <text class="fig-gate-t" x="290" y="100">⊙</text>
+    <text class="fig-label" x="290" y="130" text-anchor="middle">f₂</text>
+    <circle class="fig-gate" cx="340" cy="95" r="14"></circle>
+    <text class="fig-gate-t" x="340" y="100">+</text>
+    <text class="fig-label" x="340" y="130" text-anchor="middle">j₂</text>
+    <line class="fig-edge" x1="390" y1="109" x2="390" y2="219"></line>
+    <polygon class="fig-edge-h" points="390,229 393.5,219 386.5,219"></polygon>
+    <circle class="fig-node" cx="390" cy="255" r="26"></circle>
+    <text class="fig-glyph" x="390" y="261" text-anchor="middle">h₂</text>
+    <line class="fig-edge" x1="390" y1="345" x2="390" y2="291"></line>
+    <polygon class="fig-edge-h" points="390,281 393.5,291 386.5,291"></polygon>
+    <text class="fig-label" x="390" y="362" text-anchor="middle">x₂</text>
+
+    <!-- step 3 -->
+    <circle class="fig-gate" cx="490" cy="95" r="14"></circle>
+    <text class="fig-gate-t" x="490" y="100">⊙</text>
+    <text class="fig-label" x="490" y="130" text-anchor="middle">f₃</text>
+    <circle class="fig-gate" cx="540" cy="95" r="14"></circle>
+    <text class="fig-gate-t" x="540" y="100">+</text>
+    <text class="fig-label" x="540" y="130" text-anchor="middle">j₃</text>
+    <line class="fig-edge" x1="590" y1="109" x2="590" y2="219"></line>
+    <polygon class="fig-edge-h" points="590,229 593.5,219 586.5,219"></polygon>
+    <circle class="fig-node" cx="590" cy="255" r="26"></circle>
+    <text class="fig-glyph" x="590" y="261" text-anchor="middle">h₃</text>
+    <line class="fig-edge" x1="590" y1="345" x2="590" y2="291"></line>
+    <polygon class="fig-edge-h" points="590,281 593.5,291 586.5,291"></polygon>
+    <text class="fig-label" x="590" y="362" text-anchor="middle">x₃</text>
+
+    <!-- gates read h_{t-1} -->
+    <path class="fig-gap" d="M 212 233 C 240 200 265 150 288 112"></path>
+    <path class="fig-gap" d="M 412 233 C 440 200 465 150 488 112"></path>
+
+    <text class="fig-label" x="240" y="205">o ⊙ tanh(c)</text>
+
+    <text class="fig-axname" x="350" y="180" text-anchor="middle">on the c line: a multiply by a gate, then an add — and no weight matrix anywhere</text>
+  </svg>
+  <figcaption>Compare this with session 24's figure, which had a <math data-tex="\times U"><mrow><mo form="prefix" stretchy="false">×</mo><mi>U</mi></mrow></math> on every hop of the
+  single chain. The context line here crosses each timestep with an element-wise multiply by a gate
+  and an addition. <mark>No weight matrix sits on it at all.</mark> The lower line is the hidden
+  state, which does still get transformed at every step; the dashed arrows are the gates reading
+  <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, since every gate is computed from the previous hidden state and the current
+  input.</figcaption>
+</figure>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>You want a unit to carry its context forward completely untouched while emitting almost nothing
+  at this step. What would <code>f</code>, <code>i</code> and <code>o</code> have to be?</p>
+  <p>Then answer a second question: what would a plain RNN have to do to achieve the same thing?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><math data-tex="f \approx 1"><mrow><mi>f</mi><mo>≈</mo><mn>1</mn></mrow></math> so nothing is deleted, <math data-tex="i \approx 0"><mrow><mi>i</mi><mo>≈</mo><mn>0</mn></mrow></math> so nothing new is written, and
+    <math data-tex="o \approx 0"><mrow><mi>o</mi><mo>≈</mo><mn>0</mn></mrow></math> so nearly nothing is emitted. That is row 2 of the table, which used 0.98,
+    0.03 and 0.10 and lost 4% of the context. <code>g</code> does not matter — with <math data-tex="i \approx 0"><mrow><mi>i</mi><mo>≈</mo><mn>0</mn></mrow></math>
+    the candidate is masked out whatever it is.</p>
+    <p>A plain RNN cannot do it. <mark>Its memory and its output are the same vector</mark>, so
+    "emit almost nothing" and "carry everything forward" are contradictory instructions. There is no
+    setting of <math data-tex="U"><mi>U</mi></math> and <math data-tex="W"><mi>W</mi></math> that satisfies both, because the problem is not the
+    weights — it is that there is only one vector. That is session 24's reason 1, and this is the fix
+    for it.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why does the LSTM add a second vector <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> alongside
+  <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>?</p>
+  <div class="q-opts">
+    <button class="opt">To make the gradient path additive rather than multiplicative, so that it
+    stops vanishing over long sequences</button>
+    <button class="opt">Because the hidden state was serving the current decision and carrying
+    information forward, with nothing separating the two jobs</button>
+    <button class="opt">To store the input sequence itself, so that earlier words can be looked up
+    again later without being recomputed</button>
+    <button class="opt">Because one vector was not large enough to hold the information a long
+    sequence requires it to carry</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the hidden state was doing two jobs at once</strong>. That is SLP3's
+    framing and session 24's reason 1, and it is the reason the unit has the shape it has.</p>
+    <p>The first option is the most tempting one and it is <em>true as a consequence</em> — the
+    additive path is real and we come to it below — but it is not the motivation, and it is not the
+    book's. <mark>Remember the LSTM as a gradient trick and its three gates become an arbitrary
+    list.</mark> The third describes something closer to attention, which is session 28: nothing is
+    stored per word here, and <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> is one vector however long the sequence gets. The
+    fourth is a size explanation for a structural problem — making <code>h</code> bigger does not
+    separate the two jobs, it just gives one overloaded vector more room.</p>
+  </div>
+</div>
+
+<h2>The gradient consequence, and a health warning</h2>
+
+<p>Session 24 established that a quantity multiplied by the same factor once per step goes to zero or
+to infinity. Look again at equation 13.25:</p>
+
+<pre><math data-tex="c_t = j_t + k_t"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math></pre>
+
+<p>That is a <strong>sum</strong>. Travelling backward along the context line, the gradient passes
+through an addition and an element-wise multiplication by a gate — not through a weight matrix, and
+not through the same weight matrix once per step. A path built from additions does not decay
+exponentially the way a repeated product does. This is why the LSTM also helps with reason 2.</p>
+
+<div class="callout warn">
+  <span class="label">Where this explanation comes from</span>
+  <p>This is <mark>the standard explanation, not SLP3's framing</mark>, and it should not be
+  attributed to the book. Chapter 13 motivates the architecture as context management and does not
+  present the additive path as the reason for the design. Take it as a consequence of the design
+  rather than its purpose. Session 24 said the same thing in its closing callout, and the two
+  sessions agree deliberately.</p>
+</div>
+
+<h2>What this does not fix</h2>
+
+<p>The LSTM improves long-range memory. It does not deliver it unconditionally, and three limits
+matter for what comes next.</p>
+
+<ul>
+  <li><strong>It is still sequential.</strong> Computing <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> requires
+  <code>c_{t-1}</code>, so the steps cannot be run in parallel across time however much hardware is
+  available. <mark>That is the limitation the transformer removes</mark>, and it is what sessions
+  29–31 are about.</li>
+  <li><strong>It is still one vector per position.</strong> Everything from the left of the sequence
+  is compressed into <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math>, whatever the sequence's length. Long-range dependency is
+  better, not solved.</li>
+  <li><strong>It costs four times the parameters.</strong> An RNN unit has <math data-tex="U"><mi>U</mi></math> and
+  <math data-tex="W"><mi>W</mi></math>. The LSTM has <code>(U_f, W_f)</code>, <code>(U_i, W_i)</code>,
+  <code>(U_g, W_g)</code> and <code>(U_o, W_o)</code> — eight matrices against two. At
+  <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math> that is <strong>720,000 parameters against 180,000</strong>.</li>
+</ul>
+
+<div class="callout">
+  <span class="label">Which leads directly to the next question</span>
+  <p>Three gates and eight weight matrices, and the unit does one job: manage a context vector. Is
+  all of it necessary? <mark>Could you get the same behaviour with fewer gates?</mark> That question
+  has an answer, it is called the GRU, and it is session 26.</p>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">What does the output gate <math data-tex="o_t"><msub><mi>o</mi><mi>t</mi></msub></math> control?</p>
+  <div class="q-opts">
+    <button class="opt">Which parts of the network's final prediction are passed on to the loss
+    function at the end of the sequence</button>
+    <button class="opt">How much of the current context is exposed as this step's output, as distinct
+    from what stays retained in context</button>
+    <button class="opt">How much of the previous context survives into the current step, once the
+    new candidate has been written into it</button>
+    <button class="opt">How much of the current input is allowed to be written into the context
+    vector at this timestep</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>how much of the context is emitted now</strong>, which is a separate
+    question from how much is kept. Row 2 of the worked table is the evidence: context 0.7298 held,
+    output 0.0623 emitted.</p>
+    <p>The third option is the <strong>forget</strong> gate and the fourth is the
+    <strong>add</strong> (input) gate — both are real gates, just not this one, and mixing them up is
+    the ordinary way to get 13.20–13.27 wrong. The first describes nothing in the architecture; the
+    loss sees <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> whatever the gates do. <mark>The three gates answer three different
+    questions</mark>: what to delete, what to write, what to say.</p>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>The LSTM exists because a single hidden state cannot both serve the current decision and carry
+  information forward. Its one structural change is a second vector, the context <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math>,
+  running alongside <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>. Three gates manage it, all built from the same pattern — a
+  feedforward layer, a sigmoid, and an element-wise multiplication — so that each acts as a learned
+  soft mask. The forget gate decides what to delete from context, the add gate (called the input gate
+  everywhere except SLP3) decides what to write, and the output gate decides how much of the result
+  this step emits. <math data-tex="g_t"><msub><mi>g</mi><mi>t</mi></msub></math> is not a gate but the candidate content, computed exactly as a
+  plain RNN computes its hidden state. Because the context update <math data-tex="c_t = j_t + k_t"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math> is an
+  addition rather than a multiplication by a weight matrix, the gradient also survives better along
+  it — a consequence of the design rather than its purpose. What remains unfixed: the unit is still
+  sequential, still compresses everything into one vector, and costs four times the parameters. That
+  last cost is session 26's opening question.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/13.pdf">Speech and Language
+Processing</a></strong>, <strong>§13.5</strong> in full — equations 13.20 to 13.27 are the ones used
+above, with the same numbering.</p>
+
+<p>Then <strong><a href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/">Understanding
+LSTM Networks</a></strong> by Christopher Olah, which is the assigned second read and the best set of
+diagrams anyone has drawn for this. <mark>It calls the add gate the <em>input</em> gate</mark> — same
+gate, same equation, and there is no fourth one.</p>
+
+<p>The architecture is originally due to <a href="https://doi.org/10.1162/neco.1997.9.8.1735">Hochreiter
+and Schmidhuber (1997)</a>, which SLP3 cites inline. It is worth knowing that this is a 1997 idea,
+not a recent one.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0024-backprop-through-time-and-vanishing-gradients.html">← Session 24: Backprop through time</a>
+  <a href="0026-the-gru.html">Session 26: the GRU — two gates, one vector →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

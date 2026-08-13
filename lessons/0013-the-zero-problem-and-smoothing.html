@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -583,7 +729,7 @@ figcaption {
 <p>Session 12 ended with a model that fails. Applied to an ordinary sentence, our four-sentence
 corpus gives:</p>
 
-<pre><code>P(I want to eat Indian pizza)  =  0</code></pre>
+<div class="meq"><math data-tex="P(\text{I want to eat Indian pizza}) = 0" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math></div>
 
 <p>The result is not a small probability but zero. A single pair that the corpus did not happen to
 contain reduced the whole product to nothing.</p>
@@ -612,20 +758,21 @@ we observed and distributing it among those we did not.</p>
 though every possible event had been observed once more than it actually was. This is also called
 Laplace smoothing.</p>
 
-<pre><code>MLE       P(w₂ | w₁)  =   count(w₁ w₂)      /  count(w₁)
+<div class="meq"><math data-tex="\begin{aligned}
+\text{MLE} \quad &amp;&amp; P(w_2 \mid w_1) &amp;= \frac{\mathrm{count}(w_1\, w_2)}{\mathrm{count}(w_1)} \\[4pt]
+\text{add-one} \quad &amp;&amp; P(w_2 \mid w_1) &amp;= \frac{\mathrm{count}(w_1\, w_2) + 1}{\mathrm{count}(w_1) + V}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>MLE</mtext><mspace width="1em"></mspace></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>add-one</mtext><mspace width="1em"></mspace></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>1</mn></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mi>V</mi></mrow></mfrac></mrow></mtd></mtr></mtable></math></div>
 
-add-one   P(w₂ | w₁)  =  (count(w₁ w₂) + 1) / (count(w₁) + V)</code></pre>
-
-<p>The <code>+1</code> in the numerator is the whole idea: no count is zero any more, because
+<p>The <math data-tex="+1"><mrow><mo form="prefix" stretchy="false">+</mo><mn>1</mn></mrow></math> in the numerator is the whole idea: no count is zero any more, because
 every event has received one additional observation. The denominator must also grow, or the
-probabilities will no longer sum to 1. It grows by <strong>V</strong>, the vocabulary size, because
-1 was added to each of V possible next words.</p>
+probabilities will no longer sum to 1. It grows by <math data-tex="V"><mi>V</mi></math>, the vocabulary size, because
+1 was added to each of <math data-tex="V"><mi>V</mi></math> possible next words.</p>
 
 <p>In our corpus there are <strong>10</strong> tokens a model might predict — the nine words
 (<code>I</code>, <code>want</code>, <code>to</code>, <code>eat</code>, <code>Indian</code>,
 <code>Chinese</code>, <code>food</code>, <code>she</code>, <code>wants</code>) plus
-<code>&lt;/s&gt;</code>. Hence V = 10. For the context <code>eat</code>, which occurs 3 times, the
-denominator becomes 3 + 10 = 13.</p>
+<code>&lt;/s&gt;</code>. Hence <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math>. For the context <code>eat</code>, which occurs 3 times,
+the denominator becomes <math data-tex="3 + 10 = 13"><mrow><mn>3</mn><mo>+</mo><mn>10</mn><mo>=</mo><mn>13</mn></mrow></math>.</p>
 
 <table>
   <tr><th>next word after <code>eat</code></th><th>count</th><th>MLE</th><th>add-one</th></tr>
@@ -641,15 +788,16 @@ still ranks above the unseen words.</p>
 
 <h3>The cost of add-one smoothing</h3>
 
-<p><code>P(Indian | eat)</code> has fallen from 0.667 to 0.231. Two-thirds of the evidence
+<p><math data-tex="P(\text{Indian} \mid \text{eat})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>eat</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> has fallen from 0.667 to 0.231. Two-thirds of the evidence
 actually collected has been transferred to words that never followed <code>eat</code> at all, on no
 evidence whatsoever.</p>
 
 <p>With a realistic vocabulary the effect becomes much larger. The following shows
-<code>P(food | Indian)</code>, a pair observed in 3 of 3 opportunities, as V increases:</p>
+<math data-tex="P(\text{food} \mid \text{Indian})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, a pair observed in 3 of 3 opportunities, as <math data-tex="V"><mi>V</mi></math>
+increases:</p>
 
 <table>
-  <tr><th>vocabulary size V</th><th>add-one estimate</th></tr>
+  <tr><th>vocabulary size <math data-tex="V"><mi>V</mi></math></th><th>add-one estimate</th></tr>
   <tr><td>10 (our toy corpus)</td><td>4/13 = 0.308</td></tr>
   <tr><td>1,000</td><td>4/1003 = 0.004</td></tr>
   <tr><td>50,000 (realistic)</td><td>4/50003 = 0.00008</td></tr>
@@ -684,7 +832,7 @@ with less context rather than guessing uniformly. There are two ways to do this.
 <p><strong>Backoff</strong> uses the longest n-gram first. If its count is zero, it falls back to
 the next shorter one, continuing until it reaches an n-gram that has been observed.</p>
 
-<p>Consider <code>P(Indian | she wants)</code> in our corpus:</p>
+<p>Consider <math data-tex="P(\text{Indian} \mid \text{she wants})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>she wants</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> in our corpus:</p>
 
 <table>
   <tr><th>try</th><th>counts</th><th>result</th></tr>
@@ -705,24 +853,25 @@ here; the details are in the reading.</p>
 <h3>Interpolation</h3>
 
 <p><strong>Interpolation</strong> does not wait for a zero count. It always combines the trigram,
-bigram, and unigram estimates, using weights, written λ, that sum to 1:</p>
+bigram, and unigram estimates, using weights, written <math data-tex="\lambda"><mi>λ</mi></math>, that sum to 1:</p>
 
-<pre><code>P(w₃ | w₁ w₂)  =  λ₁ · P(w₃ | w₁ w₂)     ← trigram
-               +  λ₂ · P(w₃ | w₂)         ← bigram
-               +  λ₃ · P(w₃)              ← unigram
+<div class="meq"><math data-tex="\begin{aligned}
+P(w_3 \mid w_1 w_2) &amp;= \lambda_1 \, P(w_3 \mid w_1 w_2) &amp;&amp; \text{trigram} \\
+  &amp;+ \lambda_2 \, P(w_3 \mid w_2) &amp;&amp; \text{bigram} \\
+  &amp;+ \lambda_3 \, P(w_3) &amp;&amp; \text{unigram}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>3</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msub><mi>λ</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>3</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>trigram</mtext></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">+</mo><msub><mi>λ</mi><mn>2</mn></msub><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>3</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>bigram</mtext></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">+</mo><msub><mi>λ</mi><mn>3</mn></msub><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>3</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>unigram</mtext></mtd></mtr></mtable></math></div>
 
-               λ₁ + λ₂ + λ₃ = 1</code></pre>
-
-<p>Worked through for <code>P(Indian | I want)</code>, with λ = 0.5, 0.3, and 0.2:</p>
+<p>with <math data-tex="\lambda_1 + \lambda_2 + \lambda_3 = 1"><mrow><msub><mi>λ</mi><mn>1</mn></msub><mo>+</mo><msub><mi>λ</mi><mn>2</mn></msub><mo>+</mo><msub><mi>λ</mi><mn>3</mn></msub><mo>=</mo><mn>1</mn></mrow></math>. Worked through for
+<math data-tex="P(\text{Indian} \mid \text{I want})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, with <math data-tex="\lambda"><mi>λ</mi></math> = 0.5, 0.3, and 0.2:</p>
 
 <table>
   <tr><th>model</th><th>estimate</th><th>weight</th></tr>
-  <tr><td>trigram <code>P(Indian | I want)</code></td><td>1/3 = 0.333</td><td>0.5</td></tr>
-  <tr><td>bigram <code>P(Indian | want)</code></td><td>1/3 = 0.333</td><td>0.3</td></tr>
-  <tr><td>unigram <code>P(Indian)</code></td><td>3/26 = 0.115</td><td>0.2</td></tr>
+  <tr><td>trigram <math data-tex="P(\text{Indian} \mid \text{I want})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>1/3 = 0.333</td><td>0.5</td></tr>
+  <tr><td>bigram <math data-tex="P(\text{Indian} \mid \text{want})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>1/3 = 0.333</td><td>0.3</td></tr>
+  <tr><td>unigram <math data-tex="P(\text{Indian})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>3/26 = 0.115</td><td>0.2</td></tr>
 </table>
 
-<pre><code>0.5 × 0.333  +  0.3 × 0.333  +  0.2 × 0.115  =  0.290</code></pre>
+<div class="meq"><math data-tex="0.5 \times 0.333 + 0.3 \times 0.333 + 0.2 \times 0.115 = 0.290" display="block" class="tml-display" style="display:block math;"><mrow><mn>0.5</mn><mo>×</mo><mn>0.333</mn><mo>+</mo><mn>0.3</mn><mo>×</mo><mn>0.333</mn><mo>+</mo><mn>0.2</mn><mo>×</mo><mn>0.115</mn><mo>=</mo><mn>0.290</mn></mrow></math></div>
 
 <p>Because the unigram term is always included and is never zero, the combined result is never
 zero. The long context dominates when it is reliable, and the short one establishes a lower
@@ -733,9 +882,10 @@ a four-sentence corpus, in which almost every context occurs only once or twice.
 demonstrates is the <strong>unigram floor</strong>: whatever the longer contexts contribute,
 including nothing at all, the combination cannot fall to zero.</p>
 
-<p>The λ values are obtained neither by guesswork nor from the training corpus, since fitting them
+<p>The <math data-tex="\lambda"><mi>λ</mi></math> values are obtained neither by guesswork nor from the training corpus, since fitting them
 on the training corpus would simply reproduce the training data. A separate portion of text, the
-<strong>held-out set</strong>, is set aside, and the λ values that score it best are selected.
+<strong>held-out set</strong>, is set aside, and the <math data-tex="\lambda"><mi>λ</mi></math> values that score it best are
+  selected.
 Measuring what "best" means is the subject of session 14.</p>
 
 <div class="callout">
@@ -770,7 +920,8 @@ sentence contains a word it does not know, which is both accurate and useful.</p
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p>It helps considerably, and it is a genuine method, called add-k smoothing. The denominator
-    becomes count(w₁) + 0.01V, so with V = 50,000 the added term is 500 rather than 50,000, and
+    becomes <math data-tex="\mathrm{count}(w_1) + 0.01V"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>0.01</mn><mi>V</mi></mrow></math>, so with <math data-tex="V = 50{,}000"><mrow><mi>V</mi><mo>=</mo><mn>50,000</mn></mrow></math> the added term is 500
+    rather than 50,000, and
     observed bigrams retain far more of their probability.</p>
     <p>It does not, however, address the underlying defect. Every unseen word still receives exactly
     the same share, so the model still cannot determine that <code>curry</code> is a better
@@ -832,7 +983,7 @@ sentence contains a word it does not know, which is both accurate and useful.</p
 
 <p>This completes the n-gram language model: count, assume a short history, and smooth. One
 question remains, and it determines every other choice: whether a given model is any good. Bigram or
-trigram? Which λ values? None of these can be settled without a way to measure model quality.
+trigram? Which <math data-tex="\lambda"><mi>λ</mi></math> values? None of these can be settled without a way to measure model quality.
 Session 14 introduces perplexity.</p>
 
 <h2>Reading</h2>

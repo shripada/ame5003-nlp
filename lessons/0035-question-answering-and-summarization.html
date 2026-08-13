@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 35 — Question answering and text summarisation</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 35</p>
+  <h1>Question answering and text summarisation</h1>
+  <p class="subtitle">Two syllabus clauses in one hour. The first half points Unit I's retriever
+  at the generator Unit III built. The second is a taxonomy, and one architecture the room
+  already has.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Two clauses, one hour</h2>
+
+<p>Session 34 closed by saying this hour carries two syllabus clauses and opens on a
+retrieval problem the course built in Unit I. Both of those are true, and the first of
+them is a constraint rather than a courtesy. Question answering and text summarisation
+are listed separately in the syllabus; the calendar gives them one sitting. Neither half
+gets the treatment an application deserves. We will say what each one is, what it cannot
+do, and which pieces of the course already built it.</p>
+
+<p>The two halves are not equally served by their sources. Question answering has SLP3
+chapter 11 behind it — dense retrieval, retrieval-augmented generation, and two
+evaluation metrics. Summarisation has no SLP3 chapter in this release. Chapter 12 is
+machine translation, last session's. The assigned source is Practical NLP chapter 7, a
+notebook. QA gets the conceptual weight; summarisation gets a taxonomy and one honest
+note about the tooling.</p>
+
+<h2>The retrieval half is already built</h2>
+
+<p>Chapter 11 opens on information retrieval, and the opening is a recap. §11.1.1 is
+representing documents as vectors — session 17's bag of words, sitting on the
+term-document matrix session 8 built as an incidence matrix. §11.1.2 is term weighting
+with tf-idf and BM25 — session 10. §11.1.4 is the inverted index — session 9, which lab 4
+implemented. Document scoring by cosine is session 19.</p>
+
+<p>Unit I was not a detour before neural models. It was the retriever half of the system
+this session assembles. A query comes in; a collection is searched; the documents most
+likely to meet the information need come back, ranked. Everything from session 8 to
+session 10 is that pipeline, sparse: count vectors, weighted by TF-IDF, found through an
+inverted index.</p>
+
+<h2>Vocabulary mismatch</h2>
+
+<p>§11.3 names the flaw in the terms Unit I left it:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §11.3</span>
+  <p>"The classic tf-idf or BM25 algorithms for IR have long been known to have a
+  conceptual flaw: they work only if there is exact overlap of words between the query
+  and document… an issue called the <strong>vocabulary mismatch problem</strong>."</p>
+</div>
+
+<p>Session 8's incidence matrix matched words exactly: a 1 where the term occurred, a 0
+where it did not. Session 10's TF-IDF weighted the 1s, so a distinctive term counted for
+more than a common one, and still required the term itself to appear. The asker and the
+writer have to choose the same words. Lab 4's inverted index fails for the same reason —
+there is no postings list to merge if the query term is absent from the document.</p>
+
+<p>The fix, in the same paragraph: "instead of (sparse) word-count vectors, using (dense)
+embeddings… implemented in modern times via encoders like BERT." Session 21 already
+placed synonyms near each other in a static space; session 32 built contextual embeddings
+in which the same word in two sentences is two vectors. §11.3 joins those facts to Unit
+I: the retriever a student built in lab 4 fails when the asker and the writer choose
+different words, and the encoder from session 32 is what a modern retriever encodes them
+with.</p>
+
+<p>The concrete mechanism is session 33's sequence-pair classification, pointed at
+retrieval. Pack the query and the document around <code>[SEP]</code>, read
+<code>[CLS]</code>, sit a linear layer on it:</p>
+
+<div class="meq"><math data-tex="z = \mathrm{BERT}(q;[\mathrm{SEP}]; d)[\mathrm{CLS}]" display="block" class="tml-display" style="display:block math;"><mrow><mi>z</mi><mo>=</mo><mpadded lspace="0"><mi>BERT</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>q</mi><mo separator="true">;</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>SEP</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mo separator="true">;</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math></div>
+<div class="meq" data-eqno="11.17"><math data-tex="\mathrm{score}(q,d) = \mathrm{softmax}(U(z))" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>score</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>q</mi><mo separator="true">,</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(11.17)</span></div>
+
+<p>That is (10.11) with a different letter for the matrix. The pair task in session 33
+asked whether sentence B follows from sentence A. Here the pair is a query and a
+document, and the label is relevance. SLP3 notes that running this over every document
+in a collection, for every new query, is too expensive to use except as a reranker of a
+shortlist; a cheaper bi-encoder encodes the documents once, stores the vectors, and
+scores by a dot product when the query arrives. The architecture we need to see is the
+first one, because it is a thing the room has already trained.</p>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>A user types the query on the left. The only document that answers it is the one on
+  the right. They share no content words.</p>
+  <pre><code>Query:     How can I treat a headache?
+Document:  Ibuprofen reduces pain in the temples.</code></pre>
+  <p>Why does session 10's TF-IDF ranking return nothing for this query? What changes if
+  the retriever encodes the query and the document with BERT?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p>After the stop words session 4 would drop — <em>how, can, I, a, in, the</em> —
+    the query is <code>treat headache</code> and the document is
+    <code>Ibuprofen reduces pain temples</code>. No term occurs in both, so every
+    tf-idf weight in the overlap is zero, the cosine is zero, and the document does
+    not rank. Session 8's incidence matrix is the same failure in binary: the bitwise
+    AND of the two rows is the zero vector. Lab 4's inverted index has postings for
+    <code>treat</code> and <code>headache</code> that do not include this document.</p>
+    <p>A dense retriever does not need the words to match. It encodes the query and
+    the document — in the expensive version, together, as the pair above; in the
+    cheap version, separately — and scores the pair in embedding space.
+    <code>treat</code> sits near <code>reduces</code>, <code>headache</code> near
+    <code>pain</code>, and the document comes back. That is the vocabulary-mismatch
+    problem, and it is why Unit I's retriever is necessary but not sufficient.</p>
+    <p><strong>The instructive wrong answer.</strong> Expanding the query by hand with
+    synonyms — adding <code>pain</code>, <code>Ibuprofen</code> — would also retrieve
+    this document, and that is how sparse IR used to paper over the problem. It does
+    not scale: the asker cannot be expected to list every paraphrase, and the
+    expansion will retrieve documents that match a synonym in the wrong sense. Dense
+    retrieval moves the synonymy into the representation rather than into the query
+    string.</p>
+  </div>
+</div>
+
+<h2>Retrieval-augmented generation</h2>
+
+<p>Prompting a language model with the question is the obvious method, and it is the
+one SLP3 starts from. A pretrained model that has seen the location of the Louvre in
+its training data can generate <em>Paris</em> by conditional generation from the
+question as a prefix. Three things go wrong with that, and they are why the rest of
+the chapter exists.</p>
+
+<p>The first is that language models <strong>hallucinate</strong>: they generate a
+response that is not faithful to the facts of the world. Dahl et al. (2024) found
+that, asked questions about the legal domain, models hallucinated from 69% to 88% of
+the time. They also do this when the correct fact is stored in the parameters and the
+feedforward layers fail to recall it. The models are not well calibrated, so a wrong
+answer often arrives with complete certainty.</p>
+
+<p>The second is proprietary data. Medical records, internal documents, personal
+email, legal discovery — none of this was in the web crawl the model was
+pretrained on. A larger model does not help. Scale does not insert a document the
+training set never contained.</p>
+
+<p>The third is that knowledge is dynamic and time-sensitive. The weights are frozen
+at the training date. Session 21 demonstrated the static version of this: Word2Vec's
+2013 vectors have no entry for <code>COVID</code>, <code>selfie</code>,
+<code>blockchain</code> or <code>emoji</code>. Session 22 repeated it for GloVe's
+2014 file. Retrieval is the answer that does not require retraining. The model's
+weights stay where they were; the documents are current.</p>
+
+<p><strong>Retrieval-augmented generation</strong>, or <strong>RAG</strong>, is the
+method that addresses all three. SLP3's framing:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §11.4</span>
+  <p>"we use IR techniques to retrieve documents from some specified store of
+  documents that are likely to have useful information. Then we use a large language
+  model to generate an answer conditioned on these documents in addition to the
+  original query."</p>
+</div>
+
+<p>Two components: a <strong>retriever</strong> and a <strong>generator</strong>. The
+room has now built both halves — sparse retrieval in Unit I, dense retrieval from
+sessions 32–33, and generation from sessions 27–33. Nothing in the diagram below is a
+new model. RAG is those two things connected.</p>
+
+<figure>
+  <svg viewBox="0 0 700 300" role="img" aria-labelledby="ragtitle ragdesc">
+    <title id="ragtitle">Retrieval-augmented generation: a retriever the course built in
+    Units I and III, a generator it built in Unit III, and nothing else</title>
+    <desc id="ragdesc">Two rows. The top row is retrieval: a query box on the left
+    points to a retriever box labelled sessions 8 to 10 and 32, which reads a document
+    store sitting directly above it and emits retrieved passages on the right. A path
+    carries those passages down and left into the bottom row. The bottom row is
+    generation: a box labelled query + passages points to a generator box labelled
+    sessions 27 to 33, which emits an answer. The two stages are labelled retrieve
+    and generate. The retriever and generator use a heavier outline than the query,
+    store, passages and answer; the distinction does not rely on colour.</desc>
+
+    <text class="fig-axname" x="350" y="16" text-anchor="middle">retrieve</text>
+
+    <rect class="fig-node-q" x="160" y="24" width="160" height="32" rx="4"></rect>
+    <text class="fig-label" x="240" y="44" text-anchor="middle">document store</text>
+
+    <path class="fig-edge" d="M240 56 L240 76"></path>
+    <polygon class="fig-edge-h" points="240,76 236.5,66 243.5,66"></polygon>
+
+    <rect class="fig-node-q" x="20" y="88" width="90" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="65" y="118" text-anchor="middle">query</text>
+
+    <path class="fig-edge" d="M110 112 L148 112"></path>
+    <polygon class="fig-edge-h" points="148,112 138,108.5 138,115.5"></polygon>
+
+    <rect class="fig-node" x="150" y="76" width="180" height="72" rx="5"></rect>
+    <text class="fig-glyph" x="240" y="106" text-anchor="middle">retriever</text>
+    <text class="fig-label" x="240" y="128" text-anchor="middle">sessions 8–10, 32</text>
+
+    <path class="fig-edge" d="M330 112 L388 112"></path>
+    <polygon class="fig-edge-h" points="388,112 378,108.5 378,115.5"></polygon>
+
+    <rect class="fig-node-q" x="390" y="88" width="190" height="48" rx="4"></rect>
+    <text class="fig-label" x="485" y="118" text-anchor="middle">retrieved passages</text>
+
+    <path class="fig-edge" d="M485 136 L485 172 L120 172 L120 208"></path>
+    <polygon class="fig-edge-h" points="120,208 116.5,198 123.5,198"></polygon>
+
+    <text class="fig-axname" x="50" y="188" text-anchor="middle">generate</text>
+
+    <rect class="fig-node-q" x="20" y="210" width="200" height="50" rx="4"></rect>
+    <text class="fig-label" x="120" y="240" text-anchor="middle">query + passages</text>
+
+    <path class="fig-edge" d="M220 235 L268 235"></path>
+    <polygon class="fig-edge-h" points="268,235 258,231.5 258,238.5"></polygon>
+
+    <rect class="fig-node" x="270" y="198" width="200" height="74" rx="5"></rect>
+    <text class="fig-glyph" x="370" y="228" text-anchor="middle">generator</text>
+    <text class="fig-label" x="370" y="250" text-anchor="middle">sessions 27–33</text>
+
+    <path class="fig-edge" d="M470 235 L528 235"></path>
+    <polygon class="fig-edge-h" points="528,235 518,231.5 518,238.5"></polygon>
+
+    <rect class="fig-node-q" x="530" y="210" width="150" height="50" rx="4"></rect>
+    <text class="fig-glyph" x="605" y="240" text-anchor="middle">answer</text>
+  </svg>
+  <figcaption>RAG as two stages. The retriever is Unit I's pipeline, with session 32's
+  encoder in place of sparse overlap. The generator is the encoder-decoder the room has
+  been building since session 27. The session's claim is that the connection is the
+  new fact, not either box.</figcaption>
+</figure>
+
+<p>Given a collection <math data-tex="D"><mi>D</mi></math> and a query <math data-tex="q"><mi>q</mi></math>, the basic algorithm is three
+steps. Call the retriever for the top-<math data-tex="k"><mi>k</mi></math> passages <math data-tex="R(q)"><mrow><mi>R</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>q</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. Build a prompt
+that contains those passages and the query. Call a language model with the prompt.
+SLP3's schematic, for the question <em>What year was the premiere of The Magic
+Flute?</em>:</p>
+
+<pre><code>retrieved passage 1
+retrieved passage 2
+...
+retrieved passage k
+Based on these texts, answer this question:
+What year was the premiere of The Magic Flute?</code></pre>
+
+<p>The generation is then conditioned on the retrieved passages as well as on the
+query. RAG "can help mitigate hallucination, by giving the model a set of trusted
+documents"; it lets a model work over proprietary data it was never trained on; and
+it addresses the fact that knowledge is dynamic. Grounding the answer in a passage
+also lets the system show the user where the answer came from, which is a different
+kind of help: not a guarantee that the answer is true, but a citation the user can
+check.</p>
+
+<p>It is not a guarantee. Retrieved passages can be irrelevant or wrong, and the
+generator can still hallucinate from them. A larger model does not fix a document it
+never saw; retrieval does not make generation faithful. Both halves remain
+necessary.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What problem does RAG solve that a larger model does not?</p>
+  <div class="q-opts">
+    <button class="opt">Knowledge that is proprietary, or newer than the training
+    cut-off — scale does not insert a document the model never saw</button>
+    <button class="opt">It makes the model faster, because retrieval replaces
+    generation</button>
+    <button class="opt">It removes the need for an encoder, because the retriever
+    already understands the query</button>
+    <button class="opt">It guarantees the generated answer is factually correct,
+    because the documents are trusted</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>proprietary or post-cut-off knowledge</strong>. A
+    larger model still has a training date and a training set. Internal documents,
+    last week's news, and a medical record were not in either.</p>
+    <p>The second is backwards: RAG <em>adds</em> a retrieval step, so it is slower,
+    not faster. The third confuses the two components; the generator still needs an
+    encoder-decoder, and the expensive retriever <em>is</em> an encoder. The fourth
+    is the claim the last paragraph declined to make. Trusted documents reduce
+    hallucination. They do not eliminate it, and a retrieved passage can itself be
+    wrong.</p>
+  </div>
+</div>
+
+<h2>Evaluating question answering</h2>
+
+<p>§11.6 gives two metrics, chosen by the form of the answer. For multiple-choice
+questions such as MMLU, we report <strong>exact match</strong>: the percentage of
+predicted answers that match the gold answer exactly. For free-text answers such as
+Natural Questions, we report <strong>token F1</strong>: treat the prediction and the
+gold as bags of tokens, compute F1 on each question, and average over questions.</p>
+
+<p>Lab 6 defined precision, recall, and F1 as their harmonic mean, and computed all
+three by hand from a confusion matrix. That was week 6. Token F1 is the same three
+quantities, pointed at overlap of tokens rather than at class labels. Session 34's
+chrF was the same move pointed at character n-grams. The F1 from that lab is
+<math data-tex="\beta = 1"><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow></math>; chrF commonly sets <math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math>. Token F1 is back at
+<math data-tex="\beta = 1"><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow></math>.</p>
+
+<p>A short illustration. Gold: <em>the louvre is in paris</em>. Prediction:
+<em>the louvre museum is in paris</em>.</p>
+
+<pre><code>gold tokens:  the, louvre, is, in, paris              (5)
+pred tokens:  the, louvre, museum, is, in, paris      (6)
+overlap:      5
+
+precision = 5/6     recall = 5/5     F1 = 0.91
+exact match = 0</code></pre>
+
+<p>Exact match scores the extra word as a complete miss. Token F1 scores it as a
+partial hit. Neither is the thing we actually care about, which is whether the
+answer is right. Session 14's trade, restated: intrinsic evaluation is inexpensive
+and approximate; extrinsic evaluation is expensive and definitive; a gain on the
+proxy does not guarantee a gain on the task. Perplexity, chrF, token F1 — every
+application session ends up needing a metric, and every metric is a proxy.</p>
+
+<p>One more distinction from §11.5, because the lab depends on it.
+<strong>Closed-book</strong> QA answers from the model's parameters alone, with no
+retrieved document. <strong>Open-book</strong> QA is given one or more documents —
+via RAG, or because a dataset already attached a passage to the question. Natural
+Questions can be run either way; MMLU is closed-book. There is a third thing, and
+it is not either of those.</p>
+
+<div class="callout">
+  <span class="label">Lab 12 is a different task</span>
+  <p>SLP3 teaches question answering as prompting, improved with retrieval. Lab 12
+  asks for fine-tuning for question answering, which is a different task:
+  <strong>extractive span prediction</strong> on a fine-tuned encoder. Given a
+  question and a passage, the model marks the start and end of the answer span
+  inside that passage — closer to session 7's span-finding than to generating a
+  sentence. SLP3 mentions SQuAD only in its bibliography and does not teach the
+  method. The <a href="https://huggingface.co/learn/nlp-course/chapter7/7">HuggingFace
+  course chapter on question answering</a> is the lab's source. A student who meets
+  span prediction in the lab has not missed a lecture; they have met the other half
+  of the clause.</p>
+</div>
+
+<h2>Extractive and abstractive summarisation</h2>
+
+<p>Practical NLP chapter 7 opens on a distinction, and the distinction is the
+teachable core. <strong>Extractive</strong> summarisation selects existing sentences
+from the source and arranges them. <strong>Abstractive</strong> summarisation
+generates new text.</p>
+
+<p>Extractive cannot produce a sentence the document does not contain, so it cannot
+paraphrase, compress two facts into one clause, or repair a badly written source.
+It also cannot be wrong in the way abstractive summarisation can: it cannot
+hallucinate, because every sentence it emits was in the input. That is the trade,
+and it is the same shape as extractive-versus-generative throughout the course —
+span prediction versus RAG, a generation from a retrieved sentence versus a
+generation from parameters.</p>
+
+<p>Abstractive summarisation is session 27's encoder-decoder, unchanged: a long
+document in, a short document out, different lengths, no word-to-word alignment.
+The notebook's abstractive example uses <strong>T5</strong> (Text-To-Text Transfer
+Transformer), which is an encoder-decoder transformer. Session 31's architecture is
+doing the work.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Which summarisation approach can hallucinate?</p>
+  <div class="q-opts">
+    <button class="opt">Abstractive, because it generates new text and so can invent
+    facts the source does not contain</button>
+    <button class="opt">Extractive, because selecting the wrong sentence is a form
+    of hallucination</button>
+    <button class="opt">Both equally, because any automatic summary can be
+    unfaithful</button>
+    <button class="opt">Neither, because summarisation operates over a given
+    document rather than over parametric knowledge</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>abstractive</strong>. Hallucination, as §11.4 defined
+    it, is a response not faithful to the facts. Generating new text is what makes
+    that possible. Extractive can select a misleading sentence, or miss the point of
+    the document; it cannot emit a sentence that was not there.</p>
+    <p>The second uses the word for a different failure. The third flattens a
+    structural guarantee. The fourth would be true of extractive and is the reason
+    abstractive is the one that can invent: it is a generator, and a generator is
+    not bound to the input tokens.</p>
+  </div>
+</div>
+
+<h2>Sentence-scoring methods, and T5</h2>
+
+<p>The notebook demonstrates a family of extractive methods through the library
+<code>sumy</code>: Luhn, latent semantic analysis, LexRank and TextRank, plus a
+BERT-based extractive summariser. They are sentence-scoring methods. Each ranks the
+sentences of the document and selects the top few. We will not derive any of them.
+One is worth naming because the similarity it uses is already in the course:
+<strong>TextRank</strong> is PageRank over a sentence-similarity graph, and the
+similarity is cosine, from session 19.</p>
+
+<p>One cell of that notebook will not run on this course's environment. It contains
+<code>from gensim.summarization import summarize</code>. That module was removed in
+gensim 4.0. Lab 8 and session 22 need gensim 4.4, which is what
+<code>classroom/pyproject.toml</code> pins, so the two requirements cannot both
+hold. The <code>sumy</code> and <code>summa</code> examples and the T5 example are
+unaffected. The gensim cell is not a summariser this room can call.</p>
+
+<p>T5 takes the document as input and generates a shorter document. That is the
+encoder-decoder of session 27, with the transformer blocks of session 31, trained
+as a text-to-text model: the same weights, pointed at whatever prefix names the
+task. Summarisation is one such prefix. The notebook's 2020 claim that abstractive
+summarisation is "more of a research topic than a practical application" is a
+statement about the tooling of that year, not about the architecture. The
+architecture was finished in this course four sessions ago.</p>
+
+<h2>Where this leaves us</h2>
+
+<p>T3.11 and T3.13 are complete, in the form an hour that carries both can complete
+them. Question answering, as SLP3 teaches it, is retrieval plus generation: Unit
+I's pipeline, with session 32's encoder repairing vocabulary mismatch, feeding
+session 27's generator. The three reasons to retrieve rather than to prompt are
+hallucination, proprietary data, and a world that kept moving after the weights
+were frozen. Exact match and token F1 score the output against a gold answer, and
+like chrF and perplexity they are proxies. Lab 12's span-prediction task is a
+different thing.</p>
+
+<p>Summarisation splits into extractive and abstractive. Extractive selects and
+cannot hallucinate; abstractive generates and can. The extractive family ranks
+sentences; TextRank does it with cosine. Abstractive is the encoder-decoder, and
+T5 is that architecture with a text-to-text prefix.</p>
+
+<p>Session 36 is chatbots, and the last hour of the course. RAG is the bridge it
+will use: a modern assistant answering from documents is a retriever plus a
+generator, which is what this session assembled.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>Sparse retrieval needs exact word overlap; that is the
+  <strong>vocabulary mismatch problem</strong>, and dense retrieval with a BERT
+  encoder is the modern repair. <strong>RAG</strong> is a retriever plus a
+  generator: retrieve passages, condition generation on those passages and the
+  query. It mitigates hallucination, reaches proprietary data, and tracks
+  knowledge that post-dates the weights; it does not guarantee a faithful answer.
+  <strong>Exact match</strong> and <strong>token F1</strong> evaluate QA, the
+  second being lab 6's F1 pointed at bags of tokens. Lab 12's QA is extractive
+  span prediction, not RAG. <strong>Extractive</strong> summarisation selects
+  sentences and cannot hallucinate; <strong>abstractive</strong> generates new
+  text and can, and is session 27's encoder-decoder. T5 is that architecture.
+  Every application session needed a metric, and every metric is a proxy.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/11.pdf">Speech and
+Language Processing</a></strong>, <strong>§11.3, §11.4, §11.5 and §11.6</strong>.
+§11.3 is dense retrieval and vocabulary mismatch; §11.4 is RAG; §11.5 is the
+datasets this session used as examples (Natural Questions, MMLU) and the
+open-book / closed-book split; §11.6 is exact match and token F1.
+<mark>Skip §11.1</mark> — that is sessions 8–10 and 17, already taught.
+<mark>Skip §11.2</mark> — IR evaluation, not this hour. Lab 6 remains the
+reference for precision, recall and F1.</p>
+
+<p><strong>Practical NLP, chapter 7</strong>, notebook
+<code>03_TextSummarization.ipynb</code> — the extractive / abstractive opening,
+the <code>sumy</code> family, and the T5 example. Skip the gensim cell; it does
+not run on this course's gensim 4.4.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0034-machine-translation.html">← Session 34: Machine translation</a>
+  <a href="0036-chatbots-and-wrap-up.html">Session 36: Chatbots and wrap-up →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

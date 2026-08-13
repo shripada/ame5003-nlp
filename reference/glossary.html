@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -809,13 +955,15 @@ figcaption {
 <dl class="term">
   <dt>BPE <span class="sym">Byte-Pair Encoding</span></dt>
   <dd>Learns subword units by repeatedly merging the most frequent adjacent symbol pair.
-  Merge count <em>k</em> sets vocabulary size. Origin: a 1994 compression algorithm.</dd>
+  Merge count <math data-tex="k"><mi>k</mi></math> sets vocabulary size. Origin: a 1994 compression algorithm.</dd>
 </dl>
 
 <dl class="term">
   <dt>WordPiece</dt>
   <dd>BPE variant used by BERT: merges the pair that most increases training-data likelihood,
-  not the most frequent one. The <code>##</code> prefix marks "continues previous word".</dd>
+  not the most frequent one. The <code>##</code> prefix marks "continues previous word". BERT's
+  vocabulary is 30,000 of these — session 3 showed
+  <code>doomscrolling → ["doom", "##scroll", "##ing"]</code> and session 32 met the table.</dd>
 </dl>
 
 <dl class="term">
@@ -862,8 +1010,8 @@ figcaption {
 
 <dl class="term">
   <dt>N-gram</dt>
-  <dd>A contiguous run of <em>n</em> tokens. An n-gram LM applies the Markov assumption: only
-  the previous <em>n</em>−1 tokens matter.</dd>
+  <dd>A contiguous run of <math data-tex="n"><mi>n</mi></math> tokens. An n-gram LM applies the Markov assumption: only
+  the previous <math data-tex="n-1"><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></math> tokens matter.</dd>
 </dl>
 
 <dl class="term">
@@ -883,7 +1031,7 @@ figcaption {
 
 <dl class="term">
   <dt>MLE <span class="sym">Maximum Likelihood Estimate</span></dt>
-  <dd>For n-grams: <em>P(w|context) = count(context,w) / count(context)</em>. Just counting and
+  <dd>For n-grams: <math data-tex="P(w \mid \text{context}) = \mathrm{count}(\text{context}, w) / \mathrm{count}(\text{context})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>context</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>context</mtext><mo separator="true">,</mo><mi>w</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>context</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. Just counting and
   dividing — and it assigns probability <strong>zero</strong> to anything unseen, which is why
   smoothing exists.</dd>
 </dl>
@@ -897,15 +1045,15 @@ figcaption {
 
 <dl class="term">
   <dt>Backoff</dt>
-  <dd>When an n-gram has a zero count, drop to the (<em>n</em>−1)-gram and try again, repeating until
+  <dd>When an n-gram has a zero count, drop to the (<math data-tex="n-1"><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></math>)-gram and try again, repeating until
   something has been seen. Unlike add-one, the fallback still carries evidence — a common word gets
   more than a rare one.</dd>
 </dl>
 
 <dl class="term">
   <dt>Interpolation</dt>
-  <dd>Always blend trigram, bigram and unigram estimates with weights λ summing to 1, rather than
-  waiting for a zero. The unigram term is never zero, so the mix never is either. λ is tuned on a
+  <dd>Always blend trigram, bigram and unigram estimates with weights <math data-tex="\lambda"><mi>λ</mi></math> summing to 1, rather than
+  waiting for a zero. The unigram term is never zero, so the mix never is either. <math data-tex="\lambda"><mi>λ</mi></math> is tuned on a
   <em>held-out set</em>, not on the training data.</dd>
 </dl>
 
@@ -922,7 +1070,7 @@ figcaption {
   <dt>Training / development / test set</dt>
   <dd>Three disjoint slices of the data. <strong>Training</strong> gives the counts.
   <strong>Development</strong> (devset) is where you compare models and tune hyperparameters such
-  as λ or <em>k</em> — a <em>held-out set</em> is this. <strong>Test</strong> is opened
+  as <math data-tex="\lambda"><mi>λ</mi></math> or <math data-tex="k"><mi>k</mi></math> — a <em>held-out set</em> is this. <strong>Test</strong> is opened
   <strong>once</strong>, at the end, for the number you report.</dd>
 </dl>
 
@@ -936,13 +1084,13 @@ figcaption {
 <dl class="term trap">
   <dt>Perplexity <span class="sym">PP</span></dt>
   <dd>Standard intrinsic LM metric: the inverse probability of the test set, normalised by token
-  count — <em>PP(W) = P(W)<sup>−1/N</sup></em>, where N counts predicted tokens
+  count — <math data-tex="\mathrm{PP}(W) = P(W)^{-1/N}"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>P</mi><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></msup></mrow></math>, where <math data-tex="N"><mi>N</mi></math> counts predicted tokens
   (includes <code>&lt;/s&gt;</code>, excludes <code>&lt;s&gt;</code>). Equivalently
-  2<sup>cross-entropy</sup>, the log form the textbook uses — same quantity; logs are taught in
+  <math data-tex="2^{\text{cross-entropy}}"><msup><mn>2</mn><mtext>cross-entropy</mtext></msup></math>, the log form the textbook uses — same quantity; logs are taught in
   session 16. Intuition: the model's average <em>branching factor</em>.
   <strong>Lower is better</strong> — easy to get backwards, so check yourself. Only comparable
   across models with identical vocabularies, on the same test set. Infinite for an unsmoothed
-  model, since one unseen n-gram makes P(W) = 0.</dd>
+  model, since one unseen n-gram makes <math data-tex="P(W) = 0"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>.</dd>
 </dl>
 
 <dl class="term">
@@ -953,9 +1101,9 @@ figcaption {
 
 <dl class="term trap">
   <dt>Prior · likelihood · posterior</dt>
-  <dd><strong>Prior</strong> <em>P(c)</em> — how common the class is before reading anything.
-  <strong>Likelihood</strong> <em>P(d|c)</em> — how likely this document is if the class were c.
-  <strong>Posterior</strong> <em>P(c|d)</em> — how likely the class is now the document is read.
+  <dd><strong>Prior</strong> <math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — how common the class is before reading anything.
+  <strong>Likelihood</strong> <math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — how likely this document is if the class were c.
+  <strong>Posterior</strong> <math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — how likely the class is now the document is read.
   The posterior is what you want and cannot count; the other two are what you can.
   <strong>The thing before the bar is what you are asking about</strong> — read them backwards and
   the whole topic collapses.</dd>
@@ -963,7 +1111,7 @@ figcaption {
 
 <dl class="term">
   <dt>Bayes' rule</dt>
-  <dd><em>P(x|y) = P(y|x)·P(x) / P(y)</em> — flips a conditional probability round. Useful exactly
+  <dd><math data-tex="P(x \mid y) = P(y \mid x) \cdot P(x) / P(y)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>⋅</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — flips a conditional probability round. Useful exactly
   when one direction has data behind it and the other does not. For classification the denominator
   drops out, since it is identical for every class and only the ranking is needed — which is also
   why the outputs are scores, not probabilities.</dd>
@@ -995,22 +1143,22 @@ figcaption {
 <dl class="term trap">
   <dt>Log space <span class="sym">underflow</span></dt>
   <dd>Multiplying hundreds of small probabilities gives <strong>exactly zero</strong> in ordinary
-  floating point (<code>0.01<sup>200</sup></code> is 0.0, not "very small"). So add logs instead of
-  multiplying: <em>log(a·b) = log a + log b</em>. The winner never changes, because log is
+  floating point (<math data-tex="0.01^{200}"><msup><mn>0.01</mn><mn>200</mn></msup></math> is 0.0, not "very small"). So add logs instead of
+  multiplying: <math data-tex="\log(a \cdot b) = \log a + \log b"><mrow><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo>⋅</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>a</mi><mo>+</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>b</mi></mrow></math>. The winner never changes, because log is
   <strong>monotonic</strong>. Base is irrelevant — it scales everything by a constant. Costs you
   the readable scale: log scores are not probabilities.</dd>
 </dl>
 
 <dl class="term">
   <dt>Precision</dt>
-  <dd>Of the items the classifier labelled as class <em>c</em>, what fraction really were
-  <em>c</em>. High precision means few false alarms for that class.
+  <dd>Of the items the classifier labelled as class <math data-tex="c"><mi>c</mi></math>, what fraction really were
+  <math data-tex="c"><mi>c</mi></math>. High precision means few false alarms for that class.
   <span class="unit">Lab 6 · enrichment</span></dd>
 </dl>
 
 <dl class="term">
   <dt>Recall</dt>
-  <dd>Of the items that really are class <em>c</em>, what fraction the classifier found. High
+  <dd>Of the items that really are class <math data-tex="c"><mi>c</mi></math>, what fraction the classifier found. High
   recall means few missed cases for that class. Precision and recall pull against each other —
   a single accuracy number can hide that trade-off.
   <span class="unit">Lab 6 · enrichment</span></dd>
@@ -1019,7 +1167,7 @@ figcaption {
 <dl class="term">
   <dt>F1</dt>
   <dd>The harmonic mean of precision and recall for a class:
-  <em>2 · precision · recall / (precision + recall)</em>. One number when you need one; still
+  <math data-tex="2 \cdot \text{precision} \cdot \text{recall} / (\text{precision} + \text{recall})"><mrow><mn>2</mn><mo>⋅</mo><mtext>precision</mtext><mrow><mspace width="0.222em"></mspace><mo>⋅</mo><mspace width="0.222em"></mspace></mrow><mtext>recall</mtext><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>precision</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>recall</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. One number when you need one; still
   per-class, so it does not replace looking at both.
   <span class="unit">Lab 6 · enrichment</span></dd>
 </dl>
@@ -1062,7 +1210,7 @@ figcaption {
   TF rewards words frequent <em>in this doc</em>; IDF (a log ratio) penalises words common
   <em>across all docs</em>. Together: words that are distinctive here. Know why there is a <em>log</em> in IDF: it damps the effect, so being rare helps, but less
   and less as a word gets rarer. A word in <em>every</em> document has idf
-  <code>log(N/N) = 0</code> exactly, so its weight is zero no matter how often it occurs.
+  <math data-tex="\log(N/N) = 0"><mrow><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>N</mi><mi>/</mi><mi>N</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math> exactly, so its weight is zero no matter how often it occurs.
   <strong>IDF is a property of the collection, not of the document</strong> — score the same text
   against a different collection and every weight changes. A word can be highly distinctive in one
   collection and worthless in another: <code>fool</code> separates comedies from histories in
@@ -1071,7 +1219,7 @@ figcaption {
 
 <dl class="term">
   <dt>Cosine similarity</dt>
-  <dd>Similarity as the cosine of the angle between vectors: <code>(a·b) / (|a||b|)</code> — the dot
+  <dd>Similarity as the cosine of the angle between vectors: <math data-tex="(a \cdot b) / (|a||b|)"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo>⋅</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>|</mi><mi>a</mi><mi>|</mi><mi>|</mi><mi>b</mi><mi>|</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — the dot
   product over the product of magnitudes. Easiest read: shrink both vectors to length 1
   (<em>unit vectors</em>), then take their dot product — so it compares direction and throws length
   away. A document and the same document printed twice score exactly 1. For count, tf or tf-idf
@@ -1087,20 +1235,20 @@ figcaption {
 <dl class="term">
   <dt>Neuron <span class="sym">unit</span></dt>
   <dd>A weighted sum of inputs, plus a bias, pushed through one non-linear function:
-  <code>y = f(Σ wᵢxᵢ + b)</code>. That is the whole object. Naïve Bayes in log space is already the
-  same shape — <code>log P(c) + Σ log P(w|c)</code> — the difference being that its weights are
+  <math data-tex="y = f(\sum_i w_i x_i + b)"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mo movablelimits="false">∑</mo><mi>i</mi></msub><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. That is the whole object. Naïve Bayes in log space is already the
+  same shape — <math data-tex="\log P(c) + \sum \log P(w \mid c)"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mo movablelimits="false">∑</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — the difference being that its weights are
   <strong>counted</strong> while a neuron's are <strong>fitted</strong>. Stack neurons side by side
-  and the sums become one matrix multiply, <code>f(Wx + b)</code>, which is a <strong>layer</strong>.
+  and the sums become one matrix multiply, <math data-tex="f(Wx + b)"><mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, which is a <strong>layer</strong>.
   Session 20.</dd>
 </dl>
 
 <dl class="term trap">
   <dt>Activation function <span class="sym">sigmoid · ReLU</span></dt>
-  <dd>The non-linear <code>f</code> in a neuron. <strong>Sigmoid</strong>
-  <code>σ(z) = 1/(1 + e<sup>−z</sup>)</code> squashes any number into (0, 1), so it reads as a
-  probability — Word2Vec's negative sampling scores a pair as <code>σ(u·v)</code>.
-  <strong>ReLU</strong> <code>max(0, z)</code> is the modern default from Unit III on. It is not
-  optional <em>if you want depth</em>: without it, <code>W₂(W₁x) = (W₂W₁)x</code> and a stack of
+  <dd>The non-linear <math data-tex="f"><mi>f</mi></math> in a neuron. <strong>Sigmoid</strong>
+  <math data-tex="\sigma(z) = 1/(1 + e^{-z})"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>1</mn><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mi>z</mi></mrow></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> squashes any number into (0, 1), so it reads as a
+  probability — Word2Vec's negative sampling scores a pair as <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>.
+  <strong>ReLU</strong> <math data-tex="\max(0, z)"><mrow><mrow><mi>max</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the modern default from Unit III on. It is not
+  optional <em>if you want depth</em>: without it, <math data-tex="W_2(W_1 x) = (W_2 W_1) x"><mrow><msub><mi>W</mi><mn>2</mn></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>x</mi></mrow></math> and a stack of
   layers collapses into one. ⚠️ That argument is about depth, not about every model — Word2Vec is
   deliberately shallow and has <em>no</em> hidden non-linearity at all. Session 20.</dd>
 </dl>
@@ -1108,10 +1256,10 @@ figcaption {
 <dl class="term">
   <dt>Softmax</dt>
   <dd>Turns any list of scores into a probability distribution:
-  <code>softmax(z)ᵢ = e^(zᵢ) / Σⱼ e^(zⱼ)</code>. Exponentiate, then divide by the total, so
+  <math data-tex="\mathrm{softmax}(z)_i = e^{z_i} / \sum_j e^{z_j}"><mrow><mpadded lspace="0"><mi>softmax</mi></mpadded><msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>i</mi></msub><mo>=</mo><msup><mi>e</mi><msub class="tml-sml-pad"><mi>z</mi><mi>i</mi></msub></msup><mi>/</mi><msub><mo movablelimits="false">∑</mo><mi>j</mi></msub><msup><mi>e</mi><msub class="tml-sml-pad"><mi>z</mi><mi>j</mi></msub></msup></mrow></math>. Exponentiate, then divide by the total, so
   everything comes out positive and sums to 1 — unlike ordinary normalisation it accepts negative
   inputs and arbitrary scales, which is why it can sit on top of a layer. The exponential
-  <strong>exaggerates gaps</strong>: a lead of 2 in score is always a ratio of <code>e² ≈ 7.4</code>
+  <strong>exaggerates gaps</strong>: a lead of 2 in score is always a ratio of <math data-tex="e^2 \approx 7.4"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">2</mn></msup><mo>≈</mo><mn>7.4</mn></mrow></math>
   in probability. Used wherever a model must pick one item out of many — in Word2Vec, one word out of
   the whole vocabulary, which is expensive enough that <em>negative sampling</em> exists to avoid it.
   Session 20.</dd>
@@ -1120,7 +1268,7 @@ figcaption {
 <dl class="term">
   <dt>Loss function <span class="sym">cross-entropy</span></dt>
   <dd>The number a model is trained to make smaller. For a single prediction, cross-entropy loss is
-  <code>−log(probability the model gave the correct answer)</code> — near 0 for a confident correct
+  <math data-tex="-\log(\text{probability the model gave the correct answer})"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>probability the model gave the correct answer</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — near 0 for a confident correct
   answer, large for a confident wrong one, infinite for a probability of 0. Not new: session 14's
   <strong>perplexity</strong> is the exponentiated average of exactly this, so minimising
   cross-entropy and minimising perplexity are the same act. Session 20.</dd>
@@ -1129,7 +1277,7 @@ figcaption {
 <dl class="term">
   <dt>Gradient descent <span class="sym">learning rate · backpropagation</span></dt>
   <dd>How weights get fitted. The <strong>gradient</strong> says which way is uphill on the loss, so
-  step the other way and repeat: <code>w ← w − η·gradient</code>, where <code>η</code> is the
+  step the other way and repeat: <math data-tex="w \leftarrow w - \eta \cdot \text{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mtext>gradient</mtext></mrow></math>, where <math data-tex="\eta"><mi>η</mi></math> is the
   <strong>learning rate</strong> — how big a step. Steps shrink automatically near a minimum, because
   the gradient <em>is</em> the steepness. <strong>Backpropagation</strong> is just the chain rule
   applied systematically, working backwards from the loss, to get that gradient for every weight in
@@ -1138,7 +1286,7 @@ figcaption {
 
 <dl class="term trap">
   <dt>Embedding matrix <span class="sym">the vectors are the weights</span></dt>
-  <dd>The <code>|V| × d</code> weight matrix whose rows are the word vectors — 10,000 × 300 in a
+  <dd>The <math data-tex="|V| \times d"><mrow><mi>|</mi><mi>V</mi><mi>|</mi><mo>×</mo><mi>d</mi></mrow></math> weight matrix whose rows are the word vectors — 10,000 × 300 in a
   typical Word2Vec. The trap is expecting the vectors to be <em>extracted</em> from a trained model:
   there is no such step. The matrix is a layer's weights, fitted by the same gradient descent as
   everything else, and when training stops you throw the rest of the network away and keep it. The
@@ -1174,8 +1322,8 @@ figcaption {
   from the training vocabulary has no vector at all, so session 3's OOV problem survives intact; and
   each word gets exactly one vector, so <code>bank</code> carries the river and the money sense
   blended together. Both limits hold for GloVe as much as Word2Vec — neither is fixed by switching
-  which one counts or predicts. Unit III's contextual embeddings exist to fix the second.
-  Sessions 20–22.</dd>
+  which one counts or predicts. Session 32's contextual embeddings fix the second.
+  Sessions 20–22, 32.</dd>
 </dl>
 
 <dl class="term">
@@ -1190,11 +1338,11 @@ figcaption {
 
 <dl class="term trap">
   <dt>Word2Vec's two vectors per word</dt>
-  <dd>During training each word has <strong>two</strong>: an <em>input</em> vector <code>v_w</code>
-  (row <em>w</em> of <code>E</code>), used when the word appears as context, and an <em>output</em>
-  vector <code>u_w</code> (row <em>w</em> of <code>W'</code>), used when it is the thing being
-  predicted. A word's score is <code>u_w · x</code>. When training stops, <code>W'</code> is
-  <strong>thrown away</strong> and the rows of <code>E</code> are the word vectors everybody
+  <dd>During training each word has <strong>two</strong>: an <em>input</em> vector <math data-tex="v_w"><msub><mi>v</mi><mi>w</mi></msub></math>
+  (row <math data-tex="w"><mi>w</mi></math> of <math data-tex="E"><mi>E</mi></math>), used when the word appears as context, and an <em>output</em>
+  vector <math data-tex="u_w"><msub><mi>u</mi><mi>w</mi></msub></math> (row <math data-tex="w"><mi>w</mi></math> of <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math>), used when it is the thing being
+  predicted. A word's score is <math data-tex="u_w \cdot x"><mrow><msub><mi>u</mi><mi>w</mi></msub><mo>⋅</mo><mi>x</mi></mrow></math>. When training stops, <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math> is
+  <strong>thrown away</strong> and the rows of <math data-tex="E"><mi>E</mi></math> are the word vectors everybody
   downloads. Trips almost everyone the first time. Session 21.</dd>
 </dl>
 
@@ -1217,16 +1365,16 @@ figcaption {
   the true context word from a handful of random "negative" words. Turns an impossible
   normalization into cheap binary classification.
   <br>The cost it removes is the <em>denominator</em>: softmax must score every word you know just
-  to normalise one prediction — 10⁶ exponentials per training example on a realistic vocabulary,
-  about 10¹⁵ per pass over a billion tokens. Negative sampling scores the true pair as
-  <code>σ(u·v)</code> and <code>k</code> invented pairs as <code>σ(−u·v)</code>: six sigmoids
+  to normalise one prediction — <math data-tex="10^6"><msup><mn>10</mn><mn>6</mn></msup></math> exponentials per training example on a realistic vocabulary,
+  about <math data-tex="10^{15}"><msup><mn>10</mn><mn>15</mn></msup></math> per pass over a billion tokens. Negative sampling scores the true pair as
+  <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> and <math data-tex="k"><mi>k</mi></math> invented pairs as <math data-tex="\sigma(-u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>: six sigmoids
   instead of a million exponentials, roughly <strong>167,000×</strong> less arithmetic. Negatives
-  are drawn from the unigram distribution raised to the power <code>3/4</code>. Session 21.</dd>
+  are drawn from the unigram distribution raised to the power <math data-tex="3/4"><mrow><mn>3</mn><mi>/</mi><mn>4</mn></mrow></math>. Session 21.</dd>
 </dl>
 
 <dl class="term trap">
   <dt>GloVe <span class="sym">Global Vectors</span></dt>
-  <dd>Fits vectors so <code>wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ ≈ log Xᵢⱼ</code>, where <code>X</code> is the global
+  <dd>Fits vectors so <math data-tex="w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j \approx \log X_{ij}"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>≈</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math>, where <math data-tex="X"><mi>X</mi></math> is the global
   word-word co-occurrence matrix counted once over the whole corpus. No hidden layer, no softmax, no
   prediction step — closer to matrix factorisation than to Word2Vec's neural network. The log matters
   because a <em>difference</em> of two such fits recovers a <em>ratio</em> of co-occurrence
@@ -1248,33 +1396,33 @@ figcaption {
 <dl class="term">
   <dt>RNN <span class="sym">Recurrent Neural Network</span></dt>
   <dd>Processes a sequence one step at a time, carrying a hidden state:
-  <code>h_t = g(Uh_{t-1} + Wx_t)</code>, with <code>g</code> conventionally <strong>tanh</strong>.
-  <code>U</code>, <code>W</code> and a third matrix <code>V</code> (hidden→output,
-  <code>y_t = f(Vh_t)</code>) are the <em>same three matrices at every timestep</em> — a
+  <math data-tex="h_t = g(U h_{t-1} + W x_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, with <math data-tex="g"><mi>g</mi></math> conventionally <strong>tanh</strong>.
+  <math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math> and a third matrix <math data-tex="V"><mi>V</mi></math> (hidden→output,
+  <math data-tex="y_t = f(V h_t)"><mrow><msub><mi>y</mi><mi>t</mi></msub><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>V</mi><msub><mi>h</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>) are the <em>same three matrices at every timestep</em> — a
   thousand-word document and a three-word sentence use identical parameter count. Fixes the
   fixed-size-input wall that forced CBOW and lab 8's document vectors to average, and — unlike
   averaging — the hidden state is a specific, order-dependent function of everything before it.
-  For sequence classification, the final <code>h_n</code> feeds a softmax, trained end-to-end;
+  For sequence classification, the final <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math> feeds a softmax, trained end-to-end;
   for sequence labeling (POS tagging), every step produces its own output. Session 23.</dd>
 </dl>
 
 <dl class="term">
   <dt>Hidden state</dt>
   <dd>The vector an RNN carries forward — its compressed memory of everything seen so far, updated
-  at every step by <code>h_t = g(Uh_{t-1} + Wx_t)</code>. Because each <code>h_t</code> is built
-  from <code>h_{t-1}</code> rather than from a symmetric sum, <strong>pooling</strong> (averaging)
+  at every step by <math data-tex="h_t = g(U h_{t-1} + W x_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. Because each <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is built
+  from <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> rather than from a symmetric sum, <strong>pooling</strong> (averaging)
   a sequence's hidden states is not the same mistake as averaging raw word vectors — order was
-  already folded into each <code>h_t</code> before the average, not thrown away by it. Session 23.</dd>
+  already folded into each <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> before the average, not thrown away by it. Session 23.</dd>
 </dl>
 
 <dl class="term">
   <dt>Vanishing gradient</dt>
   <dd>Training an RNN sends one loss backward through every timestep, and each step multiplies the
-  gradient by the same matrix <code>U</code>. For the linear toy <code>h_t = Uh_{t-1} + Wx_t</code>
-  that is exactly <code>∂h_n/∂h₁ = U^(n−1)</code>: with <code>U = 0.5</code>, twenty steps back gives
-  <code>0.0000019</code> — not a weak learning signal but none. With <code>|U| &gt; 1</code> the same
-  formula <strong>explodes</strong> instead (<code>U = 1.5</code>, fifty steps → 4.25×10⁸), so the
-  failure runs both ways and only <code>|U| = 1</code> sits still. A real RNN's <code>tanh′ ≤ 1</code>
+  gradient by the same matrix <math data-tex="U"><mi>U</mi></math>. For the linear toy <math data-tex="h_t = U h_{t-1} + W x_t"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub></mrow></math>
+  that is exactly <math data-tex="\partial h_n / \partial h_1 = U^{n-1}"><mrow><mi>∂</mi><msub><mi>h</mi><mi>n</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><msup><mi>U</mi><mrow class="tml-sml-pad"><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></mrow></math>: with <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math>, twenty steps back gives
+  <math data-tex="0.0000019"><mn>0.0000019</mn></math> — not a weak learning signal but none. With <math data-tex="|U| \gt 1"><mrow><mi>|</mi><mi>U</mi><mi>|</mi><mo>&gt;</mo><mn>1</mn></mrow></math> the same
+  formula <strong>explodes</strong> instead (<math data-tex="U = 1.5"><mrow><mi>U</mi><mo>=</mo><mn>1.5</mn></mrow></math>, fifty steps → <math data-tex="4.25 \times 10^8"><mrow><mn>4.25</mn><mo>×</mo><msup><mn>10</mn><mn>8</mn></msup></mrow></math>), so the
+  failure runs both ways and only <math data-tex="|U| = 1"><mrow><mi>|</mi><mi>U</mi><mi>|</mi><mo>=</mo><mn>1</mn></mrow></math> sits still. A real RNN's <math data-tex="\tanh&#x27; \le 1"><mrow><msup><mi>tanh</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mo>⁡</mo><mspace width="0.1667em"></mspace><mo>≤</mo><mn>1</mn></mrow></math>
   adds one more factor per step, which makes vanishing worse and never explains exploding.
   <br>⚠️ <strong>This is only half of why long-range memory fails</strong>, and the half that matters
   less for what comes next. SLP3 names another: one hidden state is asked to serve the current
@@ -1330,7 +1478,7 @@ figcaption {
 
 <dl class="term trap">
   <dt>Scaled dot-product attention</dt>
-  <dd>softmax(QKᵀ / √d<sub>k</sub>)V. Know what the <strong>√d<sub>k</sub></strong> is for:
+  <dd><math data-tex="\mathrm{softmax}(Q K^{\mathsf{T}} / \sqrt{d_k})\, V"><mrow><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>V</mi></mrow></math>. Know what the <strong><math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math></strong> is for:
   without it, dot products grow with dimension, pushing softmax into saturation, where gradients
   vanish.</dd>
 </dl>
@@ -1358,33 +1506,293 @@ figcaption {
   <dd><strong>Encoder-only</strong> (BERT): bidirectional, sees the whole sequence, for
   <em>understanding</em> — classification, NER. <strong>Decoder-only</strong> (GPT): causally
   masked, cannot see the future, for <em>generation</em>. If you are asked "what is the difference
-  between BERT and GPT?", this row is the answer.</dd>
+  between BERT and GPT?", this row is the answer. Session 32.</dd>
+</dl>
+
+<dl class="term">
+  <dt>BERT <span class="sym">Bidirectional Encoder Representations from Transformers</span></dt>
+  <dd>The encoder-only pretrained model of this course. 12 unmasked transformer blocks,
+  <math data-tex="d = 768"><mrow><mi>d</mi><mo>=</mo><mn>768</mn></mrow></math>, 12 heads, 30,000 WordPiece tokens, about 108M parameters. Trained with
+  masked language modelling (and originally next sentence prediction). Devlin et al., NAACL 2019.
+  Session 32 is what it <em>is</em>; session 33 is what it is <em>for</em>.</dd>
 </dl>
 
 <dl class="term">
   <dt>MLM <span class="sym">Masked Language Modelling</span></dt>
-  <dd>BERT's pre-training task: mask ~15% of tokens, predict them from both sides. Bidirectional
-  context is only possible <em>because</em> the task is fill-in-the-blank, not next-token.</dd>
+  <dd>BERT's pre-training task: select 15% of tokens, then 80% <code>[MASK]</code> / 10% random /
+  10% unchanged, and predict the originals from both sides. Bidirectional context is only possible
+  <em>because</em> the task is fill-in-the-blank, not next-token — a bidirectional model asked to
+  predict the next word can simply read it. The 80/10/10 split exists because
+  <code>[MASK]</code> is absent at fine-tuning time. Session 32.</dd>
+</dl>
+
+<dl class="term">
+  <dt>NSP <span class="sym">Next Sentence Prediction</span></dt>
+  <dd>BERT's second pre-training objective: given two sentences, predict whether the second
+  actually followed the first. The answer sits on <code>[CLS]</code>. Taught because it is in the
+  original model; RoBERTa dropped it and did better. Session 32.</dd>
+</dl>
+
+<dl class="term">
+  <dt><code>[CLS]</code> / <code>[SEP]</code> / <code>[MASK]</code></dt>
+  <dd><code>[CLS]</code> is a dedicated first token whose final vector carries sequence-level
+  decisions — NSP in pretraining, then the classifier head in fine-tuning. Averaging last-layer
+  vectors is the alternative SLP3 names; BERT's choice is a token trained to summarise.
+  <code>[SEP]</code> marks the boundary between two sentences, which is how pair classification
+  (entailment, paraphrase) reuses NSP's packing. <code>[MASK]</code> is the blank MLM usually
+  fills — but only 80% of the time, because it never appears at fine-tuning. Sessions 32–33.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Contextual vs. static embeddings</dt>
+  <dd><strong>Static</strong> (Word2Vec, GloVe): one vector per word type, so <code>bank</code>
+  is a single point and the river sense is absent from its neighbourhood.
+  <strong>Contextual</strong> (BERT): one vector per occurrence, computed from the whole
+  sequence, so <em>a bank can hold the investments</em> and <em>agriculture burgeons on the east
+  bank</em> produce different vectors. This is the failure sessions 21 and 22 named and session
+  32 paid. The trap is thinking a larger static vector (<math data-tex="d = 768"><mrow><mi>d</mi><mo>=</mo><mn>768</mn></mrow></math> against 300) would
+  do the same job — it would still be one row per word.</dd>
 </dl>
 
 <dl class="term trap">
   <dt>Pre-training vs. Fine-tuning</dt>
   <dd><strong>Pre-training</strong>: expensive, once, self-supervised on unlabelled text.
-  <strong>Fine-tuning</strong>: cheap, per-task, supervised on a small labelled set. The
-  economics of this split is why modern NLP is accessible to your students at all.</dd>
+  <strong>Fine-tuning</strong>: cheap, per-task, supervised on a small labelled set — a head
+  of a few thousand parameters on a frozen or barely-updated encoder of 108 million. The
+  trap is hearing "training" and assuming the whole model is retrained from scratch, which
+  is the opposite of the paradigm. Session 33 · SLP3 §10.4.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Classifier head</dt>
+  <dd>The small task-specific layer added on top of a pretrained encoder. Sequence
+  classification and sequence-pair classification sit it on <code>[CLS]</code>
+  (<math data-tex="y = \mathrm{softmax}(h^L_{[\mathrm{CLS}]} W_C)"><mrow><mi>y</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mi>L</mi></msubsup><msub><mi>W</mi><mi>C</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, SLP3 10.11); sequence labeling sits the same
+  kind of layer on every token (<math data-tex="y_i = \mathrm{softmax}(h^L_i W_K)"><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mi>i</mi><mi>L</mi></msubsup><msub><mi>W</mi><mi>K</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, 10.12) and predicts
+  BIO tags. Session 33.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Sequence classification vs. sequence labeling</dt>
+  <dd><strong>Classification</strong>: one label for the whole input, read from
+  <code>[CLS]</code> — sentiment, entailment, paraphrase. <strong>Labeling</strong>: one
+  label per token — NER with BIO tags. Same fine-tuning paradigm, different number of
+  predictions. The trap is thinking they are different architectures; they are different
+  heads on the same frozen encoder. Session 33 · SLP3 §10.4–§10.5.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Knowledge distillation</dt>
+  <dd>A compression method: a small <strong>student</strong> is trained to reproduce the
+  behaviour of a larger <strong>teacher</strong>, matching the teacher's full output
+  distribution (soft targets) rather than one-hot labels alone. Distillation is how
+  DistilBERT was <em>pretrained</em>; fine-tuning it afterwards is ordinary §10.4. Sanh
+  et al. 2019. Session 33.</dd>
 </dl>
 
 <dl class="term">
   <dt>DistilBERT</dt>
-  <dd>BERT compressed by <strong>knowledge distillation</strong> — a small "student" trained to
-  imitate the large "teacher". ~40% smaller, ~60% faster, ~97% of performance. Named in your
-  syllabus (spelled "DitilBERT" — a typo).</dd>
+  <dd>BERT with the layers halved (12 → 6), token-type embeddings and the pooler removed,
+  pretrained by distillation from BERT-base. Session 32's arithmetic: 108,367,872 →
+  65,900,544, which is 39.2% smaller — not 50%, because the 23M embedding table does not
+  shrink. Sanh's headline is 40% smaller, 60% faster, 97% of BERT's GLUE macro-score.
+  Triple loss: <math data-tex="L_{\mathrm{ce}}"><msub><mi>L</mi><mpadded lspace="0"><mi>ce</mi></mpadded></msub></math> (soft targets), <math data-tex="L_{\mathrm{mlm}}"><msub><mi>L</mi><mpadded lspace="0"><mi>mlm</mi></mpadded></msub></math> (session 32's objective),
+  <math data-tex="L_{\mathrm{cos}}"><msub><mi>L</mi><mpadded lspace="0"><mi>cos</mi></mpadded></msub></math> (align hidden-state <em>directions</em>, session 19). Named in the
+  syllabus (spelled "DitilBERT" — a typo). Lab 12 loads
+  <code>distilbert-base-uncased</code>. Session 33 · Sanh 2019.</dd>
 </dl>
 
 <dl class="term">
   <dt>Transfer learning</dt>
   <dd>Reusing representations learned on one task for another. The umbrella that pre-train →
-  fine-tune sits under.</dd>
+  fine-tune sits under. Session 33 · SLP3 §10.4.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Greedy decoding</dt>
+  <dd>At each step, emit the single most probable next token given the prefix so far
+  (<math data-tex="\mathrm{argmax}"><mpadded lspace="0"><mi>argmax</mi></mpadded></math>). Session 27 taught what the decoder is <em>fed</em> at inference (its
+  own previous output); this is how that output is <em>chosen</em>. The best first word
+  need not begin the best sentence — SLP3's <code>yes</code> / <code>ok</code> tree, path
+  probabilities 0.200 against 0.280. Session 34 · SLP3 §12.4.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Beam search</dt>
+  <dd>Keep the top <math data-tex="k"><mi>k</mi></math> partial hypotheses at each step, extend all of them, keep
+  the best <math data-tex="k"><mi>k</mi></math> again. <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> <strong>is</strong> greedy, so this generalises
+  rather than replaces. It is a heuristic: a wider beam still prunes, and the globally
+  best sequence can be lost at any step. The trap is thinking it finds the optimum.
+  Session 34 · SLP3 §12.4.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Parallel corpus <span class="sym">bitext</span></dt>
+  <dd>Sentences in a source language paired with their translations in a target language.
+  What an MT system trains on. A shared subword vocabulary across both languages is what
+  lets names copy rather than be translated. Session 34 · SLP3 §12.2.</dd>
+</dl>
+
+<dl class="term">
+  <dt>chrF <span class="sym">character F-score</span></dt>
+  <dd>MT evaluation: character n-gram overlap between a hypothesis and a human reference,
+  combining precision and recall. Spaces come out first; punctuation stays. Commonly
+  <math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math> (recall weighed twice as much as precision), which is not lab 6's F1
+  (<math data-tex="\beta = 1"><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow></math>). SLP3 calls it the simplest and most robust automatic MT metric.
+  Session 34 · SLP3 §12.6.2.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>BLEU</dt>
+  <dd>The older word-n-gram metric most people have heard of. Purely precision-based,
+  with a brevity penalty, and sensitive to tokenisation — SacreBLEU exists so two numbers
+  can be compared. SLP3 files it among "earlier related metrics" and leads with chrF.
+  The trap is computing BLEU when the reading asked for chrF, or tokenising chrF into
+  words. Session 34 · SLP3 §12.6.2.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Adequacy and fluency</dt>
+  <dd>The two dimensions of human MT evaluation. <strong>Adequacy</strong> (also
+  faithfulness, fidelity): does the translation capture the source meaning?
+  <strong>Fluency</strong>: is it grammatical, clear, natural in the target language?
+  Humans are the gold standard; chrF and BLEU are cheap proxies. Session 14's
+  intrinsic/extrinsic trade, pointed at translation. Session 34 · SLP3 §12.6.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Vocabulary mismatch</dt>
+  <dd>Sparse retrieval (tf-idf, BM25, the inverted index) scores a document only if
+  query and document share terms. The asker has to guess the writer's words. Session 8's
+  incidence matrix and session 10's TF-IDF both require that overlap; lab 4 fails for the
+  same reason. Dense retrieval encodes query and document with BERT — session 33's
+  sequence-pair classifier pointed at relevance — so synonyms can match without appearing.
+  The trap is treating query expansion as the fix: it does not scale, and it retrieves the
+  wrong sense. Session 35 · SLP3 §11.3.</dd>
+</dl>
+
+<dl class="term">
+  <dt>RAG <span class="sym">retrieval-augmented generation</span></dt>
+  <dd>Retrieve passages likely to contain the answer, then generate conditioned on those
+  passages as well as the query. Two components the course had already built: a retriever
+  (sessions 8–10, 32) and a generator (sessions 27–33). Mitigates hallucination, reaches
+  proprietary data, and tracks knowledge that post-dates the model's weights. Does not
+  guarantee a faithful answer — retrieved passages can be wrong, and generation can still
+  invent. Session 35 · SLP3 §11.4.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Hallucination</dt>
+  <dd>A generated response that is not faithful to the facts of the world. Language models
+  do this even when the correct fact is stored in their parameters, and they are not well
+  calibrated, so a wrong answer often arrives with certainty. RAG mitigates it by grounding
+  generation in retrieved documents; it does not eliminate it. The trap is hearing
+  "trusted documents" as a guarantee. Session 35 · SLP3 §11.4.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Exact match</dt>
+  <dd>QA evaluation for answers with a single gold string, typically multiple choice
+  (MMLU): the percentage of predictions that match the gold answer exactly. A single extra
+  word scores zero. Session 35 · SLP3 §11.6.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Token F1</dt>
+  <dd>QA evaluation for free-text answers (Natural Questions): treat prediction and gold as
+  bags of tokens, compute lab 6's F1 on each question, average over questions.
+  <math data-tex="\beta = 1"><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow></math>, unlike chrF's common
+  <math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math>. Partial overlap scores
+  as a partial hit. A proxy, like perplexity and chrF: inexpensive and approximate.
+  Session 35 · SLP3 §11.6.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Extractive summarisation</dt>
+  <dd>Select existing sentences from the source and arrange them. Cannot paraphrase,
+  compress two facts into one clause, or repair a badly written source. Cannot hallucinate:
+  every sentence it emits was in the input. The trap is calling a badly chosen sentence a
+  hallucination — that is a different failure. TextRank is one method: PageRank over a
+  sentence-similarity graph, cosine from session 19. Session 35 · Practical NLP Ch7.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Abstractive summarisation</dt>
+  <dd>Generate new text that condenses the source. Session 27's encoder-decoder, unchanged:
+  long document in, short document out, different lengths, no word-to-word alignment. T5
+  (Text-To-Text Transfer Transformer) is that architecture with a text-to-text prefix. Can
+  hallucinate, because it generates. Session 35 · Practical NLP Ch7.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Closed-book and open-book QA</dt>
+  <dd><strong>Closed-book</strong> answers from the model's parameters alone (MMLU).
+  <strong>Open-book</strong> is given one or more documents, via RAG or because a dataset
+  attached a passage (Natural Questions can be run either way). The trap is collapsing lab
+  12's extractive span prediction into either: that is a third thing, a fine-tuned encoder
+  marking a span inside a given passage, closer to session 7 than to RAG. Session 35 ·
+  SLP3 §11.5.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>QA vs. chatbot</dt>
+  <dd>The syllabus lists them as separate applications. <strong>Question answering</strong>
+  is single-turn, scored by exact match or token F1 (session 35). A <strong>task-oriented
+  chatbot</strong> is multi-turn with state: frames, intents and slots, scored by task
+  success (session 36). Practical NLP Ch6 contains no QA. The trap is writing "a chatbot
+  is just QA with memory" in an exam. Session 36 · Appendix K · Practical NLP Ch6.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Frame</dt>
+  <dd>A knowledge structure for a task: a collection of slots, each of which can take a
+  set of possible values. GUS (Bobrow et al. 1977) established the pattern. The air-travel
+  frame has origin, destination, departure time and date, arrival time and date. Session
+  36 · SLP3 Appendix K.0.1.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Slot</dt>
+  <dd>One field of a frame, with a type and a filler — <code>DESTINATION-CITY =
+  San Francisco</code>. Extracted by BIO tagging, the same scheme session 7 taught for
+  named entities. Session 36 · SLP3 Appendix K.0.1.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Domain classification</dt>
+  <dd>Which frame are we filling — airlines, an alarm clock, a calendar? Together with
+  intent determination, this decides which frame. Session 36 · SLP3 Appendix K.0.1.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Intent determination</dt>
+  <dd>What general task the user is trying to accomplish — show a flight, set an alarm.
+  Sequence classification on a designated position (<code>[CLS]</code> in session 33,
+  <code>EOS</code> in Fig. K.3). Session 36 · SLP3 Appendix K.0.1 · SLP3 §10.4.1.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Slot filling</dt>
+  <dd>Extracting the particular slot values an utterance supplies, by BIO-tagging each
+  token. Sequence labeling, equation (10.12). Session 36 · SLP3 Appendix K.0.1 · SLP3
+  §10.5.</dd>
+</dl>
+
+<dl class="term trap">
+  <dt>Slot error rate</dt>
+  <dd>The percentage of slots filled with the correct values: insertions, deletions and
+  substitutions over the reference slot count. K's example: <em>Chris at 10:30 in Gates
+  104</em> extracted with TIME as 11:30 is <math data-tex="1/3"><mrow><mn>1</mn><mi>/</mi><mn>3</mn></mrow></math>. A more
+  fine-grained, but less extrinsic, metric than task success — session 14's intrinsic /
+  extrinsic split. The trap is treating a low slot error rate as a booked flight: one
+  wrong slot can make the appointment useless. Session 36 · SLP3 Appendix K.0.2.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Task success rate <span class="sym">task error rate</span></dt>
+  <dd>The percentage of times the system booked the right plane flight, or put the right
+  event on the calendar. The extrinsic number; it needs a whole dialogue to measure.
+  Session 36 · SLP3 Appendix K.0.2.</dd>
 </dl>
 
 </div>

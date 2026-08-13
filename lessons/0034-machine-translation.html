@@ -1,0 +1,1358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 34 — Machine translation</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 34</p>
+  <h1>Machine translation</h1>
+  <p class="subtitle">Session 33 closed by saying the architecture of Unit III is finished. This
+  session is the first application of it: everything a working translation system needs that a
+  transformer diagram does not show.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>What the architecture does not cover</h2>
+
+<p>Session 33 closed on a sentence this session is built to honour. The architecture of
+Unit III is finished: an encoder-decoder transformer, wired by the cross-attention of
+session 31, sitting in the three-component shape of session 27. SLP3 §12.2 states the
+consequence in one clause — "the standard architecture for MT is the encoder-decoder
+transformer" — and that is now a fact the room already has, rather than a preview.</p>
+
+<p>What remains is everything a working translation system needs that a diagram of those
+blocks does not show. Two pieces of it are new machinery: a decoding rule more careful
+than taking the best word at each step, and the first evaluation metric since session 14
+that compares a model's output against a human reference. The rest is why the task is
+hard, and a finding about what the system does with gender it was never given.</p>
+
+<h2>Why translation is hard</h2>
+
+<p>Session 27 already made the argument with one pair:</p>
+
+<pre><code>source (English) :  the    green   witch   arrived
+target (Spanish) :  llegó  la      bruja   verde
+glossed          :  arrived the    witch   green</code></pre>
+
+<p>The alignment is <strong>4, 1, 3, 2</strong>. No one-label-per-token model can produce
+it, and the two sentences need not even be the same length. That was enough to motivate
+the encoder-decoder. §12.1 is the general case: the same reordering is one instance of a
+systematic phenomenon, not a quirk of Spanish.</p>
+
+<p>The study of those systematic differences is <strong>linguistic typology</strong>, and
+§12.1 organises the ones that matter for translation into four kinds of
+<strong>translation divergence</strong>.</p>
+
+<p><strong>Word order.</strong> English, Spanish, French and Mandarin are SVO languages —
+subject, then verb, then object. Hindi and Japanese are SOV: the verb comes at the end.
+Irish and Arabic are VSO. Two SVO languages can still disagree about adjectives: English
+puts them before the noun (<em>green witch</em>), Spanish after it (<em>bruja verde</em>),
+which is exactly the 4, 1, 3, 2 the room already accepted. The alignment problem is what
+typology looks like in a single sentence.</p>
+
+<p><strong>Lexical.</strong> English <em>bass</em> is Spanish <em>lubina</em> (the fish) or
+<em>bajo</em> (the instrument). English <em>brother</em> is Mandarin <em>gege</em> or
+<em>didi</em>, older or younger. The source word does not name its own translation; the
+context does. Sometimes there is no word at all: SLP3's example is Mandarin
+<em>xiào</em> and Japanese <em>oyakōkō</em>, which English can only approximate with
+phrases like <em>filial piety</em>. That is a <strong>lexical gap</strong>.</p>
+
+<p><strong>Morphological.</strong> Vietnamese is isolating, roughly one morpheme per word;
+a polysynthetic language can pack a whole English sentence into one. Translating across
+that range means working below the word level, which is why modern MT systems use the
+subword tokenisation session 3 taught — and which is the next section, not a new
+algorithm.</p>
+
+<p><strong>Referential density.</strong> English requires a pronoun when the referent is
+given. Spanish can drop it; Japanese and Chinese drop far more. SLP3 calls languages
+that omit more <strong>referentially sparse</strong>, or cold, and languages that spell
+the referent out <strong>referentially dense</strong>, or hot. Translating from a cold
+language into English forces the model to insert a pronoun it was never shown. That
+returns at the end of the hour, as the setup for a measurable bias.</p>
+
+<div class="callout">
+  <span class="label">The point of the four</span>
+  <p>Session 27 needed one pair to show that sequence labelling cannot translate. The four
+  divergences say why a pair like that is normal. Word order, lexical choice, morphology
+  and dropped referents all require the output to be a function of the whole source, of
+  a length the source does not determine. That is the job the encoder-decoder was built
+  for. Nothing in this section is a new model.</p>
+</div>
+
+<h2>A shared vocabulary, and parallel text</h2>
+
+<p>Session 3 taught byte-pair encoding and named the paper that introduced it to NLP:
+Sennrich, Haddow and Birch, 2016, <em>Neural Machine Translation of Rare Words with
+Subword Units</em>. The title is this session's task. Session 32 met WordPiece as BERT's
+30,000-token vocabulary, which closed that loop for an encoder. Here the same family of
+algorithms solves a problem specific to translation.</p>
+
+<p>MT systems use a vocabulary that is fixed in advance, built by running a subword
+algorithm on a corpus that contains <em>both</em> languages, and — this is the part that
+is not obvious — <strong>the source and the target share that vocabulary</strong>.</p>
+
+<div class="callout">
+  <span class="label">SLP3 §12.2.1</span>
+  <p>"A shared vocabulary is used for the source and target languages, which makes it
+  easy to copy tokens (like names) from source to target."</p>
+</div>
+
+<p>A name such as <em>Manipal</em> should survive the trip unchanged. With a shared
+subword vocabulary the model can copy the pieces rather than invent a translation of
+them. The same choice also makes it natural to translate between languages like English
+or Hindi, which use spaces, and languages like Chinese or Thai, which do not: the units
+are subwords either way, so the encoder-decoder never has to be told which side of that
+line it is on.</p>
+
+<p>The training data is a <strong>parallel corpus</strong>, or bitext: sentences in the
+source language paired with their translations in the target. Europarl, extracted from
+proceedings of the European Parliament, and the United Nations Parallel Corpus are the
+standard large examples. One line is enough; the model is trained to maximise the
+probability of the target tokens given the source tokens, which is session 12's chain
+rule pointed at a pair of languages rather than at a single sentence.</p>
+
+<h2>The problem with greedy decoding</h2>
+
+<p>Session 27 showed what the decoder is fed at inference: its own previous output,
+rather than the gold word teacher forcing had supplied during training. It did not say
+how that output is chosen. The obvious rule is to take, at each step, the word with the
+highest probability given the prefix so far. That is <strong>greedy decoding</strong>,
+and it is SLP3's equation (12.14):</p>
+
+<div class="meq" data-eqno="12.14"><math data-tex="\hat{w}_t = \mathrm{argmax}_{w \in V}\, P(w \mid w_{\lt t})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med-acc" style="math-depth:0;">ˆ</mo></mover><mi>t</mi></msub><mo>=</mo><msub><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>w</mi><mo>∈</mo><mi>V</mi></mrow></msub><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mrow><mo lspace="0em" rspace="0em">&lt;</mo><mi>t</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(12.14)</span></div>
+
+<p>A problem with it is named directly:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §12.4</span>
+  <p>"what looks high probability at word t might turn out to have been the wrong choice
+  once we get to word t + 1."</p>
+</div>
+
+<p>SLP3's own illustration is a made-up search tree over a three-word vocabulary,
+<code>yes</code>, <code>ok</code> and <code>EOS</code>. The numbers below are Figure
+12.7's, recomputed as products so the comparison is visible in one table.</p>
+
+<table>
+  <tr><th>path</th><th>probability</th></tr>
+  <tr><td><code>ok ok EOS</code></td>
+      <td>0.4 × 0.7 × 1.0 = <strong>0.280</strong> — the true best</td></tr>
+  <tr><td><code>yes yes …</code></td>
+      <td>0.5 × 0.4 = 0.200</td></tr>
+  <tr><td><code>yes ok …</code></td>
+      <td>0.5 × 0.3 = 0.150</td></tr>
+  <tr><td><code>yes EOS</code></td>
+      <td>0.5 × 0.2 = 0.100</td></tr>
+</table>
+
+<p>Greedy takes <code>yes</code> first, because 0.5 is larger than 0.4. No continuation
+of <code>yes</code> can reach 0.280: the best remaining multiplier is 0.4, which gives
+0.200, and even a certain <code>EOS</code> after that cannot catch the other path. The
+best first word is not the first word of the best sentence.</p>
+
+<figure>
+  <svg viewBox="0 0 720 400" role="img" aria-labelledby="beamtitle beamdesc">
+    <title id="beamtitle">Greedy search and the globally best path part company at the first step</title>
+    <desc id="beamdesc">A search tree growing left to right from a start node. The upper
+    branch, drawn dashed, is greedy decoding: start to yes with probability 0.5, then yes
+    again with probability 0.4, for a path probability of 0.200. Two fainter continuations
+    of yes go to ok at 0.150 and EOS at 0.100. The lower branch, drawn solid, is the
+    globally best path: start to ok with probability 0.4, then ok with probability 0.7,
+    then EOS with probability 1.0, for a path probability of 0.280. The two highlighted
+    paths diverge at the first step and the dashed one never recovers.</desc>
+
+    <!-- column labels -->
+    <text class="fig-axname" x="250" y="24" text-anchor="middle">t1</text>
+    <text class="fig-axname" x="450" y="24" text-anchor="middle">t2</text>
+    <text class="fig-axname" x="640" y="24" text-anchor="middle">t3</text>
+
+    <!-- legend: solid vs dashed, not colour alone -->
+    <line class="fig-edge-w" x1="430" y1="48" x2="470" y2="48"></line>
+    <text class="fig-label" x="478" y="52">best 0.280</text>
+    <line class="fig-edge-w" opacity="0.85" stroke-dasharray="7 5" x1="430" y1="68" x2="470" y2="68"></line>
+    <text class="fig-label" x="478" y="72">greedy 0.200</text>
+
+    <!-- faint continuations of yes -->
+    <line class="fig-edge" x1="250" y1="100" x2="450" y2="130"></line>
+    <line class="fig-edge" x1="250" y1="100" x2="450" y2="200"></line>
+
+    <!-- greedy path, dashed -->
+    <line class="fig-edge-w" opacity="0.85" stroke-dasharray="7 5" x1="80" y1="210" x2="250" y2="100"></line>
+    <line class="fig-edge-w" opacity="0.85" stroke-dasharray="7 5" x1="250" y1="100" x2="450" y2="50"></line>
+
+    <!-- best path, solid -->
+    <line class="fig-edge-w" x1="80" y1="210" x2="250" y2="310"></line>
+    <line class="fig-edge-w" x1="250" y1="310" x2="450" y2="310"></line>
+    <line class="fig-edge-w" x1="450" y1="310" x2="640" y2="310"></line>
+
+    <!-- start -->
+    <circle class="fig-node" cx="80" cy="210" r="22"></circle>
+    <text class="fig-glyph" x="80" y="216" text-anchor="middle">s</text>
+    <text class="fig-label" x="80" y="250" text-anchor="middle">start</text>
+
+    <!-- t1 yes (greedy) -->
+    <circle class="fig-node" cx="250" cy="100" r="22"></circle>
+    <text class="fig-glyph" x="250" y="106" text-anchor="middle">yes</text>
+    <text class="fig-label" x="168" y="140" text-anchor="middle">0.5</text>
+
+    <!-- t1 ok (best) -->
+    <circle class="fig-node" cx="250" cy="310" r="22"></circle>
+    <text class="fig-glyph" x="250" y="316" text-anchor="middle">ok</text>
+    <text class="fig-label" x="168" y="280" text-anchor="middle">0.4</text>
+
+    <!-- t2 yes-yes (greedy leaf) -->
+    <circle class="fig-node" cx="450" cy="50" r="22"></circle>
+    <text class="fig-glyph" x="450" y="56" text-anchor="middle">yes</text>
+    <text class="fig-label" x="352" y="60" text-anchor="middle">0.4</text>
+    <text class="fig-axname" x="450" y="88" text-anchor="middle">0.200</text>
+
+    <!-- t2 yes-ok -->
+    <circle class="fig-node-q" cx="450" cy="130" r="18"></circle>
+    <text class="fig-label" x="450" y="135" text-anchor="middle">ok</text>
+    <text class="fig-label" x="370" y="108" text-anchor="middle">0.3</text>
+    <text class="fig-axname" x="505" y="135">0.150</text>
+
+    <!-- t2 yes-EOS -->
+    <circle class="fig-node-q" cx="450" cy="200" r="18"></circle>
+    <text class="fig-label" x="450" y="205" text-anchor="middle">EOS</text>
+    <text class="fig-label" x="370" y="178" text-anchor="middle">0.2</text>
+    <text class="fig-axname" x="510" y="205">0.100</text>
+
+    <!-- t2 ok-ok (best) -->
+    <circle class="fig-node" cx="450" cy="310" r="22"></circle>
+    <text class="fig-glyph" x="450" y="316" text-anchor="middle">ok</text>
+    <text class="fig-label" x="350" y="298" text-anchor="middle">0.7</text>
+
+    <!-- t3 EOS (best leaf) -->
+    <circle class="fig-node" cx="640" cy="310" r="22"></circle>
+    <text class="fig-glyph" x="640" y="316" text-anchor="middle">EOS</text>
+    <text class="fig-label" x="545" y="298" text-anchor="middle">1.0</text>
+    <text class="fig-axname" x="640" y="348" text-anchor="middle">0.280</text>
+  </svg>
+  <figcaption>Figure 12.7 as a tree. The dashed path takes the locally best word at
+  <em>t</em> = 1 and never recovers. The solid path is worse at the first step and is the
+  globally most probable sentence. The two part company immediately; that is the whole
+  argument for keeping more than one hypothesis.</figcaption>
+</figure>
+
+<h2>Beam search</h2>
+
+<p><strong>Beam search</strong> keeps the top <math data-tex="k"><mi>k</mi></math> partial hypotheses at each step
+rather than one. Extend all of them by every word in the vocabulary, score the
+<math data-tex="k \times |V|"><mrow><mi>k</mi><mo>×</mo><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> candidates by the product of the path so far and the next-word
+probability, and keep the best <math data-tex="k"><mi>k</mi></math> again. The number <math data-tex="k"><mi>k</mi></math> is the
+<strong>beam width</strong>. When a hypothesis generates <code>EOS</code> it is complete,
+removed from the frontier, and the beam shrinks by one; search continues until the beam
+is empty. For MT, SLP3's usual widths are 5 to 10.</p>
+
+<p>At <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> this <em>is</em> greedy decoding. Beam search generalises the rule the
+obvious choice already was; it does not replace it with a different kind of object.</p>
+
+<p>It is a heuristic, not a guarantee. A wider beam explores more and still prunes, and
+the globally best sequence can be lost at any step — exactly as <code>ok</code> is lost
+at step 1 when <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math>. Exhaustive search would find the optimum, at a cost of
+<math data-tex="|V|^T"><mrow><mi>|</mi><mi>V</mi><msup><mi>|</mi><mi>T</mi></msup></mrow></math> sentences of length <math data-tex="T"><mi>T</mi></math>, which is not feasible. Dynamic programming
+does not apply either: generation has long-distance dependencies between output
+decisions, so the Viterbi argument from tagging does not carry over. Students routinely
+believe beam search finds the most probable sentence. It keeps the most probable
+<em>prefixes it has not yet discarded</em>.</p>
+
+<p>One alternative, which we will not derive, inverts the objective rather than widening
+the search. <strong>Minimum Bayes risk</strong> decoding chooses the translation likely
+to score best on the evaluation metric, not the most probable one. SLP3 says it can work
+even better than beam search, and names chrF and BERTScore as the metrics to maximise —
+which is the next section's machinery, pointed back at this one.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why does greedy decoding sometimes miss the most probable
+  sentence?</p>
+  <div class="q-opts">
+    <button class="opt">The highest-probability first word need not begin the
+    highest-probability sequence</button>
+    <button class="opt">Greedy decoding is an approximation of beam search, so it
+    inherits beam search's errors in a weaker form</button>
+    <button class="opt">At inference the decoder is fed its own previous output, so
+    errors compound, which is the same gap as teacher forcing</button>
+    <button class="opt">Greedy decoding cannot emit an <code>EOS</code> token, so it
+    never produces a complete sentence to compare against the others</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the best first word need not begin the best
+    sequence</strong>. In the table, <code>yes</code> is the best first word and
+    <code>ok ok EOS</code> is the best sentence. That is the entire argument.</p>
+    <p>The second is backwards: beam search with <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> <em>is</em> greedy, so
+    greedy is the special case, not an approximation of the general one. The third
+    confuses two different gaps. Teacher forcing is about what the decoder is
+    <em>fed</em> (gold prefix versus its own output); greedy versus beam is about how
+    the next token is <em>chosen</em> (one hypothesis versus <math data-tex="k"><mi>k</mi></math>). Session 27
+    taught the first; this session is the second. The fourth is false on its face —
+    greedy can emit <code>EOS</code>; in the table it is one of the three options at
+    every step.</p>
+  </div>
+</div>
+
+<h2>Evaluation: humans, then a proxy</h2>
+
+<p>Translations are judged on two dimensions. <strong>Adequacy</strong> is whether the
+translation captures the meaning of the source; <strong>fluency</strong> is whether it
+is grammatical, clear and natural in the target language. Humans produce the best
+evaluations of both. They are also slow and expensive, which is why automatic metrics
+exist.</p>
+
+<div class="callout">
+  <span class="label">SLP3 §12.6.2</span>
+  <p>"While humans produce the best evaluations of machine translation output, running
+  a human evaluation can be time consuming and expensive. For this reason automatic
+  metrics are often used as temporary proxies."</p>
+</div>
+
+<p>That is session 14's argument, restated for a new task. Extrinsic evaluation is
+true and expensive; intrinsic evaluation is a cheap approximate stand-in. Twenty
+sessions ago the stand-in was perplexity, scoring a language model on text it had not
+seen. Here the stand-in scores a translation against a human reference. Same trade:
+inexpensive and approximate against expensive and definitive, and a gain on the proxy
+does not guarantee a gain on the thing we actually care about.</p>
+
+<h2>chrF</h2>
+
+<p>SLP3 leads with <strong>chrF</strong>, character F-score (Popović, 2015), and calls
+it "the simplest and most robust metric for MT evaluation". BLEU — the name nearly
+every student has heard, and the one almost none of this room has computed — is filed
+among "many other earlier related metrics like BLEU, METEOR, TER". We will name BLEU
+in a moment, because a five-minute search will produce it. We will not lead with it,
+because the reading does not.</p>
+
+<p>chrF is an F-score. Lab 6 defined precision and recall, and F1 as their harmonic
+mean, computed by hand from a confusion matrix. That was week 6; the same three
+quantities return here, pointed at character n-grams rather than at class labels. The
+F1 from that lab is the case <math data-tex="\beta = 1"><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow></math>. chrF commonly sets
+<math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math>, which weighs recall twice as much as precision:</p>
+
+<div class="meq" data-eqno="12.20"><math data-tex="\mathrm{chrF}_{\beta} = \frac{(1+\beta^{2})\,\mathrm{chrP}\cdot\mathrm{chrR}}{\beta^{2}\cdot\mathrm{chrP}+\mathrm{chrR}}" display="block" class="tml-display" style="display:block math;"><mrow><msub><mpadded lspace="0"><mi>chrF</mi></mpadded><mi>β</mi></msub><mo>=</mo><mfrac><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msup><mi>β</mi><mn>2</mn></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>⋅</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow><mrow><msup><mi>β</mi><mn>2</mn></msup><mo>⋅</mo><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow></mfrac></mrow></math><span class="eqno">(12.20)</span></div>
+
+<p>At <math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math> that is:</p>
+
+<div class="meq"><math data-tex="\mathrm{chrF}_{2} = \frac{5\cdot\mathrm{chrP}\cdot\mathrm{chrR}}{4\cdot\mathrm{chrP}+\mathrm{chrR}}" display="block" class="tml-display" style="display:block math;"><mrow><msub><mpadded lspace="0"><mi>chrF</mi></mpadded><mn>2</mn></msub><mo>=</mo><mfrac><mrow><mn>5</mn><mo>⋅</mo><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>⋅</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow><mrow><mn>4</mn><mo>⋅</mo><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow></mfrac></mrow></math></div>
+
+<p>Given a hypothesis and a reference, and a parameter <math data-tex="k"><mi>k</mi></math> for the longest
+character n-gram to count, <strong>chrP</strong> is the average of the <math data-tex="k"><mi>k</mi></math>
+precisions (what fraction of the hypothesis n-grams occur in the reference) and
+<strong>chrR</strong> is the average of the <math data-tex="k"><mi>k</mi></math> recalls (what fraction of the
+reference n-grams occur in the hypothesis). The two parameters are easy to mix up:
+<math data-tex="k"><mi>k</mi></math> is how long the n-grams go; <math data-tex="\beta"><mi>β</mi></math> weights recall against precision.</p>
+
+<p>The whole difference from BLEU is already in the name. These are
+<strong>character</strong> n-grams, not word n-grams, and chrF therefore ignores
+spaces. A student who has met BLEU will tokenise into words and get every count
+wrong. Punctuation stays; spaces come out first.</p>
+
+<p>SLP3's own worked example, with <math data-tex="k = \beta = 2"><mrow><mi>k</mi><mo>=</mo><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math>. The reference is
+<em>witness for the past,</em> and the hypothesis is <em>witness of the past,</em> —
+one preposition different, comma kept:</p>
+
+<pre><code>REF:  witnessforthepast,      18 unigrams, 17 bigrams
+HYP:  witnessofthepast,       17 unigrams, 16 bigrams</code></pre>
+
+<p>Matching unigrams: 17. Matching bigrams: 13. Then:</p>
+
+<table>
+  <tr><th></th><th>precision</th><th>recall</th></tr>
+  <tr><td>unigram</td><td>17/17 = 1.000</td><td>17/18 = 0.944</td></tr>
+  <tr><td>bigram</td><td>13/16 = 0.813</td><td>13/17 = 0.765</td></tr>
+</table>
+
+<p>Average the two precisions and the two recalls, then apply the
+<math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math> formula:</p>
+
+<div class="meq"><math data-tex="\begin{aligned}
+\mathrm{chrP} &amp;= (1.000 + 0.813) / 2 = 0.906 \\
+\mathrm{chrR} &amp;= (0.944 + 0.765) / 2 = 0.855 \\
+\mathrm{chrF2} &amp;= \frac{5 \cdot 0.906 \cdot 0.855}{4 \cdot 0.906 + 0.855} = 0.864
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>chrP</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1.000</mn><mo>+</mo><mn>0.813</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mn>2</mn><mo>=</mo><mn>0.906</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>chrR</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0.944</mn><mo>+</mo><mn>0.765</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mn>2</mn><mo>=</mo><mn>0.855</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>chrF2</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mfrac><mrow><mn>5</mn><mo>⋅</mo><mn>0.906</mn><mo>⋅</mo><mn>0.855</mn></mrow><mrow><mn>4</mn><mo>⋅</mo><mn>0.906</mn><mo>+</mo><mn>0.855</mn></mrow></mfrac><mo>=</mo><mn>0.864</mn></mrow></mtd></mtr></mtable></math></div>
+
+<p>SLP3 prints this as .86; the unrounded value is .864. A second hypothesis in the
+chapter, <em>past witness</em>, scores .62 against the same reference — worse, as it
+should, because the words are there and the order is not. The book works out the first
+of the two and leaves the second as exercise 12.1, which is the same arithmetic on a
+different pair.</p>
+
+<p><strong>BLEU</strong> (Papineni et al., 2002) is the metric the room will encounter
+elsewhere. It is word-based rather than character-based, and it is "purely
+precision-based rather than combining precision and recall". It also needs a brevity
+penalty, clipped n-gram counts, and a standardised tokeniser (SacreBLEU) before two
+numbers can be compared. chrF is what we compute; BLEU is what a paper from 2015 or
+a leaderboard for translation into English may still report.</p>
+
+<p>Embedding-based metrics such as BERTScore go one step further: they compare BERT
+embeddings of the hypothesis and the reference rather than surface overlap, which
+handles paraphrase that chrF cannot. That is session 32's contextual embeddings doing
+evaluation work. One sentence is enough; we do not compute it.</p>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>Compute chrF2 with <math data-tex="k = 2"><mrow><mi>k</mi><mo>=</mo><mn>2</mn></mrow></math> for the pair below. Follow the worked example,
+  including the first step.</p>
+  <pre><code>REF:  the green witch
+HYP:  the witch green</code></pre>
+  <p>Report the unigram and bigram counts, both precisions, both recalls, chrP, chrR,
+  and chrF2.</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><strong>Spaces out first.</strong>
+    <code>thegreenwitch</code> is 13 unigrams and 12 bigrams;
+    <code>thewitchgreen</code> is 13 unigrams and 12 bigrams. The two strings are
+    anagrams, so every unigram matches: 13.</p>
+    <p>The bigrams are not anagrams of each other.
+    Reference: <code>th he eg gr re ee en nw wi it tc ch</code>.
+    Hypothesis: <code>th he ew wi it tc ch hg gr re ee en</code>.
+    Ten match; the hypothesis has <code>ew</code> and <code>hg</code> which the
+    reference does not, and the reference has <code>eg</code> and <code>nw</code>
+    which the hypothesis does not.</p>
+    <p>Unigram P = 13/13 = 1, unigram R = 13/13 = 1.
+    Bigram P = 10/12 = 0.833, bigram R = 10/12 = 0.833.
+    chrP = chrR = (1 + 0.833)/2 = 0.917.
+    When precision equals recall, chrF2 equals that common value:
+    5 × 0.917 × 0.917 / (4 × 0.917 + 0.917) = 0.917.</p>
+    <p><strong>The instructive wrong answer.</strong> Tokenising into words gives
+    three matching unigrams and zero matching bigrams
+    (<code>the green</code> versus <code>the witch</code>,
+    <code>green witch</code> versus <code>witch green</code>), so chrP = chrR = 0.5
+    and chrF2 = 0.5. That is a plausible-looking number, and it is BLEU's instinct
+    applied to chrF. The spaces had to come out first.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">What does chrF compare?</p>
+  <div class="q-opts">
+    <button class="opt">Character n-gram overlap between a hypothesis and a
+    reference, combining precision and recall</button>
+    <button class="opt">Word n-gram precision between a hypothesis and a
+    reference, with a brevity penalty for short outputs</button>
+    <button class="opt">The perplexity of the target sentence under a language
+    model trained on the source</button>
+    <button class="opt">The cosine similarity of BERT embeddings of the hypothesis
+    and the reference</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>character n-gram overlap, precision and recall
+    combined</strong>. That is the definition, and both halves of it matter:
+    characters, not words; F-score, not precision alone.</p>
+    <p>The second is BLEU, and it is the answer most people who have heard of a
+    translation metric will give. The third is session 14's metric, pointed at the
+    wrong object — perplexity scores a language model on a corpus, not a hypothesis
+    against a reference. The fourth is BERTScore, which this session named in one
+    sentence as the metric that handles paraphrase chrF cannot see.</p>
+  </div>
+</div>
+
+<h2>Bias, amplification, and abstention</h2>
+
+<p>Translating from a language with a gender-neutral pronoun, or one that drops
+pronouns, into English, where pronouns are obligatory and gendered, forces the system
+to choose a gender it was never given. That is the referential-density divergence from
+the start of the hour, now pointed at a person. Hungarian <em>ő</em> is
+gender-neutral; Spanish often drops the pronoun altogether. SLP3's Figure 12.12,
+from Prates et al. 2019:</p>
+
+<table>
+  <tr><th>Hungarian (gender-neutral)</th><th>English MT output</th></tr>
+  <tr><td>ő egy ápoló</td><td><strong>she</strong> is a nurse</td></tr>
+  <tr><td>ő egy tudós</td><td><strong>he</strong> is a scientist</td></tr>
+  <tr><td>ő egy mérnök</td><td><strong>he</strong> is an engineer</td></tr>
+  <tr><td>ő egy tanár</td><td><strong>she</strong> is a teacher</td></tr>
+  <tr><td>ő egy vezérigazgató</td><td><strong>he</strong> is a CEO</td></tr>
+</table>
+
+<p>The easy claim is that the model reflects its training data. Prates et al. found
+something stronger, and SLP3 states it directly: the stereotypes "can't completely be
+accounted for by gender bias in US labor statistics, because the biases are
+<strong>amplified</strong> by MT systems, with pronouns being mapped to male or female
+gender with a probability <strong>higher than if the mapping was based on actual labor
+employment statistics</strong>."</p>
+
+<p>The system is more biased than the data it learned from. That is a measurable
+claim, it is checkable, and it is a different finding from "models reflect society".</p>
+
+<p>A second result sits next to it. The WinoMT challenge set (Stanovsky et al. 2019)
+shows MT systems performing <em>worse</em> on non-stereotypical roles — <em>The doctor
+asked the nurse to help her in the operation</em> — where the pronoun and the
+occupation disagree with the stereotype the table above records.</p>
+
+<p>The section does not end on a debiasing recipe. It ends on abstention. MT systems
+are used in medical and legal settings where a wrong translation can cause harm and
+a human translator may be unavailable or delayed. SLP3's closing requirement:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §12.7</span>
+  <p>"In order to 'do no harm', systems need ways to assign
+  <strong>confidence</strong> values to candidate translations, so they can abstain
+  from giving incorrect translations that may cause harm."</p>
+</div>
+
+<p>Knowing when not to answer is the open problem the chapter names.</p>
+
+<h2>Where this leaves us</h2>
+
+<p>T3.10 is complete. The room already had the architecture; this session added what
+the architecture does not cover. Translation is hard because languages diverge in
+word order, in the lexicon, in morphology and in how much they say out loud. A shared
+subword vocabulary, the algorithm session 3 taught, is what lets a name copy rather
+than be invented. Greedy decoding misses the most probable sentence because the best
+first word need not begin it; beam search keeps <math data-tex="k"><mi>k</mi></math> prefixes and still does not
+guarantee the optimum. chrF scores a hypothesis against a human reference by character
+n-gram F-score, which is session 14's proxy trade pointed at a new task, and BLEU is
+the older word-precision metric the rest of the literature still uses. And when the
+source does not mark gender, the system does not merely inherit the training data's
+stereotypes: it amplifies them.</p>
+
+<p>Session 35 carries two syllabus clauses in one hour — question answering and text
+summarisation — and it opens on a retrieval problem this course built in Unit I.
+RAG waits; that session will say why Unit I is half of a modern system.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p><strong>Translation divergences</strong> — word order, lexical choice, morphology,
+  referential density — are why the output is a function of the whole source, of a
+  length the source does not determine. A <strong>shared subword vocabulary</strong>
+  across both languages lets the model copy names and makes space-separated and
+  unsegmented languages the same kind of input. Training data is a
+  <strong>parallel corpus</strong>. <strong>Greedy decoding</strong> takes the
+  argmax at each step and can miss the globally most probable sentence;
+  <strong>beam search</strong> keeps the top <math data-tex="k"><mi>k</mi></math> prefixes, reduces to greedy at
+  <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math>, and is a heuristic, not a guarantee. <strong>chrF</strong> is
+  character n-gram F-score against a human reference, spaces removed first; BLEU is
+  the word-precision metric students will meet elsewhere. Automatic metrics are
+  cheap proxies for human judgements of adequacy and fluency — session 14's trade.
+  Gender-neutral sources into English produce stereotypes the system
+  <strong>amplifies</strong> beyond the labour statistics in the training data, and
+  the open problem SLP3 names is knowing when to abstain.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/12.pdf">Speech and Language
+Processing</a></strong>, <strong>§12.1, §12.2.1–§12.2.2, §12.4, §12.6 and
+§12.7</strong>. §12.1 is the four divergences; §12.2.1 is the shared vocabulary;
+§12.2.2 is parallel text, one sitting; §12.4 is beam search, Figure 12.7 and
+equation (12.14); §12.6 is evaluation, with the chrF worked example and BLEU named
+as an earlier metric; §12.7 is the amplification finding and abstention.
+<mark>Skip §12.3</mark> — that is session 31's cross-attention, already taught.
+Skip §12.5 unless you want backtranslation; it is not this hour.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0033-fine-tuning-and-distillation.html">← Session 33: Fine-tuning and DistilBERT</a>
+  <a href="0035-question-answering-and-summarization.html">Session 35: Question answering and summarisation →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

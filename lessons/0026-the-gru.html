@@ -1,0 +1,1239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 26 — The GRU: two gates, one vector, and what the simplification cost</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 26</p>
+  <h1>The GRU: two gates, one vector, and what the simplification cost</h1>
+  <p class="subtitle">Session 25 ended by asking whether three gates and eight weight matrices were
+  all necessary. The GRU is one answer. This session works out what it removed, what that removal
+  costs in arithmetic, and what the evidence says about whether the trade was worth making.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>The question session 25 left</h2>
+
+<div class="callout">
+  <span class="label">Session 25's closing question</span>
+  <p>"Three gates and eight weight matrices, and the unit does one job: manage a context vector. Is
+  all of it necessary? Could you get the same behaviour with fewer gates?"</p>
+</div>
+
+<p>The <strong>gated recurrent unit</strong> is one answer to that question. It comes from Cho et al.
+in <strong>2014</strong> — seventeen years after the LSTM, which is later than most people guess.
+Everything in this session is a comparison against session 25, because that is the order the course
+met them in and because the comparison is the point.</p>
+
+<h2>What the GRU removes</h2>
+
+<p>Start with the subtraction, before any equation:</p>
+
+<table>
+  <tr><th></th><th>LSTM (session 25)</th><th>GRU</th></tr>
+  <tr><td>vectors carried</td><td><code>c</code> and <code>h</code></td>
+      <td><strong><code>h</code> only</strong></td></tr>
+  <tr><td>gates</td><td>forget, add, output</td><td><strong>reset, update</strong></td></tr>
+  <tr><td>matrix pairs</td><td>4</td><td><strong>3</strong></td></tr>
+</table>
+
+<p>Two things are gone. <strong>The separate context vector</strong> — the GRU carries one vector,
+as a plain RNN does. And <strong>the output gate</strong> — there is no separate decision about how
+much to emit. The forget and add gates have been merged into a single <strong>update gate</strong>
+<math data-tex="z"><mi>z</mi></math>, used once as <math data-tex="z"><mi>z</mi></math> and once as <math data-tex="1 - z"><mrow><mn>1</mn><mo>−</mo><mi>z</mi></mrow></math>.</p>
+
+<p>This is a <em>simplification of</em> the LSTM, and it is fair to present it that way. The real
+work of this session is finding out what the simplification cost, which is a question the arithmetic
+answers rather than the description.</p>
+
+<h2>Cho's four equations</h2>
+
+<p>These are equations (5) to (8) of Cho et al. 2014, with the paper's own numbering. Nothing here
+is new notation: <math data-tex="\sigma"><mi>σ</mi></math>, <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> and <math data-tex="\odot"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">⊙</mo></math> are all from session 25.</p>
+
+<div class="meq" data-eqno="5"><math data-tex="r_t = \sigma(W_r x_t + U_r h_{t-1})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>r</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mi>r</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>U</mi><mi>r</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(5)</span></div>
+<div class="meq" data-eqno="6"><math data-tex="z_t = \sigma(W_z x_t + U_z h_{t-1})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>z</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mi>z</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>U</mi><mi>z</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(6)</span></div>
+<div class="meq" data-eqno="7"><math data-tex="h_t = z_t \odot h_{t-1} + (1 - z_t) \odot \tilde{h}_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>z</mi><mi>t</mi></msub><mo>⊙</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>−</mo><msub><mi>z</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>⊙</mo><msub><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>t</mi></msub></mrow></math><span class="eqno">(7)</span></div>
+<div class="meq" data-eqno="8"><math data-tex="\tilde{h}_t = \tanh\bigl(W x_t + U(r_t \odot h_{t-1})\bigr)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><mi>U</mi><mo form="prefix" stretchy="false">(</mo><msub><mi>r</mi><mi>t</mi></msub><mo>⊙</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></math><span class="eqno">(8)</span></div>
+
+<p>Equation (5) is the reset gate, (6) the update gate, (7) the new state, and (8) the
+candidate.</p>
+
+<h3>Equation (7) is an interpolation</h3>
+
+<p>This is the one to read aloud. <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is a weighted average of two things — the previous
+state and the new candidate — and <mark>the two weights always sum to 1</mark>. So <math data-tex="z"><mi>z</mi></math> is
+a dial. At <math data-tex="z = 1"><mrow><mi>z</mi><mo>=</mo><mn>1</mn></mrow></math> the unit keeps the old state exactly and ignores the candidate; at
+<math data-tex="z = 0"><mrow><mi>z</mi><mo>=</mo><mn>0</mn></mrow></math> it throws the old state away and takes the candidate whole; in between it blends
+them.</p>
+
+<p>That single reading carries the session. The LSTM's forget and add gates were two independent
+decisions; here there is one dial, and moving it toward keeping is the same act as moving it away
+from writing.</p>
+
+<h3>Equation (8) is where the reset gate acts</h3>
+
+<p>Look at where <math data-tex="r_t"><msub><mi>r</mi><mi>t</mi></msub></math> sits: it multiplies <code>h_{t-1}</code> <em>before</em> the
+candidate is computed. So the reset gate decides <strong>how much of the past the candidate is even
+allowed to see</strong>. With <math data-tex="r \approx 0"><mrow><mi>r</mi><mo>≈</mo><mn>0</mn></mrow></math> the candidate is computed from <code>x_t</code>
+alone and the unit effectively starts fresh at this word, whatever it was carrying.</p>
+
+<div class="callout">
+  <span class="label">Two gates, two different questions</span>
+  <p><math data-tex="r"><mi>r</mi></math> controls what goes <em>into</em> the candidate. <math data-tex="z"><mi>z</mi></math> controls how much
+  of the candidate comes <em>out</em>. They act at different points and it is worth being careful
+  here: <mark>the gate that does the forgetting is <math data-tex="z"><mi>z</mi></math>, not <math data-tex="r"><mi>r</mi></math></mark>. The
+  reset gate does not erase memory — it hides memory from one calculation.</p>
+</div>
+
+<div class="callout warn">
+  <span class="label">Which way round is <math data-tex="z"><mi>z</mi></math>?</span>
+  <p>Sources disagree, and this is worth stating once and pinning down. <strong>In this course
+  <math data-tex="z"><mi>z</mi></math> multiplies the <em>previous</em> state</strong>, as in Cho's equation (7) above.
+  PyTorch writes the same equation with the terms in the other order,
+  <math data-tex="h_t = (1 - z)\, n_t + z\, h_{t-1}"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><msub><mi>n</mi><mi>t</mi></msub><mo>+</mo><mi>z</mi><mspace width="0.1667em"></mspace><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></math>, which agrees. The flipped convention, with
+  <math data-tex="z"><mi>z</mi></math> gating the candidate instead, circulates widely. <mark>Check which one a source is
+  using before comparing numbers with it.</mark></p>
+</div>
+
+<h2>A worked example, against session 25's</h2>
+
+<p>Same three steps as session 25, same starting point, one dimension, gate values given rather than
+derived from weights. The tables are built to be read side by side.</p>
+
+<table>
+  <tr><th>step</th><th><math data-tex="z"><mi>z</mi></math></th><th><math data-tex="\tilde{h}"><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></math></th>
+      <th><math data-tex="h_t = z\, h_{t-1} + (1 - z)\, \tilde{h}"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>z</mi><mspace width="0.1667em"></mspace><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></mrow></math></th></tr>
+  <tr><td>1 · write</td><td>0.05</td><td>+0.80</td><td><strong>0.7600</strong></td></tr>
+  <tr><td>2 · hold</td><td>0.98</td><td>−0.50</td><td><strong>0.7348</strong></td></tr>
+  <tr><td>3 · overwrite</td><td>0.02</td><td>+0.10</td><td><strong>0.1127</strong></td></tr>
+</table>
+
+<p>Step 1 lands on <strong>0.7600</strong>, which is exactly where session 25's LSTM landed. The two
+units do the same thing when asked to write something into an empty memory. The differences show up
+afterwards, and there are two of them.</p>
+
+<h3>Cost 1: the GRU cannot remember without acting</h3>
+
+<p>Session 25's row 2 was the whole session: the context was held at <math data-tex="c = 0.7298"><mrow><mi>c</mi><mo>=</mo><mn>0.7298</mn></mrow></math> while
+the unit emitted <math data-tex="h = 0.0623"><mrow><mi>h</mi><mo>=</mo><mn>0.0623</mn></mrow></math>. Put that beside the GRU's row 2:</p>
+
+<table>
+  <tr><th>row 2 · "hold"</th><th>what is retained</th><th>what is emitted</th></tr>
+  <tr><td>LSTM (session 25)</td><td><math data-tex="c = 0.7298"><mrow><mi>c</mi><mo>=</mo><mn>0.7298</mn></mrow></math></td><td><math data-tex="h = 0.0623"><mrow><mi>h</mi><mo>=</mo><mn>0.0623</mn></mrow></math></td></tr>
+  <tr><td>GRU</td><td><math data-tex="h = 0.7348"><mrow><mi>h</mi><mo>=</mo><mn>0.7348</mn></mrow></math></td><td><math data-tex="h = 0.7348"><mrow><mi>h</mi><mo>=</mo><mn>0.7348</mn></mrow></math></td></tr>
+</table>
+
+<p><mark>The same number twice, because there is only one number.</mark> With no output gate and no
+separate context vector, retention <em>is</em> output — anything the GRU is holding on to, it is also
+saying. Session 25 called the LSTM's ability to hold something silently the point of the whole
+architecture. The GRU does not have it.</p>
+
+<h3>Cost 2: keeping and writing are coupled</h3>
+
+<p>In the LSTM, <code>f</code> and <code>i</code> are separate gates, so <math data-tex="f = 1"><mrow><mi>f</mi><mo>=</mo><mn>1</mn></mrow></math> with
+<math data-tex="i = 1"><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow></math> keeps the old context <em>and</em> adds to it. The GRU's weights are <math data-tex="z"><mi>z</mi></math>
+and <math data-tex="1 - z"><mrow><mn>1</mn><mo>−</mo><mi>z</mi></mrow></math>, and they sum to 1 by construction. Keeping 90% of the old state therefore
+means writing at most 10% of the new one. There is no setting that does both.</p>
+
+<p>Take <code>h_{t-1} = 0.76</code> and a candidate <math data-tex="\tilde{h} = -0.50"><mrow><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mn>0.50</mn></mrow></math>, and turn the dial:</p>
+
+<table>
+  <tr><th><math data-tex="z"><mi>z</mi></math></th><th>keeps</th><th>writes</th><th><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math></th></tr>
+  <tr><td>0.9</td><td>90%</td><td>10%</td><td>0.6340</td></tr>
+  <tr><td>0.5</td><td>50%</td><td>50%</td><td>0.1300</td></tr>
+  <tr><td>0.1</td><td>10%</td><td>90%</td><td>−0.3740</td></tr>
+</table>
+
+<figure>
+  <svg viewBox="0 0 660 300" role="img" aria-labelledby="dialtitle dialdesc">
+    <title id="dialtitle">The GRU's new state as a point on the segment between the previous state
+    and the candidate</title>
+    <desc id="dialdesc">A horizontal number line runs from minus 0.5 on the left to 0.76 on the
+    right. The left end is labelled h tilde, the candidate, and the right end is labelled h t minus
+    one, the previous state. Three marked points sit on the segment between them: at z equals 0.1 the
+    new state is minus 0.374, close to the candidate end; at z equals 0.5 it is 0.130, in the middle;
+    at z equals 0.9 it is 0.634, close to the previous state end. Shaded regions beyond both ends are
+    marked unreachable. A caption reads: h t is always between the two, because the weights sum
+    to one.</desc>
+
+    <!-- unreachable regions -->
+    <rect class="fig-mask" x="20" y="112" width="60" height="26"></rect>
+    <rect class="fig-mask" x="580" y="112" width="60" height="26"></rect>
+    <text class="fig-label" x="50" y="105" text-anchor="middle">unreachable</text>
+    <text class="fig-label" x="610" y="105" text-anchor="middle">unreachable</text>
+
+    <!-- the segment -->
+    <line class="fig-axis" x1="80" y1="125" x2="580" y2="125"></line>
+    <line class="fig-tick" x1="80" y1="115" x2="80" y2="135"></line>
+    <line class="fig-tick" x1="580" y1="115" x2="580" y2="135"></line>
+
+    <!-- endpoints -->
+    <circle class="fig-node-q" cx="80" cy="125" r="9"></circle>
+    <circle class="fig-node-q" cx="580" cy="125" r="9"></circle>
+    <text class="fig-axname" x="80" y="168" text-anchor="middle">h̃ = −0.50</text>
+    <text class="fig-label" x="80" y="188" text-anchor="middle">the candidate</text>
+    <text class="fig-axname" x="580" y="168" text-anchor="middle">h_{t-1} = 0.76</text>
+    <text class="fig-label" x="580" y="188" text-anchor="middle">the previous state</text>
+
+    <!-- z = 0.1 -->
+    <circle class="fig-pt" cx="130" cy="125" r="7"></circle>
+    <text class="fig-label" x="130" y="72" text-anchor="middle">z = 0.1</text>
+    <text class="fig-axname" x="130" y="94" text-anchor="middle">−0.374</text>
+    <line class="fig-gap" x1="130" y1="100" x2="130" y2="116"></line>
+
+    <!-- z = 0.5 -->
+    <circle class="fig-pt" cx="330" cy="125" r="7"></circle>
+    <text class="fig-label" x="330" y="72" text-anchor="middle">z = 0.5</text>
+    <text class="fig-axname" x="330" y="94" text-anchor="middle">0.130</text>
+    <line class="fig-gap" x1="330" y1="100" x2="330" y2="116"></line>
+
+    <!-- z = 0.9 -->
+    <circle class="fig-pt" cx="530" cy="125" r="7"></circle>
+    <text class="fig-label" x="530" y="72" text-anchor="middle">z = 0.9</text>
+    <text class="fig-axname" x="530" y="94" text-anchor="middle">0.634</text>
+    <line class="fig-gap" x1="530" y1="100" x2="530" y2="116"></line>
+
+    <!-- dial arrow -->
+    <line class="fig-edge" x1="130" y1="225" x2="530" y2="225"></line>
+    <polygon class="fig-edge-h" points="120,225 130,228.5 130,221.5"></polygon>
+    <polygon class="fig-edge-h" points="540,225 530,228.5 530,221.5"></polygon>
+    <text class="fig-label" x="330" y="245" text-anchor="middle">z is a dial: more keeping ⇄ less writing</text>
+
+    <text class="fig-axname" x="330" y="278" text-anchor="middle">h_t is always between the two — the weights sum to 1</text>
+  </svg>
+  <figcaption>The GRU's new state is a blend of exactly two things, so it lands somewhere on the
+  segment joining them and can never leave it. <mark>That constraint is what "the weights sum to 1"
+  means geometrically</mark>, and it is exactly the constraint the LSTM does not have: with
+  independent <code>f</code> and <code>i</code>, its context can hold what it had and take on more.</figcaption>
+</figure>
+
+<p>Neither of these is a defect. They are what the simplification bought, and whether the trade was
+worth making is the next section's question — one that is answered by evidence rather than by
+argument.</p>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>Session 25's LSTM held its memory at 0.7298 while emitting 0.0623 — remembering without acting.
+  What values of <math data-tex="z"><mi>z</mi></math> and <math data-tex="\tilde{h}"><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></math> would make a GRU do the same thing: carry roughly
+  0.73 forward while emitting almost nothing?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p>There are none. <mark><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is both the memory and the output</mark>, so "carry
+    0.73 forward" and "emit almost nothing" are contradictory requirements — whatever the unit
+    carries is exactly what it emits. No choice of <math data-tex="z"><mi>z</mi></math>, <math data-tex="\tilde{h}"><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></math> or
+    <math data-tex="r"><mi>r</mi></math> separates them, because the separation is structural and the GRU does not have the
+    structure.</p>
+    <p>This is the cost of dropping the second vector and the output gate, and it is worth being
+    precise about what it does and does not mean. The GRU can still <em>retain</em> information over
+    many steps — <math data-tex="z \approx 1"><mrow><mi>z</mi><mo>≈</mo><mn>1</mn></mrow></math> does that perfectly well. What it cannot do is retain
+    information <em>quietly</em>.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What did the GRU remove, relative to the LSTM?</p>
+  <div class="q-opts">
+    <button class="opt">The candidate computation, so that the new state is built from the input
+    alone rather than from the previous hidden state</button>
+    <button class="opt">The reset gate replaces the forget gate, so one gate now does the work that
+    previously took two separate ones</button>
+    <button class="opt">The separate context vector and the output gate — forget and add are merged
+    into one update gate used as <math data-tex="z"><mi>z</mi></math> and <math data-tex="1 - z"><mrow><mn>1</mn><mo>−</mo><mi>z</mi></mrow></math></button>
+    <button class="opt">The element-wise products, so that all of the gating is done by ordinary
+    matrix multiplication instead</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the separate context vector and the output gate</strong>. Four matrix
+    pairs become three, and two vectors become one.</p>
+    <p>The second option is the instructive wrong answer, and it is wrong in a specific way worth
+    fixing now: <mark>the gate that does the forgetting is <math data-tex="z"><mi>z</mi></math>, the update gate</mark>, not
+    <math data-tex="r"><mi>r</mi></math>. The reset gate controls what the candidate is allowed to see, which is a different
+    job that the LSTM had no equivalent of at all. The first is false — equation (8) computes a
+    candidate, and it does read <code>h_{t-1}</code>, filtered through <math data-tex="r"><mi>r</mi></math>. The fourth is
+    false: <math data-tex="\odot"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">⊙</mo></math> appears in equations (7) and (8) and is how every gate in either
+    architecture applies.</p>
+  </div>
+</div>
+
+<h2>What to pick</h2>
+
+<p>The schedule line for this session asks a practical question, so here is the practical answer, in
+two parts: what the simplification saves, and whether it costs accuracy.</p>
+
+<h3>What it saves</h3>
+
+<table>
+  <tr><th></th><th>matrix pairs</th><th>matrices</th><th>parameters at <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math></th></tr>
+  <tr><td>RNN</td><td>1</td><td>2</td><td>180,000</td></tr>
+  <tr><td><strong>GRU</strong></td><td><strong>3</strong></td><td><strong>6</strong></td>
+      <td><strong>540,000</strong></td></tr>
+  <tr><td>LSTM</td><td>4</td><td>8</td><td>720,000</td></tr>
+</table>
+
+<p>The GRU has <strong>75% of the LSTM's parameters</strong>. That is the whole efficiency case, and
+it is worth stating the number plainly because <mark>it is smaller than the reputation
+suggests</mark> — "simpler architecture" tends to be heard as "much smaller model", and a quarter
+fewer parameters is a real saving but not a dramatic one.</p>
+
+<h3>Whether it costs accuracy</h3>
+
+<p>Chung et al. 2014 compared the plain <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> unit, the LSTM and the GRU on polyphonic
+music modelling and raw speech signal modelling. Their conclusion:</p>
+
+<div class="callout">
+  <span class="label">Chung et al. 2014</span>
+  <p>"The evaluation clearly demonstrated the superiority of the gated units; both the LSTM unit and
+  GRU, over the traditional tanh unit… <strong>However, we could not make concrete conclusion on
+  which of the two gating units was better.</strong>"</p>
+</div>
+
+<p>Read the author list before reading the conclusion again: Chung, Gulcehre, <strong>Cho</strong>
+and <strong>Bengio</strong>. Two of the four are authors of the GRU paper itself.
+<mark>The people who proposed the GRU compared it against the LSTM and declined to claim a
+winner.</mark></p>
+
+<div class="callout">
+  <span class="label">A pattern this course keeps finding</span>
+  <p>Session 18 checked idf's claim against the Shakespeare features. Session 21 checked
+  <math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math> and found it landing on <code>king</code>. Session 22 checked
+  GloVe's own pitch against Levy &amp; Goldberg. Here the check is one the authors ran themselves.
+  <mark>Four times a well-known claim has been checked against the evidence and come back
+  weaker than advertised.</mark> The habit is more durable than any of the four results.</p>
+</div>
+
+<p>So the practical answer is: <strong>try both, prefer the GRU when data or compute is tight, and do
+not expect the choice to decide anything.</strong> In PyTorch it is a one-word change, which is worth
+doing in lab 9 to see the difference for yourself.</p>
+
+<h2>What you will actually run, which is not equation (8)</h2>
+
+<div class="callout warn">
+  <span class="label">PyTorch does not implement Cho's equation (8)</span>
+  <p>PyTorch's own documentation says so: "The calculation of new gate <math data-tex="n_t"><msub><mi>n</mi><mi>t</mi></msub></math> subtly
+  differs from the original paper and other frameworks. In the original implementation, the Hadamard
+  product between <math data-tex="r_t"><msub><mi>r</mi><mi>t</mi></msub></math> and the previous hidden state <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> is done before
+  the multiplication with the weight matrix <math data-tex="W"><mi>W</mi></math>…"</p>
+  <p>Side by side:</p>
+</div>
+
+<div class="meq"><math data-tex="\begin{aligned}
+\text{Cho (8):} \quad \tilde{h} &amp;= \tanh\bigl(W x + U(r \odot h_{t-1})\bigr) \\
+\text{PyTorch:} \quad n_t &amp;= \tanh\bigl(W_{in} x + b_{in} + r \odot (W_{hn} h_{t-1} + b_{hn})\bigr)
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>Cho (8):</mtext><mspace width="1em"></mspace><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mi>W</mi><mi>x</mi><mo>+</mo><mi>U</mi><mo form="prefix" stretchy="false">(</mo><mi>r</mi><mo>⊙</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>PyTorch:</mtext><mspace width="1em"></mspace><msub><mi>n</mi><mi>t</mi></msub></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><msub><mi>W</mi><mrow><mi>i</mi><mi>n</mi></mrow></msub><mi>x</mi><mo>+</mo><msub><mi>b</mi><mrow><mi>i</mi><mi>n</mi></mrow></msub><mo>+</mo><mi>r</mi><mo>⊙</mo><mo form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>n</mi></mrow></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mrow><mi>h</mi><mi>n</mi></mrow></msub><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></mtd></mtr></mtable></math></div>
+
+<p>Cho applies the reset gate before the matrix; PyTorch applies it after.</p>
+
+<p>These are <strong>not algebraically equal</strong>. In Cho's form the reset gate masks the state
+and the matrix then mixes what survives; in PyTorch's form the matrix mixes everything and the mask
+is applied to the result. PyTorch states the change is deliberate, made for efficiency.</p>
+
+<p>This matters here more than it would elsewhere, because <mark>the course's own assigned source
+runs the PyTorch variant</mark>. Rao &amp; McMahan chapter 7 calls <code>nn.GRU</code> directly in
+both surname-generation notebooks and never writes the equations out. So a student who reads Cho
+§2.3, implements equations (5)–(8) by hand, and compares against the book's model is running two
+different architectures — and neither source will tell them so.</p>
+
+<div class="callout warn">
+  <span class="label">One more discrepancy, if you read Cho</span>
+  <p>A footnote in Cho's paper describes the LSTM as having <strong>four gating units</strong>.
+  Session 25 taught <strong>three</strong>, following SLP3, and said explicitly that
+  <code>g</code> is not a gate but the candidate content. <mark>The equations are identical either
+  way</mark> — the sources simply count the candidate differently. Nothing about the architecture is
+  in dispute; only the noun is.</p>
+</div>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">What does the empirical evidence say about choosing between the LSTM and the
+  GRU?</p>
+  <div class="q-opts">
+    <button class="opt">The GRU is better, because a simpler architecture with fewer parameters
+    generalises more reliably from the same training data</button>
+    <button class="opt">Both clearly beat the plain <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> unit, and no consistent winner
+    emerged between the two of them</button>
+    <button class="opt">The LSTM is better, because its separate context vector lets it hold
+    information over distances the GRU's single vector cannot reach</button>
+    <button class="opt">Neither is worth using now, because the comparison was run on music and
+    speech data rather than on any language task</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>gating clearly wins, and neither gated unit consistently beats the
+    other</strong>. That is Chung et al.'s conclusion in their own words, and two of its authors
+    proposed the GRU.</p>
+    <p>The first option is exactly the claim the evidence does not support, and it is the one most
+    people carry — "simpler" is not an argument, it is a hypothesis, and this one was tested. The
+    third is a plausible-sounding structural argument that also went untested-and-unconfirmed; the
+    GRU's single vector is a real limitation, as row 2 showed, but it did not show up as a consistent
+    accuracy gap. The fourth over-corrects: the datasets are a genuine caveat worth noting, not a
+    reason to discard the finding.</p>
+  </div>
+</div>
+
+<h2>What neither of them fixes</h2>
+
+<p>The GRU is smaller than the LSTM and behaves comparably. Neither addresses the two limits session
+25 closed on:</p>
+
+<ul>
+  <li><strong>Both are strictly sequential.</strong> <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> needs <code>h_{t-1}</code>, so
+  neither can be parallelised across time whatever hardware is available.</li>
+  <li><strong>Both push everything through one vector per position.</strong> Fewer gates does not
+  change how much can be carried.</li>
+</ul>
+
+<p>Session 27 does not attack either limit. It keeps the sequential unit exactly as it is and changes
+what gets built <em>out</em> of it: two recurrent networks, one reading and one writing.
+<mark>That is the shape that makes translation possible</mark>, and it is also where Cho's paper
+reappears — the equations above come from §2.3 of a paper whose actual subject is the
+encoder-decoder, which is session 27's topic. Bahdanau, session 28's author, is a co-author of it.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>The GRU answers session 25's question by removing two things from the LSTM: the separate context
+  vector and the output gate. What remains is one vector and two gates. The reset gate <math data-tex="r"><mi>r</mi></math>
+  decides how much of the past the candidate may see; the update gate <math data-tex="z"><mi>z</mi></math> interpolates
+  between the previous state and the candidate, with weights <math data-tex="z"><mi>z</mi></math> and <math data-tex="1 - z"><mrow><mn>1</mn><mo>−</mo><mi>z</mi></mrow></math>
+  that always sum to 1. Two costs follow from the arithmetic rather than from opinion. The GRU cannot
+  remember without acting, because retention and output are the same vector — its row 2 holds 0.7348
+  and emits 0.7348, where the LSTM held 0.7298 and emitted 0.0623. And keeping and writing are
+  coupled, so the new state can only ever land between the old state and the candidate. In exchange
+  it uses three matrix pairs instead of four: 540,000 parameters against 720,000 at
+  <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math>, which is 75%. On accuracy, Chung et al. — including two authors of the GRU
+  paper — found both gated units clearly better than a plain <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> unit and could not
+  separate the two. One practical warning: PyTorch applies the reset gate after the weight matrix
+  rather than before, so <code>nn.GRU</code> is not Cho's equation (8), and the assigned course source
+  uses <code>nn.GRU</code> without saying so.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://github.com/delip/PyTorchNLPBook">Natural Language Processing with
+PyTorch</a></strong>, Rao &amp; McMahan, <strong>chapter 7</strong> — the assigned source, and the
+one lab 9 follows. It uses <code>nn.GRU</code> and does not write the equations out, which is why
+they are written out above.</p>
+
+<p><strong><a href="https://arxiv.org/abs/1406.1078">Cho et al. 2014</a></strong>, <strong>§2.3</strong>
+only — four pages, and the origin of equations (5)–(8). Read it knowing two things: PyTorch does not
+implement (8) as written, and the paper's footnote counts the LSTM's gates differently from session
+25.</p>
+
+<p><strong><a href="https://arxiv.org/abs/1412.3555">Chung et al. 2014</a></strong> if you want the
+comparison in full. It is short, and its conclusion is the honest answer to "which one should I
+use?"</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0025-the-lstm.html">← Session 25: The LSTM — two vectors, three gates</a>
+  <a href="0027-sequence-to-sequence.html">Session 27: sequence-to-sequence — the encoder-decoder →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 1: What NLP is, and your first tool</title>
+<title>Slides — Session 6: Part-of-speech tagging</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -677,374 +677,231 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0001-what-is-nlp-and-your-first-tool.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0006-part-of-speech-tagging.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 01</p>
-      <h1>What NLP is, and your first tool</h1>
-      <p class="subtitle">Why language is hard for computers — and how to pull facts out of
-      text with a pattern.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 06</p>
+      <h1>Part-of-speech tagging</h1>
+      <p class="subtitle">Labelling each word with its grammatical job — and why the same word
+      needs a different label depending on its neighbours.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What natural language processing is">
+  <section class="slide slide--statement" data-title="Session 5 left a debt">
     <div class="slide-inner">
-      <h2>What natural language processing is</h2>
-      <ul>
-        <li>Your phone predicted the next word as you typed</li>
-        <li>Your email put a message in the spam folder</li>
-        <li>A search engine found a page without your exact words</li>
-        <li>Something translated a sentence for you</li>
-        <li>A chatbot gave you a sensible answer</li>
-      </ul>
-      <p class="aside">By the end of this course, you will have built versions of most of
-      these.</p>
+      <p class="lede">Session 5 left something unfinished</p>
+      <p>To lemmatize <code>meeting</code> we had to know whether it was a
+      <strong>noun</strong> or a <strong>verb</strong>.</p>
+      <footer>We deferred that to &ldquo;a tool that works out the part of speech&rdquo;. This is
+      that tool.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What is NLP?">
+  <section class="slide slide--code" data-title="What a tagger produces">
     <div class="slide-inner">
-      <h2>What is NLP?</h2>
-      <ul>
-        <li>NLP stands for <strong>Natural Language Processing</strong></li>
-        <li>It means teaching computers to work with human language — the words people
-        speak and write</li>
-        <li>Not just English. Any language.</li>
-      </ul>
-      <p class="aside">Every example on the last slide was NLP.</p>
+      <h2>A tag for every word</h2>
+      <pre><code>They    book    flights   daily
+PRON    VERB    NOUN      ADV</code></pre>
+      <p class="aside">Part-of-speech tagging labels each word with its grammatical category.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="AI, ML, deep learning">
+  <section class="slide slide--table" data-title="The word classes">
     <div class="slide-inner">
-      <h2>Terms you will encounter</h2>
-      <ul>
-        <li><strong>AI</strong> — the big goal: make a computer do something that used to
-        need a person</li>
-        <li><strong>Machine learning</strong> — one way to do that: show the computer
-        examples, instead of writing rules yourself</li>
-        <li><strong>Deep learning</strong> — one kind of machine learning: networks with
-        many layers</li>
-      </ul>
-      <p class="aside">Each one is inside the one before it — like nested circles.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where NLP fits">
-    <div class="slide-inner">
-      <p class="lede">Where NLP fits</p>
-      <p>NLP is not one more item on that list. NLP is a <strong>problem</strong>:
-      language.</p>
-      <footer>People have solved it three ways — rules, then machine learning, then deep
-      learning. This course follows that order, one unit at a time.</footer>
-    </div>
-  </section>
-  <section class="slide slide--figure" data-title="NLP is not inside machine learning">
-    <div class="slide-inner">
-      <h2>Where NLP sits</h2>
-      <svg viewBox="0 0 620 420" role="img" aria-labelledby="stitle sdesc">
-    <title id="stitle">How NLP overlaps artificial intelligence, machine learning and deep
-    learning</title>
-    <desc id="sdesc">Three nested circles on the right: artificial intelligence contains machine
-    learning, which contains deep learning. A large NLP circle on the left overlaps machine
-    learning and deep learning, but extends well outside artificial intelligence altogether. A
-    smaller linguistic processing circle sits further left, overlapping NLP and lying entirely
-    outside artificial intelligence. A computer vision circle at the lower right also overlaps
-    machine learning and deep learning while extending outside artificial intelligence, showing
-    that NLP is one problem area among several.</desc>
-
-    <circle class="fig-set fig-set-ai" cx="420" cy="190" r="165"></circle>
-    <circle class="fig-set fig-set-ml" cx="430" cy="205" r="120"></circle>
-    <circle class="fig-set fig-set-dl" cx="440" cy="220" r="70"></circle>
-    <circle class="fig-set fig-set-nlp" cx="270" cy="250" r="135"></circle>
-    <circle class="fig-set fig-set-side" cx="132" cy="188" r="72"></circle>
-    <circle class="fig-set fig-set-side" cx="500" cy="320" r="85"></circle>
-
-    <text class="fig-setname" x="420" y="55">Artificial intelligence</text>
-    <text class="fig-setname" x="430" y="112">Machine learning</text>
-    <text class="fig-setname" x="440" y="225">Deep learning</text>
-    <text class="fig-setname" x="200" y="315">NLP</text>
-    <text class="fig-setname-sm" x="118" y="182">Linguistic</text>
-    <text class="fig-setname-sm" x="118" y="199">processing</text>
-    <text class="fig-setname-sm" x="516" y="368">Computer vision</text>
-  </svg>
-      <p class="aside">The part of NLP outside AI is where this course starts. A regular
-      expression is NLP and learns nothing.</p>
-    </div>
-  </section>
-
-
-  <section class="slide slide--statement" data-title="Why language is hard for computers">
-    <div class="slide-inner">
-      <p>Computers are good at deterministic tasks — apps, algorithms, calculations.<br><br>Language is
-      not deterministic.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="The old man the boat">
-    <div class="slide-inner">
-      <p class="lede">Read this sentence</p>
-      <p>&ldquo;The old man the boat.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Man is a verb here">
-    <div class="slide-inner">
-      <h2>The sentence is grammatical</h2>
-      <ul>
-        <li>Here <strong>man</strong> is a verb. It means &ldquo;to work on&rdquo; or
-        &ldquo;to operate&rdquo;</li>
-        <li>So: the old people operate the boat</li>
-        <li>We read &ldquo;old man&rdquo; as one noun phrase, then revise when we
-        reached &ldquo;the boat&rdquo;</li>
-      </ul>
-      <p class="aside">A computer has the same problem — and no instinct to help it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="I saw a man on a hill with a telescope">
-    <div class="slide-inner">
-      <p class="lede">Who has the telescope?</p>
-      <p>&ldquo;I saw a man on a hill with a telescope.&rdquo;</p>
-      <div class="slide-fig">
-        <svg viewBox="0 0 620 220" role="img" aria-label="Diagram showing two possible attachments of the phrase 'with a telescope' — to 'man' or to 'saw' — creating ambiguity about who holds the telescope.">
-          <text x="230" y="18" class="fig-arc-label fig-arc-a-label" fill="var(--accent)" text-anchor="middle">I saw … with a telescope</text>
-          <path class="fig-arc fig-arc-a" d="M 60,90 Q 240,40 420,90" />
-
-          <text x="10"  y="130" class="fig-word">I</text>
-          <text x="45"  y="130" class="fig-word">saw</text>
-          <text x="115" y="130" class="fig-word">a</text>
-          <text x="150" y="130" class="fig-word">man</text>
-          <text x="215" y="130" class="fig-word">on</text>
-          <text x="255" y="130" class="fig-word">a</text>
-          <text x="290" y="130" class="fig-word">hill</text>
-          <text x="355" y="130" class="fig-word">with</text>
-          <text x="415" y="130" class="fig-word">a</text>
-          <text x="450" y="130" class="fig-word">telescope</text>
-
-          <path class="fig-arc fig-arc-b" d="M 160,145 Q 300,195 420,145" />
-          <text x="270" y="215" class="fig-arc-label" fill="var(--ok)" text-anchor="middle">man … with a telescope</text>
-        </svg>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Language is ambiguous">
-    <div class="slide-inner">
-      <p>Language is <strong>ambiguous</strong>.<br><br>Almost every technique in this
-      course is a way of dealing with it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Where this course goes">
-    <div class="slide-inner">
-      <h2>Where this course goes</h2>
+      <h2>The word classes</h2>
       <table>
-        <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
-        <tr><td>1</td><td>How do we turn messy text into clean pieces, and find things
-        in it?</td><td>A working search engine</td></tr>
-        <tr><td>2</td><td>How do we turn words into numbers, so maths can work on
-        them?</td><td>A sentiment classifier, and word vectors</td></tr>
-        <tr><td>3</td><td>How do we get a machine to understand context and generate
-        language?</td><td>Neural models, up to fine-tuning BERT</td></tr>
+        <tr><th>Class</th><th>Job</th><th>Examples</th></tr>
+        <tr><td>Noun</td><td>a thing, person, place, idea</td><td><code>phone</code>,
+        <code>Manipal</code></td></tr>
+        <tr><td>Verb</td><td>an action or state</td><td><code>run</code>, <code>book</code>,
+        <code>is</code></td></tr>
+        <tr><td>Adjective</td><td>describes a noun</td><td><code>old</code>,
+        <code>best</code></td></tr>
+        <tr><td>Adverb</td><td>describes a verb or adjective</td><td><code>daily</code>,
+        <code>very</code></td></tr>
+        <tr><td>Pronoun</td><td>stands in for a noun</td><td><code>I</code>, <code>they</code>,
+        <code>it</code></td></tr>
+        <tr><td>Determiner</td><td>introduces a noun</td><td><code>the</code>, <code>a</code>,
+        <code>this</code></td></tr>
+        <tr><td>Preposition</td><td>relates a noun to the rest</td><td><code>on</code>,
+        <code>in</code>, <code>to</code></td></tr>
       </table>
     </div>
   </section>
 
-  <section class="slide slide--title" data-title="Regular expressions">
+  <section class="slide slide--bullets" data-title="Open and closed classes">
     <div class="slide-inner">
-      <p class="slide-eyebrow">We start at the bottom</p>
-      <h1>Your first tool: regular expressions</h1>
-      <p class="subtitle">Before any of the more sophisticated methods, we need a way to extract facts from
-      raw text.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Information extraction">
-    <div class="slide-inner">
-      <h2>A regex is a small language for describing shape</h2>
+      <h2>Open and closed classes</h2>
       <ul>
-        <li>We write a pattern; the computer finds every match</li>
-        <li>The oldest tool in NLP — still one of the most used</li>
-        <li>Pulling structured facts out of unstructured text is called
-        <strong>information extraction</strong></li>
+        <li><strong>Open</strong> — nouns, verbs, adjectives, adverbs. New members arrive all the
+        time: <code>to google</code>, <code>selfie</code></li>
+        <li><strong>Closed</strong> — determiners, pronouns, prepositions. Nobody coins a new word
+        for <code>the</code></li>
       </ul>
-      <p class="aside">For dates, phone numbers and ID numbers, this is often the complete
-      answer. No machine learning needed.</p>
+      <p class="aside">The closed classes are, not coincidentally, the same words a stop-word list
+      removes.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="regex, not re">
+  <section class="slide slide--statement" data-title="Why it is not a lookup">
     <div class="slide-inner">
-      <h2>In this course we use <code>regex</code>, not <code>re</code></h2>
-      <pre><code>pip install regex</code></pre>
-      <p class="aside">Same functions and same patterns as <code>re</code>.
-      Python's built-in <code>re</code> does not handle Indian scripts correctly. We
-      see why in a minute.</p>
+      <p>If every word belonged to one class, tagging would be a dictionary lookup.</p>
+      <p style="margin-top:1.4rem">It is not.</p>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Basic patterns">
+  <section class="slide slide--code" data-title="book, three ways">
     <div class="slide-inner">
-      <h2>Basic patterns</h2>
-      <table>
-        <tr><th>Pattern</th><th>Means</th></tr>
-        <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td></tr>
-        <tr><td><code>[0-9]</code></td><td>any digit — a range</td></tr>
-        <tr><td><code>[^0-9]</code></td><td><code>^</code> inside brackets means
-        <em>not</em></td></tr>
-        <tr><td><code>.</code></td><td>any character at all</td></tr>
-        <tr><td><code>\d</code> · <code>\w</code> · <code>\s</code></td><td>digit ·
-        word char · whitespace</td></tr>
-        <tr><td><code>a*</code> · <code>a+</code> · <code>a?</code></td><td>zero+ ·
-        one+ · optional</td></tr>
-        <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
-      </table>
+      <h2>The same four letters, three jobs</h2>
+      <pre><code>"Give me the book."         book  ->  NOUN
+"I can book a flight."      book  ->  VERB
+"They book flights daily."  book  ->  VERB</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="An example">
+  <section class="slide slide--bullets" data-title="The neighbours decide">
     <div class="slide-inner">
-      <h2>An example</h2>
-      <pre><code>"Call +91 98765 43210 before 15/03/2026
-or email admin@manipal.edu"</code></pre>
-      <p class="aside">Three facts hiding in one line of text.</p>
+      <h2>Only the neighbours can decide</h2>
+      <ul>
+        <li><code>the book</code> — a determiner is followed by a noun, so it is a noun</li>
+        <li><code>can book</code> — a modal is followed by a verb, so it is a verb</li>
+        <li>No dictionary can choose between them. It would list both.</li>
+      </ul>
+      <p class="aside">The tagger reads the whole sentence and uses each word's neighbours.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Three patterns, three facts">
+  <section class="slide slide--statement" data-title="Sequence labelling">
     <div class="slide-inner">
-      <h2>Three patterns, three facts</h2>
-      <div class="split-grid">
-        <div class="split-col">
-          <p class="col-label">Pattern</p>
-          <pre><code>date   \d{2}/\d{2}/\d{4}
-phone  \+91 \d{5} \d{5}
-email  [\w.]+@[\w.]+</code></pre>
-        </div>
-        <div class="split-col">
-          <p class="col-label">Match</p>
-          <pre><code>15/03/2026
-+91 98765 43210
-admin@manipal.edu</code></pre>
-        </div>
-      </div>
+      <p>This makes tagging a <strong>sequence-labelling</strong> task: a word is tagged
+      <em>within</em> the sequence it sits in, never on its own.</p>
+      <footer>Context is not merely helpful here. It is the only thing that resolves the
+      ambiguity.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Escaping">
-    <div class="slide-inner">
-      <p class="lede">The most common regex bug</p>
-      <p><code>+</code> means &ldquo;one or more&rdquo;. To match a literal plus sign,
-      write <code>\+</code>.</p>
-      <p class="lede" style="margin-top:1.6rem">This is called <strong>escaping</strong>.
-      Everybody forgets it at least once.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="re vs regex on Kannada">
-    <div class="slide-inner">
-      <h2><code>re.findall(r"\w+", …)</code> on Kannada</h2>
-      <pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"   # "Kannada language" — two words</code></pre>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>['ಕನ', 'ನಡ', 'ಭ', 'ಷ']
-# four "words"</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>['ಕನ್ನಡ', 'ಭಾಷೆ']
-# two words</code></pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="The virama is a mark, not a letter">
-    <div class="slide-inner">
-      <h2>Inside &ldquo;ಕನ್ನಡ&rdquo; — five characters, one special</h2>
-      <table>
-        <tr><th>Char</th><th>Codepoint</th><th>Role</th></tr>
-        <tr><td>ಕ</td><td>U+0C95</td><td>letter</td></tr>
-        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
-        <tr><td>್</td><td>U+0CCD</td><td><strong>combining mark — the virama</strong></td></tr>
-        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
-        <tr><td>ಡ</td><td>U+0CA1</td><td>letter</td></tr>
-      </table>
-      <p class="aside"><code>re</code>'s <code>\w</code> accepts letters and digits but
-      rejects combining marks — so it ends the word at the virama.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement warn" data-title="Why this matters for the rest of the course">
-    <div class="slide-inner">
-      <p class="lede">Why this matters for the rest of the course</p>
-      <p>In Unit II we count words to build bag of words and TF-IDF.<br><br>If the
-      word counts are doubled before we start, every number after that is wrong — and
-      <strong>nothing crashes to tell you.</strong></p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise: PIN and roll number">
+  <section class="slide slide--recall" data-title="Exercise: the old man the boat">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Write a pattern</span>
-        <p>A PIN code: exactly six digits.</p>
-        <p>A roll number like <code>MSIS2026001</code>: four letters, then seven digits.</p>
+        <span class="label">From session 1 — try it again now</span>
+        <p><code>"The old man the boat."</code> is grammatical English.</p>
+        <p>What job does each word do?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p>PIN code: <code>\d{6}</code></p>
-          <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
-          <p><code>\w{4}\d{7}</code> is not tight enough — <code>\w</code> also accepts
-          digits and underscore.</p>
+          <p><code>The old</code> means &ldquo;the old people&rdquo;, so <code>old</code> stands in
+          as a noun. <code>man</code> is the <strong>verb</strong> — to man a boat is to staff it.
+          The old people staff the boat.</p>
+          <p>Most readers take <code>man</code> for a noun first and hit a dead end. That is a
+          <strong>garden-path</strong> sentence.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: [^aeiou]">
+  <section class="slide slide--statement warn" data-title="The tagger makes the same mistake">
+    <div class="slide-inner">
+      <p class="lede">Run it through spaCy</p>
+      <p>spaCy tags <code>man</code> as a <strong>noun</strong> — exactly the error a human reader
+      makes on first reading.</p>
+      <footer>Taggers are about 97% accurate. Genuinely ambiguous sentences are still beyond
+      them.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Tagsets">
+    <div class="slide-inner">
+      <h2>How many labels? Two levels are in common use</h2>
+      <ul>
+        <li><strong>Universal</strong> — coarse, about 17 tags: <code>NOUN</code>,
+        <code>VERB</code>, <code>ADJ</code>, <code>ADV</code>, <code>DET</code>. Readable, and
+        consistent across languages</li>
+        <li><strong>Penn Treebank</strong> — fine, about 45 tags. A noun splits into
+        <code>NN</code> and <code>NNS</code>; a verb into <code>VB</code>, <code>VBZ</code>,
+        <code>VBP</code> and more</li>
+      </ul>
+      <p class="aside">Most tools produce both.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="One sentence, both tagsets">
+    <div class="slide-inner">
+      <h2>One sentence, both tagsets</h2>
+      <table>
+        <tr><th>Word</th><th>Universal</th><th>Penn Treebank</th></tr>
+        <tr><td><code>They</code></td><td>PRON</td><td>PRP (personal pronoun)</td></tr>
+        <tr><td><code>book</code></td><td>VERB</td><td>VBP (present, not 3rd-sing)</td></tr>
+        <tr><td><code>flights</code></td><td>NOUN</td><td>NNS (plural noun)</td></tr>
+        <tr><td><code>daily</code></td><td>ADV</td><td>RB (adverb)</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Match the tagset to the task">
+    <div class="slide-inner">
+      <p>Neither tagset is more correct. They describe the same thing at different
+      granularity.</p>
+      <footer>Coarse is enough to feed the lemmatizer. Fine is for when singular versus plural
+      actually matters. More tags also means more ways to be wrong.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Where POS tagging is used">
+    <div class="slide-inner">
+      <h2>Where tagging is used</h2>
+      <ul>
+        <li><strong>Lemmatization</strong> — session 5 needed the part of speech, and this is
+        where it comes from</li>
+        <li><strong>Named entity recognition</strong> — knowing which words are nouns is a strong
+        first clue to where the names are</li>
+        <li><strong>Everything downstream</strong> — classical pipelines tag first, because later
+        stages depend on each word's job</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why not a dictionary lookup">
     <div class="slide-inner">
       <div class="quiz" data-answer="1">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">What does <code>[^aeiou]</code> match?</p>
+        <p class="q-text">Why can POS tagging not be done as a simple dictionary lookup?</p>
         <div class="q-opts">
-          <button class="opt">A vowel found at the very start of the line</button>
-          <button class="opt">Any single character that is not a vowel</button>
-          <button class="opt">Any vowel repeated one or more times</button>
-          <button class="opt">The literal characters caret and vowels</button>
+          <button class="opt">Because dictionaries are too large to fit in memory at tagging time</button>
+          <button class="opt">Because a word's grammatical class depends on the words around it</button>
+          <button class="opt">Because new words are invented faster than dictionaries update</button>
+          <button class="opt">Because most words in English do not appear in any dictionary</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>any single character that is not a vowel</strong>.</p>
-          <p><code>^</code> inside brackets means <em>not</em>. Outside brackets it means
-          <em>start of line</em>. Same symbol, two jobs.</p>
+          <p>Correct: <strong>a word's class depends on the words around it</strong>.</p>
+          <p><code>book</code> is a noun in &ldquo;the book&rdquo; and a verb in &ldquo;can
+          book&rdquo;. A dictionary lists both and cannot choose. That is what makes this a
+          sequence-labelling task.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: colou?r">
+  <section class="slide slide--quiz" data-title="Quiz: which tagset">
     <div class="slide-inner">
-      <div class="quiz" data-answer="3">
+      <div class="quiz" data-answer="2">
         <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Which pattern matches both <code>colour</code> and
-        <code>color</code>?</p>
+        <p class="q-text">You need to know only whether each word is a noun, verb, or adjective,
+        to feed a lemmatizer. Which tagset fits best?</p>
         <div class="q-opts">
-          <button class="opt">The pattern <code>colo*r</code></button>
-          <button class="opt">The pattern <code>colo+r</code></button>
-          <button class="opt">The pattern <code>colo.r</code></button>
-          <button class="opt">The pattern <code>colou?r</code></button>
+          <button class="opt">The Penn Treebank tagset, because more detail is always safer</button>
+          <button class="opt">Neither — lemmatization does not use the part of speech at all</button>
+          <button class="opt">The Universal tagset, because you only need the broad classes</button>
+          <button class="opt">Both at once, because the lemmatizer needs them cross-checked</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <code>colou?r</code>.</p>
-          <p><code>?</code> applies to the character right before it — <code>u</code> —
-          making it optional. A quantifier attaches to the <em>one thing</em> just
-          before it.</p>
+          <p>Correct: <strong>the Universal tagset</strong>.</p>
+          <p>The lemmatizer wants only the broad class, so 17 tags is enough. Singular versus
+          plural, or which present tense, is detail it never uses. Match the tagset to what the
+          task needs.</p>
         </div>
       </div>
     </div>
@@ -1053,11 +910,10 @@ admin@manipal.edu</code></pre>
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Language is ambiguous, and a computer has no intuition for resolving it.<br><br>But when
-      the thing we want has a fixed <strong>shape</strong> — a date, a phone number, an
-      identifier — a regular expression will find it, and a trained model is unlikely to do
-      better.</p>
-      <footer>Next: capturing groups, alternatives, and the greedy matching trap.</footer>
+      <p>Tagging labels each word with its grammatical class, and it needs the whole sentence —
+      the same word is a noun in one position and a verb in another.</p>
+      <footer>Next: named entity recognition. Same chapter, same idea, harder — because an entity
+      spans several words while a tag covers one.</footer>
     </div>
   </section>
 
@@ -1066,12 +922,13 @@ admin@manipal.edu</code></pre>
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Read §2.6 only this week — the chapter covers other topics
-          that come later in the course.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 17</p>
+          <p class="ref-note">&ldquo;Sequence Labeling for Parts of Speech and Named
+          Entities&rdquo;. Read the sections on word classes and on the Penn Treebank tagset; the
+          chapter covers this session and the next together.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/17.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/17.pdf</a>
         </li>
       </ul>
     </div>

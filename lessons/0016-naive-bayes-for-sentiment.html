@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -583,11 +729,10 @@ figcaption {
 <p>Session 15 ended with the complete classifier expressed in one line, containing no
 numbers:</p>
 
-<pre><code>best class  =  argmax   P(c) · Π P(w | c)
-                c in C          w in d</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; P(c) \prod_{w \in d} P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><munder><mo movablelimits="false">∏</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
 <p>This session supplies the numbers. Two quantities must be learned from data, the prior
-<code>P(c)</code> and the likelihoods <code>P(w | c)</code>, and both are counts. There is no
+<math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> and the likelihoods <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, and both are counts. There is no
 training loop and nothing to tune: we count, we divide, and the classifier is complete.</p>
 
 <h2>The training data</h2>
@@ -616,20 +761,20 @@ Whether the arithmetic reaches the same conclusion is the test.</p>
 <p>The prior is how common each class is before any document is read. It is computed by counting
 <strong>documents</strong>:</p>
 
-<pre><code>P(c)  =  number of documents in class c  /  total documents
+<div class="meq"><math data-tex="P(c) = \frac{\text{number of documents in class } c}{\text{total documents}}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mtext>number of documents in class </mtext><mi>c</mi></mrow><mtext>total documents</mtext></mfrac></mrow></math></div>
 
-P(−)  =  3/5  =  0.6           P(+)  =  2/5  =  0.4</code></pre>
+<div class="meq"><math data-tex="P(-) = \tfrac{3}{5} = 0.6 \qquad P(+) = \tfrac{2}{5} = 0.4" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>5</mn></mfrac></mstyle><mo>=</mo><mn>0.6</mn><mspace width="2em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>=</mo><mn>0.4</mn></mrow></math></div>
 
 <p>That completes the step. Note that this is the only place where we count documents; everything
 after this point counts words.</p>
 
 <h2>Training, step 2 — the likelihoods</h2>
 
-<p>We now require <code>P(w | c)</code>: given that a review is negative, how often is a given
+<p>We now require <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>: given that a review is negative, how often is a given
 word <code>boring</code>? To compute this, we concatenate all of a class's documents into a single
 <strong>big document</strong> and count within it:</p>
 
-<pre><code>P(w | c)  =  count of w in class c  /  total words in class c</code></pre>
+<div class="meq"><math data-tex="P(w \mid c) = \frac{\text{count of } w \text{ in class } c}{\text{total words in class } c}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mtext>count of </mtext><mi>w</mi><mtext> in class </mtext><mi>c</mi></mrow><mrow><mtext>total words in class </mtext><mi>c</mi></mrow></mfrac></mrow></math></div>
 
 <table>
   <tr><th>class</th><th>big document</th><th>tokens</th></tr>
@@ -654,7 +799,7 @@ word <code>boring</code>? To compute this, we concatenate all of a class's docum
 the moment, we apply the counts we have to the other three words:</p>
 
 <table>
-  <tr><th>word</th><th>count in −</th><th>P(w | −)</th><th>count in +</th><th>P(w | +)</th></tr>
+  <tr><th>word</th><th>count in −</th><th><math data-tex="P(w \mid -)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th>count in +</th><th><math data-tex="P(w \mid +)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
   <tr><td><code>predictable</code></td><td>1</td><td>1/14</td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
   <tr><td><code>no</code></td><td>1</td><td>1/14</td><td><strong>0</strong></td><td><strong>0</strong></td></tr>
   <tr><td><code>fun</code></td><td><strong>0</strong></td><td><strong>0</strong></td><td>1</td><td>1/9</td></tr>
@@ -663,8 +808,10 @@ the moment, we apply the counts we have to the other three words:</p>
 <p>Multiplying these through, the negative class is zeroed by <code>fun</code> and the positive
 class by <code>predictable</code> and again by <code>no</code>:</p>
 
-<pre><code>P(−) · P(S | −)  =  0.6 × 1/14 × 1/14 × 0   =   0
-P(+) · P(S | +)  =  0.4 × 0    × 0    × 1/9 =   0</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+P(-) \, P(S \mid -) &amp;= 0.6 \times \tfrac{1}{14} \times \tfrac{1}{14} \times 0 = 0 \\
+P(+) \, P(S \mid +) &amp;= 0.4 \times 0 \times 0 \times \tfrac{1}{9} = 0
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.6</mn><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>14</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>14</mn></mfrac></mstyle><mo>×</mo><mn>0</mn><mo>=</mo><mn>0</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.4</mn><mo>×</mo><mn>0</mn><mo>×</mo><mn>0</mn><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>9</mn></mfrac></mstyle><mo>=</mo><mn>0</mn></mrow></mtd></mtr></mtable></math></div>
 
 <div class="callout warn">
   <span class="label">Why a zero probability is worse than a wrong answer</span>
@@ -684,44 +831,44 @@ any factor is zero</strong>, and estimation by counting produces zeros readily.<
 <p>The correction is the one introduced in session 13. We treat every word as having been
 observed once more than it was:</p>
 
-<pre><code>P(w | c)  =  ( count(w, c) + 1 )  /  ( total words in c  +  |V| )</code></pre>
+<div class="meq"><math data-tex="P(w \mid c) = \frac{\mathrm{count}(w, c) + 1}{\text{total words in } c + |V|}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo separator="true">,</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>1</mn></mrow><mrow><mtext>total words in </mtext><mi>c</mi><mo>+</mo><mi>|</mi><mi>V</mi><mi>|</mi></mrow></mfrac></mrow></math></div>
 
-<p>The form is the same as before: the <code>+1</code> in the numerator removes the zeros, and the
-denominator grows by <code>|V|</code> so that the probabilities continue to sum to 1.</p>
+<p>The form is the same as before: the <math data-tex="+1"><mrow><mo form="prefix" stretchy="false">+</mo><mn>1</mn></mrow></math> in the numerator removes the zeros, and the
+denominator grows by <math data-tex="|V|"><mrow><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> so that the probabilities continue to sum to 1.</p>
 
 <div class="callout">
   <span class="label">Why add-one is appropriate here</span>
-  <p>The objection raised in session 13 concerned scale. A language model has V of roughly 50,000,
+  <p>The objection raised in session 13 concerned scale. A language model has <math data-tex="V"><mi>V</mi></math> of roughly 50,000,
   so add-one transferred almost all the probability to words never observed, and a bigram seen on
   every opportunity was assigned 0.008%.</p>
-  <p>Here V is <strong>20</strong>. The correction is small, the resulting values remain sensible,
+  <p>Here <math data-tex="V"><mi>V</mi></math> is <strong>20</strong>. The correction is small, the resulting values remain sensible,
   and add-one is the method actually used for Naïve Bayes in practice rather than a simplification
   for teaching. <mark>The method has not changed; the vocabulary size has.</mark></p>
   <p>This generalises: a technique is not good or bad in itself, but good or bad at a particular
   scale on a particular problem.</p>
 </div>
 
-<h3>What goes in |V|</h3>
+<h3>What goes in <math data-tex="|V|"><mrow><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math></h3>
 
-<p><code>|V|</code> is the number of <strong>distinct word types across the whole training set,
+<p><math data-tex="|V|"><mrow><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> is the number of <strong>distinct word types across the whole training set,
 both classes together</strong>. In this training set there are <strong>20</strong>:</p>
 
 <pre><code>and · boring · energy · entirely · few · film · fun · just · lacks · laughs
 most · no · of · plain · powerful · predictable · summer · surprises · the · very</code></pre>
 
 <div class="callout warn">
-  <span class="label">V is not computed per class</span>
+  <span class="label"><math data-tex="V"><mi>V</mi></math> is not computed per class</span>
   <p>It is tempting to use the vocabulary of the negative class when computing negative
-  likelihoods. This is incorrect: both classes use the same <code>|V| = 20</code>.</p>
+  likelihoods. This is incorrect: both classes use the same <math data-tex="|V| = 20"><mrow><mi>|</mi><mi>V</mi><mi>|</mi><mo>=</mo><mn>20</mn></mrow></math>.</p>
   <p>The reason is that the two classes' scores are comparable only if computed over the same set of
-  possible words. Giving each class its own V compares probabilities defined over different sets of
+  possible words. Giving each class its own <math data-tex="V"><mi>V</mi></math> compares probabilities defined over different sets of
   outcomes. The resulting numbers still appear reasonable, which is what makes this error difficult
   to detect.</p>
 </div>
 
 <h3>The word <code>with</code></h3>
 
-<p><code>with</code> appears nowhere in the training data, in either class. It is not in V and
+<p><code>with</code> appears nowhere in the training data, in either class. It is not in <math data-tex="V"><mi>V</mi></math> and
 therefore has no probability to smooth. The rule for Naïve Bayes is simply to <strong>drop
 it</strong>: the word is removed from the test document and the calculation proceeds with the
 remaining words.</p>
@@ -739,11 +886,11 @@ remaining words.</p>
 
 <h2>The full calculation</h2>
 
-<p>With <code>|V| = 20</code>, the denominators become <code>14 + 20 = 34</code> and
-<code>9 + 20 = 29</code>:</p>
+<p>With <math data-tex="|V| = 20"><mrow><mi>|</mi><mi>V</mi><mi>|</mi><mo>=</mo><mn>20</mn></mrow></math>, the denominators become <math data-tex="14 + 20 = 34"><mrow><mn>14</mn><mo>+</mo><mn>20</mn><mo>=</mo><mn>34</mn></mrow></math> and
+<math data-tex="9 + 20 = 29"><mrow><mn>9</mn><mo>+</mo><mn>20</mn><mo>=</mo><mn>29</mn></mrow></math>:</p>
 
 <table>
-  <tr><th>word</th><th>P(w | −)</th><th>P(w | +)</th></tr>
+  <tr><th>word</th><th><math data-tex="P(w \mid -)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w \mid +)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
   <tr><td><code>predictable</code></td><td>(1+1)/34 = 2/34</td><td>(0+1)/29 = 1/29</td></tr>
   <tr><td><code>no</code></td>         <td>(1+1)/34 = 2/34</td><td>(0+1)/29 = 1/29</td></tr>
   <tr><td><code>fun</code></td>        <td>(0+1)/34 = 1/34</td><td>(1+1)/29 = 2/29</td></tr>
@@ -751,10 +898,13 @@ remaining words.</p>
 
 <p>There are no zeros. Multiplying each row through, with the prior in front:</p>
 
-<pre><code>P(−) · P(S | −)  =  3/5  ×  (2 × 2 × 1) / 34³  =  6.1 × 10⁻⁵     ← larger
-P(+) · P(S | +)  =  2/5  ×  (1 × 1 × 2) / 29³  =  3.2 × 10⁻⁵</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+P(-) \, P(S \mid -) &amp;= \tfrac{3}{5} \times \frac{2 \times 2 \times 1}{34^3} = 6.1 \times 10^{-5} \\
+P(+) \, P(S \mid +) &amp;= \tfrac{2}{5} \times \frac{1 \times 1 \times 2}{29^3} = 3.2 \times 10^{-5}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mfrac><mrow><mn>2</mn><mo>×</mo><mn>2</mn><mo>×</mo><mn>1</mn></mrow><msup><mn>34</mn><mn>3</mn></msup></mfrac><mo>=</mo><mn>6.1</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>5</mn></mrow></msup></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mfrac><mrow><mn>1</mn><mo>×</mo><mn>1</mn><mo>×</mo><mn>2</mn></mrow><msup><mn>29</mn><mn>3</mn></msup></mfrac><mo>=</mo><mn>3.2</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>5</mn></mrow></msup></mrow></mtd></mtr></mtable></math></div>
 
-<p><strong>The classifier returns negative</strong>, which agrees with the human judgement. It
+<p>The negative score is the larger of the two.
+<strong>The classifier returns negative</strong>, which agrees with the human judgement. It
 reached this result with no knowledge of English, from five documents and a few divisions.</p>
 
 <p>It is worth examining where the decision came from. Each class had one word in its favour and two
@@ -770,9 +920,9 @@ training set.</p>
   probabilities 1/29, 1/29, and 2/29.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>2/5 × (1/29) × (1/29) × (2/29) = 2/5 × 2/24389 = 4/121945 = 3.28 × 10⁻⁵</code></p>
+    <div class="meq"><math data-tex="\tfrac{2}{5} \times \tfrac{1}{29} \times \tfrac{1}{29} \times \tfrac{2}{29} = \tfrac{2}{5} \times \tfrac{2}{24389} = \tfrac{4}{121945} = 3.28 \times 10^{-5}" display="block" class="tml-display" style="display:block math;"><mrow><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>29</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>29</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>29</mn></mfrac></mstyle><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>24389</mn></mfrac></mstyle><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>121945</mn></mfrac></mstyle><mo>=</mo><mn>3.28</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>5</mn></mrow></msup></mrow></math></div>
     <p>The denominator is <strong>29</strong> because the positive big document contains
-    <strong>9</strong> tokens and |V| is 20. A denominator of 28 indicates that the positive
+    <strong>9</strong> tokens and <math data-tex="|V|"><mrow><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> is 20. A denominator of 28 indicates that the positive
     documents were counted as 8 tokens, missing the second <code>the</code> in <em>the most fun film
     of the summer</em>.</p>
     <p>A substantially larger result indicates that a per-class vocabulary was used in place of
@@ -795,13 +945,13 @@ for a purely arithmetic reason rather than a missing count.</p>
 
 <h3>Working in logarithms</h3>
 
-<p>Logarithms convert multiplication into addition, since <code>log(a × b) = log a + log b</code>.
+<p>Logarithms convert multiplication into addition, since <math data-tex="\log(a \times b) = \log a + \log b"><mrow><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo>×</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>a</mi><mo>+</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>b</mi></mrow></math>.
 Taking the logarithm of the whole expression turns the product into a sum:</p>
 
-<pre><code>best class  =  argmax   log P(c)  +  Σ log P(w | c)
-                c in C             w in d</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \log P(c) + \sum_{w \in d} \log P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mrow><mspace width="0.1667em"></mspace><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
-<p>The values being added are moderate negative numbers, around −3 rather than 10⁻¹⁴⁷, so nothing
+<p>The values being added are moderate negative numbers, around <math data-tex="-3"><mrow><mo form="prefix" stretchy="false">−</mo><mn>3</mn></mrow></math> rather than
+<math data-tex="10^{-147}"><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>147</mn></mrow></msup></math>, so nothing
 underflows.</p>
 
 <p>Our example, computed in natural logarithms:</p>
@@ -819,8 +969,8 @@ underflows.</p>
   <p>The logarithm is <strong>monotonic</strong>: if a &gt; b then log a &gt; log b, always. So
   whichever class had the bigger score still has the bigger log score. The ranking is preserved
   exactly, and the ranking is the entire output.</p>
-  <p>What is lost is the interpretable scale: −9.70 is not a probability and cannot be reported as
-  one. That was already given up in session 15 when <code>P(d)</code> was dropped, so nothing
+  <p>What is lost is the interpretable scale: <math data-tex="-9.70"><mrow><mo form="prefix" stretchy="false">−</mo><mn>9.70</mn></mrow></math> is not a probability and cannot be reported as
+  one. That was already given up in session 15 when <math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> was dropped, so nothing
   further is lost here.</p>
   <p>Every practical implementation works in log space. This is why
   <code>predict_log_proba</code> exists in scikit-learn, which you will use in lab 6.</p>

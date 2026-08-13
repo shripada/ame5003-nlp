@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -606,7 +752,7 @@ occurrence contributes much less than the second.</p>
 <p>The solution is a <strong>logarithm</strong>, a function that grows quickly at first and then
 flattens. We use a log-weighted term frequency:</p>
 
-<pre><code>weight = 1 + log₁₀(tf)      (when tf &gt; 0)</code></pre>
+<div class="meq"><math data-tex="\mathrm{weight} = 1 + \log_{10}(\mathrm{tf}) \qquad \text{when } \mathrm{tf} &gt; 0" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>weight</mi></mpadded><mo>=</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>tf</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><mtext>when </mtext><mpadded lspace="0"><mi>tf</mi></mpadded><mo>&gt;</mo><mn>0</mn></mrow></math></div>
 
 <p>The effect on the count is as follows:</p>
 
@@ -632,9 +778,10 @@ be measured by its <strong>document frequency</strong> (df), the number of docum
 We then weight by the <strong>inverse</strong> of this quantity, again compressed with a
 logarithm:</p>
 
-<pre><code>idf = log₁₀(N / df)        N = total number of documents</code></pre>
+<div class="meq"><math data-tex="\mathrm{idf} = \log_{10}\!\left(\frac{N}{\mathrm{df}}\right)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>N</mi><mpadded lspace="0"><mi>df</mi></mpadded></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
-<p>The following values come from a collection of N = 806,791 documents:</p>
+<p>where <math data-tex="N"><mi>N</mi></math> is the total number of documents. The following values come from a collection of
+<math data-tex="N = 806{,}791"><mrow><mi>N</mi><mo>=</mo><mn>806,791</mn></mrow></math> documents:</p>
 
 <table>
   <tr><th>term</th><th>in how many docs (df)</th><th>idf</th></tr>
@@ -650,8 +797,8 @@ explicitly.</p>
 
 <div class="callout">
   <span class="label">How idf handles stop words</span>
-  <p>A word in <em>every</em> document has df = N, so its idf is <code>log₁₀(N/N) = log₁₀(1) =
-  0</code>. Its weight is <strong>zero</strong>.</p>
+  <p>A word in <em>every</em> document has <math data-tex="\mathrm{df} = N"><mrow><mpadded lspace="0"><mi>df</mi></mpadded><mo>=</mo><mi>N</mi></mrow></math>, so its idf is
+  <math data-tex="\log_{10}(N/N) = \log_{10}(1) = 0"><mrow><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>N</mi><mi>/</mi><mi>N</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>. Its weight is <strong>zero</strong>.</p>
   <p>This addresses the stop-word problem from
   <a href="0004-normalization-and-stop-words.html">session 4</a> without additional machinery. No
   hand-written list is needed to suppress <code>the</code>: it appears in nearly every document, so
@@ -663,11 +810,10 @@ explicitly.</p>
 
 <p>The <strong>TF-IDF weight</strong> of a term in a document multiplies the two ideas:</p>
 
-<pre><code>tf-idf  =  (1 + log₁₀ tf)  ×  log₁₀(N / df)
-             how often it appears          how rare it is
-             IN THIS document              ACROSS all documents</code></pre>
+<div class="meq"><math data-tex="\mathrm{tf}\text{-}\mathrm{idf} = (1 + \log_{10}\mathrm{tf}) \times \log_{10}\!\left(\frac{N}{\mathrm{df}}\right)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mtext>-</mtext><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mpadded lspace="0"><mi>tf</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>N</mi><mpadded lspace="0"><mi>df</mi></mpadded></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
-<p>This quantity is high in precisely the desired case: a term that appears often in this
+<p>The first factor measures how often the term appears in this document; the second, how rare it
+is across all documents. This quantity is high in precisely the desired case: a term that appears often in this
 document and is rare across the collection, that is, a word distinctive to this document. It is low
 for a word that is rare here and close to zero for a word that occurs everywhere.</p>
 
@@ -695,9 +841,9 @@ retrieval.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p><strong>Document A.</strong> Its <code>insurance</code> weight is
-    <code>(1 + log 9) × 1.62 ≈ 1.95 × 1.62 ≈ 3.2</code>. Document B's <code>the</code> contributes
-    almost nothing — its idf is near zero, no matter that it appears 50 times — and its single
-    <code>insurance</code> scores <code>1 × 1.62 = 1.62</code>.</p>
+    <math data-tex="(1 + \log 9) \times 1.62 \approx 1.95 \times 1.62 \approx 3.2"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mn>9</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mn>1.62</mn><mo>≈</mo><mn>1.95</mn><mo>×</mo><mn>1.62</mn><mo>≈</mo><mn>3.2</mn></mrow></math>. Document B's
+    <code>the</code> contributes almost nothing — its idf is near zero, no matter that it appears
+    50 times — and its single <code>insurance</code> scores <math data-tex="1 \times 1.62 = 1.62"><mrow><mn>1</mn><mo>×</mo><mn>1.62</mn><mo>=</mo><mn>1.62</mn></mrow></math>.</p>
     <p>Document A therefore ranks higher, which is the correct outcome: A is genuinely concerned
     with insurance, whereas B merely uses a common word frequently. This comparison shows the whole
     behaviour of TF-IDF: it rewards the distinctive word and disregards the common one.</p>

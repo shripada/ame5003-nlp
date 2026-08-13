@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 30 — Multi-head attention, and positional embeddings</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 30</p>
+  <h1>Multi-head attention, and positional embeddings</h1>
+  <p class="subtitle">Session 29 removed the recurrence and got parallelism. The bill for that was
+  word order, and this session pays it. Then the same mechanism is run several times side by side —
+  which turns out to cost almost nothing, for a reason that is worth doing the arithmetic on.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>The bill from last session</h2>
+
+<p>Session 29 ended on a debt. Self-attention computes each output as a weighted sum over pairs of
+positions, and nothing in that computation refers to <em>where</em> in the sentence anything sits. The
+mechanism treats its input as a <strong>set</strong> of vectors rather than a sequence of them. The
+recurrence used to handle order for free — an RNN reads the words one after another, so it cannot
+fail to represent their order — and session 29 threw the recurrence away to get parallelism.</p>
+
+<p>So the first job of this session is to put order back. The second, independent job is multi-head
+attention. They are in that order because the first one is the answer to a question session 29 left
+open.</p>
+
+<h2>Permuting the sentence changes nothing</h2>
+
+<p>The claim is easy to state and easy to check. Take four tokens, give each a distinct embedding, run
+equations (8.10)–(8.13) from last session, and then run them again on a shuffled version of the same
+four tokens. Here the sentence is session 27's <em>the green witch arrived</em>, shuffled to
+<em>arrived the witch green</em>, with the causal mask dropped so that every position may see every
+other:</p>
+
+<table>
+  <tr><th>token</th><th>output in the original order</th><th>output in the shuffled order</th></tr>
+  <tr><td><code>the</code></td><td><math data-tex="(-0.285,\, {-0.457},\, {-0.542},\, 0.435)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.285</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.457</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.542</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.435</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+      <td><math data-tex="(-0.285,\, {-0.457},\, {-0.542},\, 0.435)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.285</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.457</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.542</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.435</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+  <tr><td><code>green</code></td><td><math data-tex="(-0.319,\, {-0.540},\, {-0.538},\, 0.466)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.319</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.540</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.538</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.466</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+      <td><math data-tex="(-0.319,\, {-0.540},\, {-0.538},\, 0.466)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.319</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.540</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.538</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.466</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+  <tr><td><code>witch</code></td><td><math data-tex="(-0.141,\, {-0.297},\, {-0.471},\, 0.320)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.141</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.297</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.471</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.320</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+      <td><math data-tex="(-0.141,\, {-0.297},\, {-0.471},\, 0.320)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.141</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.297</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.471</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.320</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+  <tr><td><code>arrived</code></td><td><math data-tex="(-0.218,\, {-0.403},\, {-0.492},\, 0.371)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.218</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.403</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.492</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.371</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+      <td><math data-tex="(-0.218,\, {-0.403},\, {-0.492},\, 0.371)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.218</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.403</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.492</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.371</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+</table>
+
+<p>Not similar — <strong>identical</strong>, to every digit. Each token's output moved to wherever that
+token moved to, and otherwise nothing happened. The reason is visible in the equations: a score is
+<math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math>, which depends on the two tokens and on nothing else, and a softmax over a set
+of scores does not care what order they arrived in. Shuffle the inputs and you get the same scores
+between the same pairs, and therefore the same outputs.</p>
+
+<p>Set that against session 27, which opened by arguing that translation is not word-by-word
+substitution: <em>the green witch arrived</em> becomes <em>llegó la bruja verde</em>, an alignment of
+4, 1, 3, 2. Word order is the problem that session was about. A model built only of self-attention
+cannot tell <em>the witch arrived</em> from <em>arrived the witch</em>, so it cannot be the whole
+model.</p>
+
+<div class="callout warn">
+  <span class="label">What the causal mask does and does not fix</span>
+  <p>Chapter 8's equations carry <math data-tex="\forall j \le i"><mrow><mi>∀</mi><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math>, so a fair objection is that the model does know
+  something about order: position 5 can see position 2 and not the other way round. True, and it is why
+  the table above had to drop the mask to make the point cleanly.</p>
+  <p>But <mark>the mask knows precedence, not distance</mark>. It tells the model that <math data-tex="j"><mi>j</mi></math>
+  comes somewhere before <math data-tex="i"><mi>i</mi></math>; it does not tell it that <math data-tex="j"><mi>j</mi></math> is three words before
+  <math data-tex="i"><mi>i</mi></math> rather than thirty. Every weight is still computed from a dot product that contains no
+  reference to position. Precedence alone will not distinguish <em>the dog bit the man</em> from
+  <em>the man bit the dog</em> — both readings are consistent with the same set of "before" facts about
+  different tokens.</p>
+</div>
+
+<h2>Positional embeddings</h2>
+
+<p>SLP3 §8.4 asks where the input matrix <math data-tex="X"><mi>X</mi></math> comes from, and the answer is that it is built
+from <strong>two</strong> embeddings, not one: "The transformer does this by separately computing two
+embeddings: an input token embedding, and an input positional embedding."</p>
+
+<p>The token embedding is the one from session 21 — a row of the embedding matrix <math data-tex="E"><mi>E</mi></math>, which
+has one row per vocabulary item and therefore shape <math data-tex="[\lvert V \rvert \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mrow><mo fence="true" form="prefix" stretchy="false">|</mo><mi>V</mi><mo fence="true" form="postfix" stretchy="false">|</mo></mrow><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>. The positional embedding is
+new. The simplest form, which SLP3 calls <strong>absolute position</strong>, is exactly what it sounds
+like:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §8.4</span>
+  <p>"The simplest method, called <strong>absolute position</strong>, is to start with randomly
+  initialized embeddings corresponding to each possible input position up to some maximum length. For
+  example, just as we have an embedding for the word <em>fish</em>, we'll have an embedding for the
+  position 3. As with word embeddings, these positional embeddings are learned along with other
+  parameters during training. We can store them in a matrix <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math> of shape
+  <math data-tex="[N \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>N</mi><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>."</p>
+</div>
+
+<p>So there is a vector for "position 1", a vector for "position 2", and so on up to the context
+length <math data-tex="N"><mi>N</mi></math>, and they are ordinary learned parameters, trained by the same gradient descent
+as everything else. Nothing tells the model in advance what position 3 means. It works out for itself
+what is worth storing there.</p>
+
+<h3>Added, not concatenated</h3>
+
+<p>This is the part worth slowing down on, because most people guess the other one. The positional
+vector is <strong>added</strong> to the token vector:</p>
+
+<div class="meq"><math data-tex="x_i = E[\mathrm{id}(i)] + E_{\mathrm{pos}}[i]" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>=</mo><mi>E</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>id</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>i</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mo>+</mo><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>i</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math></div>
+
+<p>SLP3: "we just add the word embedding for each input to its corresponding positional embedding. The
+individual token and position embeddings are both of size <math data-tex="[1 \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, so their sum is also
+<math data-tex="[1 \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>." Stack those rows and you have <math data-tex="X"><mi>X</mi></math>, of shape <math data-tex="[N \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>N</mi><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>,
+which is the matrix session 29's packed equations (8.32)–(8.34) consumed.</p>
+
+<p>The instinct that position should be <em>appended</em> — <math data-tex="d"><mi>d</mi></math> numbers of word plus a few
+numbers of position, in a longer vector — is a reasonable one and it is not what is done. Position is
+summed into the same <math data-tex="d"><mi>d</mi></math> numbers. Two consequences follow, and they are worth stating
+because they sound like objections:</p>
+
+<ul>
+  <li><strong>No dimensions are spent on position.</strong> The vector entering the first layer is
+  <math data-tex="d"><mi>d</mi></math> wide, exactly as it would be without positions, so every shape downstream is
+  unchanged. Concatenation would have widened <math data-tex="X"><mi>X</mi></math> and therefore every matrix that touches
+  it.</li>
+  <li><strong>Word and position share the space.</strong> That looks like it should be destructive —
+  the "meaning" and the "where" are stored in the same numbers — and the answer is that the model is
+  trained with the sum, so it learns representations that survive the sum. <mark>The two embedding
+  matrices are learned together, so nothing forces the word part and the position part to interfere
+  where it matters.</mark></li>
+</ul>
+
+<p>It also matters <em>where</em> in the pipeline the addition happens: before the first attention
+layer, and once. Add position later and it is too late, because the attention scores of the first
+layer have already been computed from vectors that had no idea where they were.</p>
+
+<h3>The alternative, and the one reason to want it</h3>
+
+<p>Learned positional embeddings have a specific weakness, and SLP3 names it in one sentence rather
+than appealing vaguely to generalisation:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §8.4</span>
+  <p>"A potential problem with the simple position embedding approach is that there will be plenty of
+  training examples for the initial positions in our inputs and correspondingly fewer at the outer
+  length limits. These latter embeddings may be poorly trained and may not generalize well during
+  testing."</p>
+</div>
+
+<p>The argument is a counting argument. Every training sentence has a position 1, so the embedding for
+position 1 receives a gradient from every example in the corpus. Very few sentences are 4,000 tokens
+long, so the embedding for position 4,000 is updated by almost nothing and stays close to where it was
+randomly initialised. The vectors at the far end of <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math> are undertrained, and there is
+no way to fix that by training harder — the data simply is not there.</p>
+
+<p>The alternative is to stop learning the positional vectors and compute them instead, from a fixed
+function of the position number. Vaswani et al. used a combination of sines and cosines at different
+frequencies. A static function has no undertrained region: position 4,000 gets the same quality of
+vector as position 1, whether or not any training sentence was ever that long. <mark>That is the whole
+argument for sinusoids, and it is enough for this course</mark> — the formula itself is not on the
+syllabus. SLP3 adds one more suggestion, that sinusoids "may also help in capturing the inherent
+relationships among the positions, like the fact that position 4 in an input is more closely related
+to position 5 than it is to position 17."</p>
+
+<p>A third family exists and is mentioned here only so the name is not new later: <strong>relative
+position</strong> methods, which represent the distance between two positions rather than the absolute
+index of each, and which are usually implemented inside the attention computation at every layer
+instead of being added once at the input.</p>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>A four-token sentence, <em>the green witch arrived</em>, and its permutation <em>arrived the witch
+  green</em>. You are told that self-attention as defined in session 29 produces the same set of output
+  vectors for both, which the table above demonstrates.</p>
+  <p>Answer two things. First: what has to be added to break the tie? Second, and this is the part that
+  matters: <strong>where in the pipeline</strong> does it have to be added, and why would adding it
+  anywhere later fail?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><strong>What.</strong> A vector that depends on the position rather than on the token — a row of
+    <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math> — added to each token's embedding. After the addition, the vector at position 1
+    is no longer the same object as the same word at position 3, so the two orderings no longer present
+    the same set of vectors to the mechanism, and the outputs differ. Re-running the table's script with
+    positional embeddings added confirms it: the two output sets are no longer permutations of each
+    other.</p>
+    <p><strong>Where.</strong> At the input, before the first attention layer. The reason is that the
+    attention weights are computed from the vectors as they arrive. If <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> carries no
+    position when the first layer runs, then the first layer's scores — and therefore its whole
+    <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix — are already position-free, and the outputs of that layer are already a
+    permuted copy of what they would have been. Adding position to those outputs afterwards labels the
+    result but does not change it; the information about order was needed <em>while</em> the
+    comparisons were being made, not after.</p>
+    <p>A useful way to say it: position must be in the vectors that get compared, because the only
+    thing the mechanism ever looks at is dot products between vectors.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">Why do transformers need positional embeddings at all?</p>
+  <div class="q-opts">
+    <button class="opt">Because self-attention computes each output from dot products between pairs of
+    vectors, so shuffling the input produces the same outputs in a shuffled order</button>
+    <button class="opt">Because sentences in a batch have different lengths, and the shorter ones must
+    be padded out so that every sequence in the batch is the same size</button>
+    <button class="opt">Because the softmax in equation (8.12) would otherwise assign the same weight
+    to every position in the sequence, whatever the tokens at those positions were</button>
+    <button class="opt">Because without them the number of parameters would grow with the length of the
+    sentence, and a model has to have a fixed number of parameters to be trained</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>self-attention is permutation-invariant</strong>. It sees a set of
+    vectors, and a set has no order — which is exactly what the table of identical outputs shows.</p>
+    <p>The second option describes a real problem that really does need solving, which is what makes it
+    the tempting wrong answer. Different sentence lengths are handled by <strong>padding and
+    masking</strong>, and that is a separate mechanism from positional embeddings; a model could pad
+    perfectly and still not know which word came first. The third is false: the weights depend on the
+    tokens through <math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math>, and they are generally not uniform — they are just
+    order-blind. The fourth has it backwards. <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math> is <math data-tex="[N \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>N</mi><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, so adding
+    positions <em>adds</em> parameters; the count is fixed by the context length <math data-tex="N"><mi>N</mi></math>, not by
+    any individual sentence.</p>
+  </div>
+</div>
+
+<h2>Multi-head attention</h2>
+
+<p>Second topic, and it is independent of the first. Everything in session 29 described <strong>one</strong>
+attention head. Real transformers run several in parallel, and SLP3 gives the reason:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §8.1, <em>Multi-head Attention</em></span>
+  <p>"The intuition is that each head might be attending to the context for different purposes: heads
+  might be specialized to represent different linguistic relationships between context elements and the
+  current token, or to look for particular kinds of patterns in the context."</p>
+</div>
+
+<p>Think about what one head is being asked to do. In session 29's example sentence, resolving what
+<em>it</em> refers to needs one kind of comparison. Deciding which verb a noun is the subject of needs
+another. Noticing that a word is inside a quotation needs a third. A single scoring function
+<math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math> has to serve all of these at once, so it must compromise between them — one
+similarity measure, averaging several purposes together.</p>
+
+<p><strong>Multi-head attention</strong> runs <math data-tex="A"><mi>A</mi></math> heads side by side, each with its own
+<math data-tex="W^Q_i"><msubsup><mi>W</mi><mi>i</mi><mi>Q</mi></msubsup></math>, <math data-tex="W^K_i"><msubsup><mi>W</mi><mi>i</mi><mi>K</mi></msubsup></math> and <math data-tex="W^V_i"><msubsup><mi>W</mi><mi>i</mi><mi>V</mi></msubsup></math>. Each head runs session 29's equations
+independently and produces its own output vector; the outputs are then concatenated and passed through
+a single output projection. In SLP3's numbering, with <math data-tex="c"><mi>c</mi></math> indexing the head:</p>
+
+<table>
+  <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+  <tr><td>each head has its own three projections</td>
+      <td><math data-tex="q^c_i = x_i W^Q_c \qquad k^c_j = x_j W^K_c \qquad v^c_j = x_j W^V_c"><mrow><msubsup><mi>q</mi><mi>i</mi><mi class="tml-med-pad">c</mi></msubsup><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msubsup><mi>W</mi><mi>c</mi><mi>Q</mi></msubsup><mspace width="2em"></mspace><msubsup><mi>k</mi><mi>j</mi><mi>c</mi></msubsup><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msubsup><mi>W</mi><mi>c</mi><mi>K</mi></msubsup><mspace width="2em"></mspace><msubsup><mi>v</mi><mi>j</mi><mi class="tml-sml-pad">c</mi></msubsup><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msubsup><mi>W</mi><mi>c</mi><mi>V</mi></msubsup></mrow></math></td>
+      <td>(8.15)</td></tr>
+  <tr><td>score, within the head</td>
+      <td><math data-tex="\mathrm{score}_c(x_i, x_j) = \dfrac{q^c_i \cdot k^c_j}{\sqrt{d_k}}"><mrow><msub><mpadded lspace="0"><mi>score</mi></mpadded><mi>c</mi></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><msubsup><mi>q</mi><mi>i</mi><mi class="tml-med-pad">c</mi></msubsup><mo>⋅</mo><msubsup><mi>k</mi><mi>j</mi><mi>c</mi></msubsup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac></mstyle></mrow></math></td><td>(8.16)</td></tr>
+  <tr><td>softmax, within the head</td>
+      <td><math data-tex="\alpha^c_{ij} = \mathrm{softmax}(\mathrm{score}_c(x_i, x_j))\quad \forall j \le i"><mrow><msubsup><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>c</mi></msubsup><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mpadded lspace="0"><mi>score</mi></mpadded><mi>c</mi></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="1em"></mspace><mi>∀</mi><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math></td><td>(8.17)</td></tr>
+  <tr><td>weighted average, within the head</td>
+      <td><math data-tex="\mathrm{head}^c_i = \sum_{j \le i} \alpha^c_{ij} v^c_j"><mrow><msubsup><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi><mi>c</mi></msubsup><mo>=</mo><msub><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></msub><msubsup><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>c</mi></msubsup><msubsup><mi>v</mi><mi>j</mi><mi class="tml-sml-pad">c</mi></msubsup></mrow></math></td><td>(8.18)</td></tr>
+  <tr><td><strong>concatenate and project</strong></td>
+      <td><math data-tex="a_i = (\mathrm{head}^1 \oplus \mathrm{head}^2 \oplus \ldots \oplus \mathrm{head}^A) W^O"><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msup><mpadded lspace="0"><mi>head</mi></mpadded><mn>1</mn></msup><mo>⊕︎</mo><msup><mpadded lspace="0"><mi>head</mi></mpadded><mn>2</mn></msup><mo>⊕︎</mo><mo>…</mo><mo>⊕︎</mo><msup><mpadded lspace="0"><mi>head</mi></mpadded><mi>A</mi></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><msup><mi>W</mi><mi>O</mi></msup></mrow></math></td><td>(8.19)</td></tr>
+</table>
+
+<p>Compare that with session 29's five equations. The first four are the same four, with a
+<math data-tex="c"><mi>c</mi></math> attached — the mechanism has not changed at all. Only the last line is genuinely new:
+where single-head attention applied <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> to one head's output, multi-head first
+<strong>concatenates</strong> the <math data-tex="A"><mi>A</mi></math> outputs and then applies <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> to the
+concatenation. Each head's output is <math data-tex="[1 \times d_v]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, the concatenation is
+<math data-tex="[1 \times A \cdot d_v]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>A</mi><mo>⋅</mo><msub><mi>d</mi><mi>v</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> is <math data-tex="[A \cdot d_v \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>A</mi><mo>⋅</mo><msub><mi>d</mi><mi>v</mi></msub><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, which brings the result back
+to <math data-tex="[1 \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> so the layer can be stacked.</p>
+
+<p>Note what <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> is doing now, and why session 29 said it would start to earn its place
+here. It is the only part of the layer where the heads meet. Inside a head, nothing knows the other
+heads exist; <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> is the learned recipe for mixing their answers back into one vector.</p>
+
+<h2>The arithmetic: heads divide the width, they do not add to it</h2>
+
+<p>Now the question every student should ask: if eight heads each do what one head did, does the layer
+cost eight times as much? The answer is no, and the reason is a dimension choice that is easy to read
+past. SLP3 quotes the original transformer's numbers: <math data-tex="d = 512"><mrow><mi>d</mi><mo>=</mo><mn>512</mn></mrow></math>, <math data-tex="d_k = d_v = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><msub><mi>d</mi><mi>v</mi></msub><mo>=</mo><mn>64</mn></mrow></math>,
+<math data-tex="A = 8"><mrow><mi>A</mi><mo>=</mo><mn>8</mn></mrow></math> heads.</p>
+
+<p>Look at those three numbers together:</p>
+
+<div class="meq"><math data-tex="A \times d_k = 8 \times 64 = 512 = d" display="block" class="tml-display" style="display:block math;"><mrow><mi>A</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>8</mn><mo>×</mo><mn>64</mn><mo>=</mo><mn>512</mn><mo>=</mo><mi>d</mi></mrow></math></div>
+
+<p>The heads do not each get a full-width projection. They <strong>partition</strong> the width. Each
+head works in a 64-dimensional space, and eight of those spaces side by side come to exactly the model
+dimension. So the parameters work out like this:</p>
+
+<table>
+  <tr><th></th><th>projection matrices</th><th>parameters</th></tr>
+  <tr><td>one head at full width (<math data-tex="d_k = 512"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>512</mn></mrow></math>)</td><td><math data-tex="3 \times 512 \times 512"><mrow><mn>3</mn><mo>×</mo><mn>512</mn><mo>×</mo><mn>512</mn></mrow></math></td>
+      <td>786,432</td></tr>
+  <tr><td>eight heads at width 64</td><td><math data-tex="8 \times 3 \times 512 \times 64"><mrow><mn>8</mn><mo>×</mo><mn>3</mn><mo>×</mo><mn>512</mn><mo>×</mo><mn>64</mn></mrow></math></td><td>786,432</td></tr>
+  <tr><td>output projection <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math></td><td><math data-tex="512 \times 512"><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></math></td><td>262,144</td></tr>
+  <tr><td><strong>multi-head layer, total</strong></td><td></td><td><strong>1,048,576</strong></td></tr>
+</table>
+
+<p>The eight heads cost <strong>exactly the same</strong> as one full-width head — not approximately,
+exactly, because <math data-tex="8 \times 64 = 512"><mrow><mn>8</mn><mo>×</mo><mn>64</mn><mo>=</mo><mn>512</mn></mrow></math>. The only extra is <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math>, and it is present in the
+single-head case too, at a smaller size. <mark>Heads are close to free: they divide the width rather
+than adding to it.</mark></p>
+
+<figure>
+  <svg viewBox="0 0 700 380" role="img" aria-labelledby="mhtitle mhdesc">
+    <title id="mhtitle">Eight heads partition the model width rather than adding to it</title>
+    <desc id="mhdesc">Two horizontal bars of exactly the same total length. The upper bar is one
+    undivided block labelled "one head, d_k = 512". The lower bar is the same length but divided into
+    eight equal segments, each labelled 64, one per head. Below them, an arrow shows the eight head
+    outputs being concatenated back into a single row of width 512, which then passes through a box
+    labelled W O, of shape 512 by 512, producing the output a i of width d.</desc>
+
+    <text class="fig-axname" x="90" y="34">the same 512 numbers, two ways to spend them</text>
+
+    <!-- one full-width head -->
+    <text class="fig-label" x="82" y="76" text-anchor="end">1 head</text>
+    <rect class="fig-cell" x="90" y="54" width="560" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cellg" x="90" y="54" width="560" height="34"></rect>
+    <text class="fig-label" x="370" y="76" text-anchor="middle">one head, d_k = 512</text>
+
+    <!-- eight narrow heads -->
+    <text class="fig-label" x="82" y="166" text-anchor="end">8 heads</text>
+    <rect class="fig-cell" x="90"  y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="160" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="230" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="300" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="370" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="440" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="510" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cell" x="580" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+    <rect class="fig-cellg" x="90"  y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="160" y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="230" y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="300" y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="370" y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="440" y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="510" y="144" width="70" height="34"></rect>
+    <rect class="fig-cellg" x="580" y="144" width="70" height="34"></rect>
+    <text class="fig-label" x="125" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="195" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="265" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="335" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="405" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="475" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="545" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="615" y="166" text-anchor="middle">64</text>
+    <text class="fig-label" x="125" y="136" text-anchor="middle">h1</text>
+    <text class="fig-label" x="195" y="136" text-anchor="middle">h2</text>
+    <text class="fig-label" x="265" y="136" text-anchor="middle">h3</text>
+    <text class="fig-label" x="335" y="136" text-anchor="middle">h4</text>
+    <text class="fig-label" x="405" y="136" text-anchor="middle">h5</text>
+    <text class="fig-label" x="475" y="136" text-anchor="middle">h6</text>
+    <text class="fig-label" x="545" y="136" text-anchor="middle">h7</text>
+    <text class="fig-label" x="615" y="136" text-anchor="middle">h8</text>
+
+    <text class="fig-axname" x="370" y="112" text-anchor="middle">A × d_k = 8 × 64 = 512 = d</text>
+
+    <!-- concatenate -->
+    <path class="fig-edge" d="M370 178 L370 214"></path>
+    <polygon class="fig-edge-h" points="370,222 366.5,212 373.5,212"></polygon>
+    <text class="fig-label" x="382" y="202">concatenate the 8 head outputs</text>
+
+    <rect class="fig-cell" x="90" y="228" width="560" height="30" fill-opacity="0.10"></rect>
+    <rect class="fig-cellg" x="90" y="228" width="560" height="30"></rect>
+    <text class="fig-label" x="370" y="248" text-anchor="middle">[1 × A·d_v] = [1 × 512]</text>
+
+    <path class="fig-edge" d="M370 258 L370 288"></path>
+    <polygon class="fig-edge-h" points="370,296 366.5,286 373.5,286"></polygon>
+
+    <rect class="fig-node" x="270" y="300" width="200" height="34" rx="4"></rect>
+    <text class="fig-gate-t" x="370" y="322">W^O   [512 × 512]</text>
+
+    <text class="fig-axname" x="486" y="322">→ a_i, of width d</text>
+  </svg>
+  <figcaption>The dimension choice that makes multi-head affordable. Both bars are the same length,
+  because <math data-tex="A \times d_k = d"><mrow><mi>A</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mi>d</mi></mrow></math>: the eight heads are not eight copies of the layer, they are the one
+  layer's width cut into eight strips. Each head therefore has <math data-tex="\tfrac{1}{8}"><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>8</mn></mfrac></mstyle></math> of the projection
+  parameters, and eight of them come to the same total — 786,432 either way. <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> then
+  mixes the strips back together, and it is the only place in the layer where one head's answer can
+  affect another's contribution.</figcaption>
+</figure>
+
+<p>That reframes what the technique is. Multi-head attention is not "more attention". It is <strong>the
+same parameter budget spent on eight narrow comparisons instead of one wide one</strong>, and the
+argument for spending it that way is the quotation above: eight 64-dimensional similarity functions
+can each specialise, where one 512-dimensional function has to average its purposes together.</p>
+
+<p>It is worth being honest that the specialisation is a hope, not a guarantee. Nothing in the
+equations tells head 3 to learn coreference. The heads differ only because they start from different
+random initialisations and are free to diverge, and what they end up doing is an empirical question —
+in practice some heads do learn recognisable jobs and others are close to redundant.</p>
+
+<div class="quiz" data-answer="2">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">In the original transformer, do 8 attention heads cost roughly 8 times the
+  parameters of 1 head?</p>
+  <div class="q-opts">
+    <button class="opt">Yes — each head has its own <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math>, <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math> and
+    <math data-tex="W^V"><msup><mi>W</mi><mi>V</mi></msup></math>, so eight heads means eight complete sets of the three projection matrices</button>
+    <button class="opt">Yes for the projections but not for the layer as a whole, because the eight
+    heads are able to share one copy of the output projection <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> between them</button>
+    <button class="opt">No — the heads partition the model width, since <math data-tex="A \times d_k = d"><mrow><mi>A</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mi>d</mi></mrow></math>, so the
+    eight narrow projections cost what one full-width head costs</button>
+    <button class="opt">No — the heads are computed one after another from the same matrices, so the
+    extra cost of adding heads is in training time rather than in the parameter count</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>they partition the width</strong>. With <math data-tex="d = 512"><mrow><mi>d</mi><mo>=</mo><mn>512</mn></mrow></math>,
+    <math data-tex="d_k = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>64</mn></mrow></math> and <math data-tex="A = 8"><mrow><mi>A</mi><mo>=</mo><mn>8</mn></mrow></math>, each head's <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math> is
+    <math data-tex="[512 \times 64]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>512</mn><mo>×</mo><mn>64</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> rather than <math data-tex="[512 \times 512]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>512</mn><mo>×</mo><mn>512</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>. Eight of those come to 786,432
+    parameters, which is exactly what a single full-width head's three matrices cost. Adding
+    <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> brings the layer to 1,048,576 — four thirds of single-head, not eight times.</p>
+    <p>The first option is the natural guess and it gets the premise right: each head really does have
+    its own three matrices. What it misses is that those matrices are <strong>narrower</strong>. The
+    second invents a saving that is not the explanation — <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> is indeed a single shared
+    matrix, but the projections are where the surprise is. The fourth is wrong about the mechanism: the
+    heads are independent and are computed in parallel, which is a large part of why the design is
+    attractive on modern hardware.</p>
+  </div>
+</div>
+
+<h2>Where this leaves us</h2>
+
+<p>T3.6, the self-attention mechanism, is complete across sessions 29 and 30. What the room now has, in
+full, is the attention layer of a transformer: the input <math data-tex="X"><mi>X</mi></math> built from token and positional
+embeddings, and multi-head scaled dot-product self-attention computed over it.</p>
+
+<p>What is still missing is everything <em>around</em> that layer. SLP3 §8.2 is precise about how much
+is left: the transformer block is the self-attention layer plus "(1) a feedforward layer, (2) residual
+connections, and (3) normalizing layers". Of those three, the first is already in hand — it is session
+20's feedforward network, unchanged. The other two are new, and they are session 31's, along with the
+distinction between an encoder block and a decoder block and therefore the proper treatment of the
+causal mask that sessions 29 and 30 have twice deferred.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>Self-attention is <strong>permutation-invariant</strong>: it compares vectors pairwise, so shuffling
+  the input produces the same set of outputs, verified above to every digit. Order therefore has to be
+  supplied separately. SLP3 §8.4 builds the input <math data-tex="X"><mi>X</mi></math> from two embeddings — a token embedding
+  from <math data-tex="E"><mi>E</mi></math>, of shape <math data-tex="[\lvert V \rvert \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mrow><mo fence="true" form="prefix" stretchy="false">|</mo><mi>V</mi><mo fence="true" form="postfix" stretchy="false">|</mo></mrow><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and a positional embedding from
+  <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math>, of shape <math data-tex="[N \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>N</mi><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> — which are <strong>added</strong>, not
+  concatenated, so the input to the first layer is still <math data-tex="d"><mi>d</mi></math> wide. It must be added at the
+  input, before any attention weight has been computed. Absolute positional embeddings are learned like
+  any other parameters; their weakness is that the far positions get few training examples and stay
+  undertrained, which is the one reason to prefer a static sinusoidal function instead.
+  <strong>Multi-head attention</strong> then runs <math data-tex="A"><mi>A</mi></math> heads in parallel, each with its own
+  <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math>, <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math>, <math data-tex="W^V"><msup><mi>W</mi><mi>V</mi></msup></math>, and concatenates their outputs before a single
+  <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> (8.15–8.19). Because <math data-tex="A \times d_k = d"><mrow><mi>A</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mi>d</mi></mrow></math> — <math data-tex="8 \times 64 = 512"><mrow><mn>8</mn><mo>×</mo><mn>64</mn><mo>=</mo><mn>512</mn></mrow></math> in the
+  original paper — the heads <em>partition</em> the model width instead of multiplying it, so eight
+  heads cost the same 786,432 projection parameters as one full-width head, and the whole layer is
+  <math data-tex="\tfrac{4}{3}"><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>3</mn></mfrac></mstyle></math> of single-head rather than eight times. Multi-head is the same budget spent on several narrow, specialised
+  comparisons rather than one wide averaged one.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/8.pdf">Speech and Language
+Processing</a></strong>, the <strong>Multi-head Attention</strong> passage at the end of
+<strong>§8.1</strong> for equations 8.15–8.20 and Figure 8.6, and <strong>§8.4</strong> for token and
+positional embeddings, with Figures 8.12–8.14. §8.4 is short and it is the only place the input matrix
+<math data-tex="X"><mi>X</mi></math> is actually defined, having been used freely since §8.3.</p>
+
+<p><strong><a href="https://arxiv.org/abs/1706.03762">Vaswani et al. 2017</a></strong>,
+<strong>§3.2.2</strong>, for multi-head attention in the original notation, and <strong>§3.5</strong>
+if you want the sinusoidal formula itself. §3.5 is one paragraph, and it ends by reporting that the
+learned and sinusoidal versions produced "nearly identical results" — worth knowing, because it means
+the choice between them is not a large one in practice.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0029-self-attention.html">← Session 29: Self-attention, query, key, value</a>
+  <a href="0031-the-transformer.html">Session 31: The transformer — encoder and decoder blocks →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

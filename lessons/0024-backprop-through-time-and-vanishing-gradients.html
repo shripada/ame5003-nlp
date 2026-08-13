@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -596,7 +742,7 @@ session 23 described.</p>
 
 <h2>What training an RNN means</h2>
 
-<p><code>U</code>, <code>W</code>, and <code>V</code> are trained as session 20's neuron was
+<p><math data-tex="U"><mi>U</mi></math>, <code>W</code>, and <code>V</code> are trained as session 20's neuron was
 trained: choose a loss, compute how much each weight contributed to it, adjust every weight against
 its gradient, and repeat. None of that is new. What is new is the distance the error signal must
 travel.</p>
@@ -668,23 +814,23 @@ must preserve. <mark>A single sentence exhibits both failures.</mark></p>
 <p>No new example is required to see reason 2 arithmetically, since session 23's hand-computed
 example already contains it. That example was:</p>
 
-<pre><code>h_t = U·h_{t-1} + W·x_t          with U = 0.5, W = 1, h₀ = 0</code></pre>
+<div class="meq"><math data-tex="h_t = U h_{t-1} + W x_t \qquad \text{with } U = 0.5,\ W = 1,\ h_0 = 0" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mspace width="2em"></mspace><mtext>with </mtext><mi>U</mi><mo>=</mo><mn>0.5</mn><mo separator="true">,</mo><mtext> </mtext><mi>W</mi><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mtext> </mtext><msub><mi>h</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow></math></div>
 
-<p>Differentiating one step gives <code>∂h_t/∂h_{t-1} = U</code>. Every step contributes exactly
-one factor of <code>U</code>, so reaching back from step <em>n</em> to step 1 multiplies
-<code>n−1</code> of them together:</p>
+<p>Differentiating one step gives <math data-tex="\partial h_t / \partial h_{t-1} = U"><mrow><mi>∂</mi><msub><mi>h</mi><mi>t</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>=</mo><mi>U</mi></mrow></math>. Every step contributes exactly
+one factor of <math data-tex="U"><mi>U</mi></math>, so reaching back from step <em>n</em> to step 1 multiplies
+<math data-tex="n-1"><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></math> of them together:</p>
 
-<pre><code>∂h_n/∂h₁  =  U^(n−1)</code></pre>
+<div class="meq"><math data-tex="\frac{\partial h_n}{\partial h_1} = U^{\,n-1}" display="block" class="tml-display" style="display:block math;"><mrow><mfrac><mrow><mi>∂</mi><msub><mi>h</mi><mi>n</mi></msub></mrow><mrow><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub></mrow></mfrac><mo>=</mo><msup><mi>U</mi><mrow class="tml-sml-pad"><mspace width="0.1667em"></mspace><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></mrow></math></div>
 
 <div class="callout">
-  <span class="label">The value of <code>U</code> used in session 23</span>
-  <p><code>U = 0.5</code>, which is <strong>already below 1</strong>. The example computed forward
+  <span class="label">The value of <math data-tex="U"><mi>U</mi></math> used in session 23</span>
+  <p><math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math>, which is <strong>already below 1</strong>. The example computed forward
   by hand in session 23, with values chosen only for ease of arithmetic, was a <em>vanishing</em>
   case throughout. <mark>This is session 23's arithmetic, read backwards.</mark></p>
 </div>
 
 <table>
-  <tr><th>steps back (<em>n</em>)</th><th><code>U = 0.5</code></th><th><code>U = 1.5</code></th></tr>
+  <tr><th>steps back (<em>n</em>)</th><th><math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math></th><th><math data-tex="U = 1.5"><mrow><mi>U</mi><mo>=</mo><mn>1.5</mn></mrow></math></th></tr>
   <tr><td>1</td><td>1</td><td>1</td></tr>
   <tr><td>2</td><td>0.5</td><td>1.5</td></tr>
   <tr><td>5</td><td>0.0625</td><td>5.0625</td></tr>
@@ -700,7 +846,7 @@ paragraph.</p>
 
 <div class="callout warn">
   <span class="label">Exploding gradients</span>
-  <p>Changing one value, <code>U = 1.5</code> instead of <code>0.5</code>, makes the same
+  <p>Changing one value, <math data-tex="U = 1.5"><mrow><mi>U</mi><mo>=</mo><mn>1.5</mn></mrow></math> instead of <math data-tex="0.5"><mn>0.5</mn></math>, makes the same
   recurrence run in the opposite direction: 38 after ten steps and four hundred million after fifty.
   <mark>The same architecture and the same formula produce the opposite failure.</mark> Below 1 the
   gradient vanishes; above 1 it grows without bound. Only a factor of exactly 1 is stable, and
@@ -709,16 +855,16 @@ paragraph.</p>
 
 <div class="recall">
   <span class="label">Exercise</span>
-  <p>Same toy, <code>U = 0.5</code>. What is <code>∂h₅/∂h₁</code> — the gradient reaching back four
+  <p>Same toy, <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math>. What is <math data-tex="\partial h_5 / \partial h_1"><mrow><mi>∂</mi><msub><mi>h</mi><mn>5</mn></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub></mrow></math> — the gradient reaching back four
   steps?</p>
-  <p>Then answer a second question: what would <code>U</code> have to be for this quantity to
+  <p>Then answer a second question: what would <math data-tex="U"><mi>U</mi></math> have to be for this quantity to
   <em>grow</em> as you reach further back instead of shrinking?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>∂h₅/∂h₁ = U⁴ = 0.5⁴ = <strong>0.0625</strong></code>. Four steps back, the signal is
+    <p><math data-tex="\partial h_5 / \partial h_1 = U^4 = 0.5^4 = 0.0625"><mrow><mi>∂</mi><msub><mi>h</mi><mn>5</mn></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><msup><mi>U</mi><mn class="tml-sml-pad">4</mn></msup><mo>=</mo><msup><mn>0.5</mn><mn>4</mn></msup><mo>=</mo><mn>0.0625</mn></mrow></math>. Four steps back, the signal is
     already down to six per cent.</p>
-    <p>For the quantity to grow, <code>|U| &gt; 1</code>. That is the exploding case in the table's
-    right-hand column. Note that <strong>nothing in the training procedure keeps <code>U</code> near
+    <p>For the quantity to grow, <math data-tex="|U| &gt; 1"><mrow><mi>|</mi><mi>U</mi><mi>|</mi><mo>&gt;</mo><mn>1</mn></mrow></math>. That is the exploding case in the table's
+    right-hand column. Note that <strong>nothing in the training procedure keeps <math data-tex="U"><mi>U</mi></math> near
     1</strong>; it is a learned weight like any other. Vanishing is the more common outcome, not the
     only one.</p>
   </div>
@@ -727,8 +873,8 @@ paragraph.</p>
 <h3>What the example omits</h3>
 
 <p>The example has no activation function, which is why its arithmetic remained inspectable. A real
-RNN squashes every step with <code>tanh</code>, which adds one further factor to every step of the
-backward pass: <code>tanh′(z) = 1 − tanh²(z)</code>, which is <strong>at most 1</strong> and usually
+RNN squashes every step with <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math>, which adds one further factor to every step of the
+backward pass: <math data-tex="\tanh&#x27;(z) = 1 - \tanh^2(z)"><mrow><msup><mi>tanh</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>1</mn><mo>−</mo><msup><mi>tanh</mi><mn>2</mn></msup><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, which is <strong>at most 1</strong> and usually
 well below it. <mark>That factor makes vanishing worse and never better.</mark> It cannot recover a
 shrinking gradient, and it is not the cause of the exploding case.</p>
 
@@ -780,7 +926,7 @@ shrinking gradient, and it is not the cause of the exploding case.</p>
   </svg>
   <figcaption>Session 23's figure, with the arrows reversed. Same chain, same three matrices — but
   now we are watching the error signal travel from the loss at the end back toward the first word,
-  multiplied by <code>U</code> at every step it crosses. The shared weights that made the architecture
+  multiplied by <math data-tex="U"><mi>U</mi></math> at every step it crosses. The shared weights that made the architecture
   work are the same shared weights that make one number get multiplied by itself <em>n</em> times.</figcaption>
 </figure>
 
@@ -793,15 +939,15 @@ shrinking gradient, and it is not the cause of the exploding case.</p>
     all</button>
     <button class="opt">Because a long sequence has too many parameters for the loss to update
     them all</button>
-    <button class="opt">Because the same matrix <code>U</code> multiplies onto the gradient once per
+    <button class="opt">Because the same matrix <math data-tex="U"><mi>U</mi></math> multiplies onto the gradient once per
     step, so reaching back <em>n</em> steps multiplies by it <em>n</em> times</button>
     <button class="opt">Because the loss is computed only at the final step, and earlier steps have
     no loss of their own</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>repeated multiplication by the same <code>U</code>, once per
+    <p>Correct answer: <strong>repeated multiplication by the same <math data-tex="U"><mi>U</mi></math>, once per
     step</strong>.</p>
-    <p>The first option is a real contributing factor and a good instinct — <code>tanh′</code> is at
+    <p>The first option is a real contributing factor and a good instinct — <math data-tex="\tanh&#x27;"><mrow><msup><mi>tanh</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> is at
     most 1, so it makes vanishing worse — but it is not the mechanism, and it cannot explain the
     exploding case at all. The second is false in an instructive way: shared weights mean the
     parameter count <em>does not grow</em> with sequence length, which was session 23's whole selling
@@ -882,9 +1028,9 @@ against the arithmetic and what survives is kept.</p>
   is all that "backpropagation through time" denotes. The process fails in two ways at once. The
   hidden state is required to serve the current decision <em>and</em> carry information for later
   ones, with no machinery separating the two; and the gradient is multiplied by the same matrix
-  <code>U</code> once per step, so that <code>∂h_n/∂h₁ = U^(n−1)</code> collapses to nothing when
-  <code>|U| &lt; 1</code> and grows without bound when <code>|U| &gt; 1</code>. Session 23's own
-  example, with <code>U = 0.5</code>, was already a vanishing case: twenty steps back the gradient is
+  <math data-tex="U"><mi>U</mi></math> once per step, so that <math data-tex="\partial h_n / \partial h_1 = U^{\,n-1}"><mrow><mi>∂</mi><msub><mi>h</mi><mi>n</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><msup><mi>U</mi><mrow class="tml-sml-pad"><mspace width="0.1667em"></mspace><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></mrow></math> collapses to nothing when
+  <code>|U| &lt; 1</code> and grows without bound when <math data-tex="|U| &gt; 1"><mrow><mi>|</mi><mi>U</mi><mi>|</mi><mo>&gt;</mo><mn>1</mn></mrow></math>. Session 23's own
+  example, with <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math>, was already a vanishing case: twenty steps back the gradient is
   0.0000019, which is effectively no learning signal at all. The solution is to stop requiring one
   vector to serve both purposes, by adding an explicit context layer with learned control. That is
   the LSTM, and it is the subject of session 25.</p>
@@ -911,7 +1057,7 @@ components rather than as a response to a problem.</p>
 <nav class="footer-nav">
   <a href="../reference/glossary.html">Glossary</a>
   <a href="0023-recurrent-neural-networks.html">← Session 23: The RNN — hidden state, shared weights</a>
-  <span>Session 25: the LSTM — coming soon</span>
+  <a href="0025-the-lstm.html">Session 25: the LSTM — two vectors, three gates →</a>
 </nav>
 
 <script>

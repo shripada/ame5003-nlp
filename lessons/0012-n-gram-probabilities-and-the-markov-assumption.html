@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -619,24 +765,23 @@ sentence it reads left to right: the probability of the sentence is the probabil
 word, multiplied by the probability of the second given the first, multiplied by the probability of
 the third given the first two, and so on.</p>
 
-<pre><code>P(I want to eat Indian food)
-  = P(I | &lt;s&gt;)
-  × P(want | I)
-  × P(to | I want)
-  × P(eat | I want to)
-  × P(Indian | I want to eat)
-  × P(food | I want to eat Indian)
-  × P(&lt;/s&gt; | I want to eat Indian food)</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+P(\text{I want to eat Indian food}) = {} &amp; P(\text{I} \mid \text{&lt;s&gt;}) \\
+  &amp;\times P(\text{want} \mid \text{I}) \\
+  &amp;\times P(\text{to} \mid \text{I want}) \\
+  &amp;\times P(\text{eat} \mid \text{I want to}) \\
+  &amp;\times P(\text{Indian} \mid \text{I want to eat}) \\
+  &amp;\times P(\text{food} \mid \text{I want to eat Indian}) \\
+  &amp;\times P(\text{&lt;/s&gt;} \mid \text{I want to eat Indian food})
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&lt;s&gt;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>want</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>to</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>eat</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>&lt;/s&gt;</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
 
 <p>This decomposition is exact, involving no approximation. Any one of its terms can be estimated
 by counting: the number of times the full sequence appears, divided by the number of times the
 history appears.</p>
 
-<pre><code>P(food | I want to eat Indian)  =  count(I want to eat Indian food)
-                                   ─────────────────────────────────
-                                   count(I want to eat Indian)</code></pre>
+<div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian}) = \frac{\mathrm{count}(\text{I want to eat Indian food})}{\mathrm{count}(\text{I want to eat Indian})}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
 
-<p>In our corpus this evaluates to <code>1 / 1 = 1.0</code>, which appears to be a strong result
+<p>In our corpus this evaluates to <math data-tex="1/1 = 1.0"><mrow><mn>1</mn><mi>/</mi><mn>1</mn><mo>=</mo><mn>1.0</mn></mrow></math>, which appears to be a strong result
 and is in fact the source of the difficulty.</p>
 
 <div class="callout warn">
@@ -660,7 +805,7 @@ approximation is the <strong>Markov assumption</strong>.</p>
   <p>The probability of the next word depends only on the <strong>last few words</strong>, not on the
   entire history.</p>
   <p>For a <strong>bigram</strong> model, "last few" means <strong>one</strong>:</p>
-  <pre><code>P(food | I want to eat Indian)  ≈  P(food | Indian)</code></pre>
+  <div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian}) \approx P(\text{food} \mid \text{Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 </div>
 
 <p>It should be clear that this assumption is false. Language contains long-range dependencies;
@@ -671,26 +816,27 @@ but countable, and a long history is correct but uncountable.</mark></p>
 <p>Substituting the assumption into the chain rule reduces every term to a single previous
 word:</p>
 
-<pre><code>P(I want to eat Indian food)
-  ≈  P(I | &lt;s&gt;) × P(want | I) × P(to | want) × P(eat | to)
-     × P(Indian | eat) × P(food | Indian) × P(&lt;/s&gt; | food)</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+P(\text{I want to eat Indian food}) \approx {} &amp; P(\text{I} \mid \text{&lt;s&gt;}) \times P(\text{want} \mid \text{I}) \times P(\text{to} \mid \text{want}) \times P(\text{eat} \mid \text{to}) \\
+  &amp;\times P(\text{Indian} \mid \text{eat}) \times P(\text{food} \mid \text{Indian}) \times P(\text{&lt;/s&gt;} \mid \text{food})
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mrow></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&lt;s&gt;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>want</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>to</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>eat</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>to</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>eat</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>&lt;/s&gt;</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
 
 <h2>Estimating a bigram probability by counting</h2>
 
 <p>Each of these terms is now a count of a pair divided by a count of a single word:</p>
 
-<pre><code>P(w₂ | w₁)  =  count(w₁ w₂)  /  count(w₁)</code></pre>
+<div class="meq"><math data-tex="P(w_2 \mid w_1) = \frac{\mathrm{count}(w_1\, w_2)}{\mathrm{count}(w_1)}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
 
 <p>This is the <strong>maximum likelihood estimate</strong> (MLE). The term denotes the estimate
 that best fits the observed data, which for counting problems is simply the observed proportion.
 Nothing is adjusted or assumed: the corpus shows <code>eat</code> followed by <code>Indian</code> in
-2 of 3 cases, so the estimate is 2/3.</p>
+2 of 3 cases, so the estimate is <math data-tex="2/3"><mrow><mn>2</mn><mi>/</mi><mn>3</mn></mrow></math>.</p>
 
-<p>The counts from our four sentences are given below. Note that <code>count(eat) = 3</code> and
-<code>count(&lt;s&gt;) = 4</code>.</p>
+<p>The counts from our four sentences are given below. Note that
+<math data-tex="\mathrm{count}(\text{eat}) = 3"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>eat</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>3</mn></mrow></math> and <math data-tex="\mathrm{count}(\text{&lt;s&gt;}) = 4"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>&lt;s&gt;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>4</mn></mrow></math>.</p>
 
 <table>
-  <tr><th>bigram</th><th>count(w₁ w₂)</th><th>count(w₁)</th><th>P(w₂ | w₁)</th></tr>
+  <tr><th>bigram</th><th><math data-tex="\mathrm{count}(w_1\, w_2)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="\mathrm{count}(w_1)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w_2 \mid w_1)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
   <tr><td><code>&lt;s&gt; I</code></td>     <td>3</td><td>4</td><td>3/4 = 0.75</td></tr>
   <tr><td><code>&lt;s&gt; she</code></td>   <td>1</td><td>4</td><td>1/4 = 0.25</td></tr>
   <tr><td><code>want to</code></td>         <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
@@ -715,7 +861,7 @@ estimated entirely from counts.</p>
 <div class="callout warn">
   <span class="label">Interpreting a probability of 1.0</span>
   <p>Several rows above are exactly <code>1.0</code>. This is an artefact of a very small corpus
-  rather than a claim about English. <code>P(food | Indian) = 1.0</code> holds only because these
+  rather than a claim about English. <math data-tex="P(\text{food} \mid \text{Indian}) = 1.0"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>1.0</mn></mrow></math> holds only because these
   four sentences never place any other word after <code>Indian</code>.</p>
   <p>In a real corpus, <code>Indian</code> would be followed by hundreds of different words and the
   largest probability might be a few per cent. The values here are small so that the arithmetic
@@ -726,9 +872,10 @@ estimated entirely from counts.</p>
 
 <p>We multiply the bigram probabilities together:</p>
 
-<pre><code>P(I want to eat Indian food)
-  ≈ 3/4 × 3/3 × 2/3 × 3/3 × 2/3 × 3/3 × 4/4
-  = 1/3  ≈ 0.333</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+P(\text{I want to eat Indian food}) &amp;\approx \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{4}{4} \\
+  &amp;= \tfrac{1}{3} \approx 0.333
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>≈</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>4</mn></mfrac></mstyle></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo>≈</mo><mn>0.333</mn></mrow></mtd></mtr></mtable></math></div>
 
 <p>The model can now be used for its intended purpose, which is comparing sentences:</p>
 
@@ -763,7 +910,7 @@ representation of what any of these words mean, and it ranks them correctly from
   <code>Indian food</code>, and <code>food &lt;/s&gt;</code>, the last of which is 4/4.</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>3/4 × 3/3 × 1/3 × 3/3 × 4/4 = 1/4 = 0.25</code></p>
+    <p><math data-tex="\tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{1}{3} \times \tfrac{3}{3} \times \tfrac{4}{4} = \tfrac{1}{4} = 0.25"><mrow><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>4</mn></mfrac></mstyle><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>4</mn></mfrac></mstyle><mo>=</mo><mn>0.25</mn></mrow></math></p>
     <p>This is lower than <code>I want to eat Indian food</code> at 0.333, because
     <code>want</code> is followed by <code>Indian</code> in only 1 of 3 cases but by <code>to</code>
     in 2 of 3.</p>
@@ -779,12 +926,13 @@ representation of what any of these words mean, and it ranks them correctly from
 
 <p>Consider one further sentence, which is perfectly ordinary English:</p>
 
-<pre><code>P(I want to eat Indian pizza)
-  ≈ 3/4 × 3/3 × 2/3 × 3/3 × 2/3 × P(pizza | Indian) × …
+<div class="meq"><math data-tex="P(\text{I want to eat Indian pizza}) \approx \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{2}{3} \times P(\text{pizza} \mid \text{Indian}) \times \cdots" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>pizza</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mo>⋯</mo></mrow></math></div>
 
-  count(Indian pizza) = 0    →    P(pizza | Indian) = 0/3 = 0
+<p>The corpus never places <code>pizza</code> after <code>Indian</code>, so
+<math data-tex="\mathrm{count}(\text{Indian pizza}) = 0"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math> and the estimate is
+<math data-tex="P(\text{pizza} \mid \text{Indian}) = 0/3 = 0"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>pizza</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn><mi>/</mi><mn>3</mn><mo>=</mo><mn>0</mn></mrow></math>, which sends the whole product to zero:</p>
 
-  ⇒  P(I want to eat Indian pizza) = 0</code></pre>
+<div class="meq"><math data-tex="P(\text{I want to eat Indian pizza}) = 0" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math></div>
 
 <p>The result is not a small probability but exactly zero. A single unseen pair anywhere in the
 sentence reduces the entire product to zero, however ordinary the remaining six words are. The model

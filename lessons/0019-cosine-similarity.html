@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -583,11 +729,16 @@ figcaption {
 <p>Session 18 ended with the following. <em>Julius Caesar</em>'s raw column, and a document
 consisting of the same play printed twice:</p>
 
-<pre><code>d   =  [ 7,  62, 1, 2]     length  62.43
-2d  =  [14, 124, 2, 4]     length 124.87
+<div class="meq"><math data-tex="\begin{aligned}
+d &amp;= [\,7,\ 62,\ 1,\ 2\,] &amp;&amp; \text{length } 62.43 \\
+2d &amp;= [\,14,\ 124,\ 2,\ 4\,] &amp;&amp; \text{length } 124.87
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>d</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>7</mn><mo separator="true">,</mo><mtext> </mtext><mn>62</mn><mo separator="true">,</mo><mtext> </mtext><mn>1</mn><mo separator="true">,</mo><mtext> </mtext><mn>2</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>length </mtext><mn>62.43</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>14</mn><mo separator="true">,</mo><mtext> </mtext><mn>124</mn><mo separator="true">,</mo><mtext> </mtext><mn>2</mn><mo separator="true">,</mo><mtext> </mtext><mn>4</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>length </mtext><mn>124.87</mn></mrow></mtd></mtr></mtable></math></div>
 
-Euclidean distance   62.43   →  "completely different documents"
-cosine                1.0000 →  "identical documents"</code></pre>
+<table>
+  <tr><th>measure</th><th>value</th><th>what it reports</th></tr>
+  <tr><td>Euclidean distance</td><td>62.43</td><td>completely different documents</td></tr>
+  <tr><td>cosine</td><td>1.0000</td><td>identical documents</td></tr>
+</table>
 
 <p>Two measurements on the same pair of vectors give opposite results. The first reports that a
 play and the same play printed twice are as far apart as anything in the collection. The second
@@ -685,7 +836,7 @@ gap between their endpoints, doubling a document changes nothing.</p>
 
 <p>The dot product of two vectors multiplies them component by component and adds up the results:</p>
 
-<pre><code>a · b  =  Σ aᵢbᵢ  =  a₁b₁ + a₂b₂ + ... + aₙbₙ</code></pre>
+<div class="meq"><math data-tex="a \cdot b = \sum_i a_i b_i = a_1 b_1 + a_2 b_2 + \cdots + a_n b_n" display="block" class="tml-display" style="display:block math;"><mrow><mi>a</mi><mo>⋅</mo><mi>b</mi><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>a</mi><mi>i</mi></msub><msub><mi>b</mi><mi>i</mi></msub><mo>=</mo><msub><mi>a</mi><mn>1</mn></msub><msub><mi>b</mi><mn>1</mn></msub><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msub><mi>b</mi><mn>2</mn></msub><mo>+</mo><mo>⋯</mo><mo>+</mo><msub><mi>a</mi><mi>n</mi></msub><msub><mi>b</mi><mi>n</mi></msub></mrow></math></div>
 
 <p>This is already an approximate similarity score. It is large when the two vectors have large
 values in the same positions, and exactly zero when there is no position at which both are
@@ -694,8 +845,10 @@ non-zero, which is the case for two documents sharing no words.</p>
 <p>It also has the defect we are trying to remove, in a pronounced form. Taking our two
 vectors:</p>
 
-<pre><code>d · d   =  7×7 + 62×62 + 1×1 + 2×2      =  3898
-d · 2d  =  7×14 + 62×124 + 1×2 + 2×4    =  7796</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+d \cdot d &amp;= 7{\times}7 + 62{\times}62 + 1{\times}1 + 2{\times}2 = 3898 \\
+d \cdot 2d &amp;= 7{\times}14 + 62{\times}124 + 1{\times}2 + 2{\times}4 = 7796
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>d</mi><mo>⋅</mo><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>7</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>7</mn><mo>+</mo><mn>62</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>62</mn><mo>+</mo><mn>1</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>1</mn><mo>+</mo><mn>2</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>2</mn><mo>=</mo><mn>3898</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>d</mi><mo>⋅</mo><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>7</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>14</mn><mo>+</mo><mn>62</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>124</mn><mo>+</mo><mn>1</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>2</mn><mo>+</mo><mn>2</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>4</mn><mo>=</mo><mn>7796</mn></mrow></mtd></mtr></mtable></math></div>
 
 <p>The dot product involving the doubled document is twice as large, not because the document is
 twice as relevant but because it is twice as long. A frequent word, or a long document, scores
@@ -705,9 +858,7 @@ highly on the dot product for reasons of size alone.</p>
 
 <p>The correction is to divide each vector by its own length:</p>
 
-<pre><code>            a · b
-cos(a, b) = ───────
-            |a| |b|          where  |a| = √(Σ aᵢ²)</code></pre>
+<div class="meq"><math data-tex="\cos(a, b) = \frac{a \cdot b}{|a|\, |b|} \qquad \text{where } |a| = \sqrt{\sum_i a_i^2}" display="block" class="tml-display" style="display:block math;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>a</mi><mo>⋅</mo><mi>b</mi></mrow><mrow><mi>|</mi><mi>a</mi><mi>|</mi><mspace width="0.1667em"></mspace><mi>|</mi><mi>b</mi><mi>|</mi></mrow></mfrac><mspace width="2em"></mspace><mtext>where </mtext><mi>|</mi><mi>a</mi><mi>|</mi><mo>=</mo><msqrt><mrow><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msubsup><mi>a</mi><mi>i</mi><mn>2</mn></msubsup></mrow></msqrt></mrow></math></div>
 
 <p>The denominator is best read as an instruction rather than as algebra. Dividing a vector by
 its own length produces a <strong>unit vector</strong>: same direction, length exactly 1.</p>
@@ -718,23 +869,23 @@ its own length produces a <strong>unit vector</strong>: same direction, length e
   <p>Both vectors are reduced to length 1, which discards everything except the direction in which
   they point, and only then compared. No trigonometry is required to use
   this.<span class="sidenote">The name comes from a fact of linear algebra:
-  <code>a · b = |a||b| cos θ</code>, so dividing by the two lengths leaves exactly
-  <code>cos θ</code>, the cosine of the angle between them. Useful to know, never needed to
+  <math data-tex="a \cdot b = |a||b| \cos\theta"><mrow><mi>a</mi><mo>⋅</mo><mi>b</mi><mo>=</mo><mi>|</mi><mi>a</mi><mi>|</mi><mi>|</mi><mi>b</mi><mi>|</mi><mrow><mspace width="0.1667em"></mspace><mi>cos</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>θ</mi></mrow></math>, so dividing by the two lengths leaves exactly
+  <math data-tex="\cos\theta"><mrow><mrow><mi>cos</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>θ</mi></mrow></math>, the cosine of the angle between them. Useful to know, never needed to
   compute.</span></p>
 </div>
 
 <h2>Completing the calculation</h2>
 
-<p>Applying the formula to <code>d</code> and <code>2d</code>, we can follow what becomes of the
+<p>Applying the formula to <math data-tex="d"><mi>d</mi></math> and <math data-tex="2d"><mrow><mn>2</mn><mi>d</mi></mrow></math>, we can follow what becomes of the
 factor of 2:</p>
 
-<pre><code>d · 2d  =  Σ dᵢ(2dᵢ)  =  2 Σ dᵢ²  =  2 |d|²        =  7796
-|d|                                                =  62.434
-|2d|    =  √(Σ (2dᵢ)²)  =  √(4 Σ dᵢ²)  =  2|d|     =  124.868
+<div class="meq"><math data-tex="\begin{aligned}
+d \cdot 2d &amp;= \sum_i d_i (2 d_i) = 2 \sum_i d_i^2 = 2 |d|^2 = 7796 \\
+|d| &amp;= 62.434 \\
+|2d| &amp;= \sqrt{\sum_i (2 d_i)^2} = \sqrt{4 \sum_i d_i^2} = 2|d| = 124.868
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>d</mi><mo>⋅</mo><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>d</mi><mi>i</mi></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>2</mn><msub><mi>d</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>2</mn><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msubsup><mi>d</mi><mi>i</mi><mn class="tml-lrg-pad">2</mn></msubsup><mo>=</mo><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup><mo>=</mo><mn>7796</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>|</mi><mi>d</mi><mi>|</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>62.434</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>|</mi><mn>2</mn><mi>d</mi><mi>|</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msqrt><mrow><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>2</mn><msub><mi>d</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></msqrt><mo>=</mo><msqrt><mrow><mn>4</mn><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msubsup><mi>d</mi><mi>i</mi><mn class="tml-lrg-pad">2</mn></msubsup></mrow></msqrt><mo>=</mo><mn>2</mn><mi>|</mi><mi>d</mi><mi>|</mi><mo>=</mo><mn>124.868</mn></mrow></mtd></mtr></mtable></math></div>
 
-              2 |d|²        2 |d|²
-cos(d, 2d) = ─────────── = ───────── = 1
-             |d| · 2|d|     2 |d|²</code></pre>
+<div class="meq"><math data-tex="\cos(d, 2d) = \frac{2 |d|^2}{|d| \cdot 2|d|} = \frac{2 |d|^2}{2 |d|^2} = 1" display="block" class="tml-display" style="display:block math;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo separator="true">,</mo><mn>2</mn><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup></mrow><mrow><mi>|</mi><mi>d</mi><mi>|</mi><mo>⋅</mo><mn>2</mn><mi>|</mi><mi>d</mi><mi>|</mi></mrow></mfrac><mo>=</mo><mfrac><mrow><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup></mrow></mfrac><mo>=</mo><mn>1</mn></mrow></math></div>
 
 <p>The factor of 2 appears once in the numerator and once in the denominator and cancels. The
 result is not approximately 1 but <strong>exactly 1</strong>, and it would be exactly 1 for any
@@ -747,15 +898,14 @@ proved rather than assumed.</p>
 <div class="recall">
   <span class="label">Exercise (no calculator)</span>
   <p>Two documents, two dimensions each:</p>
-  <pre><code>a = [ 3, 0]
-b = [30, 0]</code></pre>
+  <div class="meq"><math data-tex="a = [\,3,\, 0\,] \qquad b = [\,30,\, 0\,]" display="block" class="tml-display" style="display:block math;"><mrow><mi>a</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>3</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mspace width="2em"></mspace><mi>b</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>30</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math></div>
   <p>What is the Euclidean distance between them? What is the cosine?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p>Euclidean distance: <code>√((30−3)² + 0²) = <strong>27</strong></code>.</p>
-    <p>Cosine: <code>(3×30 + 0×0) / (3 × 30) = 90/90 = <strong>1</strong></code>.</p>
+    <p>Euclidean distance: <math data-tex="\sqrt{(30-3)^2 + 0^2} = 27"><mrow><msqrt><mrow><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>30</mn><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mn>0</mn><mn>2</mn></msup></mrow></msqrt><mo>=</mo><mn>27</mn></mrow></math>.</p>
+    <p>Cosine: <math data-tex="(3 {\times} 30 + 0 {\times} 0) / (3 \times 30) = 90/90 = 1"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>3</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>30</mn><mo>+</mo><mn>0</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>3</mn><mo>×</mo><mn>30</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>90</mn><mi>/</mi><mn>90</mn><mo>=</mo><mn>1</mn></mrow></math>.</p>
     <p>The two measurements disagree as strongly as they can, on a pair of vectors small enough
-    to check without a calculator. <code>b</code> is <code>a</code> multiplied by ten: same
+    to check without a calculator. <math data-tex="b"><mi>b</mi></math> is <math data-tex="a"><mi>a</mi></math> multiplied by ten: same
     direction, ten times the length. Distance reports 27; cosine reports identity.</p>
     <p>This is the doubling example with the arithmetic removed. It shows that the result of 1.0000
     above did not depend on <em>Julius Caesar</em>'s particular counts.</p>
@@ -775,10 +925,10 @@ than about the formula.</p>
 <div class="callout">
   <span class="label">Why a count vector's cosine is never negative</span>
   <p>Counts are never negative. A word occurs three times, or zero times; it cannot occur −3 times.
-  So every component of every document vector is <code>≥ 0</code>, and every document vector lives in
+  So every component of every document vector is <math data-tex="\ge 0"><mrow><mo>≥</mo><mn>0</mn></mrow></math>, and every document vector lives in
   the one corner of the space where nothing is negative.</p>
-  <p>The dot product <code>Σ aᵢbᵢ</code> is then a sum of products of non-negative numbers, which
-  cannot be negative. Lengths are always positive. So the whole fraction is <code>≥ 0</code>.</p>
+  <p>The dot product <math data-tex="\sum_i a_i b_i"><mrow><msub><mo movablelimits="false">∑</mo><mi>i</mi></msub><msub><mi>a</mi><mi>i</mi></msub><msub><mi>b</mi><mi>i</mi></msub></mrow></math> is then a sum of products of non-negative numbers, which
+  cannot be negative. Lengths are always positive. So the whole fraction is <math data-tex="\ge 0"><mrow><mo>≥</mo><mn>0</mn></mrow></math>.</p>
   <p>Geometrically, two vectors in the same orthant can be at most 90° apart. They can never
   point away from each other, so the cosine has a lower bound of 0.</p>
 </div>
@@ -849,7 +999,7 @@ close to perpendicular to the other three plays.</p>
 
 <p>We now change the vectors instead of the measure. Returning to session 17's matrix, we keep
 the logarithmic damping on the counts and omit idf entirely, using only
-<code>1 + log₁₀(count)</code>:</p>
+<math data-tex="1 + \log_{10}(\mathrm{count})"><mrow><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>count</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>:</p>
 
 <table>
   <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th><th>Henry V</th></tr>
@@ -915,7 +1065,7 @@ is what separates the values: 0.975 against 0.934 is a difference that can be re
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>because counts are never negative</strong>.</p>
-    <p>This is a fact about the <em>data</em>, not about the formula. <code>Σ aᵢbᵢ</code> is a sum of
+    <p>This is a fact about the <em>data</em>, not about the formula. <math data-tex="\sum_i a_i b_i"><mrow><msub><mo movablelimits="false">∑</mo><mi>i</mi></msub><msub><mi>a</mi><mi>i</mi></msub><msub><mi>b</mi><mi>i</mi></msub></mrow></math> is a sum of
     products of non-negative numbers, so it cannot come out negative, and the lengths in the
     denominator are always positive.</p>
     <p>The formula itself is perfectly happy to return −1 — no absolute value, and the division by
@@ -1006,7 +1156,7 @@ naming.</p>
 
 <div class="callout">
   <span class="label">The main points</span>
-  <p>Cosine similarity is <code>(a·b) / (|a||b|)</code> — the dot product of the two vectors after
+  <p>Cosine similarity is <math data-tex="(a \cdot b) / (|a||b|)"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo>⋅</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>|</mi><mi>a</mi><mi>|</mi><mi>|</mi><mi>b</mi><mi>|</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — the dot product of the two vectors after
   each has been shrunk to length 1, which is to say a comparison of direction with length thrown
   away. Because scaling a vector cancels out of numerator and denominator, a document and the same
   document printed twice have a cosine of exactly 1 <em>when the vectors are raw counts</em>, and

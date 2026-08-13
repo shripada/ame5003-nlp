@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -605,30 +751,29 @@ restatement.</p>
 <p><strong>Term frequency</strong> measures how much a document uses a word, with diminishing
 returns, so that 100 occurrences is not a hundred times more informative than one:</p>
 
-<pre><code>tf  =  1 + log₁₀(count)     when count &gt; 0
-tf  =  0                    when count = 0</code></pre>
+<div class="meq"><math data-tex="\mathrm{tf} = \begin{cases} 1 + \log_{10}(\mathrm{count}) &amp; \text{when } \mathrm{count} &gt; 0 \\ 0 &amp; \text{when } \mathrm{count} = 0 \end{cases}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true">{</mo><mtable><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>count</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>when </mtext><mpadded lspace="0"><mi>count</mi></mpadded><mo>&gt;</mo><mn>0</mn></mrow></mtd></mtr><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mn>0</mn></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>when </mtext><mpadded lspace="0"><mi>count</mi></mpadded><mo>=</mo><mn>0</mn></mrow></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true"></mo></mrow></mrow></math></div>
 
 <p><strong>Inverse document frequency</strong> measures how rare the word is across the
-collection, where <code>df</code> is the number of documents containing it and <code>N</code> is
+collection, where <math data-tex="\mathrm{df}"><mpadded lspace="0"><mi>df</mi></mpadded></math> is the number of documents containing it and <math data-tex="N"><mi>N</mi></math> is
 the size of the collection:</p>
 
-<pre><code>idf  =  log₁₀(N / df)</code></pre>
+<div class="meq"><math data-tex="\mathrm{idf} = \log_{10}\!\left(\frac{N}{\mathrm{df}}\right)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>N</mi><mpadded lspace="0"><mi>df</mi></mpadded></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
 <p>One property of the second formula is used throughout this session:</p>
 
 <div class="callout">
   <span class="label">Definitions</span>
-  <p>If a word appears in <em>every</em> document, then <code>df = N</code>, so
-  <code>idf = log₁₀(N/N) = log₁₀(1) = <strong>0</strong></code>.</p>
+  <p>If a word appears in <em>every</em> document, then <math data-tex="\mathrm{df} = N"><mrow><mpadded lspace="0"><mi>df</mi></mpadded><mo>=</mo><mi>N</mi></mrow></math>, so
+  <math data-tex="\mathrm{idf} = \log_{10}(N/N) = \log_{10}(1) = 0"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>N</mi><mi>/</mi><mi>N</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>.</p>
   <p>The value is not small or approximately zero but <mark>exactly zero</mark>, and any quantity
   multiplied by exactly zero is zero.</p>
 </div>
 
 <h2>The Shakespeare corpus</h2>
 
-<p>Shakespeare wrote 37 plays, so <code>N = 37</code>. The following table gives <code>df</code>
-and <code>idf</code> for nine words across that collection:<span class="sidenote">SLP3 3rd ed.,
-§11.1.2, Fig. 11.5. The idf column is <code>log₁₀(37/df)</code> — every value here was recomputed
+<p>Shakespeare wrote 37 plays, so <math data-tex="N = 37"><mrow><mi>N</mi><mo>=</mo><mn>37</mn></mrow></math>. The following table gives <math data-tex="\mathrm{df}"><mpadded lspace="0"><mi>df</mi></mpadded></math>
+and <math data-tex="\mathrm{idf}"><mpadded lspace="0"><mi>idf</mi></mpadded></math> for nine words across that collection:<span class="sidenote">SLP3 3rd ed.,
+§11.1.2, Fig. 11.5. The idf column is <math data-tex="\log_{10}(37/\mathrm{df})"><mrow><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>37</mn><mi>/</mi><mpadded lspace="0"><mi>df</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> — every value here was recomputed
 from the df counts rather than copied.</span></p>
 
 <table>
@@ -722,11 +867,11 @@ from the df counts rather than copied.</span></p>
   weight?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>tf = 1 + log₁₀(114) = 3.057</code>, which is a healthy weight.</p>
-    <p><code>idf = log₁₀(37/37) = log₁₀(1) = 0</code>.</p>
-    <p><code>tf-idf = 3.057 × 0 = <strong>0</strong></code>.</p>
+    <p><math data-tex="\mathrm{tf} = 1 + \log_{10}(114) = 3.057"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mo>=</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>114</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>3.057</mn></mrow></math>, which is a healthy weight.</p>
+    <p><math data-tex="\mathrm{idf} = \log_{10}(37/37) = \log_{10}(1) = 0"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>37</mn><mi>/</mi><mn>37</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>.</p>
+    <p><math data-tex="\mathrm{tf}\text{-}\mathrm{idf} = 3.057 \times 0 = 0"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mtext>-</mtext><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mn>3.057</mn><mo>×</mo><mn>0</mn><mo>=</mo><mn>0</mn></mrow></math>.</p>
     <p>It is worth asking whether a larger count would have helped. Suppose <code>good</code>
-    occurred 10,000 times. Then <code>tf = 5.0</code>, and <code>5.0 × 0</code> is still
+    occurred 10,000 times. Then <math data-tex="\mathrm{tf} = 5.0"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mo>=</mo><mn>5.0</mn></mrow></math>, and <math data-tex="5.0 \times 0"><mrow><mn>5.0</mn><mo>×</mo><mn>0</mn></mrow></math> is still
     <strong>0</strong>.</p>
     <p><mark>No term frequency can compensate for an idf of zero.</mark> The exercise in session 17
     concluded that <code>good</code> should be dropped. TF-IDF drops it automatically, and does so
@@ -738,7 +883,7 @@ from the df counts rather than copied.</span></p>
 
 <p>We multiply the two quantities together, cell by cell:</p>
 
-<pre><code>tf-idf  =  tf × idf  =  (1 + log₁₀ count) × log₁₀(N / df)</code></pre>
+<div class="meq"><math data-tex="\mathrm{tf}\text{-}\mathrm{idf} = \mathrm{tf} \times \mathrm{idf} = (1 + \log_{10}\mathrm{count}) \times \log_{10}\!\left(\frac{N}{\mathrm{df}}\right)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mtext>-</mtext><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mpadded lspace="0"><mi>tf</mi></mpadded><mo>×</mo><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mpadded lspace="0"><mi>count</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>N</mi><mpadded lspace="0"><mi>df</mi></mpadded></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
 <p>The tf values for the four plays are:</p>
 
@@ -903,13 +1048,15 @@ working correctly, not failing.</mark></p>
 <p>There is a second problem with measuring distance between document vectors, unrelated to
 weighting.</p>
 
-<p>Take <em>Julius Caesar</em>'s column from the raw table, <code>[7, 62, 1, 2]</code>, and
+<p>Take <em>Julius Caesar</em>'s column from the raw table, <math data-tex="[\,7,\, 62,\, 1,\, 2\,]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>7</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>62</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>2</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and
 consider a document consisting of the same text repeated twice. Every count doubles:</p>
 
-<pre><code>d   =  [ 7,  62, 1, 2]     vector length  62.43
-2d  =  [14, 124, 2, 4]     vector length 124.87
+<div class="meq"><math data-tex="\begin{aligned}
+d &amp;= [\,7,\, 62,\, 1,\, 2\,] &amp;&amp; \text{vector length } 62.43 \\
+2d &amp;= [\,14,\, 124,\, 2,\, 4\,] &amp;&amp; \text{vector length } 124.87
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>d</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>7</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>62</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>2</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>vector length </mtext><mn>62.43</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>14</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>124</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>2</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>4</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>vector length </mtext><mn>124.87</mn></mrow></mtd></mtr></mtable></math></div>
 
-Euclidean distance between them:  62.43</code></pre>
+<p>The Euclidean distance between them is 62.43.</p>
 
 <p>The distance is 62.43, where the largest distance in the entire weighted matrix was 0.521. By
 this measure the two documents are extremely different. They are the same play, printed twice.</p>
@@ -930,8 +1077,8 @@ length, which is not the quantity we intended to measure.</p>
 
 <div class="callout">
   <span class="label">The main points</span>
-  <p>TF-IDF weights each cell of the term-document matrix by <code>(1 + log₁₀ count) ×
-  log₁₀(N/df)</code>, so that common words are reduced and distinctive words dominate, and a word
+  <p>TF-IDF weights each cell of the term-document matrix by
+  <math data-tex="(1 + \log_{10}\mathrm{count}) \times \log_{10}(N/\mathrm{df})"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mpadded lspace="0"><mi>count</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>N</mi><mi>/</mi><mpadded lspace="0"><mi>df</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, so that common words are reduced and distinctive words dominate, and a word
   appearing in every document collapses to exactly zero. What counts as <em>distinctive</em>,
   however, is measured against a particular collection, so the same word can be highly informative
   in one collection and worthless in another. When our four Shakespeare words nearly all collapsed,

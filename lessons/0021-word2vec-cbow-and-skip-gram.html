@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -685,25 +831,28 @@ they are about to be averaged.</p>
 <p>The pipeline follows, with session 20's shapes unchanged, for a vocabulary of 10,000 and vectors
 of 300 numbers:</p>
 
-<pre><code>E   embedding matrix    10000 × 300     one row per word in the vocabulary
-x   averaged context      300           mean of a few rows of E — one vector
-W'  output matrix       10000 × 300     one row per word again, on the way out
-z   scores              10000           = W'x     one score per vocabulary word
-p   probabilities       10000           = softmax(z)</code></pre>
+<table>
+  <tr><th></th><th>what it is</th><th>shape</th><th>note</th></tr>
+  <tr><td><math data-tex="E"><mi>E</mi></math></td><td>embedding matrix</td><td>10000 × 300</td><td>one row per word in the vocabulary</td></tr>
+  <tr><td><math data-tex="x"><mi>x</mi></math></td><td>averaged context</td><td>300</td><td>mean of a few rows of <math data-tex="E"><mi>E</mi></math> — one vector</td></tr>
+  <tr><td><math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math></td><td>output matrix</td><td>10000 × 300</td><td>one row per word again, on the way out</td></tr>
+  <tr><td><math data-tex="z"><mi>z</mi></math></td><td>scores</td><td>10000</td><td><math data-tex="z = W&#x27;x"><mrow><mi>z</mi><mo>=</mo><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mi>x</mi></mrow></math>, one score per vocabulary word</td></tr>
+  <tr><td><math data-tex="p"><mi>p</mi></math></td><td>probabilities</td><td>10000</td><td><math data-tex="p = \mathrm{softmax}(z)"><mrow><mi>p</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td></tr>
+</table>
 
 <p>Four steps, all of them taught last session:</p>
 
 <ol>
-  <li><strong>Look up.</strong> Pull the four rows of <code>E</code> belonging to <code>a</code>,
+  <li><strong>Look up.</strong> Pull the four rows of <math data-tex="E"><mi>E</mi></math> belonging to <code>a</code>,
   <code>great</code>, <code>about</code> and <code>hope</code>. Four vectors of 300 numbers.</li>
   <li><strong>Average.</strong> Add them and divide by four. One vector of 300 numbers, called
-  <code>x</code>. This is the "averages the context word vectors" in the sentence.</li>
-  <li><strong>One layer, then softmax.</strong> <code>z = W'x</code> gives a score for every word in
+  <math data-tex="x"><mi>x</mi></math>. This is the "averages the context word vectors" in the sentence.</li>
+  <li><strong>One layer, then softmax.</strong> <math data-tex="z = W&#x27;x"><mrow><mi>z</mi><mo>=</mo><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mi>x</mi></mrow></math> gives a score for every word in
   the vocabulary — 10,000 of them. Softmax turns those into 10,000 probabilities that are positive
   and sum to 1.</li>
-  <li><strong>Loss, then descend.</strong> Cross-entropy: <code>−log</code> of the probability the
+  <li><strong>Loss, then descend.</strong> Cross-entropy: <math data-tex="-\log"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></mrow></math> of the probability the
   model gave to <code>film</code>, the word that was actually there. Then
-  <code>w ← w − η·gradient</code> on every weight in the model.</li>
+  <math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math> on every weight in the model.</li>
 </ol>
 
 <div class="callout">
@@ -821,15 +970,18 @@ determines which is used in practice.</p>
 
 <h2>Each word has two vectors</h2>
 
-<p>Returning to the shapes given above, <code>E</code> has one row per vocabulary word and so
-does <code>W'</code>. These are two distinct sets of numbers for the same word, and both are
+<p>Returning to the shapes given above, <math data-tex="E"><mi>E</mi></math> has one row per vocabulary word and so
+does <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math>. These are two distinct sets of numbers for the same word, and both are
 trained:</p>
 
-<pre><code>word w's INPUT vector    v_w  =  row w of E      used when w appears as context
-word w's OUTPUT vector   u_w  =  row w of W'     used when w is the thing being predicted</code></pre>
+<table>
+  <tr><th>vector</th><th>written</th><th>used when</th></tr>
+  <tr><td>word <math data-tex="w"><mi>w</mi></math>'s <strong>input</strong> vector</td><td><math data-tex="v_w = \text{row } w \text{ of } E"><mrow><msub><mi>v</mi><mi>w</mi></msub><mo>=</mo><mtext>row </mtext><mi>w</mi><mtext> of </mtext><mi>E</mi></mrow></math></td><td><math data-tex="w"><mi>w</mi></math> appears as context</td></tr>
+  <tr><td>word <math data-tex="w"><mi>w</mi></math>'s <strong>output</strong> vector</td><td><math data-tex="u_w = \text{row } w \text{ of } W&#x27;"><mrow><msub><mi>u</mi><mi>w</mi></msub><mo>=</mo><mtext>row </mtext><mi>w</mi><mtext> of </mtext><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></mrow></math></td><td><math data-tex="w"><mi>w</mi></math> is the thing being predicted</td></tr>
+</table>
 
-<p>The score the model assigns to word <code>w</code> is <code>u_w · x</code>, the dot product of
-<code>w</code>'s output vector with the averaged context. Every word therefore plays two roles, and
+<p>The score the model assigns to word <math data-tex="w"><mi>w</mi></math> is <math data-tex="u_w \cdot x"><mrow><msub><mi>u</mi><mi>w</mi></msub><mo>⋅</mo><mi>x</mi></mrow></math>, the dot product of
+<math data-tex="w"><mi>w</mi></math>'s output vector with the averaged context. Every word therefore plays two roles, and
 the model maintains separate numbers for each.</p>
 
 <div class="callout">
@@ -851,15 +1003,15 @@ denominator.</p>
 vocabulary</em>. Making one prediction, and therefore adjusting the weights by one training
 example, requires a score for every word in the vocabulary. With realistic figures:</p>
 
-<pre><code>vocabulary                   1,000,000 words
-corpus                   1,000,000,000 tokens  (a small corpus, by 2013 standards)
+<table>
+  <tr><td>vocabulary</td><td>1,000,000 words</td></tr>
+  <tr><td>corpus</td><td>1,000,000,000 tokens (a small corpus, by 2013 standards)</td></tr>
+  <tr><td>exponentials per example</td><td><math data-tex="10^6"><msup><mn>10</mn><mn>6</mn></msup></math></td></tr>
+  <tr><td>training examples</td><td><math data-tex="10^9"><msup><mn>10</mn><mn>9</mn></msup></math> (CBOW; Skip-gram makes about ten times more)</td></tr>
+  <tr><td><strong>per pass over the corpus</strong></td><td><strong><math data-tex="10^{15}"><msup><mn>10</mn><mn>15</mn></msup></math> exponentials</strong></td></tr>
+</table>
 
-exponentials per example         10⁶
-training examples                10⁹           (CBOW; Skip-gram makes ~10× more)
-                            ──────────────
-per pass over the corpus         10¹⁵ exponentials</code></pre>
-
-<p>At a billion exponentials per second, which is a generous rate, 10¹⁵ exponentials require
+<p>At a billion exponentials per second, which is a generous rate, <math data-tex="10^{15}"><msup><mn>10</mn><mn>15</mn></msup></math> exponentials require
 <strong>about 11.6 days</strong> for one pass over a corpus that was considered small at the time.
 Mikolov's paper trained on 100 billion words.</p>
 
@@ -880,17 +1032,18 @@ invented pairs:   (film, kubernetes)                                 → say NO
                   (film, thirteen)                                   → say NO
                   ...  k of them, drawn at random</code></pre>
 
-<p>The model now has only to distinguish the true pair from <code>k</code> invented ones. The
+<p>The model now has only to distinguish the true pair from <math data-tex="k"><mi>k</mi></math> invented ones. The
 scoring function is a single dot product mapped into a probability:</p>
 
-<pre><code>P(this pair is real)  =  σ(u · v)          where σ(z) = 1 / (1 + e^(−z))</code></pre>
+<div class="meq"><math data-tex="P(\text{this pair is real}) = \sigma(u \cdot v) \qquad \text{where } \sigma(z) = \frac{1}{1 + e^{-z}}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>this pair is real</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><mtext>where </mtext><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mi>z</mi></mrow></msup></mrow></mfrac></mrow></math></div>
 
-<p>Train it to push <code>σ(u·v)</code> towards 1 for the real pair and <code>σ(−u·v)</code> towards
+<p>Train it to push <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> towards 1 for the real pair and
+<math data-tex="\sigma(-u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> towards
 1 for each invented one — which is to say, push the true pair's vectors together and the fake pairs'
 apart.<span class="sidenote">The negatives are not drawn uniformly. Mikolov samples them from the
 unigram frequency distribution raised to the power <strong>3/4</strong>, which pulls rare words up
 and common ones down relative to their raw frequency. The exponent was found by trying some; the
-paper says as much.</span> Typical <code>k</code> is 5 to 20 for a small corpus, 2 to 5 for a large
+paper says as much.</span> Typical <math data-tex="k"><mi>k</mi></math> is 5 to 20 for a small corpus, 2 to 5 for a large
 one.</p>
 
 <div class="callout warn">
@@ -906,7 +1059,7 @@ one.</p>
 <table>
   <tr><th></th><th>arithmetic per example</th><th>per pass over 10⁹ tokens</th><th>at 10⁹ ops/sec</th></tr>
   <tr><td>full softmax</td><td>10⁶ exponentials</td><td>10¹⁵</td><td><strong>11.6 days</strong></td></tr>
-  <tr><td>negative sampling, <code>k = 5</code></td><td>6 sigmoids</td><td>6 × 10⁹</td><td><strong>6 seconds</strong></td></tr>
+  <tr><td>negative sampling, <math data-tex="k = 5"><mrow><mi>k</mi><mo>=</mo><mn>5</mn></mrow></math></td><td>6 sigmoids</td><td>6 × 10⁹</td><td><strong>6 seconds</strong></td></tr>
 </table>
 
 <p>This is roughly <strong>167,000 times less arithmetic</strong>, and the resulting vectors are
@@ -1038,7 +1191,7 @@ error nor an isolated case:</p>
   turn out to be a mediocre sentiment feature, which lab 8 measures directly.</p>
 </div>
 
-<h2>The <code>king − man + woman</code> analogy</h2>
+<h2>The <math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math> analogy</h2>
 
 <p>This result is widely reported. Word vectors are said to support a form of arithmetic: take
 <code>king</code>, subtract <code>man</code>, add <code>woman</code>, and the resulting vector is
@@ -1062,14 +1215,14 @@ from the candidates before ranking them. Constructing the same vector directly a
 whole vocabulary with nothing excluded gives:</p>
 
 <table>
-  <tr><th>rank</th><th>word</th><th>cosine with <code>king − man + woman</code></th></tr>
+  <tr><th>rank</th><th>word</th><th>cosine with <math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math></th></tr>
   <tr><td>1</td><td><code>king</code></td><td><strong>0.8449</strong> &nbsp;← one of the inputs</td></tr>
   <tr><td>2</td><td><code>queen</code></td><td>0.7301</td></tr>
   <tr><td>3</td><td><code>monarch</code></td><td>0.6455</td></tr>
   <tr><td>4</td><td><code>princess</code></td><td>0.6156</td></tr>
 </table>
 
-<p>The nearest word to <code>king − man + woman</code> is <code>king</code>, by a clear margin.
+<p>The nearest word to <math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math> is <code>king</code>, by a clear margin.
 This follows from the arithmetic: we began at <code>king</code> and made a modest adjustment, so
 the result remains nearest to its starting point. <code>queen</code> is the nearest word that is
 not one of the inputs.</p>
@@ -1092,15 +1245,15 @@ are shown, each computed both ways:</p>
 <table>
   <tr><th>analogy</th><th>expected</th><th>excluding inputs</th><th>excluding nothing</th></tr>
   <tr>
-    <td><code>walking − walk + swim</code></td><td><code>swimming</code></td>
+    <td><math data-tex="\text{walking} - \text{walk} + \text{swim}"><mrow><mtext>walking</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>walk</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>swim</mtext></mrow></math></td><td><code>swimming</code></td>
     <td><strong>swimming</strong> 0.825</td><td><strong>swimming</strong> 0.863, swim* 0.855</td>
   </tr>
   <tr>
-    <td><code>Paris − France + Italy</code></td><td><code>Rome</code></td>
+    <td><math data-tex="\text{Paris} - \text{France} + \text{Italy}"><mrow><mtext>Paris</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>France</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>Italy</mtext></mrow></math></td><td><code>Rome</code></td>
     <td>Milan 0.722, <em>Rome 0.703</em></td><td>Milan 0.725, <em>Rome 0.707</em>, Italy* 0.685</td>
   </tr>
   <tr>
-    <td><code>bigger − big + small</code></td><td><code>smaller</code></td>
+    <td><math data-tex="\text{bigger} - \text{big} + \text{small}"><mrow><mtext>bigger</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>big</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>small</mtext></mrow></math></td><td><code>smaller</code></td>
     <td>larger 0.740, <em>smaller 0.733</em></td><td>larger 0.787, <em>smaller 0.769</em>, small* 0.722</td>
   </tr>
 </table>
@@ -1109,7 +1262,7 @@ are shown, each computed both ways:</p>
 
 <p>One of the three places the expected answer first. The other two place it <strong>second</strong>,
 behind a word from the correct neighbourhood: <code>Milan</code> in place of <code>Rome</code>, and
-<code>larger</code> in place of <code>smaller</code>. Note that <code>bigger − big + small</code>
+<code>larger</code> in place of <code>smaller</code>. Note that <math data-tex="\text{bigger} - \text{big} + \text{small}"><mrow><mtext>bigger</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>big</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>small</mtext></mrow></math>
 comes out closest to <code>larger</code>, which is the opposite of the intended direction while
 still being the correct region of the space.</p>
 
@@ -1204,7 +1357,7 @@ vectors improve on that.</p>
   reverses the arrows and predicts each context word from the centre, getting more training examples
   out of the same text and doing better on rare words. The softmax over a whole vocabulary makes
   either one impossible to train, so negative sampling replaces that one huge decision with a few
-  yes/no ones — <code>σ(u·v)</code> against the true pair and <code>k</code> invented ones — for
+  yes/no ones — <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> against the true pair and <math data-tex="k"><mi>k</mi></math> invented ones — for
   roughly a hundred-thousandth of the arithmetic. What comes out genuinely captures which words
   behave alike, and is honest enough about it to put <code>bad</code> second-nearest to
   <code>good</code>.</p>

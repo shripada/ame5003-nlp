@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -607,7 +753,7 @@ independently.</p>
 
 <h2>Co-occurrence ratios</h2>
 
-<p>Call the matrix <code>X</code>: <code>Xᵢⱼ</code> is how many times word <em>j</em> appears within
+<p>Call the matrix <math data-tex="X"><mi>X</mi></math>: <math data-tex="X_{ij}"><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></math> is how many times word <em>j</em> appears within
 some window of word <em>i</em>, counted across the whole corpus. That much is just session 19's
 pie/data/computer table, scaled up to every word against every word.</p>
 
@@ -621,10 +767,12 @@ probabilities is</strong>. Consider two words with different meanings from a sha
   <p>Two drinks, <code>espresso</code> and <code>juice</code>, and two probe words, counted across some
   corpus. Both drinks happen to appear equally often — each has a total of <strong>10,000</strong>
   co-occurrences with all words — so their counts are directly comparable:</p>
-  <pre><code>X(espresso, sugar)     =   5        X(juice, sugar)     =  45
-X(espresso, caffeine)  =  80        X(juice, caffeine)  =   4</code></pre>
-  <p>Work out the ratio <code>P(k | espresso) / P(k | juice)</code> for each probe word
-  <code>k</code>. Which word is each ratio "about"? And if a third probe word gave a ratio close to
+  <div class="meq"><math data-tex="\begin{aligned}
+X(\text{espresso}, \text{sugar}) &amp;= 5 &amp; X(\text{juice}, \text{sugar}) &amp;= 45 \\
+X(\text{espresso}, \text{caffeine}) &amp;= 80 &amp; X(\text{juice}, \text{caffeine}) &amp;= 4
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>espresso</mtext><mo separator="true">,</mo><mtext>sugar</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>5</mn></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>juice</mtext><mo separator="true">,</mo><mtext>sugar</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>45</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>espresso</mtext><mo separator="true">,</mo><mtext>caffeine</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>80</mn></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>juice</mtext><mo separator="true">,</mo><mtext>caffeine</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>4</mn></mrow></mtd></mtr></mtable></math></div>
+  <p>Work out the ratio <math data-tex="P(k \mid \text{espresso}) / P(k \mid \text{juice})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>espresso</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>juice</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for each probe
+  word <math data-tex="k"><mi>k</mi></math>. Which word is each ratio "about"? And if a third probe word gave a ratio close to
   <strong>1</strong>, what would that tell you?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
@@ -656,17 +804,20 @@ million tokens), a window of 10, and the top 20,000 words by frequency:</p>
 <p><mark>The row totals are not decoration — they are what makes this a ratio of probabilities rather
 than a ratio of counts.</mark> <code>ice</code> occurs about four times as often as <code>steam</code>
 in this corpus, so every one of its raw counts is inflated by roughly the same factor.
-<code>P(k | ice)</code> is the row-<code>ice</code> count divided by 32,068, and
-<code>P(k | steam)</code> is the row-<code>steam</code> count divided by 8,024:</p>
+<math data-tex="P(k \mid \text{ice})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>ice</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the row-<code>ice</code> count divided by 32,068, and
+<math data-tex="P(k \mid \text{steam})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>steam</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the row-<code>steam</code> count divided by 8,024:</p>
 
-<pre><code>ratio = P(k | ice) / P(k | steam) = (Xᵢₖ / 32,068) / (Xₛₖ / 8,024)
+<div class="meq"><math data-tex="\mathrm{ratio} = \frac{P(k \mid \text{ice})}{P(k \mid \text{steam})} = \frac{X_{ik} / 32{,}068}{X_{sk} / 8{,}024}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>ratio</mi></mpadded><mo>=</mo><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>ice</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>steam</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac><mo>=</mo><mfrac><mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mi>/</mi><mn>32,068</mn></mrow><mrow><msub><mi>X</mi><mrow><mi>s</mi><mi>k</mi></mrow></msub><mi>/</mi><mn>8,024</mn></mrow></mfrac></mrow></math></div>
 
-solid    (30/32,068) / (2/8,024)  = 3.75    ← larger, correctly:   ice relates to solid more than steam does
-gas      (14/32,068) / (12/8,024) = 0.29    ← smaller, correctly:  steam relates to gas more than ice does
-water   (128/32,068) / (30/8,024) = 1.07    ← near 1, correctly:   both relate to water about equally
-fashion  (2/32,068)  / (0/8,024)  = ∞       ← steam and fashion co-occur ZERO times in this corpus</code></pre>
+<table>
+  <tr><th>probe <math data-tex="k"><mi>k</mi></math></th><th>ratio</th><th>value</th><th>reading</th></tr>
+  <tr><td><code>solid</code></td><td><math data-tex="(30/32{,}068) / (2/8{,}024)"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>30</mn><mi>/</mi><mn>32,068</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>2</mn><mi>/</mi><mn>8,024</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>3.75</td><td>larger, correctly: ice relates to solid more than steam does</td></tr>
+  <tr><td><code>gas</code></td><td><math data-tex="(14/32{,}068) / (12/8{,}024)"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>14</mn><mi>/</mi><mn>32,068</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>12</mn><mi>/</mi><mn>8,024</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>0.29</td><td>smaller, correctly: steam relates to gas more than ice does</td></tr>
+  <tr><td><code>water</code></td><td><math data-tex="(128/32{,}068) / (30/8{,}024)"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>128</mn><mi>/</mi><mn>32,068</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>30</mn><mi>/</mi><mn>8,024</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>1.07</td><td>near 1, correctly: both relate to water about equally</td></tr>
+  <tr><td><code>fashion</code></td><td><math data-tex="(2/32{,}068) / (0/8{,}024)"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>2</mn><mi>/</mi><mn>32,068</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mi>/</mi><mn>8,024</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td><math data-tex="\infty"><mi>∞</mi></math></td><td>steam and fashion co-occur zero times in this corpus</td></tr>
+</table>
 
-<p>Omitting the normalisation gives <code>solid</code> a value of 30/2 = 15 rather than 3.75. The
+<p>Omitting the normalisation gives <code>solid</code> a value of <math data-tex="30/2 = 15"><mrow><mn>30</mn><mi>/</mi><mn>2</mn><mo>=</mo><mn>15</mn></mrow></math> rather than 3.75. The
 direction is the same, but the number implies that <code>ice</code> is fifteen times more associated
 with <code>solid</code> than <code>steam</code> is, when most of that factor is simply
 <code>ice</code> being the more frequent word.</p>
@@ -692,24 +843,25 @@ divides by zero rather than approaching 1.</p>
 from them. GloVe's approach is to fit the vectors to the <em>logarithm</em> of the raw count
 directly, one pair at a time:</p>
 
-<pre><code>wᵢᵀ w̃ⱼ  +  bᵢ  +  b̃ⱼ   =   log Xᵢⱼ</code></pre>
+<div class="meq"><math data-tex="w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j = \log X_{ij}" display="block" class="tml-display" style="display:block math;"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>=</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math></div>
 
-<p><code>wᵢ</code> is word <em>i</em>'s vector, <code>w̃ⱼ</code> is word <em>j</em>'s vector playing
-the context role, and <code>bᵢ</code>, <code>b̃ⱼ</code> are per-word bias terms that absorb how
+<p><math data-tex="w_i"><msub><mi>w</mi><mi>i</mi></msub></math> is word <em>i</em>'s vector, <math data-tex="\tilde{w}_j"><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub></math> is word <em>j</em>'s vector playing
+the context role, and <math data-tex="b_i"><msub><mi>b</mi><mi>i</mi></msub></math>, <math data-tex="\tilde{b}_j"><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub></math> are per-word bias terms that absorb how
 frequent each word is on its own, so the dot product is left to encode the relationship rather than
 raw frequency. Fit every vector and bias to make that equation as true as possible, over every nonzero
-cell of <code>X</code>, and you have GloVe's loss (weighting term <code>f</code> next):</p>
+cell of <math data-tex="X"><mi>X</mi></math>, and you have GloVe's loss (weighting term <math data-tex="f"><mi>f</mi></math> next):</p>
 
-<pre><code>J  =  Σᵢⱼ f(Xᵢⱼ) · (wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ − log Xᵢⱼ)²</code></pre>
+<div class="meq"><math data-tex="J = \sum_{ij} f(X_{ij}) \left(w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j - \log X_{ij}\right)^2" display="block" class="tml-display" style="display:block math;"><mrow><mi>J</mi><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mi>j</mi></mrow></munder></mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mn>2</mn></msup></mrow></math></div>
 
 <p>The logarithm is used because a <em>difference</em> of dot products corresponds exactly to a
 <em>ratio</em> of counts under exponentiation:</p>
 
 <div class="callout">
   <span class="label">The algebraic identity</span>
-  <p><code>log(Xᵢₖ) − log(Xⱼₖ) = log(Xᵢₖ / Xⱼₖ)</code>. If the model fits
-  <code>wᵢᵀw̃ₖ ≈ log Xᵢₖ</code> and <code>wⱼᵀw̃ₖ ≈ log Xⱼₖ</code> for every word, then
-  <code>wᵢᵀw̃ₖ − wⱼᵀw̃ₖ</code> is automatically fitting the log of the ratio from the section above —
+  <p><math data-tex="\log(X_{ik}) - \log(X_{jk}) = \log(X_{ik} / X_{jk})"><mrow><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>−</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mi>/</mi><msub><mi>X</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. If the model fits
+  <math data-tex="w_i^{\mathsf{T}} \tilde{w}_k \approx \log X_{ik}"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>k</mi></msub><mo>≈</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow></math> and
+  <math data-tex="w_j^{\mathsf{T}} \tilde{w}_k \approx \log X_{jk}"><mrow><msubsup><mi>w</mi><mi>j</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>k</mi></msub><mo>≈</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub></mrow></math> for every word, then
+  <math data-tex="w_i^{\mathsf{T}} \tilde{w}_k - w_j^{\mathsf{T}} \tilde{w}_k"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>k</mi></msub><mo>−</mo><msubsup><mi>w</mi><mi>j</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>k</mi></msub></mrow></math> is automatically fitting the log of the ratio from the section above —
   the very quantity the paper argued was the informative one. <mark>The log is not decoration. It is the thing that turns
   "fit a count" into "fit the ratio that actually carries meaning".</mark></p>
 </div>
@@ -719,14 +871,15 @@ three pages. None of it is required in order to use the result, and it is omitte
 
 <h2>Weighting the loss</h2>
 
-<p>Squared error on <code>log Xᵢⱼ</code> has a problem session 18 already named. A small number of
+<p>Squared error on <math data-tex="\log X_{ij}"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math> has a problem session 18 already named. A small number of
 extremely frequent pairs, such as <code>(the, of)</code> and <code>(a, the)</code>, would dominate
 the loss and suppress everything else, in the same way that one very large raw count previously
 overwhelmed idf. GloVe's correction has the same form as session 18's log damping: a weighting
 function that caps how much any single pair can contribute.</p>
 
-<pre><code>f(x) = (x / x_max)^α   if x &lt; x_max
-f(x) = 1                otherwise         (paper's values: x_max = 100, α = 3/4)</code></pre>
+<div class="meq"><math data-tex="f(x) = \begin{cases} (x / x_{\max})^{\alpha} &amp; \text{if } x &lt; x_{\max} \\ 1 &amp; \text{otherwise} \end{cases}" display="block" class="tml-display" style="display:block math;"><mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true">{</mo><mtable><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mi>/</mi><msub><mi>x</mi><mrow><mi>max</mi><mo>⁡</mo></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>α</mi></msup></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>if </mtext><mi>x</mi><mo>&lt;</mo><msub><mi>x</mi><mrow><mi>max</mi><mo>⁡</mo></mrow></msub></mrow></mtd></mtr><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mn>1</mn></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mtext>otherwise</mtext></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true"></mo></mrow></mrow></math></div>
+
+<p>The paper's values are <math data-tex="x_{\max} = 100"><mrow><msub><mi>x</mi><mrow><mi>max</mi><mo>⁡</mo></mrow></msub><mo>=</mo><mn>100</mn></mrow></math> and <math data-tex="\alpha = 3/4"><mrow><mi>α</mi><mo>=</mo><mn>3</mn><mi>/</mi><mn>4</mn></mrow></math>.</p>
 
 <p>Frequent pairs are capped at full weight rather than growing without bound, and very rare
 pairs, co-occurring once or twice, are also down-weighted, since a single accidental co-occurrence
@@ -735,16 +888,16 @@ different matrix.</mark></p>
 
 <h2>Two vectors, added</h2>
 
-<p>Returning to the loss, there are two matrices, <code>w</code> and <code>w̃</code>, corresponding
-to Word2Vec's <code>E</code> and <code>W'</code>. Session 21 noted that some implementations offer to
+<p>Returning to the loss, there are two matrices, <math data-tex="w"><mi>w</mi></math> and <math data-tex="\tilde{w}"><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover></math>, corresponding
+to Word2Vec's <math data-tex="E"><mi>E</mi></math> and <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math>. Session 21 noted that some implementations offer to
 average the two together and that this is rarely done. <strong>GloVe is the implementation that does
-it.</strong> The paper reports that summing <code>w + w̃</code> for each word gives marginally better
+it.</strong> The paper reports that summing <math data-tex="w + \tilde{w}"><mrow><mi>w</mi><mo>+</mo><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover></mrow></math> for each word gives marginally better
 vectors than either matrix alone, since both were fit to the same data in slightly different roles,
 and every released GloVe file has this already applied.</p>
 
 <div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">GloVe's loss pulls <code>wᵢᵀw̃ⱼ + bᵢ + b̃ⱼ</code> toward a target value. What is
+  <p class="q-text">GloVe's loss pulls <math data-tex="w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub></mrow></math> toward a target value. What is
   that target?</p>
   <div class="q-opts">
     <button class="opt">The probability that word <em>j</em> is the true context of word
@@ -755,7 +908,7 @@ and every released GloVe file has this already applied.</p>
     <button class="opt">The cosine similarity between the two words' final vectors</button>
   </div>
   <div class="q-fb">
-    <p>Correct answer: <strong>the log of the raw co-occurrence count</strong>, <code>log Xᵢⱼ</code>.</p>
+    <p>Correct answer: <strong>the log of the raw co-occurrence count</strong>, <math data-tex="\log X_{ij}"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math>.</p>
     <p>Nothing here is a probability of anything — there is no softmax, no prediction step, no
     sampling. GloVe is closer to matrix factorisation than to a classifier: fit a matrix of numbers,
     reconstruct a matrix of numbers. The log matters specifically because a <em>difference</em> of two
@@ -805,13 +958,11 @@ word. <mark>Nothing here supports the claims either paper makes for its own appr
 
 <h3>The analogy task</h3>
 
-<pre><code>king − man + woman, excluding inputs:
-    Word2Vec:  queen 0.7118, monarch 0.6190, princess 0.5902
-    GloVe:     queen 0.6713, princess 0.5433, throne 0.5386
-
-king − man + woman, excluding nothing (rank the whole vocabulary):
-    Word2Vec:  king 0.8449 ← nearest is itself,  then queen 0.7301
-    GloVe:     king 0.8066 ← nearest is itself,  then queen 0.6896</code></pre>
+<table>
+  <tr><th><math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math></th><th>Word2Vec</th><th>GloVe</th></tr>
+  <tr><td>excluding the inputs</td><td>queen 0.7118, monarch 0.6190, princess 0.5902</td><td>queen 0.6713, princess 0.5433, throne 0.5386</td></tr>
+  <tr><td>excluding nothing (the whole vocabulary)</td><td>king 0.8449 — nearest is itself — then queen 0.7301</td><td>king 0.8066 — nearest is itself — then queen 0.6896</td></tr>
+</table>
 
 <p>The correction session 21 made about Word2Vec applies here unchanged: the vector lands near
 <code>king</code> rather than on <code>queen</code>, in both representations, and <code>queen</code>

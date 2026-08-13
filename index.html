@@ -260,6 +260,78 @@ footer {
   <span class="d">Last session ended on a promise the architecture makes and a question nobody answered. This session answers it, and the answer is no — not by default. That "no" is the entire reason the next session exists.</span>
 </a>
 
+<a class="item" href="lessons/0025-the-lstm.html">
+  <span class="n">Session 25</span>
+  <span class="t">The LSTM: two vectors, and three gates that manage them</span>
+  <span class="d">Session 24 found two problems. The first one — one vector asked to do two jobs — is what this architecture is built to fix. The gates are how it does the managing, not what the design is about.</span>
+</a>
+
+<a class="item" href="lessons/0026-the-gru.html">
+  <span class="n">Session 26</span>
+  <span class="t">The GRU: two gates, one vector, and what the simplification cost</span>
+  <span class="d">Session 25 ended by asking whether three gates and eight weight matrices were all necessary. The GRU is one answer. This session works out what it removed, what that removal costs in arithmetic, and what the evidence says about whether the trade was worth making.</span>
+</a>
+
+<a class="item" href="lessons/0027-sequence-to-sequence.html">
+  <span class="n">Session 27</span>
+  <span class="t">Sequence-to-sequence: the encoder-decoder shape</span>
+  <span class="d">Four sessions built a recurrent unit. This one does not touch it. It is the first session in Unit III about what you build out of two of them, and about a task that no amount of improving the unit could have solved.</span>
+</a>
+
+<a class="item" href="lessons/0028-attention.html">
+  <span class="n">Session 28</span>
+  <span class="t">The bottleneck, and attention as the fix</span>
+  <span class="d">Session 27 ended on a problem: one fixed-size vector carrying an entire source sentence. The fix is a single change of subscript, and the three operations it needs are all operations this course already taught.</span>
+</a>
+
+<a class="item" href="lessons/0029-self-attention.html">
+  <span class="n">Session 29</span>
+  <span class="t">Self-attention: query, key, value, and the dk</span>
+  <span class="d">Session 28's three operations, pointed at one sequence instead of two. The arithmetic barely changes. What changes is that the recurrence is left with nothing to do — and that a set of vectors compared pairwise has no notion of word order at all.</span>
+</a>
+
+<a class="item" href="lessons/0030-multi-head-and-position.html">
+  <span class="n">Session 30</span>
+  <span class="t">Multi-head attention, and positional embeddings</span>
+  <span class="d">Session 29 removed the recurrence and got parallelism. The bill for that was word order, and this session pays it. Then the same mechanism is run several times side by side — which turns out to cost almost nothing, for a reason that is worth doing the arithmetic on.</span>
+</a>
+
+<a class="item" href="lessons/0031-the-transformer.html">
+  <span class="n">Session 31</span>
+  <span class="t">The transformer: encoder blocks, decoder blocks, the whole picture</span>
+  <span class="d">Sessions 29 and 30 built the attention layer. This session builds the box that contains it, stacks the box six times, and then asks what separates an encoder from a decoder. The answer is smaller than it sounds: the same three equations, run three times, differing only in what is querying what.</span>
+</a>
+
+<a class="item" href="lessons/0032-bert-and-masked-language-modelling.html">
+  <span class="n">Session 32</span>
+  <span class="t">BERT and masked language modelling</span>
+  <span class="d">Session 31 left a sentence on the table: an encoder sees the whole sequence, so it is for understanding. This session is that model — and the training objective it is forced to use, because seeing ahead makes the old objective trivial. Along the way it pays a debt from sessions 21 and 22: one word, two meanings, two vectors.</span>
+</a>
+
+<a class="item" href="lessons/0033-fine-tuning-and-distillation.html">
+  <span class="n">Session 33</span>
+  <span class="t">Fine-tuning, DistilBERT and knowledge distillation</span>
+  <span class="d">Session 32 built BERT and stopped at what it is. This session is what it is for: a small head trained on labelled data, the same head pointed at session 7's tagging scheme, and then a smaller copy of the model trained to behave like the large one.</span>
+</a>
+
+<a class="item" href="lessons/0034-machine-translation.html">
+  <span class="n">Session 34</span>
+  <span class="t">Machine translation</span>
+  <span class="d">Session 33 closed by saying the architecture of Unit III is finished. This session is the first application of it: everything a working translation system needs that a transformer diagram does not show.</span>
+</a>
+
+<a class="item" href="lessons/0035-question-answering-and-summarization.html">
+  <span class="n">Session 35</span>
+  <span class="t">Question answering and text summarisation</span>
+  <span class="d">Two syllabus clauses in one hour. The first half points Unit I's retriever at the generator Unit III built. The second is a taxonomy, and one architecture the room already has.</span>
+</a>
+
+<a class="item" href="lessons/0036-chatbots-and-wrap-up.html">
+  <span class="n">Session 36</span>
+  <span class="t">Chatbots, and the course wrap-up</span>
+  <span class="d">A task-oriented chatbot fills a frame. Then the table session 22 left standing, extended to the rest of the course.</span>
+</a>
+
 <h2>Labs</h2>
 
 <h3 class="unit">Unit I — Text processing and information retrieval</h3>

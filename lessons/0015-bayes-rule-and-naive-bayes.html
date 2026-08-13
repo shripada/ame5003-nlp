@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -619,21 +765,16 @@ a genuine cost, since the documents had to be labelled by someone.</p>
 <p>Written out, the objective is direct: of all the classes, return the one that is most probable
 given the document.</p>
 
-<pre><code>best class  =  argmax  P(c | d)
-                c in C</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; P(c \mid d)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
-<p><code>argmax</code> denotes the argument that maximises the expression, so what we obtain is
+<p><math data-tex="\mathrm{argmax}"><mpadded lspace="0"><mi>argmax</mi></mpadded></math> denotes the argument that maximises the expression, so what we obtain is
 the class itself rather than the probability. The line reads as: of all the classes, return the one
 most likely for this document.</p>
 
 <p>We now attempt to estimate this quantity in the way we have estimated everything so far, by
 counting:</p>
 
-<pre><code>P(positive | "predictable with no fun")
-
-   =   count(that exact document, labelled positive)
-       ─────────────────────────────────────────────
-       count(that exact document)</code></pre>
+<div class="meq"><math data-tex="P(\text{positive} \mid \text{&quot;predictable with no fun&quot;}) = \frac{\mathrm{count}(\text{that exact document, labelled positive})}{\mathrm{count}(\text{that exact document})}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>positive</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&quot;predictable with no fun&quot;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>that exact document, labelled positive</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>that exact document</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
 
 <p>The denominator is 1 if that document happens to appear in the training set and 0 otherwise.
 It will not appear, because it is a new document, which is the entire purpose of a classifier.</p>
@@ -652,14 +793,14 @@ It will not appear, because it is a new document, which is the entire purpose of
 
 <p>Three terms are needed, since the remainder of the session uses them constantly.</p>
 
-<p>A <strong>conditional probability</strong> <code>P(A | B)</code> is the probability of A given
-that B is known to be true. The vertical bar denotes "given".</p>
+<p>A <strong>conditional probability</strong> <math data-tex="P(A \mid B)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>A</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>B</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the probability of <math data-tex="A"><mi>A</mi></math>
+given that <math data-tex="B"><mi>B</mi></math> is known to be true. The vertical bar denotes "given".</p>
 
 <table>
   <tr><th>name</th><th>written</th><th>in our problem</th></tr>
-  <tr><td><strong>prior</strong></td><td><code>P(c)</code></td><td>how common this class is, before looking at the document</td></tr>
-  <tr><td><strong>likelihood</strong></td><td><code>P(d | c)</code></td><td>how likely this document is, if the class were c</td></tr>
-  <tr><td><strong>posterior</strong></td><td><code>P(c | d)</code></td><td>how likely this class is, now that we have read the document</td></tr>
+  <tr><td><strong>prior</strong></td><td><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how common this class is, before looking at the document</td></tr>
+  <tr><td><strong>likelihood</strong></td><td><math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this document is, if the class were <math data-tex="c"><mi>c</mi></math></td></tr>
+  <tr><td><strong>posterior</strong></td><td><math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this class is, now that we have read the document</td></tr>
 </table>
 
 <p><em>Prior</em> and <em>posterior</em> mean before and after seeing the evidence. The posterior
@@ -670,20 +811,18 @@ is the quantity we want and cannot count.</p>
 <p><strong>Bayes' rule</strong> relates the two conditional probabilities that point in opposite
 directions. In general form:</p>
 
-<pre><code>P(x | y)  =  P(y | x) · P(x)  /  P(y)</code></pre>
+<div class="meq"><math data-tex="P(x \mid y) = \frac{P(y \mid x)\, P(x)}{P(y)}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
 
 <p>Applied to our problem, it turns the posterior into the other three:</p>
 
-<pre><code>                          P(d | c) · P(c)
-best class  =  argmax     ───────────────
-                c in C          P(d)</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \frac{P(d \mid c)\, P(c)}{P(d)}" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
 
-<p>Consider what has changed. We wanted <code>P(c | d)</code>, the probability of a class given a
-unique document that has not been seen before. We now require <code>P(d | c)</code> and
-<code>P(c)</code> instead.</p>
+<p>Consider what has changed. We wanted <math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, the probability of a class given a
+unique document that has not been seen before. We now require <math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> and
+<math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> instead.</p>
 
-<p><code>P(c)</code> is easy to estimate: of the labelled documents, what fraction were positive?
-This is a count over documents, and documents are plentiful. <code>P(d | c)</code> remains
+<p><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is easy to estimate: of the labelled documents, what fraction were positive?
+This is a count over documents, and documents are plentiful. <math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> remains
 difficult, and we address it below. The exchange is nonetheless favourable: one impossible question
 has been replaced by one easy question and one difficult one.</p>
 
@@ -699,17 +838,14 @@ has been replaced by one easy question and one difficult one.</p>
 
 <h3>Dropping the denominator</h3>
 
-<p><code>P(d)</code> is the remaining awkward term, and it can be removed at no cost. We are
-comparing classes for one fixed document, so whatever <code>P(d)</code> is, it takes the same value
+<p><math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the remaining awkward term, and it can be removed at no cost. We are
+comparing classes for one fixed document, so whatever <math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is, it takes the same value
 in every class being compared and cannot affect which class is largest.</p>
 
 <p>We also do not require an actual probability, only the identity of the winning class. We
 therefore drop the term:</p>
 
-<pre><code>best class  =  argmax   P(d | c) · P(c)
-                c in C
-
-                        likelihood   prior</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \underbrace{P(d \mid c)}_{\text{likelihood}} \; \underbrace{P(c)}_{\text{prior}}" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mrow><munder><munder><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mo stretchy="true" style="math-depth:0;">⏟</mo></munder><mtext>likelihood</mtext></munder></mrow><mspace width="0.2778em"></mspace><mrow><munder><munder><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mo stretchy="true" style="math-depth:0;">⏟</mo></munder><mtext>prior</mtext></munder></mrow></mrow></math></div>
 
 <div class="callout">
   <span class="label">Reading the formula</span>
@@ -724,7 +860,7 @@ therefore drop the term:</p>
 
 <h2>Two simplifying assumptions</h2>
 
-<p><code>P(d | c)</code>, the probability of a whole document given a class, remains unresolved. A
+<p><math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, the probability of a whole document given a class, remains unresolved. A
 document is a specific sequence of specific words in a specific order, so counting it encounters the
 same uniqueness problem as before. The difficulty has been relocated rather than solved.</p>
 
@@ -750,7 +886,7 @@ method for representing a document as a vector.</p>
 independent</strong>, so that knowing one word gives no information about the others. This permits
 the individual probabilities to be multiplied:</p>
 
-<pre><code>P(d | c)  =  P(w₁ | c) · P(w₂ | c) · … · P(wₙ | c)</code></pre>
+<div class="meq"><math data-tex="P(d \mid c) = P(w_1 \mid c) \, P(w_2 \mid c) \cdots P(w_n \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>⋯</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mi>n</mi></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
 <p>This is plainly untrue. In a positive review, the presence of <code>special</code> makes
 <code>effects</code> far more likely than it would otherwise be, and <code>San</code> is almost
@@ -777,8 +913,7 @@ that they do.</p>
 
 <p>Combining the pieces, the entire method is a single expression:</p>
 
-<pre><code>best class  =  argmax   P(c) · Π P(w | c)
-                c in C          w in d</code></pre>
+<div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; P(c) \prod_{w \in d} P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><munder><mo movablelimits="false">∏</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
 <p>Stated in words: <strong>for each class, multiply how common that class is by how typical each
 of the document's words is for that class, and select the class with the highest result.</strong></p>
@@ -787,8 +922,8 @@ of the document's words is for that class, and select the class with the highest
 
 <table>
   <tr><th>quantity</th><th>what it asks</th></tr>
-  <tr><td><code>P(c)</code></td><td>what fraction of the training documents are in class c?</td></tr>
-  <tr><td><code>P(w | c)</code></td><td>of all the words in class c's documents, what fraction are this word?</td></tr>
+  <tr><td><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>what fraction of the training documents are in class <math data-tex="c"><mi>c</mi></math>?</td></tr>
+  <tr><td><math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>of all the words in class <math data-tex="c"><mi>c</mi></math>'s documents, what fraction are this word?</td></tr>
 </table>
 
 <p>There is no optimisation, no iteration, and no training loop: we count and divide. This is why
@@ -797,12 +932,12 @@ that works.</p>
 
 <div class="recall">
   <span class="label">Exercise</span>
-  <p>We removed <code>P(d)</code> from the formula, although it is a real quantity, namely the
+  <p>We removed <math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> from the formula, although it is a real quantity, namely the
   probability of that document. Why can it be discarded safely, and what is lost by doing so?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
     <p>It can be discarded safely because it is identical for every class. We compare
-    <code>P(d|+)P(+)/P(d)</code> against <code>P(d|−)P(−)/P(d)</code> for the same document d, and
+    <math data-tex="P(d \mid +)P(+)/P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> against <math data-tex="P(d \mid -)P(-)/P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for the same document <math data-tex="d"><mi>d</mi></math>, and
     dividing both by the same number cannot change which is larger. The ranking is unaffected.</p>
     <p>What is lost is the scale. The resulting values are no longer probabilities and do not sum
     to 1; they are scores. We can therefore state that positive outranks negative, but not that the
@@ -815,7 +950,7 @@ that works.</p>
 
 <div class="quiz" data-answer="2">
   <span class="q-num">Question 1 of 2</span>
-  <p class="q-text">Why can we not just count <code>P(c | d)</code> from the training data
+  <p class="q-text">Why can we not just count <math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> from the training data
   directly?</p>
   <div class="q-opts">
     <button class="opt">Because probabilities conditioned on a class cannot be counted</button>
@@ -843,7 +978,7 @@ that works.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>given the class, each word is independent of the others</strong>.</p>
-    <p>This is what permits the individual <code>P(w|c)</code> values to be multiplied together
+    <p>This is what permits the individual <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> values to be multiplied together
     rather than estimating the probability of the whole word combination. It is plainly false, since
     <code>special</code> and <code>effects</code> are not independent, and the classifier performs
     well regardless. Note that the separate bag-of-words assumption is the one concerning order.</p>
@@ -865,7 +1000,7 @@ that works.</p>
 <p>We now have the formula with no numbers in it. Session 16 trains it on real labelled reviews
 and uses it to classify one.</p>
 
-<p>One difficulty is already visible. The formula multiplies one <code>P(w | c)</code> for every
+<p>One difficulty is already visible. The formula multiplies one <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for every
 word in the document, so consider what happens when a word in a new review never appeared in the
 training documents of that class. The count is zero, the product is zero, and the class is excluded
 entirely on the evidence of a single word. This is the zero problem from session 13, in a new

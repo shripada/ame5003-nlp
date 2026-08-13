@@ -51,6 +51,10 @@
 
   --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
   --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
 }
 
 /* Dark theme. Tokens only — components below never change. */
@@ -249,6 +253,125 @@ pre {
   max-width: 55ch;
 }
 pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
 
 /* ---- Callouts ---- */
 .callout {
@@ -521,6 +644,29 @@ figcaption {
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
 .fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
 /* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
 .fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
 .fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
@@ -584,10 +730,10 @@ figcaption {
 <p>We begin by restating two results from session 20. Nothing here is re-derived. A neuron computes
 one weighted sum followed by a squashing function:</p>
 
-<pre><code>y = f( Σ wᵢxᵢ + b )</code></pre>
+<div class="meq"><math data-tex="y = f\!\left(\sum_i w_i x_i + b\right)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
 
-<p>Stack several neurons and it becomes a matrix multiply, <code>z = Wx</code>, one row of
-<code>W</code> per neuron. Weights are not counted, the way session 16's Naïve Bayes weights were —
+<p>Stack several neurons and it becomes a matrix multiply, <math data-tex="z = Wx"><mrow><mi>z</mi><mo>=</mo><mi>W</mi><mi>x</mi></mrow></math>, one row of
+<math data-tex="W"><mi>W</mi></math> per neuron. Weights are not counted, the way session 16's Naïve Bayes weights were —
 they start as arbitrary numbers and get <strong>fitted</strong>, nudged by gradient descent until the
 whole thing predicts well. That is everything session 20 built, and it is everything this session
 needs. Nothing else from session 20 is re-taught.</p>
@@ -595,7 +741,7 @@ needs. Nothing else from session 20 is re-taught.</p>
 <h2>Why fixed-size input is a problem for text</h2>
 
 <p>Session 20's feedforward layer needs a <strong>fixed-size</strong> input vector — the matrix
-<code>W</code> has a fixed number of columns, and that number cannot change from one input to the
+<math data-tex="W"><mi>W</mi></math> has a fixed number of columns, and that number cannot change from one input to the
 next. Every variable-length-text representation this course has built so far dodged that same wall,
 the same way:</p>
 
@@ -613,7 +759,7 @@ averaged-embedding representations. That price consists of two separate problems
   <span class="label">Two distinct problems</span>
   <p><strong>Fixed size.</strong> A network built for a 10-word input cannot take a 50-word input
   without redesign.</p>
-  <p><strong>Order-blindness.</strong> Averaging is commutative — <code>avg(a, b, c) = avg(c, b, a)</code>,
+  <p><strong>Order-blindness.</strong> Averaging is commutative — <math data-tex="\mathrm{avg}(a, b, c) = \mathrm{avg}(c, b, a)"><mrow><mpadded lspace="0"><mi>avg</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo separator="true">,</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mpadded lspace="0"><mi>avg</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo separator="true">,</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>,
   <em>exactly</em>, not approximately. Whatever order the words carried, it is gone before the network
   ever sees the vector.</p>
 </div>
@@ -621,15 +767,12 @@ averaged-embedding representations. That price consists of two separate problems
 <p>We can check the second claim directly, using the same
 <code>glove-wiki-gigaword-100</code> vectors lab 8 used:</p>
 
-<pre><code>avg(GloVe[dog], GloVe[bites], GloVe[man])
-avg(GloVe[man], GloVe[bites], GloVe[dog])
-
-cos( · , · )  =  0.9999999999999998</code></pre>
+<div class="meq"><math data-tex="\cos\Bigl(\mathrm{avg}\bigl(\text{GloVe}[\text{dog}], \text{GloVe}[\text{bites}], \text{GloVe}[\text{man}]\bigr),\ \mathrm{avg}\bigl(\text{GloVe}[\text{man}], \text{GloVe}[\text{bites}], \text{GloVe}[\text{dog}]\bigr)\Bigr) = 0.9999999999999998" display="block" class="tml-display" style="display:block math;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.8em" maxsize="1.8em">(</mo><mpadded lspace="0"><mi>avg</mi></mpadded><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>dog</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>bites</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>man</mtext><mo form="postfix" stretchy="false">]</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mo separator="true">,</mo><mtext> </mtext><mpadded lspace="0"><mi>avg</mi></mpadded><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>man</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>bites</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>dog</mtext><mo form="postfix" stretchy="false">]</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mo fence="true" symmetric="true" minsize="1.8em" maxsize="1.8em">)</mo><mo>=</mo><mn>0.9999999999999998</mn></mrow></math></div>
 
 <div class="callout warn">
   <span class="label">Why the cosine is not exactly 1.0</span>
-  <p>That is not a clean <code>1.0</code> — floating-point addition is not perfectly order-invariant,
-  so <code>a+b+c</code> and <code>c+b+a</code> can differ in the last bit. <mark>The rounding noise in
+  <p>That is not a clean <math data-tex="1.0"><mn>1.0</mn></math> — floating-point addition is not perfectly order-invariant,
+  so <math data-tex="a + b + c"><mrow><mi>a</mi><mo>+</mo><mi>b</mi><mo>+</mo><mi>c</mi></mrow></math> and <math data-tex="c + b + a"><mrow><mi>c</mi><mo>+</mo><mi>b</mi><mo>+</mo><mi>a</mi></mrow></math> can differ in the last bit. <mark>The rounding noise in
   the seventeenth digit is not evidence that order mattered even a little</mark> — it is exactly the
   precision floating-point arithmetic has to give. The same computation on <code>"the movie was good,
   not bad"</code> against <code>"the movie was bad, not good"</code> — six identical words, two
@@ -662,23 +805,25 @@ time.</p>
 
 <p>Three matrices, new names, same idea as session 20 — a matrix times a vector, added, squashed:</p>
 
-<pre><code>h_t = g( U h_{t-1}  +  W x_t )        the hidden state, updated
-y_t = f( V h_t )                       an output, if this step produces one</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+h_t &amp;= g(U h_{t-1} + W x_t) &amp;&amp; \text{the hidden state, updated} \\
+y_t &amp;= f(V h_t) &amp;&amp; \text{an output, if this step produces one}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>h</mi><mi>t</mi></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>the hidden state, updated</mtext></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>y</mi><mi>t</mi></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>V</mi><msub><mi>h</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>an output, if this step produces one</mtext></mtd></mtr></mtable></math></div>
 
-<p><code>x_t</code> is the current word's vector. <code>h_{t-1}</code> is everything the network has
-carried forward so far. <code>W</code> reads the new word; <code>U</code> reads the running memory;
-<code>V</code> turns the memory into an output, when there is one to produce. <code>g</code> is
-conventionally <strong>tanh</strong> here rather than session 20's sigmoid — it squashes into
-<code>[-1, 1]</code> instead of <code>[0, 1]</code>, and the zero-centred range keeps a value that
+<p><math data-tex="x_t"><msub><mi>x</mi><mi>t</mi></msub></math> is the current word's vector. <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> is everything the network has
+carried forward so far. <math data-tex="W"><mi>W</mi></math> reads the new word; <math data-tex="U"><mi>U</mi></math> reads the running memory;
+<math data-tex="V"><mi>V</mi></math> turns the memory into an output, when there is one to produce. <math data-tex="g"><mi>g</mi></math> is
+conventionally <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> here rather than session 20's sigmoid — it squashes into
+<math data-tex="[-1, 1]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mo form="prefix" stretchy="false">−</mo><mn>1</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> instead of <math data-tex="[0, 1]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and the zero-centred range keeps a value that
 gets fed back into itself, over and over, from drifting all one direction.</p>
 
-<p>Walk the shapes the way session 20 walked <code>Wx + b</code>: if the hidden state is
-300-dimensional and each word vector is 100-dimensional, <code>U</code> is 300×300, <code>W</code> is
-300×100, and <code>V</code> is whatever the output needs — one row per class, for example.</p>
+<p>Walk the shapes the way session 20 walked <math data-tex="Wx + b"><mrow><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow></math>: if the hidden state is
+300-dimensional and each word vector is 100-dimensional, <math data-tex="U"><mi>U</mi></math> is 300×300, <math data-tex="W"><mi>W</mi></math> is
+300×100, and <math data-tex="V"><mi>V</mi></math> is whatever the output needs — one row per class, for example.</p>
 
 <div class="callout">
   <span class="label">Shared weights: the same matrices at every step</span>
-  <p><code>U</code>, <code>W</code>, <code>V</code> are the <em>same three matrices</em>, reused at
+  <p><math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math>, <math data-tex="V"><mi>V</mi></math> are the <em>same three matrices</em>, reused at
   every timestep. Not three-hundred sets of weights for a three-hundred-word document and three for a
   three-word sentence — <mark>one set, applied again and again</mark>. A thousand-word document and a
   three-word sentence use the identical parameter count. This is the thing session 20's feedforward
@@ -762,12 +907,12 @@ gets fed back into itself, over and over, from drifting all one direction.</p>
 
     <text class="fig-axname" x="310" y="325" text-anchor="middle">same U, same W, same V — every step</text>
   </svg>
-  <figcaption>The same network, drawn once per timestep instead of once. <code>h₀</code> is the
-  starting hidden state, usually all zeros. Every <code>U</code> arrow is the identical matrix, every
-  <code>W</code> arrow is the identical matrix, every <code>V</code> arrow is the identical matrix —
+  <figcaption>The same network, drawn once per timestep instead of once. <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> is the
+  starting hidden state, usually all zeros. Every <math data-tex="U"><mi>U</mi></math> arrow is the identical matrix, every
+  <math data-tex="W"><mi>W</mi></math> arrow is the identical matrix, every <math data-tex="V"><mi>V</mi></math> arrow is the identical matrix —
   three matrices, reused, not three-per-step. This is SLP3's Fig 13.4, redrawn. (It draws an output
   at <em>every</em> step, which is the sequence-labeling shape; the classification setup later in this
-  session keeps only the last step and drops <code>y₁</code> and <code>y₂</code> entirely.)</figcaption>
+  session keeps only the last step and drops <math data-tex="y_1"><msub><mi>y</mi><mn>1</mn></msub></math> and <math data-tex="y_2"><msub><mi>y</mi><mn>2</mn></msub></math> entirely.)</figcaption>
 </figure>
 
 <div class="quiz" data-answer="1">
@@ -777,7 +922,7 @@ gets fed back into itself, over and over, from drifting all one direction.</p>
   <div class="q-opts">
     <button class="opt">The hidden state is padded or truncated to a fixed length before
     training</button>
-    <button class="opt">The weights <code>U</code>, <code>W</code>, <code>V</code> are reused at
+    <button class="opt">The weights <math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math>, <math data-tex="V"><mi>V</mi></math> are reused at
     every timestep, so parameter count never depends on sequence length</button>
     <button class="opt">Longer documents are split into fixed-size chunks and averaged
     afterward</button>
@@ -786,7 +931,7 @@ gets fed back into itself, over and over, from drifting all one direction.</p>
   </div>
   <div class="q-fb">
     <p>Correct answer: <strong>the same three matrices are reused at every step</strong>.</p>
-    <p>Nothing about <code>U</code>, <code>W</code>, or <code>V</code>'s shape mentions sequence
+    <p>Nothing about <math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math>, or <math data-tex="V"><mi>V</mi></math>'s shape mentions sequence
     length — they map "one word plus one hidden state" to "one new hidden state," and that mapping is
     applied once per word, however many words there are. A three-word sentence runs the loop three
     times; a three-hundred-word document runs it three hundred times; the network being run is
@@ -800,27 +945,29 @@ gets fed back into itself, over and over, from drifting all one direction.</p>
 function. <mark>Real RNNs squash every step with tanh</mark>; we omit it here so that the arithmetic
 can be checked by hand:</p>
 
-<pre><code>U = 0.5     W = 1     h₀ = 0     x₁ = 2     x₂ = 3
+<div class="meq"><math data-tex="U = 0.5 \qquad W = 1 \qquad h_0 = 0 \qquad x_1 = 2 \qquad x_2 = 3" display="block" class="tml-display" style="display:block math;"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn><mspace width="2em"></mspace><mi>W</mi><mo>=</mo><mn>1</mn><mspace width="2em"></mspace><msub><mi>h</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn><mspace width="2em"></mspace><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mn>2</mn><mspace width="2em"></mspace><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>3</mn></mrow></math></div>
 
-h₁ = U·h₀ + W·x₁ = 0.5·0 + 1·2 = 2
-h₂ = U·h₁ + W·x₂ = 0.5·2 + 1·3 = 4</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+h_1 &amp;= U h_0 + W x_1 = 0.5 \cdot 0 + 1 \cdot 2 = 2 \\
+h_2 &amp;= U h_1 + W x_2 = 0.5 \cdot 2 + 1 \cdot 3 = 4
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>h</mi><mn>1</mn></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>U</mi><msub><mi>h</mi><mn>0</mn></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mn>0.5</mn><mo>⋅</mo><mn>0</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>2</mn><mo>=</mo><mn>2</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>h</mi><mn>2</mn></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>U</mi><msub><mi>h</mi><mn>1</mn></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>0.5</mn><mo>⋅</mo><mn>2</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>3</mn><mo>=</mo><mn>4</mn></mrow></mtd></mtr></mtable></math></div>
 
-<p>The particular values matter less than the structure. Note that <code>h₂</code>'s formula contains
-<code>h₁</code>, which in turn contained <code>h₀</code>. In principle the chain reaches back
-indefinitely: nothing in the formula prevents <code>h₁₀₀</code> from depending on <code>h₀</code>
+<p>The particular values matter less than the structure. Note that <math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math>'s formula contains
+<math data-tex="h_1"><msub><mi>h</mi><mn>1</mn></msub></math>, which in turn contained <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math>. In principle the chain reaches back
+indefinitely: nothing in the formula prevents <math data-tex="h_{100}"><msub><mi>h</mi><mn>100</mn></msub></math> from depending on <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math>
 through an unbroken chain of such updates. Whether it does so in practice is a separate question,
 which we take up in session 24.</p>
 
 <div class="recall">
   <span class="label">Exercise</span>
-  <p>Same toy RNN. You are told <code>h₀ = 0</code>, <code>U = 0.5</code>, <code>W = 1</code>,
-  <code>h₁ = 2</code>, and the next input is <code>x₂ = 3</code>. Compute <code>h₂</code> yourself.
-  Then answer: does <code>h₂</code>'s formula mention <code>h₀</code> anywhere?</p>
+  <p>Same toy RNN. You are told <math data-tex="h_0 = 0"><mrow><msub><mi>h</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow></math>, <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math>, <math data-tex="W = 1"><mrow><mi>W</mi><mo>=</mo><mn>1</mn></mrow></math>,
+  <math data-tex="h_1 = 2"><mrow><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><mn>2</mn></mrow></math>, and the next input is <math data-tex="x_2 = 3"><mrow><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>3</mn></mrow></math>. Compute <math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math> yourself.
+  Then answer: does <math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math>'s formula mention <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> anywhere?</p>
   <button class="reveal">Show answer</button>
   <div class="answer">
-    <p><code>h₂ = U·h₁ + W·x₂ = 0.5·2 + 1·3 = 4</code>.</p>
-    <p>No — <code>h₂</code>'s formula mentions only <code>h₁</code> and <code>x₂</code>.
-    <code>h₀</code> only enters <em>through</em> <code>h₁</code>, one step removed. Every hidden state
+    <p><math data-tex="h_2 = U h_1 + W x_2 = 0.5 \cdot 2 + 1 \cdot 3 = 4"><mrow><msub><mi>h</mi><mn>2</mn></msub><mo>=</mo><mi>U</mi><msub><mi>h</mi><mn>1</mn></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>0.5</mn><mo>⋅</mo><mn>2</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>3</mn><mo>=</mo><mn>4</mn></mrow></math>.</p>
+    <p>No — <math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math>'s formula mentions only <math data-tex="h_1"><msub><mi>h</mi><mn>1</mn></msub></math> and <math data-tex="x_2"><msub><mi>x</mi><mn>2</mn></msub></math>.
+    <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> only enters <em>through</em> <math data-tex="h_1"><msub><mi>h</mi><mn>1</mn></msub></math>, one step removed. Every hidden state
     reaches back only one step at a time, chained — which is exactly the shape of thing that can, in
     principle, either carry information a long way or lose it a long way. Which one happens is
     session 24's question.</p>
@@ -837,32 +984,34 @@ session 6's POS tagging assigns one label per token. One line, no worked example
 
 <p><strong>Sequence classification</strong> — the direct continuation of lab 8 — produces one output
 at the very end. Run the whole sequence through, take the <strong>final</strong> hidden state
-<code>h_n</code>, and feed it to a <em>separate</em> small feedforward classifier with its own weight
+<math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math>, and feed it to a <em>separate</em> small feedforward classifier with its own weight
 matrix, which softmaxes into however many classes the task has:</p>
 
-<pre><code>h_n  =  the hidden state after the last word
-ŷ    =  softmax( W_c h_n )        W_c belongs to the classifier, not to the RNN</code></pre>
+<div class="meq"><math data-tex="\hat{y} = \mathrm{softmax}(W_c h_n)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>y</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mi>c</mi></msub><msub><mi>h</mi><mi>n</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+
+<p>Here <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math> is the hidden state after the last word, and <math data-tex="W_c"><msub><mi>W</mi><mi>c</mi></msub></math> belongs to the
+classifier rather than to the RNN.</p>
 
 <div class="callout warn">
-  <span class="label"><code>W_c</code> is not <code>V</code>: where the figure stops applying</span>
-  <p>In a classifier there are no per-step outputs at all: no <code>y₁</code>, no <code>y₂</code>,
-  nothing until the last word has been read. <mark>So <code>V</code> — the RNN's hidden→output matrix
+  <span class="label"><math data-tex="W_c"><msub><mi>W</mi><mi>c</mi></msub></math> is not <math data-tex="V"><mi>V</mi></math>: where the figure stops applying</span>
+  <p>In a classifier there are no per-step outputs at all: no <math data-tex="y_1"><msub><mi>y</mi><mn>1</mn></msub></math>, no <math data-tex="y_2"><msub><mi>y</mi><mn>2</mn></msub></math>,
+  nothing until the last word has been read. <mark>So <math data-tex="V"><mi>V</mi></math> — the RNN's hidden→output matrix
   from the figure above — is simply not used here.</mark> The classification head is an extra,
   separately-sized matrix bolted onto the end, and it has one row per <em>class</em> (two, for
   positive/negative sentiment), not one row per whatever the RNN's per-step output was. SLP3 draws
-  exactly this in Fig 13.8: an RNN, then a feedforward network hanging off <code>h_n</code>.</p>
+  exactly this in Fig 13.8: an RNN, then a feedforward network hanging off <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math>.</p>
 </div>
 
 <p>SLP3 calls this <strong>end-to-end training</strong>: the loss comes from the classification
 decision alone, at the very last step, and backpropagates first through the classifier's own weights,
-then into <code>h_n</code>, and from there back through the whole chain — every <code>U</code>, every
-<code>W</code>, all the way to the first word. Nothing is trained to produce a good intermediate
+then into <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math>, and from there back through the whole chain — every <math data-tex="U"><mi>U</mi></math>, every
+<math data-tex="W"><mi>W</mi></math>, all the way to the first word. Nothing is trained to produce a good intermediate
 representation directly; a good representation is whatever falls out of training the final decision
 to be correct.</p>
 
 <h2>Pooling the hidden states</h2>
 
-<p>SLP3 §13.3.2 itself offers an alternative to using just <code>h_n</code>: <strong>pooling</strong>
+<p>SLP3 §13.3.2 itself offers an alternative to using just <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math>: <strong>pooling</strong>
 — averaging <em>all</em> the hidden states instead of keeping only the last one. This deserves
 care, since at first glance it appears to reintroduce the problem we measured earlier.</p>
 
@@ -881,8 +1030,10 @@ care, since at first glance it appears to reintroduce the problem we measured ea
 <code>dog bites man</code> through a randomly initialised RNN — untrained, since we have not yet
 covered training — gives:</p>
 
-<pre><code>h(dog bites man)  ≠  h(man bites dog)         componentwise, exactly
-cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
+<div class="meq"><math data-tex="\begin{aligned}
+h(\text{dog bites man}) &amp;\ne h(\text{man bites dog}) &amp;&amp; \text{componentwise, exactly} \\
+\cos\bigl(h(\text{dog bites man}),\, h(\text{man bites dog})\bigr) &amp;= 0.138
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>dog bites man</mtext><mo form="postfix" stretchy="false">)</mo></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>≠</mo><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>man bites dog</mtext><mo form="postfix" stretchy="false">)</mo></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>componentwise, exactly</mtext></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>dog bites man</mtext><mo form="postfix" stretchy="false">)</mo><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>man bites dog</mtext><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.138</mn></mrow></mtd><mtd class="tml-right" style="level:0;color:undefined;font:;font-family:;font-size:1;font-weight:;font-shape:;max-size:Infinity,Infinity;padding-left:0em;padding-right:0em;"></mtd><mtd class="tml-left" style="level:0;color:undefined;font:;font-family:;font-size:1;font-weight:;font-shape:;max-size:Infinity,Infinity;padding-left:0em;padding-right:0em;"></mtd></mtr></mtable></math></div>
 
 <div class="callout warn">
   <span class="label">What this result does and does not show</span>
@@ -913,10 +1064,10 @@ cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
     <p>Correct answer: <strong>averaging cannot see order because addition is commutative; the RNN's
     recurrence is not</strong>.</p>
     <p>Nothing about training enters into it — an untrained RNN's weights are arbitrary, but the
-    <em>function</em> <code>h_t = g(Uh_{t-1} + Wx_t)</code> still depends on which word arrived at
-    which step, because <code>h_{t-1}</code> feeds into <code>h_t</code> and not the reverse.
+    <em>function</em> <math data-tex="h_t = g(U h_{t-1} + W x_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> still depends on which word arrived at
+    which step, because <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> feeds into <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> and not the reverse.
     Averaging has no such asymmetry at all, trained or not — it is mathematically incapable of telling
-    two reorderings apart, which is what the cosine of <code>0.9999999999999998</code> above
+    two reorderings apart, which is what the cosine of <math data-tex="0.9999999999999998"><mn>0.9999999999999998</mn></math> above
     demonstrated directly.</p>
   </div>
 </div>
@@ -930,7 +1081,7 @@ cos( h(dog bites man), h(man bites dog) )  =  0.138</code></pre>
   <tr><td>order-sensitive?</td><td>no — commutative by construction</td>
       <td>yes — each step depends on the specific history before it</td></tr>
   <tr><td>parameters vs. sequence length</td><td>fixed, but information is discarded to get there</td>
-      <td>fixed (<code>U</code>, <code>W</code>, <code>V</code> reused every step) — nothing
+      <td>fixed (<math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math>, <math data-tex="V"><mi>V</mi></math> reused every step) — nothing
       discarded to achieve it</td></tr>
 </table>
 
@@ -956,10 +1107,10 @@ complication in Unit III is that this solution has a limit, which we have not ye
   <p>A feedforward layer needs a fixed-size input. Every trick this course has used to get one —
   averaging context words, averaging a whole document — cannot see word order, because addition is
   commutative. An RNN reads one word at a time instead, carrying a hidden state
-  <code>h_t = g(Uh_{t-1} + Wx_t)</code> forward. The same three matrices handle a three-word sentence
+  <math data-tex="h_t = g(U h_{t-1} + W x_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> forward. The same three matrices handle a three-word sentence
   and a three-hundred-word document. At any step, the hidden state depends on everything before it,
   in order.</p>
-  <p>For classification, the final hidden state <code>h_n</code> feeds a softmax, trained end-to-end.
+  <p>For classification, the final hidden state <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math> feeds a softmax, trained end-to-end.
   Pooling all the hidden states works too, for a reason lab 8's averaging could not claim: each
   hidden state already encodes what came before it.</p>
   <p>What this session did not show is whether "everything before it" really reaches back hundreds of

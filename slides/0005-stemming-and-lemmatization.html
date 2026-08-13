@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 1: What NLP is, and your first tool</title>
+<title>Slides — Session 5: Stemming and lemmatization</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -677,374 +677,240 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0001-what-is-nlp-and-your-first-tool.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0005-stemming-and-lemmatization.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 01</p>
-      <h1>What NLP is, and your first tool</h1>
-      <p class="subtitle">Why language is hard for computers — and how to pull facts out of
-      text with a pattern.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 05</p>
+      <h1>Stemming and lemmatization</h1>
+      <p class="subtitle">Two ways of cutting a word down to a root — and how to decide which one
+      a task needs.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What natural language processing is">
+  <section class="slide slide--code" data-title="Where session 4 left off">
     <div class="slide-inner">
-      <h2>What natural language processing is</h2>
+      <h2>One difference is left, and it is the largest</h2>
+      <pre><code>study    studies    studying    studied</code></pre>
+      <p class="aside">Four forms of one word. For counting and for search we want them to count as
+      the same item, so a search for <code>studying</code> finds a page saying
+      <code>studies</code>.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Stemming">
+    <div class="slide-inner">
+      <h2>Stemming: remove the ending by rule</h2>
       <ul>
-        <li>Your phone predicted the next word as you typed</li>
-        <li>Your email put a message in the spam folder</li>
-        <li>A search engine found a page without your exact words</li>
-        <li>Something translated a sentence for you</li>
-        <li>A chatbot gave you a sensible answer</li>
+        <li>The standard tool is the <strong>Porter stemmer</strong></li>
+        <li>An ordered list of rules of the form &ldquo;if a word ends in <code>-ing</code>, remove
+        it&rdquo;</li>
+        <li>No dictionary, and no idea what any word means</li>
       </ul>
-      <p class="aside">By the end of this course, you will have built versions of most of
-      these.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What is NLP?">
+  <section class="slide slide--code" data-title="The study family">
     <div class="slide-inner">
-      <h2>What is NLP?</h2>
+      <h2>The whole family collapses to one string</h2>
+      <pre><code>study      ->  studi
+studies    ->  studi
+studying   ->  studi
+studied    ->  studi</code></pre>
+      <p class="aside">And <code>argue argued argues arguing</code> all become
+      <code>argu</code>.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="studi is not a word">
+    <div class="slide-inner">
+      <p><code>studi</code> is not a word of English.</p>
+      <p style="margin-top:1.4rem">That is not a defect. The stemmer has one job — map related
+      words to the same string — and it did it.</p>
+      <footer>A stem is never displayed. It is an internal key, and for search that is
+      enough.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Where the rules go wrong">
+    <div class="slide-inner">
+      <h2>Rules with no meaning behind them make mistakes</h2>
+      <pre><code>organization   ->  organ     the meaning is gone
+was            ->  wa        not a word
+mice           ->  mice      unchanged
+better         ->  better    no link to "good"</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Three kinds of failure">
+    <div class="slide-inner">
+      <h2>Three kinds of failure</h2>
       <ul>
-        <li>NLP stands for <strong>Natural Language Processing</strong></li>
-        <li>It means teaching computers to work with human language — the words people
-        speak and write</li>
-        <li>Not just English. Any language.</li>
+        <li><code>organization &rarr; organ</code> — the rule removed too much. This is
+        <strong>over-stemming</strong></li>
+        <li><code>was &rarr; wa</code> — a rule fired that should not have, leaving a non-word</li>
+        <li><code>mice</code> — a stemmer can only remove <em>endings</em>, and an irregular plural
+        has no ending to remove, so <code>mouse</code> is out of reach</li>
       </ul>
-      <p class="aside">Every example on the last slide was NLP.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="AI, ML, deep learning">
+  <section class="slide slide--bullets" data-title="Lemmatization">
     <div class="slide-inner">
-      <h2>Terms you will encounter</h2>
+      <h2>Lemmatization: look the word up</h2>
       <ul>
-        <li><strong>AI</strong> — the big goal: make a computer do something that used to
-        need a person</li>
-        <li><strong>Machine learning</strong> — one way to do that: show the computer
-        examples, instead of writing rules yourself</li>
-        <li><strong>Deep learning</strong> — one kind of machine learning: networks with
-        many layers</li>
+        <li>Also reduces a word to a root, but the root is a <strong>dictionary form</strong></li>
+        <li>That form is called the <strong>lemma</strong></li>
+        <li>Because it looks words up rather than chopping them, it reaches the cases stemming
+        cannot</li>
       </ul>
-      <p class="aside">Each one is inside the one before it — like nested circles.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where NLP fits">
+  <section class="slide slide--code" data-title="What lemmatization gets right">
     <div class="slide-inner">
-      <p class="lede">Where NLP fits</p>
-      <p>NLP is not one more item on that list. NLP is a <strong>problem</strong>:
-      language.</p>
-      <footer>People have solved it three ways — rules, then machine learning, then deep
-      learning. This course follows that order, one unit at a time.</footer>
+      <h2>The same four words</h2>
+      <pre><code>mice     ->  mouse     irregular plural
+was      ->  be        irregular verb
+better   ->  good      knows they are related
+studies  ->  study     a real word</code></pre>
+      <p class="aside">Every output appears in a dictionary.</p>
     </div>
   </section>
-  <section class="slide slide--figure" data-title="NLP is not inside machine learning">
+
+  <section class="slide slide--statement" data-title="Stem versus lemma">
     <div class="slide-inner">
-      <h2>Where NLP sits</h2>
-      <svg viewBox="0 0 620 420" role="img" aria-labelledby="stitle sdesc">
-    <title id="stitle">How NLP overlaps artificial intelligence, machine learning and deep
-    learning</title>
-    <desc id="sdesc">Three nested circles on the right: artificial intelligence contains machine
-    learning, which contains deep learning. A large NLP circle on the left overlaps machine
-    learning and deep learning, but extends well outside artificial intelligence altogether. A
-    smaller linguistic processing circle sits further left, overlapping NLP and lying entirely
-    outside artificial intelligence. A computer vision circle at the lower right also overlaps
-    machine learning and deep learning while extending outside artificial intelligence, showing
-    that NLP is one problem area among several.</desc>
-
-    <circle class="fig-set fig-set-ai" cx="420" cy="190" r="165"></circle>
-    <circle class="fig-set fig-set-ml" cx="430" cy="205" r="120"></circle>
-    <circle class="fig-set fig-set-dl" cx="440" cy="220" r="70"></circle>
-    <circle class="fig-set fig-set-nlp" cx="270" cy="250" r="135"></circle>
-    <circle class="fig-set fig-set-side" cx="132" cy="188" r="72"></circle>
-    <circle class="fig-set fig-set-side" cx="500" cy="320" r="85"></circle>
-
-    <text class="fig-setname" x="420" y="55">Artificial intelligence</text>
-    <text class="fig-setname" x="430" y="112">Machine learning</text>
-    <text class="fig-setname" x="440" y="225">Deep learning</text>
-    <text class="fig-setname" x="200" y="315">NLP</text>
-    <text class="fig-setname-sm" x="118" y="182">Linguistic</text>
-    <text class="fig-setname-sm" x="118" y="199">processing</text>
-    <text class="fig-setname-sm" x="516" y="368">Computer vision</text>
-  </svg>
-      <p class="aside">The part of NLP outside AI is where this course starts. A regular
-      expression is NLP and learns nothing.</p>
+      <p>A <strong>stem</strong> is a shared key.<br><br>A <strong>lemma</strong> is the base form
+      of the word.</p>
+      <footer>That is the whole difference, and it is the one the exam asks for.</footer>
     </div>
   </section>
 
-
-  <section class="slide slide--statement" data-title="Why language is hard for computers">
+  <section class="slide slide--code" data-title="The root can depend on the sentence">
     <div class="slide-inner">
-      <p>Computers are good at deterministic tasks — apps, algorithms, calculations.<br><br>Language is
-      not deterministic.</p>
+      <h2>The root can depend on the sentence</h2>
+      <pre><code>"we had a meeting"       NOUN  ->  meeting
+"they are meeting now"   VERB  ->  meet</code></pre>
+      <p class="aside">Same spelling, different roots. The only thing telling them apart is the
+      <strong>part of speech</strong>.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="The old man the boat">
+  <section class="slide slide--code" data-title="Without a part of speech it guesses">
     <div class="slide-inner">
-      <p class="lede">Read this sentence</p>
-      <p>&ldquo;The old man the boat.&rdquo;</p>
+      <h2>Given no part of speech, it guesses &ldquo;noun&rdquo;</h2>
+      <pre><code>lemmatize("was")           ->  wa      wrong
+lemmatize("was", verb)     ->  be      correct
+
+lemmatize("better")        ->  better  wrong
+lemmatize("better", adj)   ->  good    correct</code></pre>
+      <p class="aside">Guessed wrong, <code>was</code> becomes <code>wa</code> — no better than the
+      stemmer managed.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Man is a verb here">
+  <section class="slide slide--statement" data-title="Which is why spaCy exists for this job">
     <div class="slide-inner">
-      <h2>The sentence is grammatical</h2>
-      <ul>
-        <li>Here <strong>man</strong> is a verb. It means &ldquo;to work on&rdquo; or
-        &ldquo;to operate&rdquo;</li>
-        <li>So: the old people operate the boat</li>
-        <li>We read &ldquo;old man&rdquo; as one noun phrase, then revise when we
-        reached &ldquo;the boat&rdquo;</li>
-      </ul>
-      <p class="aside">A computer has the same problem — and no instinct to help it.</p>
+      <p>Lemmatization is only as good as the part-of-speech information it is given — and
+      labelling every word by hand is not practical.</p>
+      <footer>spaCy works out the part of speech and lemmatizes in one step. Working out the part
+      of speech is a substantial task of its own, and it is session 6.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="I saw a man on a hill with a telescope">
-    <div class="slide-inner">
-      <p class="lede">Who has the telescope?</p>
-      <p>&ldquo;I saw a man on a hill with a telescope.&rdquo;</p>
-      <div class="slide-fig">
-        <svg viewBox="0 0 620 220" role="img" aria-label="Diagram showing two possible attachments of the phrase 'with a telescope' — to 'man' or to 'saw' — creating ambiguity about who holds the telescope.">
-          <text x="230" y="18" class="fig-arc-label fig-arc-a-label" fill="var(--accent)" text-anchor="middle">I saw … with a telescope</text>
-          <path class="fig-arc fig-arc-a" d="M 60,90 Q 240,40 420,90" />
-
-          <text x="10"  y="130" class="fig-word">I</text>
-          <text x="45"  y="130" class="fig-word">saw</text>
-          <text x="115" y="130" class="fig-word">a</text>
-          <text x="150" y="130" class="fig-word">man</text>
-          <text x="215" y="130" class="fig-word">on</text>
-          <text x="255" y="130" class="fig-word">a</text>
-          <text x="290" y="130" class="fig-word">hill</text>
-          <text x="355" y="130" class="fig-word">with</text>
-          <text x="415" y="130" class="fig-word">a</text>
-          <text x="450" y="130" class="fig-word">telescope</text>
-
-          <path class="fig-arc fig-arc-b" d="M 160,145 Q 300,195 420,145" />
-          <text x="270" y="215" class="fig-arc-label" fill="var(--ok)" text-anchor="middle">man … with a telescope</text>
-        </svg>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Language is ambiguous">
-    <div class="slide-inner">
-      <p>Language is <strong>ambiguous</strong>.<br><br>Almost every technique in this
-      course is a way of dealing with it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Where this course goes">
-    <div class="slide-inner">
-      <h2>Where this course goes</h2>
-      <table>
-        <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
-        <tr><td>1</td><td>How do we turn messy text into clean pieces, and find things
-        in it?</td><td>A working search engine</td></tr>
-        <tr><td>2</td><td>How do we turn words into numbers, so maths can work on
-        them?</td><td>A sentiment classifier, and word vectors</td></tr>
-        <tr><td>3</td><td>How do we get a machine to understand context and generate
-        language?</td><td>Neural models, up to fine-tuning BERT</td></tr>
-      </table>
-    </div>
-  </section>
-
-  <section class="slide slide--title" data-title="Regular expressions">
-    <div class="slide-inner">
-      <p class="slide-eyebrow">We start at the bottom</p>
-      <h1>Your first tool: regular expressions</h1>
-      <p class="subtitle">Before any of the more sophisticated methods, we need a way to extract facts from
-      raw text.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Information extraction">
-    <div class="slide-inner">
-      <h2>A regex is a small language for describing shape</h2>
-      <ul>
-        <li>We write a pattern; the computer finds every match</li>
-        <li>The oldest tool in NLP — still one of the most used</li>
-        <li>Pulling structured facts out of unstructured text is called
-        <strong>information extraction</strong></li>
-      </ul>
-      <p class="aside">For dates, phone numbers and ID numbers, this is often the complete
-      answer. No machine learning needed.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="regex, not re">
-    <div class="slide-inner">
-      <h2>In this course we use <code>regex</code>, not <code>re</code></h2>
-      <pre><code>pip install regex</code></pre>
-      <p class="aside">Same functions and same patterns as <code>re</code>.
-      Python's built-in <code>re</code> does not handle Indian scripts correctly. We
-      see why in a minute.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Basic patterns">
-    <div class="slide-inner">
-      <h2>Basic patterns</h2>
-      <table>
-        <tr><th>Pattern</th><th>Means</th></tr>
-        <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td></tr>
-        <tr><td><code>[0-9]</code></td><td>any digit — a range</td></tr>
-        <tr><td><code>[^0-9]</code></td><td><code>^</code> inside brackets means
-        <em>not</em></td></tr>
-        <tr><td><code>.</code></td><td>any character at all</td></tr>
-        <tr><td><code>\d</code> · <code>\w</code> · <code>\s</code></td><td>digit ·
-        word char · whitespace</td></tr>
-        <tr><td><code>a*</code> · <code>a+</code> · <code>a?</code></td><td>zero+ ·
-        one+ · optional</td></tr>
-        <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
-      </table>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="An example">
-    <div class="slide-inner">
-      <h2>An example</h2>
-      <pre><code>"Call +91 98765 43210 before 15/03/2026
-or email admin@manipal.edu"</code></pre>
-      <p class="aside">Three facts hiding in one line of text.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Three patterns, three facts">
-    <div class="slide-inner">
-      <h2>Three patterns, three facts</h2>
-      <div class="split-grid">
-        <div class="split-col">
-          <p class="col-label">Pattern</p>
-          <pre><code>date   \d{2}/\d{2}/\d{4}
-phone  \+91 \d{5} \d{5}
-email  [\w.]+@[\w.]+</code></pre>
-        </div>
-        <div class="split-col">
-          <p class="col-label">Match</p>
-          <pre><code>15/03/2026
-+91 98765 43210
-admin@manipal.edu</code></pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Escaping">
-    <div class="slide-inner">
-      <p class="lede">The most common regex bug</p>
-      <p><code>+</code> means &ldquo;one or more&rdquo;. To match a literal plus sign,
-      write <code>\+</code>.</p>
-      <p class="lede" style="margin-top:1.6rem">This is called <strong>escaping</strong>.
-      Everybody forgets it at least once.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="re vs regex on Kannada">
-    <div class="slide-inner">
-      <h2><code>re.findall(r"\w+", …)</code> on Kannada</h2>
-      <pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"   # "Kannada language" — two words</code></pre>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>['ಕನ', 'ನಡ', 'ಭ', 'ಷ']
-# four "words"</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>['ಕನ್ನಡ', 'ಭಾಷೆ']
-# two words</code></pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="The virama is a mark, not a letter">
-    <div class="slide-inner">
-      <h2>Inside &ldquo;ಕನ್ನಡ&rdquo; — five characters, one special</h2>
-      <table>
-        <tr><th>Char</th><th>Codepoint</th><th>Role</th></tr>
-        <tr><td>ಕ</td><td>U+0C95</td><td>letter</td></tr>
-        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
-        <tr><td>್</td><td>U+0CCD</td><td><strong>combining mark — the virama</strong></td></tr>
-        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
-        <tr><td>ಡ</td><td>U+0CA1</td><td>letter</td></tr>
-      </table>
-      <p class="aside"><code>re</code>'s <code>\w</code> accepts letters and digits but
-      rejects combining marks — so it ends the word at the virama.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement warn" data-title="Why this matters for the rest of the course">
-    <div class="slide-inner">
-      <p class="lede">Why this matters for the rest of the course</p>
-      <p>In Unit II we count words to build bag of words and TF-IDF.<br><br>If the
-      word counts are doubled before we start, every number after that is wrong — and
-      <strong>nothing crashes to tell you.</strong></p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise: PIN and roll number">
+  <section class="slide slide--recall" data-title="Exercise: stem or lemmatize">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Write a pattern</span>
-        <p>A PIN code: exactly six digits.</p>
-        <p>A roll number like <code>MSIS2026001</code>: four letters, then seven digits.</p>
+        <span class="label">Think first</span>
+        <p>A search engine over several million documents. It must be fast, and the roots are never
+        shown to a user — they only match a query against a document.</p>
+        <p>Stem, or lemmatize?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p>PIN code: <code>\d{6}</code></p>
-          <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
-          <p><code>\w{4}\d{7}</code> is not tight enough — <code>\w</code> also accepts
-          digits and underscore.</p>
+          <p><strong>Stem.</strong> Speed matters, the roots are never displayed, and non-words
+          like <code>studi</code> are fine as internal match keys. A dictionary lookup per word
+          would be slower and buy nothing.</p>
+          <p>Change the task so the roots are shown to a user, or fed to a model, and the answer
+          becomes <strong>lemmatize</strong>. As in session 4, the task decides.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: [^aeiou]">
+  <section class="slide slide--table" data-title="Side by side on the same words">
     <div class="slide-inner">
-      <div class="quiz" data-answer="1">
+      <h2>The same words, both methods</h2>
+      <table>
+        <tr><th>Word</th><th>Stem (Porter)</th><th>Lemma</th></tr>
+        <tr><td><code>studies</code></td><td><code>studi</code></td><td><code>study</code></td></tr>
+        <tr><td><code>organization</code></td><td><code>organ</code></td><td><code>organization</code></td></tr>
+        <tr><td><code>was</code></td><td><code>wa</code></td><td><code>be</code></td></tr>
+        <tr><td><code>mice</code></td><td><code>mice</code></td><td><code>mouse</code></td></tr>
+        <tr><td><code>better</code></td><td><code>better</code></td><td><code>good</code></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The two methods compared">
+    <div class="slide-inner">
+      <h2>The two methods compared</h2>
+      <table>
+        <tr><th></th><th>Stemming</th><th>Lemmatization</th></tr>
+        <tr><td>How</td><td>Chops endings by rule</td><td>Looks up the dictionary root</td></tr>
+        <tr><td>Output</td><td>Need not be a real word</td><td>Always a real word</td></tr>
+        <tr><td>Speed</td><td>Very fast</td><td>Slower</td></tr>
+        <tr><td>Needs part of speech?</td><td>No</td><td>Yes</td></tr>
+        <tr><td>Best for</td><td>Search, information retrieval</td><td>Real words, model input,
+        display</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: organization becomes organ">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">What does <code>[^aeiou]</code> match?</p>
+        <p class="q-text">The Porter stemmer turns <code>organization</code> into
+        <code>organ</code>. Why is this not necessarily a problem?</p>
         <div class="q-opts">
-          <button class="opt">A vowel found at the very start of the line</button>
-          <button class="opt">Any single character that is not a vowel</button>
-          <button class="opt">Any vowel repeated one or more times</button>
-          <button class="opt">The literal characters caret and vowels</button>
+          <button class="opt">Because <code>organ</code> is a real English word the model can use</button>
+          <button class="opt">Because the stemmer will correct it on a second pass</button>
+          <button class="opt">Because for search, all that matters is that related words share a key</button>
+          <button class="opt">Because <code>organization</code> is too rare to appear in real text</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>any single character that is not a vowel</strong>.</p>
-          <p><code>^</code> inside brackets means <em>not</em>. Outside brackets it means
-          <em>start of line</em>. Same symbol, two jobs.</p>
+          <p>Correct: <strong>for search, all that matters is that related words share a
+          key</strong>.</p>
+          <p>It becomes a real problem when <code>organ</code> — the instrument, or the body part —
+          stems to the same key and is matched wrongly. That over-collapsing is the cost of the
+          rule-based approach.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: colou?r">
+  <section class="slide slide--quiz" data-title="Quiz: was becomes be">
     <div class="slide-inner">
-      <div class="quiz" data-answer="3">
+      <div class="quiz" data-answer="0">
         <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Which pattern matches both <code>colour</code> and
-        <code>color</code>?</p>
+        <p class="q-text">Why can a lemmatizer turn <code>was</code> into <code>be</code>, when the
+        Porter stemmer only manages <code>wa</code>?</p>
         <div class="q-opts">
-          <button class="opt">The pattern <code>colo*r</code></button>
-          <button class="opt">The pattern <code>colo+r</code></button>
-          <button class="opt">The pattern <code>colo.r</code></button>
-          <button class="opt">The pattern <code>colou?r</code></button>
+          <button class="opt">The lemmatizer looks the word up, so it knows irregular forms</button>
+          <button class="opt">The lemmatizer chops more letters off than the stemmer does</button>
+          <button class="opt">The stemmer only works on nouns, and <code>was</code> is a verb</button>
+          <button class="opt">The lemmatizer runs the stemmer twice and keeps the shorter result</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <code>colou?r</code>.</p>
-          <p><code>?</code> applies to the character right before it — <code>u</code> —
-          making it optional. A quantifier attaches to the <em>one thing</em> just
-          before it.</p>
+          <p>Correct: <strong>the lemmatizer looks the word up, so it knows irregular
+          forms</strong>.</p>
+          <p>Stemming only removes endings, so <code>was &rarr; be</code> and <code>mice &rarr;
+          mouse</code> are beyond it — there is no ending to remove. The costs are the part of
+          speech, and the speed.</p>
         </div>
       </div>
     </div>
@@ -1053,11 +919,11 @@ admin@manipal.edu</code></pre>
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Language is ambiguous, and a computer has no intuition for resolving it.<br><br>But when
-      the thing we want has a fixed <strong>shape</strong> — a date, a phone number, an
-      identifier — a regular expression will find it, and a trained model is unlikely to do
-      better.</p>
-      <footer>Next: capturing groups, alternatives, and the greedy matching trap.</footer>
+      <p>Stemming chops by rule: fast, no dictionary, need not give a real word, right for
+      search. Lemmatization looks up: accurate, needs the part of speech, slower, right when the
+      output must be real words.</p>
+      <footer>That completes the cleaning sequence. Next: part-of-speech tagging — the information
+      lemmatization just asked for.</footer>
     </div>
   </section>
 
@@ -1066,12 +932,16 @@ admin@manipal.edu</code></pre>
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Read §2.6 only this week — the chapter covers other topics
-          that come later in the course.</p>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 2, §2.3</p>
+          <p class="ref-note">&ldquo;Word Normalization, Lemmatization and Stemming&rdquo; — the
+          same section as session 4, so the reading carries over.</p>
           <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
           target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+        </li>
+        <li>
+          <p class="ref-title">Porter (1980) — <em>An algorithm for suffix stripping</em></p>
+          <p class="ref-note">The original rules. Still readable, and still in use.</p>
         </li>
       </ul>
     </div>

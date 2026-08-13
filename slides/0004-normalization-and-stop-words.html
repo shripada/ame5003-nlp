@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 1: What NLP is, and your first tool</title>
+<title>Slides — Session 4: Normalization and stop words</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -677,374 +677,251 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0001-what-is-nlp-and-your-first-tool.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0004-normalization-and-stop-words.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 01</p>
-      <h1>What NLP is, and your first tool</h1>
-      <p class="subtitle">Why language is hard for computers — and how to pull facts out of
-      text with a pattern.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 04</p>
+      <h1>Cleaning up text</h1>
+      <p class="subtitle">Normalization and stop words: deciding which differences do not matter,
+      and removing them.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What natural language processing is">
+  <section class="slide slide--code" data-title="Where session 3 left off">
     <div class="slide-inner">
-      <h2>What natural language processing is</h2>
+      <h2>Session 3 gave us a list of tokens</h2>
+      <pre><code>"US"    "us"    "U.S."    "Us"</code></pre>
+      <p class="aside">A reader treats some of these as the same word. To the computer they are
+      four different strings, with nothing connecting them.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What normalization is">
+    <div class="slide-inner">
+      <p class="lede">Normalization</p>
+      <p>Normalization deliberately <strong>destroys information</strong> we have judged to be
+      irrelevant.</p>
+      <footer>Not a side effect. The purpose. The difficulty is deciding what is safe to
+      discard.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Case folding">
+    <div class="slide-inner">
+      <h2>Case folding</h2>
+      <pre><code>"AMAZING"   "Amazing"   "amazing"
+
+        ->   "amazing"</code></pre>
+      <p class="aside">Three strings become one, so every capitalisation is counted together. For
+      counting and searching, this is what we want.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What lowercasing merges">
+    <div class="slide-inner">
+      <h2>What lowercasing merges</h2>
       <ul>
-        <li>Your phone predicted the next word as you typed</li>
-        <li>Your email put a message in the spam folder</li>
-        <li>A search engine found a page without your exact words</li>
-        <li>Something translated a sentence for you</li>
-        <li>A chatbot gave you a sensible answer</li>
+        <li><code>US</code> the country and <code>us</code> the word — now one token</li>
+        <li><code>Apple</code> the company and <code>apple</code> the fruit</li>
+        <li><code>Polish</code> from Poland and <code>polish</code> for shoes</li>
       </ul>
-      <p class="aside">By the end of this course, you will have built versions of most of
-      these.</p>
+      <p class="aside">In each case the capital letter carried real meaning, and lowercasing
+      discarded it.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What is NLP?">
-    <div class="slide-inner">
-      <h2>What is NLP?</h2>
-      <ul>
-        <li>NLP stands for <strong>Natural Language Processing</strong></li>
-        <li>It means teaching computers to work with human language — the words people
-        speak and write</li>
-        <li>Not just English. Any language.</li>
-      </ul>
-      <p class="aside">Every example on the last slide was NLP.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="AI, ML, deep learning">
-    <div class="slide-inner">
-      <h2>Terms you will encounter</h2>
-      <ul>
-        <li><strong>AI</strong> — the big goal: make a computer do something that used to
-        need a person</li>
-        <li><strong>Machine learning</strong> — one way to do that: show the computer
-        examples, instead of writing rules yourself</li>
-        <li><strong>Deep learning</strong> — one kind of machine learning: networks with
-        many layers</li>
-      </ul>
-      <p class="aside">Each one is inside the one before it — like nested circles.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where NLP fits">
-    <div class="slide-inner">
-      <p class="lede">Where NLP fits</p>
-      <p>NLP is not one more item on that list. NLP is a <strong>problem</strong>:
-      language.</p>
-      <footer>People have solved it three ways — rules, then machine learning, then deep
-      learning. This course follows that order, one unit at a time.</footer>
-    </div>
-  </section>
-  <section class="slide slide--figure" data-title="NLP is not inside machine learning">
-    <div class="slide-inner">
-      <h2>Where NLP sits</h2>
-      <svg viewBox="0 0 620 420" role="img" aria-labelledby="stitle sdesc">
-    <title id="stitle">How NLP overlaps artificial intelligence, machine learning and deep
-    learning</title>
-    <desc id="sdesc">Three nested circles on the right: artificial intelligence contains machine
-    learning, which contains deep learning. A large NLP circle on the left overlaps machine
-    learning and deep learning, but extends well outside artificial intelligence altogether. A
-    smaller linguistic processing circle sits further left, overlapping NLP and lying entirely
-    outside artificial intelligence. A computer vision circle at the lower right also overlaps
-    machine learning and deep learning while extending outside artificial intelligence, showing
-    that NLP is one problem area among several.</desc>
-
-    <circle class="fig-set fig-set-ai" cx="420" cy="190" r="165"></circle>
-    <circle class="fig-set fig-set-ml" cx="430" cy="205" r="120"></circle>
-    <circle class="fig-set fig-set-dl" cx="440" cy="220" r="70"></circle>
-    <circle class="fig-set fig-set-nlp" cx="270" cy="250" r="135"></circle>
-    <circle class="fig-set fig-set-side" cx="132" cy="188" r="72"></circle>
-    <circle class="fig-set fig-set-side" cx="500" cy="320" r="85"></circle>
-
-    <text class="fig-setname" x="420" y="55">Artificial intelligence</text>
-    <text class="fig-setname" x="430" y="112">Machine learning</text>
-    <text class="fig-setname" x="440" y="225">Deep learning</text>
-    <text class="fig-setname" x="200" y="315">NLP</text>
-    <text class="fig-setname-sm" x="118" y="182">Linguistic</text>
-    <text class="fig-setname-sm" x="118" y="199">processing</text>
-    <text class="fig-setname-sm" x="516" y="368">Computer vision</text>
-  </svg>
-      <p class="aside">The part of NLP outside AI is where this course starts. A regular
-      expression is NLP and learns nothing.</p>
-    </div>
-  </section>
-
-
-  <section class="slide slide--statement" data-title="Why language is hard for computers">
-    <div class="slide-inner">
-      <p>Computers are good at deterministic tasks — apps, algorithms, calculations.<br><br>Language is
-      not deterministic.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="The old man the boat">
-    <div class="slide-inner">
-      <p class="lede">Read this sentence</p>
-      <p>&ldquo;The old man the boat.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Man is a verb here">
-    <div class="slide-inner">
-      <h2>The sentence is grammatical</h2>
-      <ul>
-        <li>Here <strong>man</strong> is a verb. It means &ldquo;to work on&rdquo; or
-        &ldquo;to operate&rdquo;</li>
-        <li>So: the old people operate the boat</li>
-        <li>We read &ldquo;old man&rdquo; as one noun phrase, then revise when we
-        reached &ldquo;the boat&rdquo;</li>
-      </ul>
-      <p class="aside">A computer has the same problem — and no instinct to help it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="I saw a man on a hill with a telescope">
-    <div class="slide-inner">
-      <p class="lede">Who has the telescope?</p>
-      <p>&ldquo;I saw a man on a hill with a telescope.&rdquo;</p>
-      <div class="slide-fig">
-        <svg viewBox="0 0 620 220" role="img" aria-label="Diagram showing two possible attachments of the phrase 'with a telescope' — to 'man' or to 'saw' — creating ambiguity about who holds the telescope.">
-          <text x="230" y="18" class="fig-arc-label fig-arc-a-label" fill="var(--accent)" text-anchor="middle">I saw … with a telescope</text>
-          <path class="fig-arc fig-arc-a" d="M 60,90 Q 240,40 420,90" />
-
-          <text x="10"  y="130" class="fig-word">I</text>
-          <text x="45"  y="130" class="fig-word">saw</text>
-          <text x="115" y="130" class="fig-word">a</text>
-          <text x="150" y="130" class="fig-word">man</text>
-          <text x="215" y="130" class="fig-word">on</text>
-          <text x="255" y="130" class="fig-word">a</text>
-          <text x="290" y="130" class="fig-word">hill</text>
-          <text x="355" y="130" class="fig-word">with</text>
-          <text x="415" y="130" class="fig-word">a</text>
-          <text x="450" y="130" class="fig-word">telescope</text>
-
-          <path class="fig-arc fig-arc-b" d="M 160,145 Q 300,195 420,145" />
-          <text x="270" y="215" class="fig-arc-label" fill="var(--ok)" text-anchor="middle">man … with a telescope</text>
-        </svg>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Language is ambiguous">
-    <div class="slide-inner">
-      <p>Language is <strong>ambiguous</strong>.<br><br>Almost every technique in this
-      course is a way of dealing with it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Where this course goes">
-    <div class="slide-inner">
-      <h2>Where this course goes</h2>
-      <table>
-        <tr><th>Unit</th><th>Question</th><th>What you build</th></tr>
-        <tr><td>1</td><td>How do we turn messy text into clean pieces, and find things
-        in it?</td><td>A working search engine</td></tr>
-        <tr><td>2</td><td>How do we turn words into numbers, so maths can work on
-        them?</td><td>A sentiment classifier, and word vectors</td></tr>
-        <tr><td>3</td><td>How do we get a machine to understand context and generate
-        language?</td><td>Neural models, up to fine-tuning BERT</td></tr>
-      </table>
-    </div>
-  </section>
-
-  <section class="slide slide--title" data-title="Regular expressions">
-    <div class="slide-inner">
-      <p class="slide-eyebrow">We start at the bottom</p>
-      <h1>Your first tool: regular expressions</h1>
-      <p class="subtitle">Before any of the more sophisticated methods, we need a way to extract facts from
-      raw text.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Information extraction">
-    <div class="slide-inner">
-      <h2>A regex is a small language for describing shape</h2>
-      <ul>
-        <li>We write a pattern; the computer finds every match</li>
-        <li>The oldest tool in NLP — still one of the most used</li>
-        <li>Pulling structured facts out of unstructured text is called
-        <strong>information extraction</strong></li>
-      </ul>
-      <p class="aside">For dates, phone numbers and ID numbers, this is often the complete
-      answer. No machine learning needed.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="regex, not re">
-    <div class="slide-inner">
-      <h2>In this course we use <code>regex</code>, not <code>re</code></h2>
-      <pre><code>pip install regex</code></pre>
-      <p class="aside">Same functions and same patterns as <code>re</code>.
-      Python's built-in <code>re</code> does not handle Indian scripts correctly. We
-      see why in a minute.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Basic patterns">
-    <div class="slide-inner">
-      <h2>Basic patterns</h2>
-      <table>
-        <tr><th>Pattern</th><th>Means</th></tr>
-        <tr><td><code>[Cc]at</code></td><td>any one character in the brackets</td></tr>
-        <tr><td><code>[0-9]</code></td><td>any digit — a range</td></tr>
-        <tr><td><code>[^0-9]</code></td><td><code>^</code> inside brackets means
-        <em>not</em></td></tr>
-        <tr><td><code>.</code></td><td>any character at all</td></tr>
-        <tr><td><code>\d</code> · <code>\w</code> · <code>\s</code></td><td>digit ·
-        word char · whitespace</td></tr>
-        <tr><td><code>a*</code> · <code>a+</code> · <code>a?</code></td><td>zero+ ·
-        one+ · optional</td></tr>
-        <tr><td><code>a{2,4}</code></td><td>between two and four</td></tr>
-      </table>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="An example">
-    <div class="slide-inner">
-      <h2>An example</h2>
-      <pre><code>"Call +91 98765 43210 before 15/03/2026
-or email admin@manipal.edu"</code></pre>
-      <p class="aside">Three facts hiding in one line of text.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Three patterns, three facts">
-    <div class="slide-inner">
-      <h2>Three patterns, three facts</h2>
-      <div class="split-grid">
-        <div class="split-col">
-          <p class="col-label">Pattern</p>
-          <pre><code>date   \d{2}/\d{2}/\d{4}
-phone  \+91 \d{5} \d{5}
-email  [\w.]+@[\w.]+</code></pre>
-        </div>
-        <div class="split-col">
-          <p class="col-label">Match</p>
-          <pre><code>15/03/2026
-+91 98765 43210
-admin@manipal.edu</code></pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Escaping">
-    <div class="slide-inner">
-      <p class="lede">The most common regex bug</p>
-      <p><code>+</code> means &ldquo;one or more&rdquo;. To match a literal plus sign,
-      write <code>\+</code>.</p>
-      <p class="lede" style="margin-top:1.6rem">This is called <strong>escaping</strong>.
-      Everybody forgets it at least once.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="re vs regex on Kannada">
-    <div class="slide-inner">
-      <h2><code>re.findall(r"\w+", …)</code> on Kannada</h2>
-      <pre><code>text = "ಕನ್ನಡ ಭಾಷೆ"   # "Kannada language" — two words</code></pre>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>['ಕನ', 'ನಡ', 'ಭ', 'ಷ']
-# four "words"</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>['ಕನ್ನಡ', 'ಭಾಷೆ']
-# two words</code></pre>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="The virama is a mark, not a letter">
-    <div class="slide-inner">
-      <h2>Inside &ldquo;ಕನ್ನಡ&rdquo; — five characters, one special</h2>
-      <table>
-        <tr><th>Char</th><th>Codepoint</th><th>Role</th></tr>
-        <tr><td>ಕ</td><td>U+0C95</td><td>letter</td></tr>
-        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
-        <tr><td>್</td><td>U+0CCD</td><td><strong>combining mark — the virama</strong></td></tr>
-        <tr><td>ನ</td><td>U+0CA8</td><td>letter</td></tr>
-        <tr><td>ಡ</td><td>U+0CA1</td><td>letter</td></tr>
-      </table>
-      <p class="aside"><code>re</code>'s <code>\w</code> accepts letters and digits but
-      rejects combining marks — so it ends the word at the virama.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement warn" data-title="Why this matters for the rest of the course">
-    <div class="slide-inner">
-      <p class="lede">Why this matters for the rest of the course</p>
-      <p>In Unit II we count words to build bag of words and TF-IDF.<br><br>If the
-      word counts are doubled before we start, every number after that is wrong — and
-      <strong>nothing crashes to tell you.</strong></p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise: PIN and roll number">
+  <section class="slide slide--recall" data-title="Exercise: extracting company names">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Write a pattern</span>
-        <p>A PIN code: exactly six digits.</p>
-        <p>A roll number like <code>MSIS2026001</code>: four letters, then seven digits.</p>
+        <span class="label">Think first</span>
+        <p>We are building a system to extract <strong>company names</strong> from news articles,
+        and the first step is to lowercase everything.</p>
+        <p>What has this broken?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p>PIN code: <code>\d{6}</code></p>
-          <p>Roll number: <code>[A-Z]{4}\d{7}</code></p>
-          <p><code>\w{4}\d{7}</code> is not tight enough — <code>\w</code> also accepts
-          digits and underscore.</p>
+          <p>It removes the main clue available. A capital letter in the middle of a sentence is a
+          strong sign that a word is a name — <code>Apple</code>, <code>Rao</code>,
+          <code>Manipal</code>.</p>
+          <p>A step that helps searching harms finding names. There is no normalization that is
+          correct in general, only normalization that is correct for a task.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: [^aeiou]">
+  <section class="slide slide--code" data-title="Two strings that look identical">
+    <div class="slide-inner">
+      <h2>Two strings that look identical</h2>
+      <pre><code>a = "café"     # é stored as ONE character
+b = "café"     # é stored as  e + a separate accent
+
+a == b    ->    False
+len(a)    ->    4
+len(b)    ->    5</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The same word, two encodings">
+    <div class="slide-inner">
+      <h2>Unicode gives two ways to store the same character</h2>
+      <table>
+        <tr><th>Form</th><th>Stored as</th><th>Length</th></tr>
+        <tr><td>precomposed</td><td><code>c</code> <code>a</code> <code>f</code> <code>é</code>
+        (U+00E9)</td><td>4</td></tr>
+        <tr><td>decomposed</td><td><code>c</code> <code>a</code> <code>f</code> <code>e</code>
+        (U+0065) + combining acute (U+0301)</td><td>5</td></tr>
+      </table>
+      <p class="aside">They print the same. If a user types one form and the stored text holds the
+      other, the lookup fails and nothing reports an error.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="NFC">
+    <div class="slide-inner">
+      <h2>Convert both to one standard form first</h2>
+      <pre><code>normalize("NFC", a) == normalize("NFC", b)
+
+        ->    True</code></pre>
+      <p class="aside">This is <strong>Unicode normalization</strong>. The usual choice is
+      <strong>NFC</strong>.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Why this matters for Indian scripts">
+    <div class="slide-inner">
+      <p class="lede">Why this matters for Indian scripts</p>
+      <p>Indian scripts are built from base letters plus combining marks, so the same Kannada word
+      can arrive in two encodings that look identical and compare as unequal.</p>
+      <footer>One rule covers this and session 2 together: use regex to split, and NFC to
+      compare.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Punctuation, numbers, accents">
+    <div class="slide-inner">
+      <h2>The remaining decisions are the same decision</h2>
+      <ul>
+        <li><strong>Punctuation</strong> — strip it to count words; keep it to find sentence
+        boundaries, or to read emoticons in a review</li>
+        <li><strong>Numbers</strong> — replace with <code>&lt;NUM&gt;</code> when the value does
+        not matter; keep it for prices, dates and amounts</li>
+        <li><strong>Accents and spelling</strong> — <code>résumé</code> &rarr;
+        <code>resume</code>, <code>colour</code> &rarr; <code>color</code></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Noise or signal">
+    <div class="slide-inner">
+      <p>There is no fixed procedure. Every one of these steps asks the same question:</p>
+      <p style="margin-top:1.4rem">for <em>this</em> task, is the difference
+      <strong>noise or signal</strong>?</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Stop words">
+    <div class="slide-inner">
+      <h2>Stop words</h2>
+      <ul>
+        <li>Very common words carrying little content — <code>the</code>, <code>is</code>,
+        <code>of</code>, <code>a</code>, <code>and</code></li>
+        <li>They appear in almost every sentence, so each one says little about the topic</li>
+        <li>Ready-made lists exist; NLTK's English list holds about 200 words</li>
+      </ul>
+      <p class="aside">Removing them is only keeping the tokens that are not on the list.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Removing stop words">
+    <div class="slide-inner">
+      <h2>Removing them for search</h2>
+      <pre><code>"this is one of the best phones I have ever bought"
+
+        ->  "best phones ever bought"</code></pre>
+      <p class="aside">What remains carries the substance. Less to store, and the informative words
+      stand out — a real improvement for information retrieval.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="What the list contains">
+    <div class="slide-inner">
+      <h2>Now look at what the list contains</h2>
+      <pre><code>not    no    nor    against    only    very</code></pre>
+      <p class="aside">Every one of these changes the meaning of a sentence — including
+      <code>not</code>, the most important word available for a negative judgement.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="The meaning reverses">
+    <div class="slide-inner">
+      <p class="lede">The same step, on a product review</p>
+      <p>&ldquo;would <strong>not</strong> recommend&rdquo;<br><br>&ldquo;would
+      recommend&rdquo;</p>
+      <footer>The meaning is now reversed. A sentiment system would read a negative review as
+      positive — the same failure as VADER on <em>nightmare</em> in lab 1.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="When to remove stop words">
+    <div class="slide-inner">
+      <h2>When to remove them, and when not to</h2>
+      <table>
+        <tr><th></th><th>Task</th><th>Why</th></tr>
+        <tr><td><strong>Remove</strong></td><td>Search, information retrieval, topic</td>
+        <td>Function words are noise; we want the keywords. This is lab 4.</td></tr>
+        <tr><td><strong>Keep</strong></td><td>Sentiment, question answering</td>
+        <td>Meaning depends on them. <em>&ldquo;To be or not to be&rdquo;</em> is entirely stop
+        words.</td></tr>
+      </table>
+      <p class="aside">Modern systems remove fewer stop words than older ones did — the models can
+      now use these words rather than being confused by them.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: lowercasing destroys information">
     <div class="slide-inner">
       <div class="quiz" data-answer="1">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">What does <code>[^aeiou]</code> match?</p>
+        <p class="q-text">Why does lowercasing a document count as <em>destroying</em>
+        information?</p>
         <div class="q-opts">
-          <button class="opt">A vowel found at the very start of the line</button>
-          <button class="opt">Any single character that is not a vowel</button>
-          <button class="opt">Any vowel repeated one or more times</button>
-          <button class="opt">The literal characters caret and vowels</button>
+          <button class="opt">Because lowercase letters take up less space to store on disk</button>
+          <button class="opt">Because case can carry meaning, and merging it cannot be undone</button>
+          <button class="opt">Because some languages have no lowercase form of their letters</button>
+          <button class="opt">Because the tokenizer runs again after every case-folding step</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>any single character that is not a vowel</strong>.</p>
-          <p><code>^</code> inside brackets means <em>not</em>. Outside brackets it means
-          <em>start of line</em>. Same symbol, two jobs.</p>
+          <p>Correct: <strong>case can carry meaning, and merging it cannot be undone</strong>.</p>
+          <p>Once <code>US</code> and <code>us</code> have both become <code>us</code>, nothing
+          says which was which. Acceptable when the distinction was noise, a real loss when it was
+          signal.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: colou?r">
+  <section class="slide slide--quiz" data-title="Quiz: when removing stop words is a mistake">
     <div class="slide-inner">
       <div class="quiz" data-answer="3">
         <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Which pattern matches both <code>colour</code> and
-        <code>color</code>?</p>
+        <p class="q-text">For which task is removing stop words most likely to be a
+        <strong>mistake</strong>?</p>
         <div class="q-opts">
-          <button class="opt">The pattern <code>colo*r</code></button>
-          <button class="opt">The pattern <code>colo+r</code></button>
-          <button class="opt">The pattern <code>colo.r</code></button>
-          <button class="opt">The pattern <code>colou?r</code></button>
+          <button class="opt">Searching a large collection of documents by keyword</button>
+          <button class="opt">Finding which topic a long news article is about</button>
+          <button class="opt">Counting the most frequent content words in a book</button>
+          <button class="opt">Deciding whether a product review is positive or negative</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <code>colou?r</code>.</p>
-          <p><code>?</code> applies to the character right before it — <code>u</code> —
-          making it optional. A quantifier attaches to the <em>one thing</em> just
-          before it.</p>
+          <p>Correct: <strong>deciding whether a review is positive or negative</strong>.</p>
+          <p>Sentiment is carried by exactly the words the list discards — <code>not</code>,
+          <code>no</code>, <code>very</code>. The other three depend on content words, so removing
+          function words helps them.</p>
         </div>
       </div>
     </div>
@@ -1053,11 +930,10 @@ admin@manipal.edu</code></pre>
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Language is ambiguous, and a computer has no intuition for resolving it.<br><br>But when
-      the thing we want has a fixed <strong>shape</strong> — a date, a phone number, an
-      identifier — a regular expression will find it, and a trained model is unlikely to do
-      better.</p>
-      <footer>Next: capturing groups, alternatives, and the greedy matching trap.</footer>
+      <p>Every cleaning step discards information on purpose. Whether that helps or harms depends
+      entirely on the task, so there is <strong>no single correct way to clean text</strong>.</p>
+      <footer>Next: stemming and lemmatization — where <code>studies</code> becomes either
+      <code>studi</code> or <code>study</code>.</footer>
     </div>
   </section>
 
@@ -1066,10 +942,10 @@ admin@manipal.edu</code></pre>
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Read §2.6 only this week — the chapter covers other topics
-          that come later in the course.</p>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 2, §2.3</p>
+          <p class="ref-note">&ldquo;Word Normalization, Lemmatization and Stemming&rdquo;. Short,
+          and it covers this session and the next one together.</p>
           <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
           target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
         </li>

@@ -1,0 +1,1347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 29 — Self-attention: query, key, value</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 29</p>
+  <h1>Self-attention: query, key, value, and the <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math></h1>
+  <p class="subtitle">Session 28's three operations, pointed at one sequence instead of two. The
+  arithmetic barely changes. What changes is that the recurrence is left with nothing to do — and that
+  a set of vectors compared pairwise has no notion of word order at all.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>The same mechanism, pointed at one sequence</h2>
+
+<p>Session 28 built attention out of three operations: score every encoder state against the decoder's
+current state, softmax the scores into weights, take the weighted average of the encoder states. Those
+two sequences were different sequences. A decoder state asked the question and the encoder states
+answered it.</p>
+
+<p>This session points the identical machinery at <strong>one</strong> sequence. In
+<strong>self-attention</strong>, each position of a sequence attends to the positions of that same
+sequence, so the thing asking and the thing answering are drawn from the same sentence. SLP3 describes
+the result as "a way to compute a vector representation for a token at a particular layer of a
+transformer, by selectively attending to and integrating information from prior tokens at the previous
+layer."</p>
+
+<p>Nothing in score–softmax–weighted-average changes. What changes is what is being compared to what,
+and the chapter's opening example shows why that is worth doing:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §8.1, on Figure 8.3</span>
+  <p>The current token is <em>it</em>, in the sentence <em>The chicken didn't cross the road because it
+  was too tired</em>. "The tokens <strong>chicken</strong> and <strong>road</strong> both have a high
+  attention weight, meaning that as we are computing the representation for <em>it</em>, we will draw
+  most heavily on the representation for <em>chicken</em> and <em>road</em>. This will be useful in
+  building the final representation for <em>it</em>, since it will end up coreferring with either
+  <em>chicken</em> or <em>road</em>."</p>
+</div>
+
+<p>This is the same job session 23's recurrence was doing — build a representation of a word that
+depends on its context — reached a different way. The RNN carried context forward one step at a time
+through <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>. Self-attention fetches it directly, in one operation, from wherever in the
+sentence it happens to be.</p>
+
+<h2>Query, key, value</h2>
+
+<p>Three names appear here that session 28 did not need, and SLP3 introduces them as three roles that
+a single input vector plays during the computation:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §8.1.1</span>
+  <p>"As the current element being compared to the preceding inputs. We'll refer to this role as a
+  <strong>query</strong>. In its role as a preceding input that is being compared to the current
+  element to determine a similarity weight. We'll refer to this role as a <strong>key</strong>. And
+  finally, as a <strong>value</strong> of a preceding element that gets weighted and summed up to
+  compute the output for the current element."</p>
+</div>
+
+<p>So a <strong>query</strong> is what a position uses to ask, a <strong>key</strong> is what a
+position offers to be matched against, and a <strong>value</strong> is what a position contributes once
+it has been matched. Every position plays all three roles in the course of one layer: it is the query
+when its own output is being computed, and a key and a value when everybody else's is.</p>
+
+<p>Rather than use the raw <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> for all three jobs, transformers give each role its own
+projection. Three weight matrices, learned like any other weights:</p>
+
+<div class="meq" data-eqno="8.9"><math data-tex="q_i = x_i W^Q \qquad k_i = x_i W^K \qquad v_i = x_i W^V" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>Q</mi></msup><mspace width="2em"></mspace><msub><mi>k</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>K</mi></msup><mspace width="2em"></mspace><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>V</mi></msup></mrow></math><span class="eqno">(8.9)</span></div>
+
+<p>The shapes are worth having, because they are the first place the three roles visibly differ.
+<math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math> and <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math> are both <math data-tex="[d \times d_k]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, since a query and a key have to
+be dot-producted together and therefore must have the same dimensionality. <math data-tex="W^V"><msup><mi>W</mi><mi>V</mi></msup></math> is
+<math data-tex="[d \times d_v]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and <math data-tex="d_v"><msub><mi>d</mi><mi>v</mi></msub></math> is free — nothing dots a value against anything.</p>
+
+<div class="callout">
+  <span class="label">One vector asked to do more than one job — session 25 again</span>
+  <p>This diagnosis has appeared before in Unit III. Session 25 opened on it: a plain RNN asks
+  <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> to be the memory, the output and the input to the next step all at once, and those
+  jobs want different things. The LSTM's answer was to <strong>split the vector</strong> into a cell
+  state and a hidden state.</p>
+  <p>Self-attention reaches the same diagnosis about <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> and answers it differently:
+  <mark>project the vector three ways instead of splitting it</mark>. The projections are learned, so
+  the model can decide what a position should advertise as a key and what it should hand over as a
+  value, and these need not be the same thing. Same diagnosis, different repair.</p>
+</div>
+
+<h2>The equations, against session 28's</h2>
+
+<p>Here is the whole of single-head self-attention, in SLP3's numbering:</p>
+
+<table>
+  <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+  <tr><td>project each input into its three roles</td>
+      <td><math data-tex="q_i = x_i W^Q \qquad k_j = x_j W^K \qquad v_j = x_j W^V"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>Q</mi></msup><mspace width="2em"></mspace><msub><mi>k</mi><mi>j</mi></msub><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msup><mi>W</mi><mi>K</mi></msup><mspace width="2em"></mspace><msub><mi>v</mi><mi>j</mi></msub><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msup><mi>W</mi><mi>V</mi></msup></mrow></math></td>
+      <td>(8.10)</td></tr>
+  <tr><td><strong>score</strong>, scaled</td>
+      <td><math data-tex="\mathrm{score}(x_i, x_j) = \dfrac{q_i \cdot k_j}{\sqrt{d_k}}"><mrow><mpadded lspace="0"><mi>score</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac></mstyle></mrow></math></td><td>(8.11)</td></tr>
+  <tr><td><strong>normalise</strong> into weights</td>
+      <td><math data-tex="\alpha_{ij} = \mathrm{softmax}(\mathrm{score}(x_i, x_j))\quad \forall j \le i"><mrow><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>score</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="1em"></mspace><mi>∀</mi><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math></td><td>(8.12)</td></tr>
+  <tr><td><strong>average</strong> the values under those weights</td>
+      <td><math data-tex="\mathrm{head}_i = \sum_{j \le i} \alpha_{ij} v_j"><mrow><msub><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi></msub><mo>=</mo><msub><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></msub><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><msub><mi>v</mi><mi>j</mi></msub></mrow></math></td><td>(8.13)</td></tr>
+  <tr><td>reshape the result</td>
+      <td><math data-tex="a_i = \mathrm{head}_i W^O"><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>=</mo><msub><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi></msub><msup><mi>W</mi><mi>O</mi></msup></mrow></math></td><td>(8.14)</td></tr>
+</table>
+
+<p>Put the middle three beside session 28's (13.35), (13.36) and (13.37). They are the same three
+lines, in the same order, doing the same three things. Two differences and no others:</p>
+
+<ul>
+  <li><strong>The score compares projections instead of raw states.</strong> Session 28 dotted
+  <math data-tex="h^d_{i-1}"><msubsup><mi>h</mi><mrow><mi>i</mi><mo>−</mo><mn>1</mn></mrow><mi>d</mi></msubsup></math> with <math data-tex="h^e_j"><msubsup><mi>h</mi><mi>j</mi><mi>e</mi></msubsup></math> directly. Here the dot product is between
+  <math data-tex="q_i"><msub><mi>q</mi><mi>i</mi></msub></math> and <math data-tex="k_j"><msub><mi>k</mi><mi>j</mi></msub></math>, which are <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> and <math data-tex="x_j"><msub><mi>x</mi><mi>j</mi></msub></math> seen through
+  two different learned matrices. Note what this buys: it is a <em>parameterised</em> score, so it
+  belongs with the bilinear (13.38) rather than with the plain dot product — and in fact
+  <math data-tex="q_i \cdot k_j = x_i W^Q (W^K)^{\mathsf{T}} x_j^{\mathsf{T}}"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>Q</mi></msup><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msup><mi>W</mi><mi>K</mi></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>𝖳</mi></msup><msubsup><mi>x</mi><mi>j</mi><mi class="tml-sml-pad">𝖳</mi></msubsup></mrow></math>, which is (13.38)'s bilinear form with
+  <math data-tex="W_s = W^Q (W^K)^{\mathsf{T}}"><mrow><msub><mi>W</mi><mi>s</mi></msub><mo>=</mo><msup><mi>W</mi><mi>Q</mi></msup><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msup><mi>W</mi><mi>K</mi></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>𝖳</mi></msup></mrow></math>. The three-scoring-functions table at the end of session 28 already had
+  a row for this.</li>
+  <li><strong>The score is divided by <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>.</strong> That is the next section.</li>
+</ul>
+
+<p>Equation (8.14) is new rather than different: <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> reshapes the head's output back to
+the model dimensionality <math data-tex="d"><mi>d</mi></math>, so that <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> and <math data-tex="a_i"><msub><mi>a</mi><mi>i</mi></msub></math> have the same
+width and the layer can be stacked on top of another one. It does no attending, and it will matter far
+more in session 30, where there are several heads whose outputs have to be recombined.</p>
+
+<div class="callout warn">
+  <span class="label">Why (8.12) says <math data-tex="\forall j \le i"><mrow><mi>∀</mi><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> and not <math data-tex="\forall j"><mrow><mi>∀</mi><mi>j</mi></mrow></math></span>
+  <p>Chapter 8 develops self-attention for a left-to-right language model, so every equation in it
+  restricts attention to the current position and the ones before it — "when processing
+  <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math>, the model has access to <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> as well as the representations of all the
+  prior tokens in the context window but no tokens after <math data-tex="i"><mi>i</mi></math>." The reason is the obvious
+  one: a model being trained to predict the next word must not be allowed to look at it.</p>
+  <p>That restriction is called <strong>causal masking</strong>, it is not part of the attention
+  mechanism itself, and <mark>session 31 is where it is taught</mark>, once encoder blocks and decoder
+  blocks have been separated. Take it for now as a fact about the equations you are reading: the sum
+  runs over <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> because chapter 8's model is a decoder.</p>
+</div>
+
+<h2>Where the <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> comes from</h2>
+
+<p>SLP3 gives a reason for the division, and it is a true one, but it is not an answer to the question
+this session was set. The chapter says the scaling exists because "the result of a dot product can be
+an arbitrarily large (positive or negative) value, and exponentiating large values can lead to
+numerical issues and loss of gradients during training", and that we therefore "scale the dot product
+by a factor related to the size of the embeddings".</p>
+
+<p>That explains why <em>some</em> division is wanted. It does not explain why the divisor is the square
+root of <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> rather than <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>, or <math data-tex="\log d_k"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></math>, or 10. The derivation is
+in the paper that introduced the transformer, in a footnote, and it is two sentences long:</p>
+
+<div class="callout">
+  <span class="label">Vaswani et al. 2017, footnote 4</span>
+  <p>"To illustrate why the dot products get large, assume that the components of <math data-tex="q"><mi>q</mi></math> and
+  <math data-tex="k"><mi>k</mi></math> are independent random variables with mean 0 and variance 1. Then their dot product,
+  <math data-tex="q \cdot k = \sum_i q_i k_i"><mrow><mi>q</mi><mo>⋅</mo><mi>k</mi><mo>=</mo><msub><mo movablelimits="false">∑</mo><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub><msub><mi>k</mi><mi>i</mi></msub></mrow></math>, has mean 0 and variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>."</p>
+</div>
+
+<p>That is the whole argument. A dot product of two <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>-dimensional vectors is a sum of
+<math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> independent terms; variances of independent terms add, so the variance of the sum grows
+in proportion to <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>. Variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> means a standard deviation of
+<math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>, so the typical size of a score grows like <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> — and dividing by
+<math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> puts it back to about 1 whatever the dimension. The divisor is the standard deviation
+of the thing being divided.</p>
+
+<p>The claim is easy to check, and worth checking, since the rest of the section depends on it. Drawing
+20,000 pairs of vectors per row with components from a standard normal distribution:</p>
+
+<table>
+  <tr><th><math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math></th><th>observed var(<math data-tex="q \cdot k"><mrow><mi>q</mi><mo>⋅</mo><mi>k</mi></mrow></math>)</th><th>predicted variance</th>
+      <th>observed sd</th><th><math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math></th></tr>
+  <tr><td>8</td><td>8.0</td><td>8</td><td>2.82</td><td>2.83</td></tr>
+  <tr><td>64</td><td>63.6</td><td>64</td><td>7.98</td><td>8.00</td></tr>
+  <tr><td>512</td><td>515.1</td><td>512</td><td>22.70</td><td>22.63</td></tr>
+</table>
+
+<p><math data-tex="d_k = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>64</mn></mrow></math> is the value used in the original transformer, so the middle row is the case
+that matters in practice: without the division, scores arriving at the softmax are typically spread
+over a range of about ±8 instead of ±1. Recall from session 20 what a softmax does with an input spread
+that wide. Exponentiating puts <math data-tex="e^{8} \approx 2981"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">8</mn></msup><mo>≈</mo><mn>2981</mn></mrow></math> against <math data-tex="e^{-8} \approx 0.0003"><mrow><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>8</mn></mrow></msup><mo>≈</mo><mn>0.0003</mn></mrow></math>, the largest
+score takes essentially all of the weight, and every other position is switched off. That is a
+<strong>saturated</strong> softmax, and its real cost is the gradient: a weight already at 0.9999 has
+almost no derivative, so nothing about the scores can be learned any more.</p>
+
+<p>The scaling does not change what the softmax is or what it computes. It keeps its input in the range
+where it still distinguishes things.</p>
+
+<div class="callout warn">
+  <span class="label">Session 28's objection, settled — and only partly</span>
+  <p>Last session conceded a real weakness and promised it here. Session 19 established that a raw dot
+  product favours long vectors, which is why cosine similarity divides by both vectors' lengths;
+  equation (13.35) divided by nothing. So the objection was correct, and the promise was that this
+  session would divide.</p>
+  <p>Be precise about what has actually been fixed, because the two divisions are not the same
+  division. <mark>Cosine divides by the actual lengths of the two vectors in front of it.
+  <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> divides by the expected scale of a score at this dimensionality</mark> — a single
+  constant, identical for every pair in the sequence. It is a fix for scores growing with
+  <em>dimension</em>. It is not a fix for one key vector being longer than another, and a key with a
+  large norm still scores highly against everything. Attention as used in practice is genuinely not
+  normalised in cosine's sense. What keeps that from being fatal is layer normalisation, which appears
+  in session 31 as part of the transformer block, and which acts on the vectors rather than on the
+  scores.</p>
+</div>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>Three input vectors in two dimensions, and take all three projection matrices to be the identity —
+  <math data-tex="W^Q = W^K = W^V = I"><mrow><msup><mi>W</mi><mi>Q</mi></msup><mo>=</mo><msup><mi>W</mi><mi>K</mi></msup><mo>=</mo><msup><mi>W</mi><mi>V</mi></msup><mo>=</mo><mi>I</mi></mrow></math> — so that <math data-tex="q_i = k_i = v_i = x_i"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>k</mi><mi>i</mi></msub><mo>=</mo><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub></mrow></math> and every number below
+  can be done by hand:</p>
+  <div class="meq"><math data-tex="x_1 = (1,\, 0) \qquad x_2 = (0,\, 1) \qquad x_3 = (1,\, 1)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><msub><mi>x</mi><mn>3</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+  <p>Compute the attention weights <math data-tex="\alpha_{2j}"><msub><mi>α</mi><mrow><mn>2</mn><mi>j</mi></mrow></msub></math> for the query at position 2, and then the output
+  <math data-tex="\mathrm{head}_2"><msub><mpadded lspace="0"><mi>head</mi></mpadded><mn>2</mn></msub></math>. Here <math data-tex="d_k = 2"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>2</mn></mrow></math>, so <math data-tex="\sqrt{d_k} = 1.4142"><mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo>=</mo><mn>1.4142</mn></mrow></math>, and ignore the
+  <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> restriction — attend over all three positions.</p>
+  <p>Then answer the part that matters: what happens to those weights if all three input vectors are
+  multiplied by 10?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p>The query is <math data-tex="q_2 = x_2 = (0,1)"><mrow><msub><mi>q</mi><mn>2</mn></msub><mo>=</mo><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0,1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. The three raw dot products are
+    <math data-tex="q_2 \cdot k_1 = 0"><mrow><msub><mi>q</mi><mn>2</mn></msub><mo>⋅</mo><msub><mi>k</mi><mn>1</mn></msub><mo>=</mo><mn>0</mn></mrow></math>, <math data-tex="q_2 \cdot k_2 = 1"><mrow><msub><mi>q</mi><mn>2</mn></msub><mo>⋅</mo><msub><mi>k</mi><mn>2</mn></msub><mo>=</mo><mn>1</mn></mrow></math> and <math data-tex="q_2 \cdot k_3 = 1"><mrow><msub><mi>q</mi><mn>2</mn></msub><mo>⋅</mo><msub><mi>k</mi><mn>3</mn></msub><mo>=</mo><mn>1</mn></mrow></math>. Dividing each
+    by <math data-tex="1.4142"><mn>1.4142</mn></math> and taking the softmax:</p>
+    <table>
+      <tr><th></th><th>position 1</th><th>position 2</th><th>position 3</th><th></th></tr>
+      <tr><td>scaled scores</td><td>0.0000</td><td>0.7071</td><td>0.7071</td><td></td></tr>
+      <tr><td><math data-tex="\alpha_{2j}"><msub><mi>α</mi><mrow><mn>2</mn><mi>j</mi></mrow></msub></math></td><td>0.1978</td><td>0.4011</td><td>0.4011</td><td>sums to 1.0000</td></tr>
+    </table>
+<div class="meq"><math data-tex="\begin{aligned}
+\mathrm{head}_2 &amp;= 0.1978\,(1,0) + 0.4011\,(0,1) + 0.4011\,(1,1) \\
+&amp;= (0.5989,\, 0.8022)
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mpadded lspace="0"><mi>head</mi></mpadded><mn>2</mn></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.1978</mn><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1,0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>0.4011</mn><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0,1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>0.4011</mn><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1,1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0.5989</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.8022</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
+    <p>Positions 2 and 3 tie, which they should: <math data-tex="x_2"><msub><mi>x</mi><mn>2</mn></msub></math> and <math data-tex="x_3"><msub><mi>x</mi><mn>3</mn></msub></math> have the same
+    dot product with the query. Position 1 is orthogonal to the query and still receives weight 0.198 —
+    a score of zero is not a weight of zero, because <math data-tex="e^{0} = 1"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">0</mn></msup><mo>=</mo><mn>1</mn></mrow></math>.</p>
+    <p><strong>Now multiply every input by 10.</strong> The vectors are <math data-tex="(10,0)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>10,0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>,
+    <math data-tex="(0,10)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0,10</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>, <math data-tex="(10,10)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>10,10</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>. Both the query and the keys grew, so the dot products
+    grow by a factor of <strong>100</strong>, not 10: they are now 0, 100 and 100, and the scaled scores
+    are 0, 70.71 and 70.71.</p>
+    <table>
+      <tr><th></th><th>position 1</th><th>position 2</th><th>position 3</th></tr>
+      <tr><td><math data-tex="\alpha_{2j}"><msub><mi>α</mi><mrow><mn>2</mn><mi>j</mi></mrow></msub></math></td><td><math data-tex="9.8 \times 10^{-32}"><mrow><mn>9.8</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>32</mn></mrow></msup></mrow></math></td><td>0.5000</td><td>0.5000</td></tr>
+    </table>
+    <p>Position 1's weight has fallen from 0.198 to about <math data-tex="10^{-31}"><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>31</mn></mrow></msup></math>. <mark>One of the three
+    inputs has been erased from the output entirely</mark>, and nothing was masked — the softmax
+    saturated on its own. The weights that survive are 0.5 and 0.5, so all information about
+    <em>how much</em> more relevant they were has been flattened too.</p>
+    <p>Scaling the inputs by 10 is not something that happens on purpose. Increasing <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>
+    is, and by footnote 4 it has the same effect on the scores for the same reason. That is the failure
+    the <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> exists to delay — and note the word <em>delay</em>: dividing by a constant
+    slows the growth, it does not abolish it.</p>
+  </div>
+</div>
+
+<h2>What it buys: the recurrence is gone</h2>
+
+<p>Sessions 25 and 26 closed on the same limitation, and neither the LSTM nor the GRU could fix it:
+<math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> cannot be computed until <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> exists, so a sequence must be processed
+one step at a time. Self-attention has no such dependency. Look again at (8.10)–(8.13): every
+<math data-tex="a_i"><msub><mi>a</mi><mi>i</mi></msub></math> depends only on the <math data-tex="x"><mi>x</mi></math>s, and never on any other <math data-tex="a"><mi>a</mi></math>. So all
+<math data-tex="n"><mi>n</mi></math> outputs can be computed at once, and §8.3 writes the entire layer as a handful of matrix
+multiplications. Pack the <math data-tex="N"><mi>N</mi></math> input embeddings into a matrix <math data-tex="X"><mi>X</mi></math> of shape
+<math data-tex="[N \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>N</mi><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, one token per row, and:</p>
+
+<table>
+  <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+  <tr><td>all projections at once</td>
+      <td><math data-tex="Q = X W^Q \qquad K = X W^K \qquad V = X W^V"><mrow><mi>Q</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>Q</mi></msup><mspace width="2em"></mspace><mi>K</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>K</mi></msup><mspace width="2em"></mspace><mi>V</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>V</mi></msup></mrow></math></td><td>(8.32)</td></tr>
+  <tr><td>the whole head</td>
+      <td><math data-tex="\mathrm{head} = \mathrm{softmax}(\mathrm{mask}(Q K^{\mathsf{T}} / \sqrt{d_k}))\, V"><mrow><mpadded lspace="0"><mi>head</mi></mpadded><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>mask</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>V</mi></mrow></math></td><td>(8.33)</td></tr>
+  <tr><td>output projection</td><td><math data-tex="A = \mathrm{head}\, W^O"><mrow><mi>A</mi><mo>=</mo><mpadded lspace="0"><mi>head</mi></mpadded><mspace width="0.1667em"></mspace><msup><mi>W</mi><mi>O</mi></msup></mrow></math></td><td>(8.34)</td></tr>
+</table>
+
+<p><math data-tex="Q K^{\mathsf{T}}"><mrow><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup></mrow></math> is an <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix, and its <math data-tex="(i, j)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>i</mi><mo separator="true">,</mo><mi>j</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math> entry is
+<math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math> — every score in the layer, computed in one multiplication. <math data-tex="\mathrm{mask}"><mpadded lspace="0"><mi>mask</mi></mpadded></math> is
+the <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> restriction from the callout above, now that it has to be done to a whole matrix
+at once: the upper triangle is set to <math data-tex="-\infty"><mrow><mo form="prefix" stretchy="false">−</mo><mi>∞</mi></mrow></math>, which the softmax turns into zero, "thus
+eliminating any knowledge of words that follow in the sequence". Session 31 will explain when that is
+wanted and when it is not.</p>
+
+<p>SLP3 gives <math data-tex="N"><mi>N</mi></math> for real language models as commonly 1K to 32K tokens. That is the scale at
+which "one matrix multiply rather than <math data-tex="N"><mi>N</mi></math> sequential steps" stops being an aesthetic
+preference. It is also, unavoidably, an <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix, so the cost is quadratic in the
+sequence length — which is the price this design pays, and which session 28's teacher notes flagged as
+arriving here.</p>
+
+<p>The second gain is separate from parallelism and easy to conflate with it. Session 24's subject was
+that gradient information from token 1 reaches token <math data-tex="n"><mi>n</mi></math> through <math data-tex="n - 1"><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></math>
+multiplications by the same matrix, and that <math data-tex="U^{n-1}"><msup><mi>U</mi><mrow class="tml-sml-pad"><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></math> either vanishes or explodes. In
+self-attention there is no such product, because there is no chain:</p>
+
+<table>
+  <tr><th>sequence length <math data-tex="n"><mi>n</mi></math></th><th>RNN: steps from token 1 to token <math data-tex="n"><mi>n</mi></math></th>
+      <th>self-attention</th></tr>
+  <tr><td>10</td><td>9</td><td>1</td></tr>
+  <tr><td>50</td><td>49</td><td>1</td></tr>
+  <tr><td>200</td><td>199</td><td><strong>1</strong></td></tr>
+</table>
+
+<p>Every position is one dot product away from every other position it is allowed to see, at any
+distance. Session 24's problem does not get mitigated here in the way the LSTM mitigated it; the
+structure that caused it is absent. This is the argument that justifies the whole back half of Unit
+III, and it is why the transformer displaced the recurrent network rather than supplementing it.</p>
+
+<figure>
+  <svg viewBox="0 0 700 480" role="img" aria-labelledby="amtitle amdesc">
+    <title id="amtitle">The attention matrix for one sentence attending to itself</title>
+    <desc id="amdesc">An eleven by eleven grid. The sentence "The chicken didn't cross the road because
+    it was too tired" runs down the left side, one token per row, and across the top, one token per
+    column. Each cell is shaded in proportion to the attention weight from the row's token to the
+    column's token. The upper triangle above the diagonal is greyed out and empty, because a token may
+    not attend to tokens that follow it. The diagonal is generally dark, since a token is similar to
+    itself. In the row for the word "it", two cells off the diagonal are conspicuously darker than the
+    rest: the cells in the columns for "chicken" and "road".</desc>
+
+    <!-- weighted cells: fill-opacity is the attention weight itself -->
+    <rect class="fig-cell" x="132" y="112" width="30" height="30" fill-opacity="1.00"></rect>
+    <rect class="fig-cell" x="132" y="142" width="30" height="30" fill-opacity="0.25"></rect><rect class="fig-cell" x="162" y="142" width="30" height="30" fill-opacity="0.75"></rect>
+    <rect class="fig-cell" x="132" y="172" width="30" height="30" fill-opacity="0.13"></rect><rect class="fig-cell" x="162" y="172" width="30" height="30" fill-opacity="0.33"></rect><rect class="fig-cell" x="192" y="172" width="30" height="30" fill-opacity="0.54"></rect>
+    <rect class="fig-cell" x="132" y="202" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="162" y="202" width="30" height="30" fill-opacity="0.32"></rect><rect class="fig-cell" x="192" y="202" width="30" height="30" fill-opacity="0.21"></rect><rect class="fig-cell" x="222" y="202" width="30" height="30" fill-opacity="0.39"></rect>
+    <rect class="fig-cell" x="132" y="232" width="30" height="30" fill-opacity="0.23"></rect><rect class="fig-cell" x="162" y="232" width="30" height="30" fill-opacity="0.10"></rect><rect class="fig-cell" x="192" y="232" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="222" y="232" width="30" height="30" fill-opacity="0.17"></rect><rect class="fig-cell" x="252" y="232" width="30" height="30" fill-opacity="0.41"></rect>
+    <rect class="fig-cell" x="132" y="262" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="162" y="262" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="192" y="262" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="222" y="262" width="30" height="30" fill-opacity="0.20"></rect><rect class="fig-cell" x="252" y="262" width="30" height="30" fill-opacity="0.25"></rect><rect class="fig-cell" x="282" y="262" width="30" height="30" fill-opacity="0.34"></rect>
+    <rect class="fig-cell" x="132" y="292" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="162" y="292" width="30" height="30" fill-opacity="0.11"></rect><rect class="fig-cell" x="192" y="292" width="30" height="30" fill-opacity="0.10"></rect><rect class="fig-cell" x="222" y="292" width="30" height="30" fill-opacity="0.22"></rect><rect class="fig-cell" x="252" y="292" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="282" y="292" width="30" height="30" fill-opacity="0.15"></rect><rect class="fig-cell" x="312" y="292" width="30" height="30" fill-opacity="0.29"></rect>
+    <rect class="fig-cell" x="132" y="322" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="162" y="322" width="30" height="30" fill-opacity="0.33"></rect><rect class="fig-cell" x="192" y="322" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="222" y="322" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="252" y="322" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="282" y="322" width="30" height="30" fill-opacity="0.27"></rect><rect class="fig-cell" x="312" y="322" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="342" y="322" width="30" height="30" fill-opacity="0.11"></rect>
+    <rect class="fig-cell" x="132" y="352" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="162" y="352" width="30" height="30" fill-opacity="0.11"></rect><rect class="fig-cell" x="192" y="352" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="222" y="352" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="252" y="352" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="282" y="352" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="312" y="352" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="342" y="352" width="30" height="30" fill-opacity="0.22"></rect><rect class="fig-cell" x="372" y="352" width="30" height="30" fill-opacity="0.25"></rect>
+    <rect class="fig-cell" x="132" y="382" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="162" y="382" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="192" y="382" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="222" y="382" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="252" y="382" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="282" y="382" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="312" y="382" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="342" y="382" width="30" height="30" fill-opacity="0.11"></rect><rect class="fig-cell" x="372" y="382" width="30" height="30" fill-opacity="0.14"></rect><rect class="fig-cell" x="402" y="382" width="30" height="30" fill-opacity="0.26"></rect>
+    <rect class="fig-cell" x="132" y="412" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="162" y="412" width="30" height="30" fill-opacity="0.15"></rect><rect class="fig-cell" x="192" y="412" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="222" y="412" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="252" y="412" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="282" y="412" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="312" y="412" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="342" y="412" width="30" height="30" fill-opacity="0.20"></rect><rect class="fig-cell" x="372" y="412" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="402" y="412" width="30" height="30" fill-opacity="0.10"></rect><rect class="fig-cell" x="432" y="412" width="30" height="30" fill-opacity="0.18"></rect>
+
+    <!-- the future: blanked before the softmax (session 31) -->
+    <rect class="fig-mask" x="162" y="112" width="300" height="30"></rect>
+    <rect class="fig-mask" x="192" y="142" width="270" height="30"></rect>
+    <rect class="fig-mask" x="222" y="172" width="240" height="30"></rect>
+    <rect class="fig-mask" x="252" y="202" width="210" height="30"></rect>
+    <rect class="fig-mask" x="282" y="232" width="180" height="30"></rect>
+    <rect class="fig-mask" x="312" y="262" width="150" height="30"></rect>
+    <rect class="fig-mask" x="342" y="292" width="120" height="30"></rect>
+    <rect class="fig-mask" x="372" y="322" width="90" height="30"></rect>
+    <rect class="fig-mask" x="402" y="352" width="60" height="30"></rect>
+    <rect class="fig-mask" x="432" y="382" width="30" height="30"></rect>
+
+    <!-- grid -->
+    <rect class="fig-cellg" x="132" y="112" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="142" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="172" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="202" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="232" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="262" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="292" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="322" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="352" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="382" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="412" width="330" height="30"></rect>
+    <rect class="fig-cellg" x="132" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="162" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="192" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="222" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="252" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="282" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="312" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="342" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="372" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="402" y="112" width="30" height="330"></rect>
+    <rect class="fig-cellg" x="432" y="112" width="30" height="330"></rect>
+
+    <!-- row labels: the query -->
+    <text class="fig-label" x="126" y="132" text-anchor="end">The</text>
+    <text class="fig-label" x="126" y="162" text-anchor="end">chicken</text>
+    <text class="fig-label" x="126" y="192" text-anchor="end">didn&#39;t</text>
+    <text class="fig-label" x="126" y="222" text-anchor="end">cross</text>
+    <text class="fig-label" x="126" y="252" text-anchor="end">the</text>
+    <text class="fig-label" x="126" y="282" text-anchor="end">road</text>
+    <text class="fig-label" x="126" y="312" text-anchor="end">because</text>
+    <text class="fig-label" x="126" y="342" text-anchor="end">it</text>
+    <text class="fig-label" x="126" y="372" text-anchor="end">was</text>
+    <text class="fig-label" x="126" y="402" text-anchor="end">too</text>
+    <text class="fig-label" x="126" y="432" text-anchor="end">tired</text>
+
+    <!-- column labels: the key -->
+    <text class="fig-label" x="152" y="104" transform="rotate(-45 152 104)">The</text>
+    <text class="fig-label" x="182" y="104" transform="rotate(-45 182 104)">chicken</text>
+    <text class="fig-label" x="212" y="104" transform="rotate(-45 212 104)">didn&#39;t</text>
+    <text class="fig-label" x="242" y="104" transform="rotate(-45 242 104)">cross</text>
+    <text class="fig-label" x="272" y="104" transform="rotate(-45 272 104)">the</text>
+    <text class="fig-label" x="302" y="104" transform="rotate(-45 302 104)">road</text>
+    <text class="fig-label" x="332" y="104" transform="rotate(-45 332 104)">because</text>
+    <text class="fig-label" x="362" y="104" transform="rotate(-45 362 104)">it</text>
+    <text class="fig-label" x="392" y="104" transform="rotate(-45 392 104)">was</text>
+    <text class="fig-label" x="422" y="104" transform="rotate(-45 422 104)">too</text>
+    <text class="fig-label" x="452" y="104" transform="rotate(-45 452 104)">tired</text>
+
+    <!-- axis names and the two annotations -->
+    <text class="fig-axname" x="20" y="100">queries</text>
+    <text class="fig-axname" x="480" y="60">keys →</text>
+    <text class="fig-axname" x="480" y="335">← this row is</text>
+    <text class="fig-axname" x="480" y="355">one softmax:</text>
+    <text class="fig-axname" x="480" y="375">11 cells,</text>
+    <text class="fig-axname" x="480" y="395">summing to 1</text>
+    <text class="fig-axname" x="252" y="150">the future,</text>
+    <text class="fig-axname" x="252" y="170">blanked before</text>
+    <text class="fig-axname" x="252" y="190">the softmax</text>
+  </svg>
+  <figcaption>Self-attention for a whole sentence at once — the <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix of equation
+  (8.33), after the mask and the softmax. Row <math data-tex="i"><mi>i</mi></math> holds the weights <math data-tex="\alpha_{ij}"><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></math> used to
+  build <math data-tex="a_i"><msub><mi>a</mi><mi>i</mi></msub></math>, and each cell's darkness <em>is</em> its weight. Two things are visible here
+  that the equations state but do not show. First, <mark>every row is a distribution</mark>: the eleven
+  cells of the <em>it</em> row sum to exactly 1, which is why the first row — with only one cell
+  available — is at full strength. Second, <mark>the reach is one step, not <math data-tex="n"><mi>n</mi></math></mark>: the
+  <em>it</em> row puts 0.33 on <em>chicken</em> and 0.27 on <em>road</em>, six and two positions back,
+  without passing through anything in between. The greyed upper triangle is the <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> of
+  (8.12). The weights shown are illustrative — they are genuine row softmaxes over scores chosen to
+  match SLP3's Figure 8.3, not the output of a trained model.</figcaption>
+</figure>
+
+<div class="quiz" data-answer="1">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What distinguishes self-attention from the attention taught in session 28?</p>
+  <div class="q-opts">
+    <button class="opt">It is faster because it has fewer parameters than session 28's mechanism, since
+    the score no longer has to be computed once for every step of the decoder</button>
+    <button class="opt">It relates positions within a single sequence to each other, rather than
+    relating a decoder state to the hidden states of a separate encoder</button>
+    <button class="opt">It replaces the softmax with a scaled dot product, so the weights are no longer
+    required to be non-negative and to sum to one across a row</button>
+    <button class="opt">It attends to the input embeddings directly instead of to hidden states, which
+    is what removes the need for an encoder to be trained at all</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>one sequence attending to itself</strong>. Both the query and the keys
+    come from the same sentence, which is what the word <em>self</em> is doing in the name.</p>
+    <p>The first option is worth ruling out carefully, because its conclusion is right and its reasoning
+    is wrong. Self-attention <em>is</em> faster in practice, but it has <strong>more</strong>
+    parameters, not fewer — <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math>, <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math>, <math data-tex="W^V"><msup><mi>W</mi><mi>V</mi></msup></math> and <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math>
+    are all new. <mark>The speed comes from parallelism, not from size</mark>: the <math data-tex="n"><mi>n</mi></math>
+    sequential steps of a recurrence become one matrix multiply. The third has it backwards; the softmax
+    is still there in (8.11)–(8.12), and the scaling happens inside it. The fourth is a fair guess about
+    a real detail — attention in a transformer does apply to the layer's inputs — but those inputs are
+    the previous layer's outputs once layers are stacked, and nothing here removes any need to train.</p>
+  </div>
+</div>
+
+<h2>What it cost: there is no order</h2>
+
+<p>Now the bill. Look at (8.13) again and ask what the output <math data-tex="\mathrm{head}_i"><msub><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi></msub></math> is a function of. It
+is a weighted sum of the values, where the weights come from dot products between pairs. Nothing in
+that expression refers to <em>where</em> in the sequence anything sits. Shuffle the input tokens, and
+the same set of pairs produces the same set of dot products, and every output is the same as before —
+attached to a different position, but otherwise untouched.</p>
+
+<p>So self-attention as defined here treats its input as a <strong>set</strong> of vectors, not a
+sequence of them. <em>The chicken crossed the road</em> and <em>the road crossed the chicken</em> are
+the same object to it. The causal mask conceals this a little, since <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> at least knows
+which positions come earlier — but knowing that <math data-tex="j"><mi>j</mi></math> precedes <math data-tex="i"><mi>i</mi></math> is a long way
+from knowing that <math data-tex="j"><mi>j</mi></math> is three words before <math data-tex="i"><mi>i</mi></math>, and the weights themselves are
+still computed with no reference to distance.</p>
+
+<p>Set that against session 27, which opened by arguing that translation is not word-by-word
+substitution: <em>the green witch arrived</em> becomes <em>llegó la bruja verde</em>, an alignment of 4,
+1, 3, 2, and the whole point was that word order differs between languages and has to be handled. The
+recurrence handled order for free — it was the one thing an RNN could not fail to represent, because it
+read the words in order. This session threw the recurrence away, and order went with it.</p>
+
+<p>That is the largest thing self-attention gives up, it was given up in exchange for everything in the
+previous section, and it has to be repaired rather than tolerated. <strong>Session 30</strong> repairs
+it, by adding a representation of position to the input embeddings, and then returns to the mechanism to
+run several attention heads in parallel rather than one.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Why is the dot product in equation (8.11) divided by <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>?</p>
+  <div class="q-opts">
+    <button class="opt">Because the dot product of two <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>-dimensional random vectors has
+    variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>, so scores grow with the dimension and saturate the softmax</button>
+    <button class="opt">Because dividing by it is what makes the attention weights non-negative and
+    guarantees that each row of the attention matrix sums to exactly one</button>
+    <button class="opt">Because the query and the key may have been produced by different projection
+    matrices, and the division puts the two of them back onto a common scale</button>
+    <button class="opt">Because a dot product is proportional to the lengths of both vectors, and
+    dividing by <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> removes the effect of their lengths as cosine does</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the variance argument</strong> — Vaswani's footnote 4. Variance
+    <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> means a typical score of size <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>, and at <math data-tex="d_k = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>64</mn></mrow></math> that
+    is scores spread over roughly ±8, which the exercise showed is enough to collapse a softmax onto one
+    position.</p>
+    <p>The second is the likeliest error and the one to be firm about: non-negativity and summing to 1
+    are the <strong>softmax's</strong> doing, and they hold whatever the scores are — divided, undivided
+    or multiplied by a thousand. <mark>The scaling changes how sharp the distribution is, never whether
+    it is a distribution.</mark> The fourth is the near-miss discussed in the warning box above: it
+    describes cosine similarity, which divides by the two vectors' <em>actual</em> lengths, whereas
+    <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> is one constant standing for their <em>expected</em> scale. The third invents a
+    problem; <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math> and <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math> differ, but both map into the same
+    <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>-dimensional space, which is exactly why the dot product is defined at all.</p>
+  </div>
+</div>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>Self-attention is session 28's mechanism pointed at a single sequence, so that each position of a
+  sentence attends to positions of that same sentence. Each input vector is projected into three roles
+  by three learned matrices — a <strong>query</strong> for asking, a <strong>key</strong> for being
+  matched against, a <strong>value</strong> for being contributed (8.9) — which is the same "one vector,
+  several jobs" diagnosis that motivated the LSTM in session 25, repaired by projection instead of by
+  splitting. The layer is then five equations (8.10–8.14), of which the middle three are session 28's
+  three unchanged: score, softmax, weighted average. The score is scaled by <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> because
+  the dot product of two <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>-dimensional vectors has variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> — Vaswani's
+  footnote 4, verified by simulation at <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> = 8, 64 and 512 — so without the division the
+  softmax saturates as the dimension grows and the gradients disappear. This is not cosine's
+  normalisation: it divides by the expected scale of a score, not by the actual lengths of the vectors.
+  Because no output depends on any other output, the whole layer packs into three matrix operations
+  (8.32–8.34), <math data-tex="n"><mi>n</mi></math> sequential steps become one multiply, and any two positions are one dot
+  product apart rather than <math data-tex="n - 1"><mrow><mi>n</mi><mo>−</mo><mn>1</mn></mrow></math> — which is session 24's vanishing-gradient problem
+  removed rather than mitigated. The cost is quadratic in sequence length, and worse, a set of vectors
+  compared pairwise carries no word order at all. Session 30 puts order back.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/8.pdf">Speech and Language
+Processing</a></strong>, <strong>§8.1</strong> and <strong>§8.1.1</strong> for query, key, value and
+equations 8.9–8.14, and <strong>§8.3</strong> for the packed form 8.32–8.34 and the mask. Figure 8.3 is
+the sentence used in this lesson's figure and Figure 8.9 is the <math data-tex="Q K^{\mathsf{T}}"><mrow><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup></mrow></math> matrix. The chapter
+continues into multi-head attention and the transformer block, which are sessions 30 and 31 — reading
+ahead is welcome, but the two sections above are what this session covers.</p>
+
+<p><strong><a href="https://arxiv.org/abs/1706.03762">Vaswani et al. 2017, <em>Attention Is All You
+Need</em></a></strong> — <strong>§3.2.1</strong>, and in particular <strong>footnote 4</strong>, which
+is the derivation of the <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> and is quoted in full above. This is a case where the two
+sources do not disagree but divide the labour: SLP3 gives the effect of the scaling and the paper gives
+the reason for its precise form. Read footnote 4 knowing it is two sentences, or it is easy to skim
+past.</p>
+
+<p>§3.2.1 also states the paper's own dimensions — <math data-tex="d_k = d_v = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><msub><mi>d</mi><mi>v</mi></msub><mo>=</mo><mn>64</mn></mrow></math> — which is the middle row
+of the variance table, and it is worth reading §1 and §2 for the paper's framing of the same point this
+lesson closes on: that the recurrence is what prevents parallelisation within a training example.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0028-attention.html">← Session 28: The bottleneck, and attention</a>
+  <a href="0030-multi-head-and-position.html">Session 30: Multi-head attention, and positional
+  embeddings →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

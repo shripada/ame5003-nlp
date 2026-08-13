@@ -1,0 +1,1522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 36 — Chatbots and the course wrap-up</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 36</p>
+  <h1>Chatbots, and the course wrap-up</h1>
+  <p class="subtitle">A task-oriented chatbot fills a frame. Then the table session 22 left
+  standing, extended to the rest of the course.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>Two jobs, one hour</h2>
+
+<p>Session 35 closed by saying this hour is chatbots, and the last hour of the course.
+Both of those are true. The syllabus clause is the application. The calendar also gives
+this sitting the wrap-up: the argument the other thirty-five sessions built.</p>
+
+<h2>Frames and slots</h2>
+
+<p>A traveller wants a flight. A system that books it has to know where from, where to,
+and when. SLP3 Appendix K, <em>Frame-Based Dialogue Systems</em>, calls the knowledge
+structure that holds those facts a <strong>frame</strong>: a collection of
+<strong>slots</strong>, each of which can take a set of possible values. The system's
+job is to fill the slots with the fillers the user intends, and then act — book the
+flight, set the alarm, put the appointment on the calendar.</p>
+
+<p>The architecture is 1977. Appendix K opens on GUS (Bobrow et al.), a travel-planning
+system whose frames became the industrial pattern for task-oriented dialogue for the
+next thirty years. Fig. K.2 is the air-travel frame this hour uses:</p>
+
+<table>
+  <tr><th>slot</th><th>type</th><th>the system's question</th></tr>
+  <tr><td><code>ORIGIN-CITY</code></td><td>city</td>
+      <td>"From what city are you leaving?"</td></tr>
+  <tr><td><code>DESTINATION-CITY</code></td><td>city</td>
+      <td>"Where are you going?"</td></tr>
+  <tr><td><code>DEPARTURE-TIME</code></td><td>time</td>
+      <td>"When would you like to leave?"</td></tr>
+  <tr><td><code>DEPARTURE-DATE</code></td><td>date</td>
+      <td>"What day would you like to leave?"</td></tr>
+  <tr><td><code>ARRIVAL-TIME</code></td><td>time</td>
+      <td>"When do you want to arrive?"</td></tr>
+  <tr><td><code>ARRIVAL-DATE</code></td><td>date</td>
+      <td>"What day would you like to arrive?"</td></tr>
+</table>
+
+<p>Filling that frame from an utterance is three jobs, and K.0.1 names them.
+<strong>Domain classification</strong> asks which frame we are in: airlines, an alarm
+clock, a calendar. <strong>Intent determination</strong> asks what general task the
+user is trying to accomplish: show a flight, set an alarm, remove an appointment. The
+first two together decide which frame we are filling. <strong>Slot filling</strong>
+extracts the particular values the utterance supplies.</p>
+
+<p>K's own worked utterance:</p>
+
+<pre><code>Show me morning flights from Boston to San Francisco on Tuesday
+
+DOMAIN:       AIR-TRAVEL
+INTENT:       SHOW-FLIGHTS
+ORIGIN-CITY:  Boston
+DEST-CITY:    San Francisco
+ORIGIN-DATE:  Tuesday
+ORIGIN-TIME:  morning</code></pre>
+
+<p>The simplest systems write the extractor by hand. K.0.1 gives a regular expression
+for the SET-ALARM intent:</p>
+
+<pre><code>wake me (up) | set (the|an) alarm | get me up</code></pre>
+
+<p>That is sessions 1 and 2. Intent detection can be a pattern. The course opened by
+pulling facts out of text that way; the last hour's simplest chatbot is the same
+tool. Most systems do not write those rules. They learn the three jobs from labelled
+utterances. Practical NLP chapter 6, the prescribed source, is six notebooks that do
+exactly two of them: intent detection on ATIS, and slot filling on SNIPS. The
+chapter's Outline section is still empty. Appendix K is the architecture those
+notebooks implement without naming.</p>
+
+<h2>Intent detection</h2>
+
+<p>Look at <code>INTENT: SHOW-FLIGHTS</code> in the Boston example. One label for the
+whole utterance, chosen from a small fixed set. Session 33 called that
+<strong>sequence classification</strong> and sat a head on a single position's
+encoding:</p>
+
+<div class="meq" data-eqno="10.11"><math data-tex="y = \mathrm{softmax}(h^L_{[\mathrm{CLS}]} W_C)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mi>L</mi></msubsup><msub><mi>W</mi><mi>C</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(10.11)</span></div>
+
+<p>Sentiment, topic, spam: the same recipe. Intent is that recipe pointed at
+<code>SHOW-FLIGHTS</code> rather than at <code>negative</code>. Practical NLP's first
+three notebooks — a CNN/RNN on ATIS, then BERT, then a binary variant — are
+classifiers. The prescribed chatbot's first half is a head the room trained three
+sessions ago.</p>
+
+<h2>Slot filling</h2>
+
+<p>The fillers are spans. <code>San Francisco</code> is two tokens;
+<code>Tuesday morning</code> would be two. Session 7 faced the same problem with
+named entities, and solved it with <strong>BIO</strong>: one tag per token, a
+<code>B-</code> where a span begins, <code>I-</code> where it continues,
+<code>O</code> outside any span. Session 33 implemented that scheme as fine-tuning,
+equation (10.12), on the tags session 7 printed:</p>
+
+<pre><code>The       B-ORG
+Reserve   I-ORG
+Bank      I-ORG
+of        I-ORG
+India     I-ORG
+raised    O
+rates     O
+.</code></pre>
+
+<p>Appendix K recalls the same scheme from chapter 17 — session 7's reading — and
+points it at slots instead of organisations. <code>B-ORG</code> becomes
+<code>B-DES</code>; the encoder underneath is a pretrained language model rather
+than the spaCy tagger session 7 ran. The scheme has not changed. This is its third
+appearance, twenty-nine sessions after the first.</p>
+
+<p>Practical NLP's notebooks treat the two jobs as two models: intent on ATIS, slots
+on SNIPS. Fig. K.3 does both in a single pass. The input words go through a
+pretrained encoder; a feedforward layer and a softmax at each token position emit
+BIO tags; and the domain concatenated with the intent is the desired output at the
+final <code>EOS</code> token.</p>
+
+<pre><code>I          O
+want       O
+to         O
+fly        O
+to         O
+San        B-DES
+Francisco  I-DES
+on         O
+Monday     B-DEPTIME
+afternoon  I-DEPTIME
+please     O
+EOS        AIRLINE-SHOWFLIGHT</code></pre>
+
+<figure>
+  <svg viewBox="0 0 700 390" role="img" aria-labelledby="k3title k3desc">
+    <title id="k3title">One encoder, two heads: BIO tags on every token, domain and intent
+    at EOS</title>
+    <desc id="k3desc">A dashed, faded rectangle labelled pretrained encoder, frozen, spans
+    the middle of the figure, with six token boxes beneath it: San, Francisco, on,
+    Monday, afternoon, EOS. Above the encoder sit two solid rectangles, the trained
+    heads. The left head is a token classifier labelled W_K, with five small tag boxes
+    B-DES, I-DES, O, B-DEPTIME, I-DEPTIME sitting on the first five tokens. The right
+    head is a sequence classifier labelled W_C, outputting AIRLINE-SHOWFLIGHT from the
+    EOS position. Solid arrows run from the encoder to each head. A small legend
+    distinguishes solid trained boxes from the dashed frozen encoder.</desc>
+
+    <rect class="fig-node" x="30" y="10" width="22" height="14" rx="2"></rect>
+    <text class="fig-label" x="58" y="21">trained (the head)</text>
+    <rect class="fig-node fig-frozen" x="230" y="10" width="22" height="14" rx="2"></rect>
+    <text class="fig-label" x="258" y="21">frozen (the encoder)</text>
+
+    <rect class="fig-node" x="30" y="40" width="430" height="70" rx="5"></rect>
+    <text class="fig-label" x="245" y="60" text-anchor="middle">token classifier</text>
+    <text class="fig-glyph" x="245" y="82" text-anchor="middle">W_K</text>
+    <text class="fig-label" x="245" y="100" text-anchor="middle">→  a BIO tag per token</text>
+
+    <rect class="fig-node" x="490" y="40" width="180" height="70" rx="5"></rect>
+    <text class="fig-label" x="580" y="60" text-anchor="middle">sequence classifier</text>
+    <text class="fig-glyph" x="580" y="82" text-anchor="middle">W_C</text>
+    <text class="fig-label" x="580" y="100" text-anchor="middle">→  domain+intent</text>
+
+    <path class="fig-edge" d="M85 168 L120 110"></path>
+    <polygon class="fig-edge-h" points="120,110 109,114 114,120"></polygon>
+    <path class="fig-edge" d="M190 168 L190 110"></path>
+    <polygon class="fig-edge-h" points="190,110 186.5,120 193.5,120"></polygon>
+    <path class="fig-edge" d="M300 168 L300 110"></path>
+    <polygon class="fig-edge-h" points="300,110 296.5,120 303.5,120"></polygon>
+    <path class="fig-edge" d="M405 168 L405 110"></path>
+    <polygon class="fig-edge-h" points="405,110 401.5,120 408.5,120"></polygon>
+    <path class="fig-edge" d="M500 168 L500 110"></path>
+    <polygon class="fig-edge-h" points="500,110 496.5,120 503.5,120"></polygon>
+    <path class="fig-edge" d="M605 168 L580 110"></path>
+    <polygon class="fig-edge-h" points="580,110 585,120 590,114"></polygon>
+
+    <rect class="fig-node fig-frozen" x="30" y="168" width="640" height="56" rx="6"></rect>
+    <text class="fig-label" x="350" y="192" text-anchor="middle">pretrained encoder</text>
+    <text class="fig-label" x="350" y="210" text-anchor="middle">frozen, or barely updated</text>
+
+    <rect class="fig-gate" x="40" y="244" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="85" y="268" text-anchor="middle">San</text>
+    <rect class="fig-gate" x="145" y="244" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="190" y="268" text-anchor="middle">Francisco</text>
+    <rect class="fig-gate" x="250" y="244" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="295" y="268" text-anchor="middle">on</text>
+    <rect class="fig-gate" x="355" y="244" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="400" y="268" text-anchor="middle">Monday</text>
+    <rect class="fig-gate" x="460" y="244" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="505" y="268" text-anchor="middle">afternoon</text>
+    <rect class="fig-gate" x="565" y="244" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="610" y="268" text-anchor="middle">EOS</text>
+
+    <path class="fig-edge" d="M85 244 L85 224"></path>
+    <polygon class="fig-edge-h" points="85,224 81.5,234 88.5,234"></polygon>
+    <path class="fig-edge" d="M190 244 L190 224"></path>
+    <polygon class="fig-edge-h" points="190,224 186.5,234 193.5,234"></polygon>
+    <path class="fig-edge" d="M295 244 L295 224"></path>
+    <polygon class="fig-edge-h" points="295,224 291.5,234 298.5,234"></polygon>
+    <path class="fig-edge" d="M400 244 L400 224"></path>
+    <polygon class="fig-edge-h" points="400,224 396.5,234 403.5,234"></polygon>
+    <path class="fig-edge" d="M505 244 L505 224"></path>
+    <polygon class="fig-edge-h" points="505,224 501.5,234 508.5,234"></polygon>
+    <path class="fig-edge" d="M610 244 L610 224"></path>
+    <polygon class="fig-edge-h" points="610,224 606.5,234 613.5,234"></polygon>
+
+    <text class="fig-label" x="85" y="304" text-anchor="middle">B-DES</text>
+    <text class="fig-label" x="190" y="304" text-anchor="middle">I-DES</text>
+    <text class="fig-label" x="295" y="304" text-anchor="middle">O</text>
+    <text class="fig-label" x="400" y="304" text-anchor="middle">B-DEPTIME</text>
+    <text class="fig-label" x="505" y="304" text-anchor="middle">I-DEPTIME</text>
+    <text class="fig-label" x="610" y="304" text-anchor="middle">AIRLINE-</text>
+    <text class="fig-label" x="610" y="318" text-anchor="middle">SHOWFLIGHT</text>
+
+    <text class="fig-label" x="245" y="348" text-anchor="middle">head reads every hᵢ — session 33, equation (10.12)</text>
+    <text class="fig-label" x="580" y="348" text-anchor="middle">head reads EOS, not [CLS]</text>
+    <text class="fig-label" x="350" y="376" text-anchor="middle">the large object is shared; the two small objects on top are session 33's two recipes</text>
+  </svg>
+  <figcaption>Fig. K.3 redrawn in session 33's vocabulary. A BIO tag at every token,
+  and <code>AIRLINE-SHOWFLIGHT</code> at the last position. Session 33 sat the sequence
+  classifier on <code>[CLS]</code>; Appendix K sits it on <code>EOS</code>. One
+  designated position carries the whole-sequence label — that is a convention, not a
+  law. Dashed and faded marks the encoder as frozen; solid marks the heads as trained.
+  The visual argument is that a frame-based chatbot is two fine-tuning recipes sharing
+  an encoder.</figcaption>
+</figure>
+
+<p>A working system wraps a small loop around that extractor: ask questions until the
+slots are full, query a database, report back, using templates for the replies. K.0.1
+says that much and this hour stops there. Dialogue acts, state tracking and sentence
+realisation are the rest of Appendix K, and they are not this clause.</p>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p><strong>(a)</strong> Given <em>book me a flight to Bengaluru on Tuesday
+  morning</em>, which part is the intent, which parts are slots, and which session
+  taught the machinery for each?</p>
+  <p><strong>(b)</strong> Now: <em>I need to be in Bengaluru for a meeting on Wednesday
+  morning.</em> Which slots can the tagger fill?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><strong>(a).</strong> Intent <code>SHOW-FLIGHTS</code> or
+    <code>BOOK-FLIGHT</code>, from a whole-sequence classification head — session 33,
+    §10.4.1, equation (10.11). Slots
+    <code>DESTINATION-CITY = Bengaluru</code>,
+    <code>DEPARTURE-DATE = Tuesday</code>,
+    <code>DEPARTURE-TIME = morning</code>, via BIO tagging — sessions 7 and 33,
+    §10.5, equation (10.12). The Boston utterance on the board is K's; this one is
+    the same frame with a Karnataka destination.</p>
+    <p><strong>(b).</strong> Destination, yes: <code>Bengaluru</code> is a span to tag.
+    Departure date — <strong>there is no token to tag</strong>. The intended answer is
+    Tuesday, and it comes from knowing that people arrive the day before a meeting,
+    not from the sentence. Same machinery as (a), and it has just run out. The next
+    section is why.</p>
+  </div>
+</div>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">What machinery does a frame-based chatbot need that this course has
+  not already taught?</p>
+  <div class="q-opts">
+    <button class="opt">None — it is sequence classification plus sequence
+    labeling</button>
+    <button class="opt">A dialogue-specific neural architecture, trained end-to-end on
+    conversations</button>
+    <button class="opt">A separate language model for generating the system's
+    replies</button>
+    <button class="opt">Question answering, because a chatbot is a QA system with
+    memory</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>none</strong>. Intent is (10.11); slots are (10.12)
+    with BIO tags. Fig. K.3 is those two heads on one frozen encoder. The loop around
+    them — ask until the slots are full, query, report back — is templates, not a new
+    network.</p>
+    <p>The second is what the word "chatbot" suggests in 2026, and it is a different
+    column of the table that comes next. The third is sentence realisation, which
+    Appendix K does cover and this hour does not; templates already produce the
+    replies. The fourth is the syllabus-level confusion: question answering is
+    session 35, listed separately, and Practical NLP chapter 6 contains none of it.</p>
+  </div>
+</div>
+
+<h2>Two kinds of chatbot</h2>
+
+<p>Practical NLP is a 2020 book. Its chatbot fills a frame and then acts. In 2026 the
+word "chatbot" names something else: an assistant that generates a response to an
+open-ended request. Both are real. They are not the same system, and the prescribed
+source is only the left-hand column.</p>
+
+<table>
+  <tr><th></th><th>task-oriented (Appendix K, Practical NLP Ch6)</th>
+      <th>LLM assistant</th></tr>
+  <tr><td>what it does</td><td>fills a frame, then acts</td>
+      <td>generates a response</td></tr>
+  <tr><td>how it is built</td><td>fine-tuned classifiers — sessions 32–33</td>
+      <td>pretrain, then post-train</td></tr>
+  <tr><td>scope</td><td>one domain, known slots</td>
+      <td>open domain</td></tr>
+  <tr><td>fails by</td><td>not understanding</td>
+      <td>understanding and being wrong</td></tr>
+</table>
+
+<p>Question answering, last session, is not the right-hand column either. The
+syllabus lists machine translation, question answering, chatbots and summarisation
+as four applications. Session 1 named a search engine that finds a page without the
+query's exact words, and a chatbot, as two different bullets. Practical NLP chapter
+6 contains no question answering at all. A chatbot that answers from documents is
+session 35's RAG pointed at a conversation; it is not QA under a new name.</p>
+
+<p>The left-hand column fails in a specific way, and it is the answer to part (b) of
+the exercise. K's tagger fills slots by tagging words in the utterance. A travel
+agent and a client, recorded in SLP3 chapter 25, have this exchange:</p>
+
+<pre><code>A:  And, what day in May did you want to travel?
+C:  OK uh I need to be there for a meeting that's from the 12th to the 15th.</code></pre>
+
+<p>The client never states a travel date. The right answer is the 11th: people arrive
+the day before a meeting. There is no token to tag. Everything this session has
+taught — frames, BIO, a head on <code>EOS</code> — stops at the words that were said.
+The right-hand column exists because the left-hand column cannot draw that
+inference.</p>
+
+<p>How the right-hand column is built is SLP3 chapter 9, <em>Post-training:
+Instruction Tuning, Alignment, and Test-Time Compute</em>. This course does not
+cover it. A pretrained model continues text; it does not follow instructions.
+Chapter 9's own demonstration, from early GPT:</p>
+
+<pre><code>Prompt:   Translate to French: The small dog
+Output:   The small dog crossed the road.</code></pre>
+
+<p>Session 34's translator would not do that. It was trained to translate. A base
+language model given the same instruction ignores it and keeps writing English.
+Everything this course has built stops at the base model. Chapter 9 is the step
+across, and it is the next thing to read, not a thing this hour teaches.</p>
+
+<h2>Evaluating a task-based system</h2>
+
+<p>Appendix K evaluates a task-based system two ways, and they are session 14's
+names. Session 14: intrinsic evaluation is inexpensive and approximate; extrinsic
+evaluation is expensive and definitive.</p>
+
+<p>The extrinsic number is <strong>task success rate</strong> — K also writes
+<strong>task error rate</strong> — the percentage of times the system booked the
+right plane flight. It is the only thing the user cares about, and it needs a whole
+dialogue to measure.</p>
+
+<p>The intrinsic number is <strong>slot error rate</strong>: the percentage of slots
+filled with the correct values, counted as insertions, deletions and substitutions
+over the reference slot count. K's own words: "a more fine-grained, but less
+extrinsic metric."</p>
+
+<div class="meq" data-eqno="K.1"><math data-tex="\mathrm{SlotErrorRate} = \frac{n_{\mathrm{err}}}{n_{\mathrm{ref}}}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>SlotErrorRate</mi></mpadded><mo>=</mo><mfrac><msub><mi>n</mi><mpadded lspace="0"><mi>err</mi></mpadded></msub><msub><mi>n</mi><mpadded lspace="0"><mi>ref</mi></mpadded></msub></mfrac></mrow></math><span class="eqno">(K.1)</span></div>
+
+<p>Here <math data-tex="n_{\mathrm{err}}"><msub><mi>n</mi><mpadded lspace="0"><mi>err</mi></mpadded></msub></math> counts insertions, deletions and substitutions, and
+<math data-tex="n_{\mathrm{ref}}"><msub><mi>n</mi><mpadded lspace="0"><mi>ref</mi></mpadded></msub></math> is the number of slots in the reference. K's worked example:</p>
+
+<pre><code>Make an appointment with Chris at 10:30 in Gates 104
+
+PERSON:  Chris
+TIME:    11:30 a.m.
+ROOM:    Gates 104</code></pre>
+
+<p>Slot error rate <math data-tex="1/3"><mrow><mn>1</mn><mi>/</mi><mn>3</mn></mrow></math>, because the time is wrong. The number does not say
+that the one wrong slot is the one that makes the appointment useless. Session 35
+closed on the same habit: every metric is a proxy. Perplexity, chrF, token F1, and
+now slot error rate.</p>
+
+<p>K notes that slot precision, recall and F-score can also be used. Lab 6 defined
+those three, in week 6, with a hand computation from a confusion matrix. This is
+week 12. The names have not changed.</p>
+
+<h2>When not to answer</h2>
+
+<p>Session 34 closed on a requirement from SLP3 §12.7: systems need confidence
+values so they can abstain from giving incorrect translations that may cause harm.
+Knowing when not to answer was the open problem that chapter named. Appendix K.1.3
+teaches the same decision, with thresholds, for a 1977-descended architecture:</p>
+
+<table>
+  <tr><th>the system's confidence</th><th>what it does</th></tr>
+  <tr><td>below <math data-tex="\alpha"><mi>α</mi></math></td>
+      <td><strong>reject</strong> — "I'm sorry, I didn't understand that"</td></tr>
+  <tr><td><math data-tex="\ge \alpha"><mrow><mo>≥</mo><mi>α</mi></mrow></math></td>
+      <td><strong>confirm explicitly</strong> — "…Is that correct?"</td></tr>
+  <tr><td><math data-tex="\ge \beta"><mrow><mo>≥</mo><mi>β</mi></mrow></math></td>
+      <td><strong>confirm implicitly</strong> — "When do you want to travel
+      <em>to Shanghai</em>?"</td></tr>
+  <tr><td><math data-tex="\ge \gamma"><mrow><mo>≥</mo><mi>γ</mi></mrow></math></td>
+      <td>act, and say nothing</td></tr>
+</table>
+
+<p>Explicit confirmation makes errors easy to correct and is, K says,
+"time-consuming and awkward". A frame-filler from 1977 and a translator from 2026
+have the same problem. The oldest architecture in the session and the newest share
+an open question, and the course can say so because session 34 already named it.</p>
+
+<h2>The bridge session 35 assembled</h2>
+
+<p>Session 35 closed by saying this hour would use RAG as the bridge. A modern
+assistant answering from documents is a retriever plus a generator, which that
+session assembled: Unit I's pipeline, with session 32's encoder repairing vocabulary
+mismatch, feeding session 27's generator. The three architectures sit in one
+sequence:</p>
+
+<p>frames and slots, this session → retrieval-augmented generation, session 35 →
+instruction tuning and alignment, chapter 9, not taught.</p>
+
+<p>The course covers the first two. The third is the chapter it names and stops at.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Why can a task-oriented chatbot not answer an open-domain
+  question?</p>
+  <div class="q-opts">
+    <button class="opt">Its frames and slots are defined in advance for one
+    domain</button>
+    <button class="opt">It has too few parameters</button>
+    <button class="opt">It is the same as question answering, which this course
+    already covered</button>
+    <button class="opt">BIO tagging cannot handle more than a handful of slot
+    types</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the frames are defined in advance</strong>. Domain
+    classification picks among known frames; slot filling extracts known slots. An
+    open-domain question has no such frame. That is a structural limit, not a size
+    one.</p>
+    <p>The second is a size explanation for a structural limit, which is the more
+    instructive error. The third is the syllabus confusion already named: QA is
+    session 35, listed separately. The fourth confuses a tagging scheme with a
+    domain ontology — BIO will tag as many slot types as the label set contains;
+    what it will not do is invent a slot the frame does not have.</p>
+  </div>
+</div>
+
+<h2>What session 1 promised</h2>
+
+<p>Session 1 listed five things the room already used, and said we would cover every
+one of them:</p>
+
+<table>
+  <tr><th>session 1</th><th>where it landed</th></tr>
+  <tr><td>Your phone predicted the next word as you typed</td>
+      <td>language models, sessions 11–14</td></tr>
+  <tr><td>Your email put a message in the spam folder</td>
+      <td>classification, sessions 15–16 and 33</td></tr>
+  <tr><td>A search engine found a page that did not contain your exact words</td>
+      <td>vocabulary mismatch, sessions 8–10, paid in session 35</td></tr>
+  <tr><td>Something translated a sentence for you</td>
+      <td>session 34</td></tr>
+  <tr><td>You asked a chatbot a question and got a sensible answer back</td>
+      <td>this hour</td></tr>
+</table>
+
+<p>The third bullet is session 35's vocabulary-mismatch problem, named in week 1
+before the course had a word for it. Sparse retrieval needs exact overlap; a BERT
+encoder is what a modern retriever encodes the query and the document with. That
+arc is twenty-seven sessions long, and it is already taught. The wrap-up only has
+to point.</p>
+
+<h2>Six representations, then four</h2>
+
+<p>Session 22 closed Unit II with a table and a question. The table, as printed:</p>
+
+<table>
+  <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
+  <tr><td>8</td><td>Incidence matrix</td>
+      <td>a word is present or absent — one bit</td></tr>
+  <tr><td>17</td><td>Bag-of-words</td>
+      <td>presence becomes a count</td></tr>
+  <tr><td>18</td><td>TF-IDF</td>
+      <td>the count is reweighted by how rare the word is</td></tr>
+  <tr><td>19</td><td>Cosine similarity</td>
+      <td>compare those vectors by angle, not length</td></tr>
+  <tr><td>21</td><td>Word2Vec</td>
+      <td>stop counting context, predict it, keep the weights</td></tr>
+  <tr><td>22</td><td>GloVe</td>
+      <td>count context globally, fit vectors to the counts directly</td></tr>
+</table>
+
+<p>Session 22 then listed three things none of that fixes, and said all three are
+Unit III topics. Those three debts are now paid.</p>
+
+<table>
+  <tr><th>what session 22 named</th><th>paid in</th></tr>
+  <tr><td>One vector per word, regardless of how many senses it has</td>
+      <td>session 32, contextual embeddings. Session 21's neighbours of
+      <code>bank</code> were
+      <code>banks 0.744, banking 0.690, Bank 0.670, lender 0.634, banker 0.609,
+      depositors 0.603</code> — every one the financial sense, the river sense
+      absent. Session 32 put those digits back on the board and produced two
+      vectors.</td></tr>
+  <tr><td>Fixed at training time</td>
+      <td>session 35, RAG. The model's weights stay frozen; the documents are
+      current. Session 21's missing <code>COVID</code>, <code>selfie</code>,
+      <code>blockchain</code> and <code>emoji</code> is the same limitation,
+      fourteen sessions earlier.</td></tr>
+  <tr><td>Blind to order</td>
+      <td>sessions 23–31 — recurrence, then attention, then positions. Session 23
+      measured it:
+      <math data-tex="\cos\bigl(\mathrm{avg}(\text{dog},\text{bites},\text{man}),\ \mathrm{avg}(\text{man},\text{bites},\text{dog})\bigr) = 0.9999999999999998"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mpadded lspace="0"><mi>avg</mi></mpadded><mo form="prefix" stretchy="false">(</mo><mtext>dog</mtext><mo separator="true">,</mo><mtext>bites</mtext><mo separator="true">,</mo><mtext>man</mtext><mo form="postfix" stretchy="false">)</mo><mo separator="true">,</mo><mtext> </mtext><mpadded lspace="0"><mi>avg</mi></mpadded><mo form="prefix" stretchy="false">(</mo><mtext>man</mtext><mo separator="true">,</mo><mtext>bites</mtext><mo separator="true">,</mo><mtext>dog</mtext><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mo>=</mo><mn>0.9999999999999998</mn></mrow></math>.</td></tr>
+</table>
+
+<p>The Unit III extension of the table:</p>
+
+<table>
+  <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
+  <tr><td>23–26</td><td>Recurrent hidden state</td>
+      <td>the sequence is processed as a sequence; memory still decays</td></tr>
+  <tr><td>29–31</td><td>Self-attention over the whole sequence</td>
+      <td>every position sees every other; order only via positions</td></tr>
+  <tr><td>32</td><td>Contextual embeddings</td>
+      <td>one vector per <em>occurrence</em>, not per type</td></tr>
+  <tr><td>35</td><td>RAG</td>
+      <td>documents stay current while weights stay frozen</td></tr>
+</table>
+
+<figure>
+  <svg viewBox="0 0 700 712" role="img" aria-labelledby="stairtitle stairdesc">
+    <title id="stairtitle">Ten representations, from an incidence bit to RAG, with
+    session 22's three debts marked where they were paid</title>
+    <desc id="stairdesc">Ten horizontal bars stacked from the bottom of the figure
+    to the top. The bottom six, drawn with a lighter outline, are session 22's table:
+    incidence matrix, bag of words, TF-IDF, cosine, Word2Vec, GloVe. A horizontal
+    rule labelled Unit II / Unit III separates them from the top four, drawn with a
+    heavier outline: recurrent state, self-attention, contextual embeddings, RAG.
+    Three labels sit to the right of the Unit III bars: blind to order against
+    recurrence and attention, one vector per word against contextual embeddings,
+    and fixed at training time against RAG. Session numbers sit in each bar. The
+    two groups are distinguished by outline weight, not by colour alone.</desc>
+
+    <text class="fig-axname" x="280" y="22" text-anchor="middle">Unit III — the three debts paid</text>
+
+    <rect class="fig-node" x="80" y="36" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="66">35</text>
+    <text class="fig-label" x="280" y="58" text-anchor="middle">RAG</text>
+    <text class="fig-label" x="280" y="74" text-anchor="middle">documents current, weights frozen</text>
+    <text class="fig-label" x="600" y="66" text-anchor="middle">fixed at training time</text>
+
+    <path class="fig-edge" d="M280 84 L280 100"></path>
+    <polygon class="fig-edge-h" points="280,84 276.5,94 283.5,94"></polygon>
+
+    <rect class="fig-node" x="80" y="100" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="130">32</text>
+    <text class="fig-label" x="280" y="122" text-anchor="middle">contextual embeddings</text>
+    <text class="fig-label" x="280" y="138" text-anchor="middle">one vector per occurrence</text>
+    <text class="fig-label" x="600" y="130" text-anchor="middle">one vector per word</text>
+
+    <path class="fig-edge" d="M280 148 L280 164"></path>
+    <polygon class="fig-edge-h" points="280,148 276.5,158 283.5,158"></polygon>
+
+    <rect class="fig-node" x="80" y="164" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="100" y="194">29–31</text>
+    <text class="fig-label" x="280" y="186" text-anchor="middle">self-attention</text>
+    <text class="fig-label" x="280" y="202" text-anchor="middle">whole sequence; order via positions</text>
+
+    <path class="fig-edge" d="M280 212 L280 228"></path>
+    <polygon class="fig-edge-h" points="280,212 276.5,222 283.5,222"></polygon>
+
+    <rect class="fig-node" x="80" y="228" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="100" y="258">23–26</text>
+    <text class="fig-label" x="280" y="250" text-anchor="middle">recurrent hidden state</text>
+    <text class="fig-label" x="280" y="266" text-anchor="middle">sequence as sequence; memory decays</text>
+    <text class="fig-label" x="600" y="222" text-anchor="middle">blind to order</text>
+
+    <line class="fig-split" x1="40" y1="292" x2="660" y2="292"></line>
+    <text class="fig-axname" x="280" y="314" text-anchor="middle">Unit II — session 22's table, as printed</text>
+
+    <rect class="fig-node-q" x="80" y="328" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="358">22</text>
+    <text class="fig-label" x="280" y="350" text-anchor="middle">GloVe</text>
+    <text class="fig-label" x="280" y="366" text-anchor="middle">count globally, fit to the counts</text>
+
+    <path class="fig-edge" d="M280 376 L280 392"></path>
+    <polygon class="fig-edge-h" points="280,376 276.5,386 283.5,386"></polygon>
+
+    <rect class="fig-node-q" x="80" y="392" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="422">21</text>
+    <text class="fig-label" x="280" y="414" text-anchor="middle">Word2Vec</text>
+    <text class="fig-label" x="280" y="430" text-anchor="middle">predict context, keep the weights</text>
+
+    <path class="fig-edge" d="M280 440 L280 456"></path>
+    <polygon class="fig-edge-h" points="280,440 276.5,450 283.5,450"></polygon>
+
+    <rect class="fig-node-q" x="80" y="456" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="486">19</text>
+    <text class="fig-label" x="280" y="478" text-anchor="middle">cosine similarity</text>
+    <text class="fig-label" x="280" y="494" text-anchor="middle">compare by angle, not length</text>
+
+    <path class="fig-edge" d="M280 504 L280 520"></path>
+    <polygon class="fig-edge-h" points="280,504 276.5,514 283.5,514"></polygon>
+
+    <rect class="fig-node-q" x="80" y="520" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="550">18</text>
+    <text class="fig-label" x="280" y="542" text-anchor="middle">TF-IDF</text>
+    <text class="fig-label" x="280" y="558" text-anchor="middle">reweight by how rare the word is</text>
+
+    <path class="fig-edge" d="M280 568 L280 584"></path>
+    <polygon class="fig-edge-h" points="280,568 276.5,578 283.5,578"></polygon>
+
+    <rect class="fig-node-q" x="80" y="584" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="614">17</text>
+    <text class="fig-label" x="280" y="606" text-anchor="middle">bag of words</text>
+    <text class="fig-label" x="280" y="622" text-anchor="middle">presence becomes a count</text>
+
+    <path class="fig-edge" d="M280 632 L280 648"></path>
+    <polygon class="fig-edge-h" points="280,632 276.5,642 283.5,642"></polygon>
+
+    <rect class="fig-node-q" x="80" y="648" width="400" height="48" rx="4"></rect>
+    <text class="fig-glyph" x="108" y="678">8</text>
+    <text class="fig-label" x="280" y="670" text-anchor="middle">incidence matrix</text>
+    <text class="fig-label" x="280" y="686" text-anchor="middle">a word is present or absent — one bit</text>
+
+    <text class="fig-label" x="600" y="400" text-anchor="middle">session 22 named</text>
+    <text class="fig-label" x="600" y="416" text-anchor="middle">three remaining</text>
+    <text class="fig-label" x="600" y="432" text-anchor="middle">limitations</text>
+  </svg>
+  <figcaption>Session 22's six rows, as printed, then four more. Heavier outline is
+  Unit III; lighter outline is Unit II — stroke weight, not colour. The three labels
+  on the right are the debts session 22 named, sitting against the rows that paid
+  them. Session 35's vocabulary mismatch is the TF-IDF row meeting the contextual
+  encoder, twenty-seven sessions apart.</figcaption>
+</figure>
+
+<h2>Three habits</h2>
+
+<p>The architectures will date. Three habits the course kept finding will not.</p>
+
+<p><strong>Check the claim against the evidence.</strong> Session 26 told the room
+that four times a well-known claim had been checked and come back weaker than
+advertised: session 18's idf against the Shakespeare features, session 21's
+<math data-tex="\mathrm{king} - \mathrm{man} + \mathrm{woman}"><mrow><mpadded lspace="0"><mi>king</mi></mpadded><mo>−</mo><mpadded lspace="0"><mi>man</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>woman</mi></mpadded></mrow></math> landing on <code>king</code>,
+session 22's GloVe-versus-Word2Vec, session 26's LSTM-versus-GRU in a paper two of
+the GRU's authors signed. Session 32 made next-sentence prediction the fifth, and
+said so. Session 34 ran the same move without numbering it: the easy claim is that
+machine translation reflects its training data; Prates et al. found amplification.
+The habit is more durable than any of the results.</p>
+
+<p><strong>Know what a method cannot do.</strong> Every session in Unit III closed on
+a limitation, and each limitation was the next session's subject. This session's own
+limitation — the meeting that implies a flight date — is the last one, and it has
+no next session. Chapter 9 is the pointer, not the patch.</p>
+
+<p><strong>Every metric is a proxy.</strong> Session 35 already listed the chain:
+perplexity, chrF, token F1. This hour adds slot error rate, and puts the names
+session 14 coined back on. Intrinsic evaluation is inexpensive and approximate;
+extrinsic evaluation is expensive and definitive. Session 34 restated that trade
+for translation; K.0.2 uses it almost verbatim, twenty-two sessions after it was
+taught. Lab 6 remains the reference for precision, recall and F1.</p>
+
+<h2>Where this leaves us</h2>
+
+<p>T3.12 is complete, and with it the last theory clause in the syllabus. A
+task-oriented chatbot is a frame: domain and intent decide which frame, slot
+filling fills it. Intent is sequence classification; slots are BIO tags; Fig. K.3
+does both on one encoder. The simplest filler is a regular expression. The
+classical architecture cannot tag a date that was never said. An LLM assistant is
+a different system, built by a chapter this course names and does not teach, and
+a modern assistant answering from documents is the retriever-plus-generator
+session 35 assembled. Slot error rate is a proxy; task success is the thing the
+user cares about; confidence thresholds decide when not to act.</p>
+
+<p>Session 1 promised five applications and a way of turning language into numbers
+a machine can compare. The five landed. The numbers ran from one bit per word to a
+contextual vector per occurrence, and then to a generator conditioned on documents
+the weights never saw. And knowing when not to answer is still open, for the oldest
+architecture in this hour and for the newest alike.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p>A <strong>frame</strong> is a collection of <strong>slots</strong>. Filling it
+  is <strong>domain classification</strong> plus <strong>intent determination</strong>
+  plus <strong>slot filling</strong>. Intent is session 33's sequence
+  classification; slots are session 7's BIO tags, implemented as session 33's
+  sequence labeling. Fig. K.3 does both on one encoder, with domain and intent at
+  <code>EOS</code> rather than <code>[CLS]</code>. A 1977 architecture and a 2026
+  assistant are different columns; question answering is not a third name for
+  either. <strong>Slot error rate</strong> is intrinsic; <strong>task success
+  rate</strong> is extrinsic; lab 6 still holds precision, recall and F1.
+  Confidence thresholds decide when to reject, confirm, or act. Session 22's six
+  representations extend by four; the three debts that session named are paid.
+  Chapter 9 is named and not taught.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/K.pdf">Speech and
+Language Processing</a></strong>, <strong>Appendix K</strong>,
+<em>Frame-Based Dialogue Systems</em> — <strong>K.0.1, K.0.2 and K.1.3</strong>.
+K.0.1 is frames, slots, domain, intent, slot filling, Fig. K.2 and Fig. K.3.
+K.0.2 is task success and slot error rate. K.1.3 is the confidence thresholds.
+<mark>Skip K.1.1, K.1.2 and K.1.4</mark> — dialogue acts, state tracking and
+sentence realisation, not this hour.</p>
+
+<p><strong>Practical NLP, chapter 6</strong>, the six notebooks: intent detection
+on ATIS (CNN/RNN, BERT, BERT-binary), slot filling on SNIPS (CRFs, BERT), and the
+Chatfuel bot the README describes as a simple chatbot which does not have
+"intelligence". The chapter Outline is empty; Appendix K is the architecture.</p>
+
+<p>SLP3 <strong>chapter 9</strong>, <em>Post-training: Instruction Tuning,
+Alignment, and Test-Time Compute</em>, is the next thing to read and is not this
+hour. Do not start at chapter 25; it is a stub, and the one sentence this session
+took from it is already on the page.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0035-question-answering-and-summarization.html">← Session 35: Question answering and summarisation</a>
+  <span>End of AME 5003 theory</span>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lesson 33 — Fine-tuning, DistilBERT and knowledge distillation</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
+.view-toggle button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
+.view-toggle button[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .view-toggle { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .view-toggle, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 33</p>
+  <h1>Fine-tuning, DistilBERT and knowledge distillation</h1>
+  <p class="subtitle">Session 32 built BERT and stopped at what it is. This session is what it is
+  for: a small head trained on labelled data, the same head pointed at session 7's tagging scheme,
+  and then a smaller copy of the model trained to behave like the large one.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>A head on a pretrained model</h2>
+
+<p>Session 32 closed by planting the split this session is built on. The expensive part —
+pretraining a bidirectional encoder on unlabelled text — is already done. What remains is to sit
+a small piece of task-specific circuitry on top of those representations and train it on a
+labelled task. SLP3 §10.4 names the move in three sentences:</p>
+
+<div class="callout">
+  <span class="label">SLP3 §10.4</span>
+  <p>"we add application-specific circuitry (often called a special head) on top of pretrained
+  models, taking their output as its input. The finetuning process consists of using labeled
+  data about the application to train these additional application-specific parameters.
+  Typically, this training will either freeze or make only minimal adjustments to the pretrained
+  language model parameters."</p>
+</div>
+
+<p><strong>Fine-tuning</strong> is that process: a pretrained language model is reused for a
+downstream task by training a small task-specific head on labelled data, while the pretrained
+weights are frozen or only slightly updated. SLP3 places it under <strong>transfer
+learning</strong> — knowledge acquired on one task (here, masked language modelling on
+unlabelled text) is applied to a new one (here, whatever we have labels for).</p>
+
+<p>Two consequences follow, and they are why the paradigm is the one this course ends on. The
+expensive part is already done, once, by someone else. And the labelled data needed is small,
+because it is training a head rather than a model. For three-way sentiment with BERT-base,
+the head is a matrix <math data-tex="W_C"><msub><mi>W</mi><mi>C</mi></msub></math> of shape <math data-tex="[768 \times 3]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>768</mn><mo>×</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> — 2,304 parameters —
+against the 108 million that session 32 counted in the encoder. In practice the last few
+transformer layers are often updated as well; SLP3 names that as typical. What is not typical
+is retraining those 108 million parameters from scratch on the labelled set.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 1 of 2</span>
+  <p class="q-text">In fine-tuning, what is usually trained?</p>
+  <div class="q-opts">
+    <button class="opt">The task-specific head, with the pretrained parameters frozen or only
+    slightly updated</button>
+    <button class="opt">The whole model, retrained from scratch on the labelled task</button>
+    <button class="opt">Only the embedding table, because that is 21% of BERT and is where the
+    words live</button>
+    <button class="opt">Only the <code>[CLS]</code> token's embedding, since that is the
+    position the classifier reads</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the head, with the pretrained weights frozen or barely
+    touched</strong>. That is §10.4's definition, and it is the reason fine-tuning is cheap:
+    the 108 million parameters already encode language, and the labelled set is being asked to
+    train a few thousand more, not to rediscover English.</p>
+    <p>The second is what the word "training" suggests if you have only ever trained models
+    from scratch, and it is the opposite of the paradigm's point. The third confuses a
+    parameter split with a training decision: the embedding table is large, and it is already
+    trained. The fourth confuses the position the head <em>reads</em> with the parameters it
+    <em>updates</em> — <code>[CLS]</code>'s vector is an activation, produced by the frozen
+    stack, not a lookup we retrain in isolation.</p>
+  </div>
+</div>
+
+<h2>Sequence classification</h2>
+
+<p>The <code>[CLS]</code> token returns, with a second job. Session 32 introduced it as the
+place that carried next-sentence prediction: a classifier sat on the final-layer vector at
+that one position and output IsNext or NotNext. Fine-tuning for <strong>sequence
+classification</strong> — one label for the whole input — uses the same position for a
+different decision. Sentiment, topic, spam: the stack produces a vector
+<math data-tex="h^L_{[\mathrm{CLS}]}"><msubsup><mi>h</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mi>L</mi></msubsup></math>, and a classifier head maps it to class scores:</p>
+
+<div class="meq" data-eqno="10.11"><math data-tex="y = \mathrm{softmax}(h^L_{[\mathrm{CLS}]} W_C)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mi>L</mi></msubsup><msub><mi>W</mi><mi>C</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(10.11)</span></div>
+
+<p>For three-way sentiment, <math data-tex="W_C"><msub><mi>W</mi><mi>C</mi></msub></math> is <math data-tex="[d \times 3]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>. The input is packed as
+it was for NSP, minus the second sentence:</p>
+
+<pre><code>[CLS] entirely predictable and lacks energy [SEP]     →  negative</code></pre>
+
+<p>SLP3 §10.4.1 notes an alternative: "take the sum or the mean of the last output vector from
+each token" and classify that. BERT uses a dedicated token instead. The room has two prior
+results that make the alternative look familiar, and a reason they do not quite settle it.</p>
+
+<p>Session 23 measured that averaging <em>raw</em> word vectors cannot see order: the vectors
+for <code>dog bites man</code> and <code>man bites dog</code> had cosine
+<math data-tex="0.9999999999999998"><mn>0.9999999999999998</mn></math>. Lab 8 then put averaged static embeddings on a sentiment
+task and lost, 20 splits out of 20 — Word2Vec 0.731, GloVe 0.724, against TF-IDF at 0.851.
+Averaging BERT's last-layer vectors is not that operation. Each of those vectors is already
+contextualised by the whole sequence, which is closer to session 23's pooling of RNN hidden
+states than to lab 8's average of static rows. A dedicated token that is <em>trained</em> to
+summarise is a third option, and it is the one BERT uses. Next-sentence prediction is what
+trained it; even after RoBERTa dropped that objective, the token remains as the place to put
+a sequence-level decision.</p>
+
+<h2>Sequence-pair classification</h2>
+
+<p>The same head, pointed at two sentences. §10.4.2 is entailment, paraphrase, discourse
+coherence — anything whose label is a relation between A and B rather than a property of one
+sequence. The packing is the one session 32 already used for NSP. <code>[SEP]</code> marks
+the boundary; <code>[CLS]</code> still carries the decision:</p>
+
+<pre><code>[CLS] I'm confused. [SEP] Not all of it is very clear to me. [SEP]   →  entails
+[CLS] Tourist Information offices can be very helpful. [SEP]
+      Tourist Information offices are never of any help. [SEP]         →  contradicts</code></pre>
+
+<p>Those are SLP3's own MultiNLI examples. The classifier is (10.11) again. What NSP built —
+a pair packed around <code>[SEP]</code>, a yes/no sitting on <code>[CLS]</code> — is exactly
+the input format this family of tasks needs. RoBERTa found the pretraining objective
+dispensable. The packing is still how a pair is presented to the model.</p>
+
+<h2>Sequence labeling</h2>
+
+<p>Session 32 named named entity recognition as the task that makes peeking ahead worth
+wanting: deciding whether <code>Washington</code> is a person or a geo-political entity may
+depend on words that come after it. That was the motivation for bidirectionality. This
+section is the other half of the same debt: how the model that can see ahead is pointed at
+that task.</p>
+
+<p><strong>Sequence labeling</strong> assigns a label to every token, chosen from a small
+fixed set. Sequence classification puts one head on one token; sequence labeling puts the
+same head on every token. Same fine-tuning paradigm, different number of predictions:</p>
+
+<div class="meq" data-eqno="10.12"><math data-tex="y_i = \mathrm{softmax}(h^L_i W_K)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mi>i</mi><mi>L</mi></msubsup><msub><mi>W</mi><mi>K</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(10.12)</span></div>
+<div class="meq"><math data-tex="t_i = \mathrm{argmax}(y_i)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>t</mi><mi>i</mi></msub><mo>=</mo><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+
+<p><math data-tex="W_K"><msub><mi>W</mi><mi>K</mi></msub></math> is <math data-tex="[d \times k]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><mi>k</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, where <math data-tex="k"><mi>k</mi></math> is the number of tags. The
+tags are session 7's. That session taught <strong>BIO</strong> as the scheme that converts
+finding a span into tagging each word, and it used this sentence:</p>
+
+<pre><code>The       B-ORG
+Reserve   I-ORG
+Bank      I-ORG
+of        I-ORG
+India     I-ORG
+raised    O
+rates     O
+.</code></pre>
+
+<p>§10.5.2 is the same scheme, with the same argument for why a separate <code>B-</code> tag
+is needed: two names of the same type can sit next to each other, and without a begin-tag
+the boundary between them is not recoverable. Session 7's adjacent pair was
+<code>Google Microsoft</code>; SLP3's worked sentence is <code>Jane Villanueva of United
+Airlines Holding</code>. The scheme has not changed. What has changed is the encoder
+underneath it — twelve unmasked transformer blocks instead of the spaCy tagger session 7
+ran — and that the loss that trains <math data-tex="W_K"><msub><mi>W</mi><mi>K</mi></msub></math> can also, if we let it, make small
+updates in the last few of those blocks.</p>
+
+<figure>
+  <svg viewBox="0 0 700 410" role="img" aria-labelledby="headstitle headsdesc">
+    <title id="headstitle">One pretrained encoder, three heads: sequence classification, pair classification, and sequence labeling</title>
+    <desc id="headsdesc">A dashed, faded rectangle labelled pretrained encoder, frozen, spans
+    the bottom of the figure, with six token boxes beneath it: CLS, x1, x2, x3, x4, SEP.
+    Above the encoder sit three solid rectangles, the trained heads. The left head is a
+    sequence classifier sitting on CLS, labelled W_C, outputting one class. The middle head
+    is a pair classifier, also sitting on CLS, labelled W_C, outputting entails. The right
+    head is a per-token classifier labelled W_K, with four small tag boxes B-ORG, I-ORG, O, O
+    sitting on x1 through x4. Solid arrows run from the encoder to each head; the encoder
+    rectangle is dashed to mark it as frozen. A small legend distinguishes solid trained
+    boxes from the dashed frozen encoder.</desc>
+
+    <!-- legend -->
+    <rect class="fig-node" x="30" y="14" width="22" height="14" rx="2"></rect>
+    <text class="fig-label" x="58" y="25">trained (the head)</text>
+    <rect class="fig-node fig-frozen" x="230" y="14" width="22" height="14" rx="2"></rect>
+    <text class="fig-label" x="258" y="25">frozen (the encoder)</text>
+
+    <!-- head 1: sequence classification -->
+    <rect class="fig-node" x="30" y="48" width="190" height="70" rx="5"></rect>
+    <text class="fig-label" x="125" y="68" text-anchor="middle">sequence classifier</text>
+    <text class="fig-glyph" x="125" y="92" text-anchor="middle">W_C</text>
+    <text class="fig-label" x="125" y="108" text-anchor="middle">→  one label</text>
+
+    <!-- head 2: pair classification -->
+    <rect class="fig-node" x="255" y="48" width="190" height="70" rx="5"></rect>
+    <text class="fig-label" x="350" y="68" text-anchor="middle">pair classifier</text>
+    <text class="fig-glyph" x="350" y="92" text-anchor="middle">W_C</text>
+    <text class="fig-label" x="350" y="108" text-anchor="middle">→  entails</text>
+
+    <!-- head 3: sequence labeling -->
+    <rect class="fig-node" x="480" y="48" width="190" height="70" rx="5"></rect>
+    <text class="fig-label" x="575" y="68" text-anchor="middle">token classifier</text>
+    <text class="fig-glyph" x="575" y="92" text-anchor="middle">W_K</text>
+    <text class="fig-label" x="575" y="108" text-anchor="middle">→  a tag per token</text>
+
+    <!-- both classification heads read [CLS], so both arrows originate at that column -->
+    <path class="fig-edge" d="M85 175 L125 118"></path>
+    <polygon class="fig-edge-h" points="125,118 114,123 118,128"></polygon>
+    <path class="fig-edge" d="M85 175 C 85 145, 350 145, 350 118"></path>
+    <polygon class="fig-edge-h" points="350,118 346.5,128 353.5,128"></polygon>
+    <path class="fig-edge" d="M510 175 L510 118"></path>
+    <polygon class="fig-edge-h" points="510,118 506.5,128 513.5,128"></polygon>
+    <path class="fig-edge" d="M555 175 L555 118"></path>
+    <polygon class="fig-edge-h" points="555,118 551.5,128 558.5,128"></polygon>
+    <path class="fig-edge" d="M600 175 L600 118"></path>
+    <polygon class="fig-edge-h" points="600,118 596.5,128 603.5,128"></polygon>
+    <path class="fig-edge" d="M640 175 L640 118"></path>
+    <polygon class="fig-edge-h" points="640,118 636.5,128 643.5,128"></polygon>
+
+    <!-- frozen encoder -->
+    <rect class="fig-node fig-frozen" x="30" y="175" width="640" height="72" rx="6"></rect>
+    <text class="fig-label" x="350" y="206" text-anchor="middle">pretrained bidirectional encoder</text>
+    <text class="fig-label" x="350" y="226" text-anchor="middle">frozen, or barely updated</text>
+
+    <!-- token boxes -->
+    <rect class="fig-gate" x="40" y="268" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="85" y="292" text-anchor="middle">[CLS]</text>
+    <rect class="fig-gate" x="145" y="268" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="190" y="292" text-anchor="middle">x₁</text>
+    <rect class="fig-gate" x="250" y="268" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="295" y="292" text-anchor="middle">x₂</text>
+    <rect class="fig-gate" x="355" y="268" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="400" y="292" text-anchor="middle">x₃</text>
+    <rect class="fig-gate" x="460" y="268" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="505" y="292" text-anchor="middle">x₄</text>
+    <rect class="fig-gate" x="565" y="268" width="90" height="36" rx="3"></rect>
+    <text class="fig-glyph" x="610" y="292" text-anchor="middle">[SEP]</text>
+
+    <!-- ticks from tokens into encoder -->
+    <path class="fig-edge" d="M85 268 L85 247"></path>
+    <polygon class="fig-edge-h" points="85,247 81.5,257 88.5,257"></polygon>
+    <path class="fig-edge" d="M190 268 L190 247"></path>
+    <polygon class="fig-edge-h" points="190,247 186.5,257 193.5,257"></polygon>
+    <path class="fig-edge" d="M295 268 L295 247"></path>
+    <polygon class="fig-edge-h" points="295,247 291.5,257 298.5,257"></polygon>
+    <path class="fig-edge" d="M400 268 L400 247"></path>
+    <polygon class="fig-edge-h" points="400,247 396.5,257 403.5,257"></polygon>
+    <path class="fig-edge" d="M505 268 L505 247"></path>
+    <polygon class="fig-edge-h" points="505,247 501.5,257 508.5,257"></polygon>
+    <path class="fig-edge" d="M610 268 L610 247"></path>
+    <polygon class="fig-edge-h" points="610,247 606.5,257 613.5,257"></polygon>
+
+    <text class="fig-label" x="350" y="334" text-anchor="middle">one sequence, or two packed around [SEP]</text>
+    <text class="fig-label" x="125" y="358" text-anchor="middle">head reads [CLS]</text>
+    <text class="fig-label" x="350" y="358" text-anchor="middle">head reads [CLS]</text>
+    <text class="fig-label" x="575" y="358" text-anchor="middle">head reads every hᵢ</text>
+
+    <text class="fig-label" x="350" y="392" text-anchor="middle">the large object is shared; the small object on top varies by task</text>
+  </svg>
+  <figcaption>One pretrained encoder, three heads. Sequence classification and pair
+  classification both sit a matrix <math data-tex="W_C"><msub><mi>W</mi><mi>C</mi></msub></math> on <code>[CLS]</code>; the pair task
+  differs only in packing two sentences around <code>[SEP]</code>. Sequence labeling sits the
+  same kind of matrix, <math data-tex="W_K"><msub><mi>W</mi><mi>K</mi></msub></math>, on every token. Dashed and faded marks the encoder as
+  frozen; solid marks the head as trained. The visual argument is the whole fine-tuning
+  paradigm: the large object is shared and unchanged, while the small object on top varies by
+  task.</figcaption>
+</figure>
+
+<h2>Knowledge distillation</h2>
+
+<p>The rest of the hour is a different question, asked of the same model. BERT-base is 108
+million parameters. Fine-tuning it is cheap compared with pretraining it, but running it is
+still running 108 million parameters, and this course's labs run on Colab, where that budget
+is not free. Sanh et al. 2019 compress the model during pretraining, then fine-tune the
+smaller copy the same way this session has just fine-tuned the large one.</p>
+
+<p><strong>Knowledge distillation</strong> is, in Sanh's words,</p>
+
+<div class="callout">
+  <span class="label">Sanh et al. 2019, §2</span>
+  <p>"a compression technique in which a compact model — the student — is trained to reproduce
+  the behaviour of a larger model — the teacher — or an ensemble of models."</p>
+</div>
+
+<p>The student is not trained on one-hot labels alone. It is trained on the teacher's
+<strong>full output distribution</strong> — the <strong>soft targets</strong>. A one-hot label
+says <em>this token is <code>day</code></em>. The teacher's distribution, Sanh notes, also
+says what else it might have been. BERT-base, asked to fill
+<code>I think this is the beginning of a beautiful [MASK]</code>, puts most of its mass on
+<code>day</code> and <code>life</code>, and a long tail on <code>future</code>,
+<code>story</code>, <code>world</code>. That ranking is information a one-hot target throws
+away. Sanh: training against it "results in a rich training signal by leveraging the full
+teacher distribution."</p>
+
+<p>Two things to keep in the right order, because the syllabus line names both DistilBERT
+and fine-tuning and it is easy to fuse them. Distillation is how the student is
+<em>pretrained</em>. Fine-tuning is what we then do with it, and it is §10.4 unchanged: add
+a head, train on labelled data. <strong>DistilBERT</strong> is the student — a smaller
+BERT, pretrained by distillation from BERT-base, then fine-tuned like BERT. Lab 12 will
+load <code>distilbert-base-uncased</code> and sit a classification head on it. It will not
+re-run distillation.</p>
+
+<div class="quiz" data-answer="0">
+  <span class="q-num">Question 2 of 2</span>
+  <p class="q-text">Why does the student train on the teacher's full distribution rather than
+  on one-hot labels alone?</p>
+  <div class="q-opts">
+    <button class="opt">The distribution carries information about relative similarity between
+    classes that a one-hot label discards</button>
+    <button class="opt">The labels are unavailable, so the student has to use the teacher's
+    guesses instead</button>
+    <button class="opt">Soft targets are faster to train against, because the softmax has
+    already been computed by the teacher</button>
+    <button class="opt">Distillation replaces masked language modelling, so there is no
+    original token left to use as a label</button>
+  </div>
+  <div class="q-fb">
+    <p>Correct answer: <strong>the distribution is a richer target</strong>. A one-hot vector
+    says <em>this class</em>; the teacher's probabilities also say <em>and that one is close,
+    and that one is not</em>. Sanh's fill-in-the-blank is the concrete case:
+    <code>day</code> and <code>life</code> share mass that a hard label would give to only
+    one of them.</p>
+    <p>The second is the natural misreading and it is false: DistilBERT is distilled on the
+    same Wikipedia-and-books corpus BERT was, and the original tokens are still there as
+    hard targets under <math data-tex="L_{\mathrm{mlm}}"><msub><mi>L</mi><mpadded lspace="0"><mi>mlm</mi></mpadded></msub></math>. The third confuses a property of the target with
+    a property of the compute — the student still has to produce a softmax; what it is
+    matching is smoother, not cheaper. The fourth inverts the design: masked language
+    modelling is the second term of the triple loss, not a thing distillation replaces.</p>
+  </div>
+</div>
+
+<h2>The triple loss</h2>
+
+<p>Sanh trains the student with three losses at once. The paper's ablation finds that
+dropping any of them lowers the GLUE macro-score, with the distillation term carrying most
+of the load and the masked-LM term the least.</p>
+
+<table>
+  <tr><th>loss</th><th>what it matches</th></tr>
+  <tr><td><math data-tex="L_{\mathrm{ce}}"><msub><mi>L</mi><mpadded lspace="0"><mi>ce</mi></mpadded></msub></math></td>
+      <td>distillation — cross-entropy against the teacher's <strong>soft targets</strong>,
+      with a softmax temperature that flattens both distributions so the long tail is not
+      near-zero</td></tr>
+  <tr><td><math data-tex="L_{\mathrm{mlm}}"><msub><mi>L</mi><mpadded lspace="0"><mi>mlm</mi></mpadded></msub></math></td>
+      <td>the ordinary masked-LM loss from session 32, against the original tokens</td></tr>
+  <tr><td><math data-tex="L_{\mathrm{cos}}"><msub><mi>L</mi><mpadded lspace="0"><mi>cos</mi></mpadded></msub></math></td>
+      <td><strong>cosine embedding loss</strong>, aligning the <em>directions</em> of student
+      and teacher hidden vectors</td></tr>
+</table>
+
+<p><math data-tex="L_{\mathrm{cos}}"><msub><mi>L</mi><mpadded lspace="0"><mi>cos</mi></mpadded></msub></math> is session 19 returning. Sanh: the term "will tend to align the
+directions of the student and teacher hidden states vectors." Direction, not magnitude —
+which is the distinction session 19 spent an hour establishing, and which session 28 reused
+when it scored alignment with a dot product. Cosine compares the angle between two vectors
+after their lengths have been divided out. Here the two vectors are a student hidden state
+and the teacher's hidden state at the same position, and the loss asks them to point the
+same way even if they are not the same length. Third time the same geometric fact has been
+the thing an equation depends on.</p>
+
+<p>The student has the same general architecture as BERT. Sanh removes the token-type
+embeddings and the pooler, and halves the number of layers — twelve blocks become six.
+The paper is explicit that the cut is layers rather than width: variations in hidden size
+"have a smaller impact on computation efficiency… than variations on other factors like
+the number of layers." DistilBERT also drops next-sentence prediction, which is the same
+finding session 32 already recorded from RoBERTa, arrived at independently.</p>
+
+<h2>Why the model shrinks by 40%, not 50%</h2>
+
+<p>Sanh's headline, verbatim: DistilBERT is <strong>40% smaller</strong>, <strong>60%
+faster</strong>, and retains <strong>97%</strong> of BERT's language understanding. The 40%
+is derivable from session 32's arithmetic, which makes it a check rather than a
+quotation.</p>
+
+<p>Session 32 computed BERT-base at 108,367,872 parameters from <math data-tex="V = 30{,}000"><mrow><mi>V</mi><mo>=</mo><mn>30,000</mn></mrow></math>,
+<math data-tex="d = 768"><mrow><mi>d</mi><mo>=</mo><mn>768</mn></mrow></math>, <math data-tex="N = 512"><mrow><mi>N</mi><mo>=</mo><mn>512</mn></mrow></math>, <math data-tex="L = 12"><mrow><mi>L</mi><mo>=</mo><mn>12</mn></mrow></math>, ignoring norms and biases.
+One block was 7,077,888; twelve of them were 84,934,656; the embedding table (tokens plus
+positions) was 23,433,216. Halve the blocks and keep the embeddings:</p>
+
+<table>
+  <tr><th></th><th>blocks</th><th>parameters</th></tr>
+  <tr><td>BERT-base</td><td>12</td><td>108,367,872</td></tr>
+  <tr><td><strong>DistilBERT</strong></td><td><strong>6</strong></td>
+      <td><strong>65,900,544</strong></td></tr>
+  <tr><td>reduction</td><td></td><td><strong>39.2%</strong></td></tr>
+</table>
+
+<p>39.2% against the paper's "40%", and 65.9M against DistilBERT's commonly quoted 66M.
+Two independent routes to the same number. The embeddings are why it is 40% and not 50%.
+Halving twelve blocks to six removes half the <em>block</em> parameters, but the 23 million
+embedding table is untouched — session 32 already established that those embeddings are 21%
+of BERT — so the model shrinks by less than half. "Halve the layers, halve the model" is
+the natural inference and it is wrong, for a reason the room already has.</p>
+
+<div class="recall">
+  <span class="label">Exercise</span>
+  <p>Session 32's BERT-base configuration, ignoring norms and biases: vocabulary 30,000,
+  <math data-tex="d = 768"><mrow><mi>d</mi><mo>=</mo><mn>768</mn></mrow></math>, context window 512, twelve blocks at 7,077,888 parameters each,
+  token embeddings 23,040,000, position embeddings 393,216.</p>
+  <p>First: compute DistilBERT's parameter count when the layers are halved and the
+  embeddings are kept. Then compute the reduction against BERT-base, as a percentage.</p>
+  <p>Second: why is the reduction not 50%?</p>
+  <button class="reveal">Show answer</button>
+  <div class="answer">
+    <p><strong>The count.</strong> Six blocks: <math data-tex="6 \times 7{,}077{,}888 = 42{,}467{,}328"><mrow><mn>6</mn><mo>×</mo><mn>7,077,888</mn><mo>=</mo><mn>42,467,328</mn></mrow></math>.
+    Embeddings unchanged: <math data-tex="23{,}040{,}000 + 393{,}216 = 23{,}433{,}216"><mrow><mn>23,040,000</mn><mo>+</mo><mn>393,216</mn><mo>=</mo><mn>23,433,216</mn></mrow></math>. Total:
+    <math data-tex="42{,}467{,}328 + 23{,}433{,}216 = 65{,}900{,}544"><mrow><mn>42,467,328</mn><mo>+</mo><mn>23,433,216</mn><mo>=</mo><mn>65,900,544</mn></mrow></math>. Reduction:
+    <math data-tex="1 - 65{,}900{,}544 / 108{,}367{,}872 = 0.392"><mrow><mn>1</mn><mo>−</mo><mn>65,900,544</mn><mi>/</mi><mn>108,367,872</mn><mo>=</mo><mn>0.392</mn></mrow></math>, which is 39.2% — Sanh's "40%" to
+    the precision the headline uses, and 65.9M against the commonly quoted 66M.</p>
+    <p><strong>Why not 50%.</strong> Halving the layers halves the block parameters,
+    84,934,656 → 42,467,328. The embedding table does not shrink. Those 23 million
+    parameters are 21% of BERT-base and a still larger fraction of DistilBERT, and they
+    are a lookup over the same 30,000-token WordPiece vocabulary. Cutting layers cannot
+    cut a table whose rows are word types.</p>
+  </div>
+</div>
+
+<h2>Where this leaves us</h2>
+
+<p>T3.9 is complete. The room now has the second half of chapter 10: a pretrained
+bidirectional encoder is put to work by sitting a small head on it and training that head
+on labelled data, with the pretrained weights frozen or barely touched. Sequence
+classification and sequence-pair classification both read <code>[CLS]</code>; sequence
+labeling reads every token, with session 7's BIO tags as the label set. DistilBERT is the
+same architecture with the layers halved, pretrained to match BERT-base's behaviour rather
+than only its labels, and 39.2% smaller for a reason the embedding table explains.</p>
+
+<p>The architecture of Unit III is finished. Sessions 34–36 are applications of it —
+machine translation, question answering and summarisation, then chatbots. Lab 12 fine-tunes
+<code>distilbert-base-uncased</code>, not BERT: the 40% is why, and the worked example in
+this session is the model the lab actually loads.</p>
+
+<div class="callout">
+  <span class="label">The main points</span>
+  <p><strong>Fine-tuning</strong> adds a task-specific head on a pretrained model and trains
+  it on labelled data, freezing or barely updating the pretrained weights — 2,304 parameters
+  for three-way sentiment against BERT-base's 108 million. Sequence classification sits the
+  head on <code>[CLS]</code>; sequence-pair classification uses the same head on two
+  sentences packed around <code>[SEP]</code>; sequence labeling sits the same kind of head
+  on every token and predicts session 7's BIO tags. Averaging last-layer vectors is an
+  alternative §10.4.1 names; BERT's choice is a dedicated token trained to summarise.
+  <strong>Knowledge distillation</strong> trains a smaller student to match a teacher's full
+  output distribution, not just one-hot labels. DistilBERT is BERT with the layers halved,
+  pretrained with a triple loss — distillation, masked LM, and a cosine term that aligns
+  hidden-state directions — and is 39.2% smaller rather than 50%, because the 23 million
+  embedding table does not shrink. Distillation is how it was pretrained; fine-tuning it
+  afterwards is §10.4 unchanged.</p>
+</div>
+
+<h2>Reading</h2>
+
+<p><strong><a href="https://web.stanford.edu/~jurafsky/slp3/10.pdf">Speech and Language
+Processing</a></strong>, <strong>§10.4–§10.5</strong>. §10.4 is the head-on-a-frozen-model
+framing; §10.4.1 is sequence classification and the <code>[CLS]</code>-versus-average
+choice, with equation (10.11); §10.4.2 is sequence-pair classification on MultiNLI;
+§10.5.2 is BIO tagging; §10.5.3 is the per-token head, equation (10.12). Stop at the end of
+§10.5. Chapter 10 does not cover distillation.</p>
+
+<p><strong><a href="https://arxiv.org/abs/1910.01108">Sanh et al. 2019</a></strong>,
+<em>DistilBERT, a distilled version of BERT: smaller, faster, cheaper and lighter</em>.
+Section 2 is the definition, the soft targets, the temperature, and the triple loss;
+section 3 is the student architecture (layers halved, token-type embeddings and pooler
+removed) and the layers-not-width rationale. All three headline claims are in the
+abstract: Table 3 has the 66M against 110M behind the 40%, and the inference times behind
+the 60%; Table 1 is the GLUE comparison behind the 97%, and it is uneven. Table 4 is the
+ablation.</p>
+
+
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="0032-bert-and-masked-language-modelling.html">← Session 32: BERT and masked language modelling</a>
+  <a href="0034-machine-translation.html">Session 34: Machine translation →</a>
+</nav>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+
+</body>
+</html>
