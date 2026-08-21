@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 12: N-gram probabilities and the Markov assumption</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,324 +773,306 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0012-n-gram-probabilities-and-the-markov-assumption.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 12</p>
+      <h1>N-gram probabilities and the Markov assumption</h1>
+      <p class="subtitle">Where the numbers come from. The exact answer is easy to write down and
+      impossible to estimate, so we approximate it with an assumption we know to be false.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="Where session 11 left off">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <p class="lede">Where the numbers come from</p>
+      <p>Session 11 left the probabilities unexplained. They come from <strong>counting</strong>
+      sequences in a corpus.</p>
+      <footer>This session covers which quantities to count, and one assumption we make deliberately
+      despite knowing it is false.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The corpus">
+    <div class="slide-inner">
+      <h2>Everything today is computed from four sentences</h2>
+      <pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
+&lt;s&gt; I want to eat Chinese food &lt;/s&gt;
+&lt;s&gt; I want Indian food &lt;/s&gt;
+&lt;s&gt; she wants to eat Indian food &lt;/s&gt;</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The boundary symbols">
+    <div class="slide-inner">
+      <h2>Why the boundary symbols are there</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li><code>&lt;s&gt;</code> gives the first word something to condition on — otherwise we
+        cannot ask how likely <code>I</code> is at the start of a sentence</li>
+        <li><code>&lt;/s&gt;</code> is how the model knows to <strong>stop</strong>. A model
+        generating text picks one word after another, and something must end it</li>
       </ul>
+      <p class="aside">Both are counted as tokens, like any other word.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="The chain rule">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p class="lede">The chain rule of probability</p>
+      <p>The probability of a sentence is the probability of the first word, times the second given
+      the first, times the third given the first two, and so on.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--math" data-title="The chain rule written out">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <h2>Exact, with no approximation</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+P(\text{I want to eat Indian food}) = {} &amp; P(\text{I} \mid \text{&lt;s&gt;}) \\
+  &amp;\times P(\text{want} \mid \text{I}) \\
+  &amp;\times P(\text{to} \mid \text{I want}) \\
+  &amp;\times P(\text{eat} \mid \text{I want to}) \\
+  &amp;\times P(\text{Indian} \mid \text{I want to eat}) \\
+  &amp;\times P(\text{food} \mid \text{I want to eat Indian}) \\
+  &amp;\times P(\text{&lt;/s&gt;} \mid \text{I want to eat Indian food})
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&lt;s&gt;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>want</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>to</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>eat</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>&lt;/s&gt;</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--math" data-title="Any term can be counted">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <h2>Each term is a count over a count</h2>
+      <div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian}) = \frac{\mathrm{count}(\text{I want to eat Indian food})}{\mathrm{count}(\text{I want to eat Indian})}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--statement warn" data-title="Why the exact form is unusable">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <p class="lede">In our corpus that is <math data-tex="1/1 = 1.0"><mrow><mn>1</mn><mi>/</mi><mn>1</mn><mo>=</mo><mn>1.0</mn></mrow></math></p>
+      <p>An estimate resting on a denominator of one is not evidence. And for a history the corpus
+      never contained — <code>we want to eat Indian</code> — the denominator is zero and the
+      probability is undefined.</p>
+      <footer>The chain rule is exactly correct and unusable in practice.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--statement" data-title="The Markov assumption">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
+      <p class="lede">The Markov assumption</p>
+      <p>The probability of the next word depends only on the <strong>last few words</strong>, not
+      on the entire history.</p>
+      <footer>For a bigram model, "last few" means one.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The brackets matter">
+  <section class="slide slide--math" data-title="The bigram approximation">
     <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
+      <h2>Condition on one word instead of five</h2>
+      <div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian}) \approx P(\text{food} \mid \text{Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Word boundaries">
+  <section class="slide slide--statement" data-title="The assumption is false">
     <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <p>The assumption is false. Language has long-range dependencies — the subject at the start of
+      a sentence governs the verb at the end.</p>
+      <footer>We are not claiming otherwise. A short history is incorrect but countable; a long
+      history is correct but uncountable.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The chain rule, approximated">
+    <div class="slide-inner">
+      <h2>Every term reduces to one previous word</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+P(\text{I want to eat Indian food}) \approx {} &amp; P(\text{I} \mid \text{&lt;s&gt;}) \times P(\text{want} \mid \text{I}) \times P(\text{to} \mid \text{want}) \times P(\text{eat} \mid \text{to}) \\
+  &amp;\times P(\text{Indian} \mid \text{eat}) \times P(\text{food} \mid \text{Indian}) \times P(\text{&lt;/s&gt;} \mid \text{food})
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mrow></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&lt;s&gt;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>want</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>to</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>want</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>eat</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>to</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo form="prefix" stretchy="false">×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>Indian</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>eat</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>&lt;/s&gt;</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The maximum likelihood estimate">
+    <div class="slide-inner">
+      <h2>The maximum likelihood estimate</h2>
+      <div class="meq"><math data-tex="P(w_2 \mid w_1) = \frac{\mathrm{count}(w_1\, w_2)}{\mathrm{count}(w_1)}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What MLE means">
+    <div class="slide-inner">
+      <p>The <strong>maximum likelihood estimate</strong> is the estimate that best fits the
+      observed data, which for counting problems is just the observed proportion.</p>
+      <footer>Nothing is adjusted or assumed. The corpus shows <code>eat</code> followed by
+      <code>Indian</code> in 2 of 3 cases, so the estimate is <math data-tex="2/3"><mrow><mn>2</mn><mi>/</mi><mn>3</mn></mrow></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The bigram counts">
+    <div class="slide-inner">
+      <h2>Every bigram we will use, countable by hand</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>bigram</th><th><math data-tex="\mathrm{count}(w_1\, w_2)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th>
+        <th><math data-tex="\mathrm{count}(w_1)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w_2 \mid w_1)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
+        <tr><td><code>&lt;s&gt; I</code></td>     <td>3</td><td>4</td><td>3/4 = 0.75</td></tr>
+        <tr><td><code>&lt;s&gt; she</code></td>   <td>1</td><td>4</td><td>1/4 = 0.25</td></tr>
+        <tr><td><code>want to</code></td>         <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
+        <tr><td><code>want Indian</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+        <tr><td><code>eat Indian</code></td>      <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
+        <tr><td><code>eat Chinese</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+        <tr><td><code>I want</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+        <tr><td><code>to eat</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+        <tr><td><code>Indian food</code></td>     <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+        <tr><td><code>food &lt;/s&gt;</code></td> <td>4</td><td>4</td><td>4/4 = 1.0</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="A distribution over what comes next">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <p>After <code>eat</code>, the model gives <code>Indian</code> twice the probability of
+      <code>Chinese</code>, and the two sum to 1 — they are the only words that ever follow
+      <code>eat</code> here.</p>
+      <footer>That is the model working as intended: a distribution over what comes next, estimated
+      entirely from counts.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement warn" data-title="Reading a probability of 1.0">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p class="lede">Several rows are exactly 1.0</p>
+      <p>That is an artefact of a tiny corpus, not a claim about English.
+      <math data-tex="P(\text{food} \mid \text{Indian}) = 1.0"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>1.0</mn></mrow></math> holds only because these four sentences never
+      put another word after <code>Indian</code>.</p>
+      <footer>In a real corpus <code>Indian</code> is followed by hundreds of words and the largest
+      probability might be a few per cent. The method carries over to a real corpus; these
+      particular numbers do not.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--math" data-title="Scoring a whole sentence">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
+      <h2>Multiply the bigram probabilities</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+P(\text{I want to eat Indian food}) &amp;\approx \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{4}{4} \\
+  &amp;= \tfrac{1}{3} \approx 0.333
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>≈</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>4</mn></mfrac></mstyle></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo>≈</mo><mn>0.333</mn></mrow></mtd></mtr></mtable></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="It matched the entire line">
+  <section class="slide slide--table" data-title="Comparing sentences">
     <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+      <h2>The model can now compare sentences</h2>
+      <table>
+        <tr><th>sentence</th><th>bigram probability</th></tr>
+        <tr><td>I want to eat Indian food</td><td>1/3 ≈ 0.333</td></tr>
+        <tr><td>I want to eat Chinese food</td><td>1/6 ≈ 0.167</td></tr>
+        <tr><td>she wants to eat Indian food</td><td>1/6 ≈ 0.167</td></tr>
+      </table>
+      <p class="aside">The first is rated twice as likely, and correctly so for this corpus. The
+      model has no representation of what any word means, and ranks them from counts alone.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
+  <section class="slide slide--statement" data-title="What a modern model keeps">
     <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
+      <p>A modern large language model factorises a sentence with the <strong>same chain
+      rule</strong>, one word at a time, and that part of the method has not changed.</p>
+      <footer>What it discards is the Markov assumption: it conditions on thousands of previous
+      words, because a network can process a history it never counted. Much of the progress in this
+      field has consisted of removing that assumption.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: I want Indian food">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Use the table of bigrams</span>
+        <p>Compute the bigram probability of <code>I want Indian food</code>. The bigrams are
+        <code>&lt;s&gt; I</code>, <code>I want</code>, <code>want Indian</code>,
+        <code>Indian food</code>, <code>food &lt;/s&gt;</code>.</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><math data-tex="\tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{1}{3} \times \tfrac{3}{3} \times \tfrac{4}{4} = \tfrac{1}{4} = 0.25"><mrow><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>4</mn></mfrac></mstyle><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>4</mn></mfrac></mstyle><mo>=</mo><mn>0.25</mn></mrow></math></p>
+          <p>Lower than <code>I want to eat Indian food</code> at 0.333, because <code>want</code>
+          is followed by <code>Indian</code> in only 1 of 3 cases but by <code>to</code> in 2 of
+          3.</p>
+          <p>The shorter sentence scores lower only because so many probabilities here are exactly
+          1.0, which costs the longer one nothing. In real data every extra word multiplies in
+          another probability well below 1, so raw probability is a poor way to compare sentences
+          of different lengths. Session 14 addresses that.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="An ordinary sentence">
+    <div class="slide-inner">
+      <h2>Now a perfectly ordinary English sentence</h2>
+      <div class="meq"><math data-tex="P(\text{I want to eat Indian pizza}) \approx \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{2}{3} \times P(\text{pizza} \mid \text{Indian}) \times \cdots" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>pizza</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mo>⋯</mo></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The whole product collapses">
+    <div class="slide-inner">
+      <h2>The corpus never puts <code>pizza</code> after <code>Indian</code></h2>
+      <div class="meq"><math data-tex="P(\text{I want to eat Indian pizza}) = 0" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Not small — exactly zero">
+    <div class="slide-inner">
+      <p>One unseen pair anywhere in the sentence reduces the entire product to zero, however
+      ordinary the other six words are.</p>
+      <footer>The model asserts the sentence is impossible, when four sentences of training text
+      simply did not contain it. In real corpora most test sentences contain at least one unseen
+      pair — and a model that scores most valid sentences zero is not usable.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why assume something false">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">Why do we make the Markov assumption when it is clearly false?</p>
+        <div class="q-opts">
+          <button class="opt">Because long-range links between words do not exist in real language</button>
+          <button class="opt">Because long histories are too rare to count, and short ones are not</button>
+          <button class="opt">Because the chain rule is only valid for sequences of two or three words</button>
+          <button class="opt">Because shorter contexts always give more accurate probability estimates</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>long histories are too rare to count, and short ones are
+          not</strong>.</p>
+          <p>The chain rule is exact but needs counts of long sequences, which almost never recur —
+          the denominator is often 1, or 0 and undefined. Cutting the history to one or two words
+          discards real information in exchange for counts large enough to trust.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: computing P(Indian | eat)">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">In the corpus, <code>eat</code> occurs 3 times and <code>eat Indian</code>
+        twice. What is P(Indian | eat)?</p>
+        <div class="q-opts">
+          <button class="opt">3/2, because you divide the word count by the pair count</button>
+          <button class="opt">2/30, because you divide the pair count by all the tokens</button>
+          <button class="opt">2/4, because you divide the pair count by the sentence count</button>
+          <button class="opt">2/3, because you divide the pair count by the word count</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>2/3, because you divide the pair count by the word count</strong>.</p>
+          <p>The estimate is count(w₁ w₂) / count(w₁). Of the 3 occurrences of <code>eat</code>, 2
+          were followed by <code>Indian</code>. The denominator is always the count of the history
+          word alone, never the corpus size.</p>
         </div>
       </div>
     </div>
@@ -1099,9 +1081,10 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>The chain rule is exact but needs counts that never recur. The Markov assumption, known to
+      be false, cuts the history to one word — and each probability becomes a single division.</p>
+      <footer>The method assigns exactly zero to far too many acceptable sentences. Repairing that
+      is the subject of the next session.</footer>
     </div>
   </section>
 
@@ -1110,22 +1093,17 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 3</p>
+          <p class="ref-note">&ldquo;N-gram Language Models&rdquo;. Read the sections on n-gram
+          probability estimation, up to the point where the zero-count problem is introduced — that
+          is the next session.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0013-the-zero-problem-and-smoothing.html">Next deck &mdash;
+      session 13: The zero problem and smoothing &rarr;</a>
     </div>
   </section>
 

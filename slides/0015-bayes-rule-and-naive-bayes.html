@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 15: Bayes' rule and the Naïve Bayes classifier</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,324 +773,324 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0015-bayes-rule-and-naive-bayes.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 15</p>
+      <h1>Bayes' rule and the Naïve Bayes classifier</h1>
+      <p class="subtitle">The question we want to ask cannot be counted, so we turn it into two
+      questions that can, and then make two assumptions we know to be false so that the harder of
+      the two becomes countable as well.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--code" data-title="Where lab 1 left off">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <h2>Where lab 1's sentiment tool failed</h2>
+      <pre><code>"this course is going to be a nightmare"   ->   0.0   (neutral)</code></pre>
+      <p class="aside">VADER handled the hard cases — <em>brilliant</em>, <em>terrible</em>, even
+      "not bad at all". It failed here because <code>nightmare</code> is not in its 7,502-word
+      lexicon. Nobody added it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A list is permanently incomplete">
+    <div class="slide-inner">
+      <p>We could add <code>nightmare</code>. But <code>shambles</code> is also missing, as is
+      whatever word comes into use next year.</p>
+      <footer>A hand-written list is permanently incomplete, and a human has to notice each
+      gap.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What this session adds">
+    <div class="slide-inner">
+      <p class="lede">Supervised machine learning</p>
+      <p>Instead of writing the rules, give the program documents people have already labelled —
+      each review marked positive or negative — and let it work out for itself which words
+      matter.</p>
+      <footer>This is the first point in the course where we ask a model to learn a task rather than
+      compute a definition. The method is <strong>Naïve Bayes</strong>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The task">
+    <div class="slide-inner">
+      <h2>Classification</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li>Choose one label from a fixed set, given a document</li>
+        <li>Here it is <strong>sentiment analysis</strong> — positive or negative — but the
+        machinery is not specific to sentiment. The same classifier does spam detection, language
+        identification and topic labelling unchanged</li>
+        <li>"Supervised" means <strong>labelled training data</strong> is required, and that is a
+        genuine cost: someone had to label the documents</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--math" data-title="The objective">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <h2>Of all the classes, return the most probable one</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; P(c \mid d)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="Reading argmax">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p><math data-tex="\mathrm{argmax}"><mpadded lspace="0"><mi>argmax</mi></mpadded></math> is the argument that maximises the expression, so what comes out is
+      the <strong>class itself</strong>, not a probability.</p>
+      <footer>The line reads: of all the classes, return the one most likely for this
+      document.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--math" data-title="Try to count it">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <h2>Now estimate it the way we have estimated everything</h2>
+      <div class="meq"><math data-tex="P(\text{positive} \mid \text{&quot;predictable with no fun&quot;}) = \frac{\mathrm{count}(\text{that exact document, labelled positive})}{\mathrm{count}(\text{that exact document})}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>positive</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&quot;predictable with no fun&quot;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>that exact document, labelled positive</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>that exact document</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--statement warn" data-title="The denominator is 0 or 1">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <p>The denominator is 1 if that document is in the training set and 0 otherwise. It will not
+      be — it is a new document, which is the entire point of a classifier.</p>
+      <footer>The same shape as session 12: the quantity we want is well defined and cannot be
+      counted, because the thing we would count is unique.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--statement" data-title="A different escape than session 12">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
+      <p>In session 12 the solution was to ask a question with <em>less context</em>.</p>
+      <footer>Here the solution is different: we keep the question and change the quantity used to
+      answer it.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The brackets matter">
+  <section class="slide slide--table" data-title="Three terms">
     <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>Three terms, used constantly from here on</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>name</th><th>written</th><th>in our problem</th></tr>
+        <tr><td><strong>prior</strong></td><td><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how common this class is, before
+        looking at the document</td></tr>
+        <tr><td><strong>likelihood</strong></td><td><math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this
+        document is, if the class were <math data-tex="c"><mi>c</mi></math></td></tr>
+        <tr><td><strong>posterior</strong></td><td><math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this class
+        is, now that we have read the document</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">Prior and posterior mean before and after seeing the evidence. The posterior
+      is what we want and cannot count. The thing before the bar is what you are asking about.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--math" data-title="Bayes' rule">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <h2>Bayes' rule, in general form</h2>
+      <div class="meq"><math data-tex="P(x \mid y) = \frac{P(y \mid x)\, P(x)}{P(y)}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--math" data-title="Applied to classification">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <h2>Applied to our problem</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \frac{P(d \mid c)\, P(c)}{P(d)}" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--statement" data-title="What changed">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
+      <p>We wanted <math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for a unique unseen document. We now need <math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>
+      and <math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>.</p>
+      <footer><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is easy — what fraction of the labelled documents were positive?
+      <math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is still hard. One impossible question has become one easy question and one
+      difficult one.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="It matched the entire line">
+  <section class="slide slide--statement" data-title="Why reversing helps">
     <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+      <p class="lede">The two directions are not equally hard to count</p>
+      <p>"How often is this exact document positive?" has no data behind it. "How often does a
+      positive review use the word <em>fun</em>?" has thousands of reviews behind it.</p>
+      <footer>Bayes' rule lets the first question be answered using the second.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
+  <section class="slide slide--statement" data-title="Dropping the denominator">
     <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
+      <p>We compare classes for <em>one fixed document</em>, so whatever <math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is, it is the
+      same in every class and cannot change which is largest.</p>
+      <footer>We need only the winning class rather than a probability, so the term can be
+      dropped.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Likelihood times prior">
+    <div class="slide-inner">
+      <h2>What remains</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \underbrace{P(d \mid c)}_{\text{likelihood}} \; \underbrace{P(c)}_{\text{prior}}" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mrow><munder><munder><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mo stretchy="true" style="math-depth:0;">⏟</mo></munder><mtext>likelihood</mtext></munder></mrow><mspace width="0.2778em"></mspace><mrow><munder><munder><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mo stretchy="true" style="math-depth:0;">⏟</mo></munder><mtext>prior</mtext></munder></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A generative model">
+    <div class="slide-inner">
+      <p>Read it as a recipe: to produce a document, first pick a class, then produce words
+      appropriate to that class. Classification reverses the process.</p>
+      <footer>Because it describes how a document could be <em>generated</em>, Naïve Bayes is a
+      <strong>generative</strong> model. Discriminative models drop the generative account and learn
+      only what separates the classes.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Still stuck on the likelihood">
+    <div class="slide-inner">
+      <p><math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the probability of a whole document — a specific sequence of specific
+      words in a specific order.</p>
+      <footer>Counting it hits the same uniqueness problem. The difficulty has been relocated, not
+      solved.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Assumption 1: bag of words">
+    <div class="slide-inner">
+      <h2>Assumption 1 — position does not matter</h2>
+      <pre><code>"the film was fun, not boring"   ->  {the, film, was, fun, not, boring}
+"the film was boring, not fun"   ->  {the, film, was, boring, not, fun}</code></pre>
+      <p class="aside">Opposite meanings, and the model cannot tell them apart. A real loss,
+      accepted because word identity carries most of the sentiment signal and order is expensive to
+      model. Session 17 develops bag of words as a representation.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Assumption 2: the naive assumption">
+    <div class="slide-inner">
+      <h2>Assumption 2 — given the class, words are independent</h2>
+      <div class="meq"><math data-tex="P(d \mid c) = P(w_1 \mid c) \, P(w_2 \mid c) \cdots P(w_n \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>⋯</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mi>n</mi></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Plainly untrue">
+    <div class="slide-inner">
+      <p>In a positive review, <code>special</code> makes <code>effects</code> far more likely than
+      it would otherwise be, and <code>San</code> is almost always followed by
+      <code>Francisco</code>.</p>
+      <footer>Words co-occur systematically. The assumption denies that they do — and this is the
+      assumption the method is named after.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The same trade a third time">
+    <div class="slide-inner">
+      <h2>The same trade, a third time</h2>
       <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
+        <li><strong>Session 12</strong> — the Markov assumption: only the last word or two matters.
+        False</li>
+        <li><strong>Now</strong> — bag of words: order does not matter. False</li>
+        <li><strong>Now</strong> — the naïve assumption: words are independent. False</li>
       </ul>
+      <p class="aside">Each replaces a quantity we cannot estimate with one we can, and each is
+      adopted knowingly.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
+  <section class="slide slide--statement" data-title="The test of an assumption">
     <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
+      <p>The test of such an assumption is not whether it is true but whether the model built on it
+      performs well.</p>
+      <footer>Naïve Bayes is obviously wrong about language and classifies text effectively. Both
+      hold at once, and much of applied machine learning consists of working with assumptions of
+      this kind.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A more precise alternative">
+  <section class="slide slide--math" data-title="The classifier">
     <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
+      <h2>The Naïve Bayes classifier</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; P(c) \prod_{w \in d} P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><munder><mo movablelimits="false">∏</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--table" data-title="Two quantities, both counts">
     <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
+      <h2>For each class, multiply how common it is by how typical its words are</h2>
+      <table>
+        <tr><th>quantity</th><th>what it asks</th></tr>
+        <tr><td><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>what fraction of the training documents are in class
+        <math data-tex="c"><mi>c</mi></math>?</td></tr>
+        <tr><td><math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>of all the words in class <math data-tex="c"><mi>c</mi></math>'s documents, what
+        fraction are this word?</td></tr>
+      </table>
+      <p class="aside">There is no optimisation, no iteration and no training loop: we count and
+      divide. That is why Naïve Bayes is still worth knowing beside much larger models.</p>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: dropping P(d)">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label"><math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a real quantity</span>
+        <p>Why can it be discarded safely, and what is lost by doing so?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p>Safely, because it is identical for every class: we compare
+          <math data-tex="P(d \mid +)P(+)/P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> against <math data-tex="P(d \mid -)P(-)/P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for the same <math data-tex="d"><mi>d</mi></math>, and
+          dividing both by the same number cannot change which is larger.</p>
+          <p>What is lost is the <strong>scale</strong>. The results are no longer probabilities and
+          do not sum to 1 — they are scores. We can say positive outranks negative, but not that the
+          classifier is 70% confident.</p>
+          <p>The general principle is worth keeping: when only an ordering is required, any factor
+          shared by every item being ranked can be discarded.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why not count the posterior">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">Why can we not just count <math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> from the training data
+        directly?</p>
+        <div class="q-opts">
+          <button class="opt">Because probabilities conditioned on a class cannot be counted</button>
+          <button class="opt">Because a document has too many words for the count to be exact</button>
+          <button class="opt">Because the exact document is unique, so its count is 0 or 1</button>
+          <button class="opt">Because the classes overlap, so a document may fall into both</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the exact document is unique, so its count is 0 or 1</strong>.</p>
+          <p>It would mean counting how often that precise document appeared with each label, and a
+          new document has never appeared at all. Bayes' rule converts it into questions about
+          individual words, which do have data behind them.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what naive claims">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What exactly does the "naïve" assumption claim?</p>
+        <div class="q-opts">
+          <button class="opt">That every class is equally likely before the document is read</button>
+          <button class="opt">That given the class, each word is independent of the others</button>
+          <button class="opt">That a word means the same thing in every document it appears in</button>
+          <button class="opt">That the training documents were labelled without any human error</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>given the class, each word is independent of the others</strong>.</p>
+          <p>That is what allows the individual <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> values to be multiplied. It is
+          plainly false — <code>special</code> and <code>effects</code> are not independent — and
+          the classifier works anyway. The separate bag-of-words assumption is the one about
+          order.</p>
         </div>
       </div>
     </div>
@@ -1099,9 +1099,20 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Bayes' rule turns an uncountable posterior into a likelihood times a prior, and the
+      denominator drops because we only need a ranking. Two knowingly false assumptions then reduce
+      the likelihood to counting and multiplication.</p>
+      <footer>The formula is complete but has no numbers in it yet. The next session trains it on
+      real labelled reviews and classifies one.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="A difficulty already visible">
+    <div class="slide-inner">
+      <p>The formula multiplies one <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for every word in the document.</p>
+      <footer>So what happens when a word in a new review never appeared in that class's training
+      documents? The count is zero, the product is zero, and the class is excluded on the evidence
+      of one word. That is session 13's zero problem, in a new setting.</footer>
     </div>
   </section>
 
@@ -1110,22 +1121,18 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          <strong>Appendix B</strong></p>
+          <p class="ref-note">&ldquo;Naive Bayes, Text Classification, and Sentiment&rdquo;. Read
+          <strong>§B.1</strong> up to where it begins training the classifier — that is the next
+          session. This material is in Appendix B, <em>not</em> chapter 4; chapter 4 in this edition
+          covers a different method, and older reading lists cite it incorrectly.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0016-naive-bayes-for-sentiment.html">Next deck &mdash;
+      session 16: Naïve Bayes for sentiment, worked through &rarr;</a>
     </div>
   </section>
 

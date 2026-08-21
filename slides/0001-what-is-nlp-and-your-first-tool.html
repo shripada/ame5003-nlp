@@ -167,6 +167,24 @@ strong { font-weight: 600; }
   margin: 0 0 1.2rem;
 }
 
+/* ---- Subordinate text, reused across shapes ----
+   The note under a code block, table or bullet list (.aside), and the qualifier
+   under a big statement (.slide--statement footer). Both say the thing the main
+   content needs in order to be read correctly — the callback, the caveat, the
+   pointer to the next session — so both are projected text and share one scale.
+   Sized here once for every shape: .aside used to be declared per shape, which
+   left the code and table slides with no rule at all and their notes at the
+   browser's 16px default. */
+.slide .aside,
+.slide--statement footer {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.slide .aside {
+  margin-top: 2rem;
+}
+
 /* ---- Shape: title ---- */
 .slide--title h1 {
   font-weight: 400;
@@ -177,7 +195,6 @@ strong { font-weight: 600; }
   text-wrap: balance;
 }
 .slide--title .subtitle {
-  font-style: italic;
   color: var(--ink-soft);
   font-size: clamp(1.1rem, 2.2vw, 1.6rem);
   text-wrap: balance;
@@ -206,22 +223,23 @@ strong { font-weight: 600; }
   font-size: clamp(1.25rem, 2.6vw, 1.9rem);
   line-height: 1.5;
   margin-bottom: .9rem;
-  padding-left: 1.6rem;
+  /* In em, not rem: the indent has to grow with the bullet text, which itself
+     scales with the viewport. A fixed 1.6rem gap was narrower than one
+     character at projector size, so the marker crowded the first word. */
+  padding-left: 1.5em;
   position: relative;
 }
+/* A round marker rather than an em dash. The dash is nearly a full em wide,
+   which is what left it sitting almost against the text, and it reads as
+   punctuation mid-sentence when a line wraps. This also matches the lessons,
+   which leave list markers at the browser's default disc. */
 .slide--bullets li::before {
-  content: "—";
+  content: "\2022";
   position: absolute;
-  left: 0;
+  left: .1em;
   color: var(--accent);
+  line-height: inherit;
 }
-.slide--bullets .aside {
-  margin-top: 2rem;
-  font-size: clamp(1rem, 2vw, 1.3rem);
-  color: var(--ink-soft);
-  font-style: italic;
-}
-
 /* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
 .ref-list {
   list-style: none;
@@ -241,23 +259,49 @@ strong { font-weight: 600; }
   padding-bottom: 0;
   border-bottom: none;
 }
+/* The reading list is projected and then photographed off the screen, so all
+   three lines are sized to be read from the back of the room. The note is the
+   line that says which sections to actually read, which makes it the one that
+   matters most; it stays a step below the title, and the title moves up to keep
+   that order. */
 .ref-list .ref-title {
-  font-size: clamp(1.05rem, 2.1vw, 1.4rem);
-  margin: 0 0 .4rem;
+  font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+  margin: 0 0 .5rem;
 }
 .ref-list .ref-note {
-  font-size: clamp(.85rem, 1.5vw, 1.05rem);
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  line-height: 1.45;
   color: var(--ink-soft);
-  font-style: italic;
-  margin: 0 0 .55rem;
+  margin: 0 0 .7rem;
 }
 .ref-list .ref-link {
   display: inline-block;
   font-family: var(--mono);
-  font-size: clamp(.72rem, 1.2vw, .88rem);
+  font-size: clamp(.85rem, 1.4vw, 1.05rem);
   color: var(--accent);
   word-break: break-all;
 }
+
+/* The onward link, on the last slide of a deck. A deck is a standalone file
+   with no index above it, so this is the only way to reach the next session
+   without editing the URL. It is real markup rather than something the script
+   injects, for the same reason the deck-exit link is: the deck has to work
+   with JavaScript off. Sits inside the slide, not in the fixed chrome, so it
+   appears once, at the end, and never over a slide being presented. */
+.deck-onward {
+  display: inline-block;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.78rem, 1.3vw, .95rem);
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: .55rem 1rem;
+}
+.deck-onward:hover,
+.deck-onward:focus-visible { color: var(--accent); border-color: var(--accent); }
 
 /* ---- Shape: statement (the big single-line slides) ---- */
 .slide--statement p {
@@ -274,14 +318,18 @@ strong { font-weight: 600; }
   color: var(--ink-faint);
   margin: 0 0 1.6rem;
 }
+/* Size, line-height and colour come from the shared subordinate-text rule near
+   the top of this file, alongside .aside. Only the mono face and the spacing
+   above it are particular to the statement shape. */
 .slide--statement footer {
-  margin-top: 1.6rem;
+  margin-top: 1.8rem;
   font-family: var(--mono);
-  font-size: clamp(.85rem, 1.3vw, 1rem);
-  color: var(--ink-soft);
 }
 .slide--statement.warn p { color: var(--warn); }
 .slide--statement q { quotes: none; }
+/* A second statement paragraph, set off from the first. Use this rather than an
+   inline margin, so the gap is the same on every deck that needs it. */
+.slide--statement p.spaced { margin-top: 1.4rem; }
 
 /* ---- Shape: code ---- */
 .slide pre {
@@ -435,13 +483,6 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
   margin: 0 0 1.4rem;
   text-wrap: balance;
 }
-.slide--math .aside {
-  margin-top: 2rem;
-  font-size: clamp(1rem, 2vw, 1.3rem);
-  color: var(--ink-soft);
-  font-style: italic;
-}
-
 /* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
 .slide--split .split-grid {
   display: grid;
@@ -671,6 +712,61 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .fig-set-side { fill: var(--ink-faint); fill-opacity: .14; }
 .fig-setname  { fill: var(--ink); font-size: 19px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
+
+/* Scatter plot (session 17: documents as points). Mirrors lesson.css's
+   .fig-axis/.fig-pt vocabulary rule for rule; only the type sizes differ,
+   because a slide is read from the back of a room and 12px axis labels are
+   not. Reused by session 19's angle figure. */
+.fig-axis   { stroke: var(--rule); stroke-width: 2; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1.4; }
+.fig-label  { fill: var(--ink-faint); font-size: 15px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 17px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 17px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.8; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
+/* Vector arrows (session 19: cosine as an angle). Local copies of lesson.css's
+   .fig-vec/.fig-head/.fig-gap. .fig-arc is already defined above, for session
+   1's figure, and is reused here for the angle arc. */
+.fig-vec    { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2.5; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2.5; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 2 3; }
+
+/* Network diagrams (session 20 onward: neurons, layers, loss curves). Local
+   copies of lesson.css's .fig-node/.fig-edge/.fig-glyph vocabulary, at slide
+   sizes. .fig-edge-w carries its weight as an inline opacity, as in the
+   lessons — the class only supplies colour and width. */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 2; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 2; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-edge-w { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 21px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+
+/* Gates and operators sitting on a line (session 25's LSTM, session 26's GRU).
+   Local copies of lesson.css's .fig-gate pair, at slide type sizes. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.8; }
+.fig-gate-t  { fill: var(--ink); font-size: 17px; text-anchor: middle; }
+
+/* A shaded region marking blocked or unreachable values (session 26's dial,
+   and the masked future in 29 and 31). Local copy of lesson.css's .fig-mask. */
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+
+/* Matrix cells shaded by a weight (session 29's attention matrix onward).
+   Local copies of lesson.css's pair: .fig-cell carries no stroke of its own,
+   because the grid is a separate layer of .fig-cellg rectangles drawn over the
+   shading, so a cell whose weight is zero still shows its outline. Opacity is
+   set inline per cell, as in the lessons. */
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
 
 </style>
 </head>
@@ -1074,6 +1170,8 @@ admin@manipal.edu</code></pre>
           target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
         </li>
       </ul>
+      <a class="deck-onward" href="0002-regex-groups-and-the-greedy-trap.html">Next deck &mdash;
+      session 2: Capturing, choosing, and the greedy trap &rarr;</a>
     </div>
   </section>
 
@@ -1328,9 +1426,25 @@ admin@manipal.edu</code></pre>
 
   // ---- Click-to-advance ----
   // Guarded so it never steals clicks meant for quiz options, the recall
-  // reveal button, or links.
+  // reveal button, or links — and so it never steals a text selection. A
+  // press that travels more than a few pixels is a drag, and a release that
+  // leaves text selected is a selection; neither is a request for the next
+  // slide.
+  var pressX = 0;
+  var pressY = 0;
+  var DRAG_SLOP = 5;
+
+  deck.addEventListener("pointerdown", function (e) {
+    pressX = e.clientX;
+    pressY = e.clientY;
+  });
+
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
+    if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
+        Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
     next();
   });
 

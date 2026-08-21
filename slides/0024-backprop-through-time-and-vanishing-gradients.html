@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 24: Backprop through time, and the vanishing gradient</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,364 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0024-backprop-through-time-and-vanishing-gradients.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 24</p>
+      <h1>Training an RNN: backprop through time, and the vanishing gradient</h1>
+      <p class="subtitle">Session 23 described what the architecture allows but did not test whether
+      training delivers it. It does not, at least not by default, and that failure is where the
+      next architecture comes from.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="Session 23's closing question">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <p class="lede">The claim session 23 left open</p>
+      <p>"The architecture <em>allows</em> a decision to depend on information from hundreds of
+      words in the past."</p>
+      <footer>The answer is <strong>no, not by default</strong> — and the reason is not a defect in
+      any implementation. It follows from the architecture session 23 described.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What training means">
+    <div class="slide-inner">
+      <p><math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math> and <math data-tex="V"><mi>V</mi></math> are trained as session 20's neuron was: choose a loss,
+      compute each weight's contribution, adjust against the gradient, repeat.</p>
+      <footer>None of that is new. What is new is <strong>the distance the error signal must
+      travel</strong>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One loss, at the end">
+    <div class="slide-inner">
+      <p>In sequence classification there is a single loss, computed after the last word. To
+      improve, the network must work out how much the weights used at <em>step 1</em> contributed to
+      an error made at <em>step n</em>.</p>
+      <footer>Session 23's unrolled figure supplies the answer: the unrolled network is an ordinary
+      feedforward network, so we differentiate backward along every arrow in it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Backpropagation through time">
+    <div class="slide-inner">
+      <h2>Two passes</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li><strong>Forward</strong> — run the sequence, computing <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> and <math data-tex="y_t"><msub><mi>y</mi><mi>t</mi></msub></math>,
+        accumulating the loss and saving every hidden state</li>
+        <li><strong>Backward</strong> — walk the sequence in reverse, computing the gradient at each
+        step and passing an error term back to the step before</li>
       </ul>
+      <p class="aside">That is all "backpropagation through time" means: ordinary backpropagation,
+      applied to the unrolled picture. We do not derive it — the mechanism matters for one
+      consequence.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="The one consequence">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p>To reach step 1, <strong>the gradient must pass through every step in between</strong>.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement warn" data-title="Reason 1: two roles">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p class="lede">Reason 1 — the hidden state has two roles</p>
+      <p>At every step <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> must <strong>supply what the current decision needs</strong> and
+      <strong>carry forward what a future decision will need</strong>. One vector, no machinery
+      separating them.</p>
+      <footer>Whatever the current step finds useful will overwrite what a later step depends on —
+      not because of any numerical problem, but because there is only one place to store both.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement warn" data-title="Reason 2: repeated multiplication">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <p class="lede">Reason 2 — the gradient is multiplied once per step</p>
+      <p><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> feeds <math data-tex="h_{t+1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub></math>, which feeds <math data-tex="h_{t+2}"><msub><mi>h</mi><mrow><mi>t</mi><mo>+</mo><mn>2</mn></mrow></msub></math>. The backward pass therefore
+      applies <strong>repeated multiplications</strong>, as many as the sequence is long.</p>
+      <footer>Multiplying any quantity by the same factor a hundred times sends it to one of two
+      limits: zero or infinity. SLP3's name for the first is the <strong>vanishing gradients
+      problem</strong>.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--code" data-title="One sentence, both failures">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <h2>SLP3's example, chosen carefully</h2>
+      <pre><code>The flights the airline was canceling were full.</code></pre>
+      <p class="aside">Predicting <code>was</code> after <code>airline</code> is easy — the singular
+      noun is one word away. Predicting <code>were</code> is hard.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--bullets" data-title="Two reasons, in one sentence">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
+      <h2>Why <code>were</code> is hard, in two ways</h2>
+      <ul>
+        <li>The word that determines it, the plural <code>flights</code>, sits <strong>many steps
+        back</strong>, and everything between has been writing into the same hidden state</li>
+        <li>The singular <code>airline</code> sits <strong>much closer</strong> and favours the
+        wrong answer — the nearby incorrect cue is stronger than the distant correct one</li>
+      </ul>
+      <p class="aside">That distance is what reason 2's gradient must survive and what reason 1's
+      overloaded hidden state must preserve. A single sentence exhibits both failures.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The brackets matter">
+  <section class="slide slide--math" data-title="Session 23's example, read backwards">
     <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
+      <h2>Session 23's toy recurrence, unchanged</h2>
+      <div class="meq"><math data-tex="h_t = U h_{t-1} + W x_t \qquad \text{with } U = 0.5,\ W = 1,\ h_0 = 0" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mspace width="2em"></mspace><mtext>with </mtext><mi>U</mi><mo>=</mo><mn>0.5</mn><mo separator="true">,</mo><mtext> </mtext><mi>W</mi><mo>=</mo><mn>1</mn><mo separator="true">,</mo><mtext> </mtext><msub><mi>h</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Word boundaries">
+  <section class="slide slide--math" data-title="One factor of U per step">
     <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>Differentiating one step gives <math data-tex="\partial h_t / \partial h_{t-1} = U"><mrow><mi>∂</mi><msub><mi>h</mi><mi>t</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>=</mo><mi>U</mi></mrow></math></h2>
+      <div class="meq"><math data-tex="\frac{\partial h_n}{\partial h_1} = U^{\,n-1}" display="block" class="tml-display" style="display:block math;"><mrow><mfrac><mrow><mi>∂</mi><msub><mi>h</mi><mi>n</mi></msub></mrow><mrow><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub></mrow></mfrac><mo>=</mo><msup><mi>U</mi><mrow class="tml-sml-pad"><mspace width="0.1667em"></mspace><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="U was already below 1">
+    <div class="slide-inner">
+      <p><math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math> — <strong>already below 1</strong>.</p>
+      <footer>The example session 23 computed forward by hand, with values chosen only for ease of
+      arithmetic, was a <em>vanishing</em> case throughout. This is session 23's arithmetic, read
+      backwards.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="How fast it collapses">
+    <div class="slide-inner">
+      <h2>Reaching back <em>n</em> steps</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>steps back (<em>n</em>)</th><th><math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math></th><th><math data-tex="U = 1.5"><mrow><mi>U</mi><mo>=</mo><mn>1.5</mn></mrow></math></th></tr>
+        <tr><td>1</td><td>1</td><td>1</td></tr>
+        <tr><td>2</td><td>0.5</td><td>1.5</td></tr>
+        <tr><td>5</td><td>0.0625</td><td>5.0625</td></tr>
+        <tr><td>10</td><td>0.001953125</td><td>38.443359375</td></tr>
+        <tr><td>20</td><td>0.0000019073</td><td>2,216.84</td></tr>
+        <tr><td>50</td><td>0.0000000000000018</td><td>425,081,000</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">Twenty words back, 0.0000019 is not a small learning signal but effectively
+      none. A fifty-word sentence is not a long document; it is a single paragraph.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement warn" data-title="Exploding gradients">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <p>Change one value — <math data-tex="U = 1.5"><mrow><mi>U</mi><mo>=</mo><mn>1.5</mn></mrow></math> instead of <math data-tex="0.5"><mn>0.5</mn></math> — and the same recurrence runs the
+      opposite way: 38 after ten steps, four hundred million after fifty.</p>
+      <footer>The same architecture and the same formula produce the opposite failure. Below 1 it
+      vanishes; above 1 it grows without bound. Only a factor of exactly 1 is stable, and nothing in
+      training keeps it there.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
-    <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: four steps back">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Same toy, <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math></span>
+        <p>What is <math data-tex="\partial h_5 / \partial h_1"><mrow><mi>∂</mi><msub><mi>h</mi><mn>5</mn></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub></mrow></math> — the gradient reaching back four steps? And
+        what would <math data-tex="U"><mi>U</mi></math> have to be for this to <em>grow</em> as you reach further back?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><math data-tex="\partial h_5 / \partial h_1 = U^4 = 0.5^4 = 0.0625"><mrow><mi>∂</mi><msub><mi>h</mi><mn>5</mn></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><msup><mi>U</mi><mn class="tml-sml-pad">4</mn></msup><mo>=</mo><msup><mn>0.5</mn><mn>4</mn></msup><mo>=</mo><mn>0.0625</mn></mrow></math>. Four steps back, the signal
+          is already down to six per cent.</p>
+          <p>For it to grow, <math data-tex="|U| &gt; 1"><mrow><mi>|</mi><mi>U</mi><mi>|</mi><mo>&gt;</mo><mn>1</mn></mrow></math> — the exploding case in the table's right-hand column.
+          Note that <strong>nothing in training keeps <math data-tex="U"><mi>U</mi></math> near 1</strong>; it is a learned
+          weight like any other. Vanishing is the more common outcome, not the only one.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What the example omits">
+    <div class="slide-inner">
+      <p>The example has no activation function, which is why the arithmetic stayed inspectable. A
+      real RNN squashes every step with <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math>, adding one more factor to every backward step:
+      <math data-tex="\tanh&#x27;(z) = 1 - \tanh^2(z)"><mrow><msup><mi>tanh</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>1</mn><mo>−</mo><msup><mi>tanh</mi><mn>2</mn></msup><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, which is <strong>at most 1</strong> and usually well below
+      it.</p>
+      <footer>That factor makes vanishing worse and never better. It cannot recover a shrinking
+      gradient, and it is not the cause of the exploding case.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The figure, arrows reversed">
+    <div class="slide-inner">
+      <h2>Session 23's chain, watched backwards</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 620 300" role="img" aria-labelledby="bpttitle bpttdesc">
+          <title id="bpttitle">The same unrolled RNN as last session, with the gradient flowing
+          backward along the chain and picking up a factor of U at every step</title>
+          <desc id="bpttdesc">Four circles in a row along the middle, labelled h sub zero to h sub
+          three. Above h sub three sits a circle labelled Loss with an arrow pointing down into it.
+          Arrows then run right to left along the chain, each labelled with a multiplication by U,
+          showing that the gradient is multiplied by the same matrix once at every step it travels
+          back.</desc>
+
+          <line class="fig-edge" x1="570" y1="78" x2="570" y2="128"></line>
+          <polygon class="fig-edge-h" points="570,138 573.5,128 566.5,128"></polygon>
+
+          <line class="fig-edge" x1="528" y1="170" x2="417" y2="170"></line>
+          <polygon class="fig-edge-h" points="407,170 417,173.5 417,166.5"></polygon>
+          <text class="fig-label" x="473" y="155" text-anchor="middle">× U</text>
+
+          <line class="fig-edge" x1="343" y1="170" x2="232" y2="170"></line>
+          <polygon class="fig-edge-h" points="222,170 232,173.5 232,166.5"></polygon>
+          <text class="fig-label" x="288" y="155" text-anchor="middle">× U</text>
+
+          <line class="fig-edge" x1="158" y1="170" x2="79" y2="170"></line>
+          <polygon class="fig-edge-h" points="69,170 79,173.5 79,166.5"></polygon>
+          <text class="fig-label" x="118" y="155" text-anchor="middle">× U</text>
+
+          <circle class="fig-node-q" cx="55" cy="170" r="24"></circle>
+          <text class="fig-glyph" x="55" y="177" text-anchor="middle">h₀</text>
+          <circle class="fig-node" cx="200" cy="170" r="32"></circle>
+          <text class="fig-glyph" x="200" y="178" text-anchor="middle">h₁</text>
+          <circle class="fig-node" cx="385" cy="170" r="32"></circle>
+          <text class="fig-glyph" x="385" y="178" text-anchor="middle">h₂</text>
+          <circle class="fig-node" cx="570" cy="170" r="32"></circle>
+          <text class="fig-glyph" x="570" y="178" text-anchor="middle">h₃</text>
+          <circle class="fig-node-q" cx="570" cy="48" r="26"></circle>
+          <text class="fig-glyph" x="570" y="55" text-anchor="middle">Loss</text>
+
+          <text class="fig-axname" x="310" y="242" text-anchor="middle">one factor of U per step —
+          so the gradient shrinks (or grows) exponentially with distance</text>
+          <text class="fig-axname" x="310" y="270" text-anchor="middle">the further back the word,
+          the less of the error signal survives the trip</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The advantage and the defect">
+    <div class="slide-inner">
+      <p>The shared weights that made the architecture work are the same shared weights that make
+      one number get multiplied by itself <em>n</em> times.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why the gradient shrinks">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">Why does the gradient reaching an early timestep shrink toward zero in a
+        long sequence?</p>
+        <div class="q-opts">
+          <button class="opt">Because tanh saturates, and a saturated unit stops passing any signal at all</button>
+          <button class="opt">Because a long sequence has too many parameters for the loss to update them all</button>
+          <button class="opt">Because the same matrix U multiplies onto the gradient once per step, so reaching back n steps multiplies by it n times</button>
+          <button class="opt">Because the loss is computed only at the final step, and earlier steps have no loss of their own</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>repeated multiplication by the same <math data-tex="U"><mi>U</mi></math>, once per step</strong>.</p>
+          <p>The first is a real contributing factor and a good instinct — <math data-tex="\tanh&#x27;"><mrow><msup><mi>tanh</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> is at most
+          1, so it makes vanishing worse — but it is not the mechanism, and it cannot explain the
+          exploding case. The second is false instructively: shared weights mean the parameter count
+          <em>does not grow</em> with sequence length, which was session 23's selling point. The
+          advantage and the defect are the same design decision.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="SLP3's framing of the answer">
+    <div class="slide-inner">
+      <p>SLP3's framing is not about gradients at all. It is about <strong>context
+      management</strong>: architectures that "learn to forget information that is no longer needed
+      and to remember information required for decisions still to come".</p>
+      <footer>That description corresponds exactly to reason 1.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Give the two purposes separate machinery">
+    <div class="slide-inner">
+      <p>If the problem is one vector serving two purposes, the solution is to <strong>give the two
+      purposes separate machinery</strong>: a place to hold context that is not where the current
+      decision is computed, plus learned control over what enters and leaves it.</p>
+      <footer>That is the LSTM, and it is the subject of session 25.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The gradient explanation">
+    <div class="slide-inner">
+      <p>The same design also addresses reason 2, as a consequence rather than a goal: the cell
+      state gives the gradient a path where information is <em>added</em> from step to step rather
+      than multiplied through a weight matrix, and a sum does not decay as a repeated product
+      does.</p>
+      <footer>This is the standard explanation but <em>not</em> SLP3's framing, and should not be
+      attributed to the book. Two reasons, two solutions, one architecture.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what an LSTM changes">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">In SLP3's own framing, what does an LSTM change about a plain RNN?</p>
+        <div class="q-opts">
+          <button class="opt">It removes the recurrence, so no gradient has to travel backward through time at all</button>
+          <button class="opt">It separates "carry information forward" from "serve the current decision," and lets the network learn what to keep and what to forget</button>
+          <button class="opt">It processes the sequence in both directions, so distant words are never more than a few steps away</button>
+          <button class="opt">It trains on shorter sequences, so the gradient never has to reach back very far</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>it gives the two jobs separate machinery, with learned control over
+          what is remembered and forgotten</strong>.</p>
+          <p>That is reason 1's fix, and it is why the LSTM looks the way it does. The gradient
+          benefit is real but secondary — remember the LSTM as "a trick to stop gradients vanishing"
+          and its actual design will look arbitrary next session. The third describes a
+          bidirectional RNN, a different idea that does not solve this; the fourth is a real
+          workaround that works by giving up the long-range dependency.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Where this leaves T3.1">
+    <div class="slide-inner">
+      <h2>Three sessions, one argument</h2>
+      <table>
+        <tr><th>Session</th><th>What it established</th></tr>
+        <tr><td>23</td><td>The architecture — hidden state, shared weights, one network for any
+        sequence length. It <em>allows</em> long-range memory.</td></tr>
+        <tr><td>24</td><td>The limit — one vector doing two jobs, and a gradient multiplied by the
+        same matrix once per step. It does not <em>get</em> long-range memory, not by default.</td></tr>
+        <tr><td>25</td><td>The response — separate the two jobs, learn what to keep. The LSTM exists
+        because of this session, not because of session 23.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A pattern in this course">
+    <div class="slide-inner">
+      <p>These two sessions were not parts one and two of a treatment of RNNs. The first described
+      the architecture accurately; the second measured it accurately; and the gap between them is
+      where the next architecture comes from.</p>
+      <footer>The same pattern has appeared throughout: session 18's idf, session 19's cosine,
+      session 21's analogy, session 22's comparison. Each time the claim is checked against the
+      arithmetic and what survives is kept.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Backpropagation through time is ordinary backpropagation on the unrolled network, and it
+      fails in two ways at once: one hidden state serving both the current decision and later ones,
+      and a gradient multiplied by <math data-tex="U"><mi>U</mi></math> once per step, so <math data-tex="\partial h_n / \partial h_1 = U^{\,n-1}"><mrow><mi>∂</mi><msub><mi>h</mi><mi>n</mi></msub><mi>/</mi><mi>∂</mi><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><msup><mi>U</mi><mrow class="tml-sml-pad"><mspace width="0.1667em"></mspace><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></mrow></math>
+      collapses below 1 and explodes above it.</p>
+      <footer>Session 23's own <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math> was already a vanishing case. The fix is to stop
+      requiring one vector to serve both purposes — an explicit context layer with learned control.
+      That is the LSTM.</footer>
     </div>
   </section>
 
@@ -1110,22 +1139,19 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 13</p>
+          <p class="ref-note">Two places: <strong>§13.1.2</strong> for the two-pass description of
+          backpropagation through time, and the <strong>opening pages of §13.5</strong> for the two
+          reasons and the flights example. Stop at the sentence beginning "To address these
+          issues…" — everything after belongs to session 25, and reading it now would present the
+          LSTM as a list of components rather than a response to a problem.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/13.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/13.pdf</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0025-the-lstm.html">Next deck &mdash;
+      session 25: The LSTM &rarr;</a>
     </div>
   </section>
 

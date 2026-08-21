@@ -1,0 +1,1789 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slides — Session 36: Chatbots, and the course wrap-up</title>
+<style>
+/* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
+   Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
+   lesson.css, not a consumer of it — decks live in slides/, lessons in
+   lessons/, and the two documents have opposite goals (reading measure vs.
+   projector legibility), so this file duplicates the token blocks below
+   rather than @import-ing lesson.css and fighting its page rules.
+
+   KEEP THE TOKEN BLOCK BELOW IN SYNC WITH assets/lesson.css. Same names,
+   same values — only the layout below differs. */
+
+:root {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+strong { font-weight: 600; }
+
+/* ---- Deck + slide scaffolding ----
+   scroll-snap does the actual navigation. slides.js only adds keyboard/click
+   convenience on top — the deck already works with JS disabled. */
+.deck {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+.slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4vh 6vw;
+  position: relative;
+  text-align: center;
+}
+.slide-inner { width: 100%; max-width: 62rem; }
+
+/* ---- Eyebrow / kicker, reused across shapes ---- */
+.slide-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.2rem;
+}
+
+/* ---- Subordinate text, reused across shapes ----
+   The note under a code block, table or bullet list (.aside), and the qualifier
+   under a big statement (.slide--statement footer). Both say the thing the main
+   content needs in order to be read correctly — the callback, the caveat, the
+   pointer to the next session — so both are projected text and share one scale.
+   Sized here once for every shape: .aside used to be declared per shape, which
+   left the code and table slides with no rule at all and their notes at the
+   browser's 16px default. */
+.slide .aside,
+.slide--statement footer {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.slide .aside {
+  margin-top: 2rem;
+}
+
+/* ---- Shape: title ---- */
+.slide--title h1 {
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 1.12;
+  margin: 0 0 1.2rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.slide--title .subtitle {
+  color: var(--ink-soft);
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ---- Shape: bullets ---- */
+.slide--bullets h2,
+.slide--split h2,
+.slide--table h2,
+.slide--code h2,
+.slide--refs h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+.slide--bullets ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+.slide--bullets li {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  margin-bottom: .9rem;
+  /* In em, not rem: the indent has to grow with the bullet text, which itself
+     scales with the viewport. A fixed 1.6rem gap was narrower than one
+     character at projector size, so the marker crowded the first word. */
+  padding-left: 1.5em;
+  position: relative;
+}
+/* A round marker rather than an em dash. The dash is nearly a full em wide,
+   which is what left it sitting almost against the text, and it reads as
+   punctuation mid-sentence when a line wraps. This also matches the lessons,
+   which leave list markers at the browser's default disc. */
+.slide--bullets li::before {
+  content: "\2022";
+  position: absolute;
+  left: .1em;
+  color: var(--accent);
+  line-height: inherit;
+}
+/* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 46rem;
+}
+.ref-list li {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.ref-list li:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+/* The reading list is projected and then photographed off the screen, so all
+   three lines are sized to be read from the back of the room. The note is the
+   line that says which sections to actually read, which makes it the one that
+   matters most; it stays a step below the title, and the title moves up to keep
+   that order. */
+.ref-list .ref-title {
+  font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+  margin: 0 0 .5rem;
+}
+.ref-list .ref-note {
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0 0 .7rem;
+}
+.ref-list .ref-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.4vw, 1.05rem);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* The onward link, on the last slide of a deck. A deck is a standalone file
+   with no index above it, so this is the only way to reach the next session
+   without editing the URL. It is real markup rather than something the script
+   injects, for the same reason the deck-exit link is: the deck has to work
+   with JavaScript off. Sits inside the slide, not in the fixed chrome, so it
+   appears once, at the end, and never over a slide being presented. */
+.deck-onward {
+  display: inline-block;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.78rem, 1.3vw, .95rem);
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: .55rem 1rem;
+}
+.deck-onward:hover,
+.deck-onward:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Shape: statement (the big single-line slides) ---- */
+.slide--statement p {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.28;
+  margin: 0;
+  text-wrap: balance;
+}
+.slide--statement .lede {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, .9rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.6rem;
+}
+/* Size, line-height and colour come from the shared subordinate-text rule near
+   the top of this file, alongside .aside. Only the mono face and the spacing
+   above it are particular to the statement shape. */
+.slide--statement footer {
+  margin-top: 1.8rem;
+  font-family: var(--mono);
+}
+.slide--statement.warn p { color: var(--warn); }
+.slide--statement q { quotes: none; }
+/* A second statement paragraph, set off from the first. Use this rather than an
+   inline margin, so the gap is the same on every deck that needs it. */
+.slide--statement p.spaced { margin-top: 1.4rem; }
+
+/* ---- Shape: code ---- */
+.slide pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1.6rem 2rem;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.5rem);
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.slide code { font-family: var(--mono); }
+.slide pre code { background: none; padding: 0; }
+
+/* ---- Mathematics ----
+   Same contract as lessons: maths is authored as LaTeX in <m> and rendered to
+   MathML by tools/mathify.py, which writes the result into the deck. Nothing
+   is fetched when the deck is shown — no library, no webfont, no CDN, which
+   matters more here than in a lesson, because a deck is opened in front of a
+   room on whatever network the room has.
+
+       python3 tools/mathify.py slides/0029-self-attention.html
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Figure labels stay
+   <text> inside the SVG.
+
+   THE RUNTIME GROUP BELOW IS DUPLICATED FROM assets/lesson.css — trimmed from
+   Temml's stylesheet (MIT), plus that file's own Chromium and WebKit
+   corrections. It is copied for the same reason the token block above is:
+   a deck must stand alone. If you fix a rendering bug in one file, fix it in
+   the other. Only the sizing group at the end differs, because a lesson is
+   read at arm's length and a deck from the back of a room.
+
+   Colour is never set here. MathML paints in currentColor, so it follows
+   --ink and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium reserves the radical glyph's full advance and then draws the
+     overbar to fit the content, leaving <msqrt> a box 0.42em wider than its
+     ink. Scale-invariant, so it corrects in em. See lesson.css for the
+     measurement; recheck it if --math changes. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* ---- Sizing: this is the part that differs from lesson.css ----
+   A variable in a bullet inherits that bullet's clamp, so inline maths is
+   corrected relatively, exactly as in a lesson — a symbol in prose must not
+   open the leading. */
+.slide p math, .slide li math, .slide td math, .slide th math,
+.slide .q-text math, .slide .subtitle math, .slide .aside math {
+  font-size: 1.06em;
+}
+
+/* Display equations. Centred rather than left-aligned, and with no reading
+   measure: 55ch is right for a paragraph and wrong for a projector. The
+   equation number is SLP3's, printed as text — a citation into the book, not
+   a counter of ours — so it must not renumber itself when a deck quotes
+   equations out of order. */
+.slide .meq {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.4rem;
+  margin: 1.8rem 0 0;
+  overflow-x: auto;
+  font-size: clamp(1.3rem, 3.2vw, 2.4rem);
+}
+.slide .meq > math { flex: 0 1 auto; }
+.slide .meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: clamp(.8rem, 1.3vw, 1rem);
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* Shape: math — a heading and one equation, the display counterpart of
+   slide--statement. Nothing else: if a slide needs prose around the equation,
+   it is a bullets or statement slide with a .meq inside it. */
+.slide--math h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 1.4rem;
+  text-wrap: balance;
+}
+/* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
+.slide--split .split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem;
+  text-align: left;
+  align-items: start;
+}
+.slide--split .split-col .col-label {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .7rem;
+}
+.slide--split .split-col.bad .col-label { color: var(--bad); }
+.slide--split .split-col.good .col-label { color: var(--ok); }
+.slide--split .split-col.bad pre { border-left-color: var(--bad); }
+.slide--split .split-col.good pre { border-left-color: var(--ok); }
+@media (max-width: 900px) {
+  .slide--split .split-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Shape: table (own larger-type variant — lesson.css's tables are too
+   dense to read from the back of a room) ---- */
+.slide--table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  text-align: left;
+}
+.slide--table th, .slide--table td {
+  padding: .8rem 1.4rem .8rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.slide--table th {
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: .82em;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.slide--table td code, .slide--table th code { font-size: 1em; }
+
+/* ---- Quiz / recall reuse (assets/quiz.js) — scoped to fit one viewport ---- */
+.slide .quiz, .slide .recall {
+  text-align: left;
+  max-width: 46rem;
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 1.8rem 2.2rem;
+  margin: 0 auto;
+}
+.slide .recall { border-style: dashed; border-color: var(--ink-faint); }
+.slide .q-num, .slide .recall .label {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .8rem;
+}
+.slide .q-text { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: 0 0 1.2rem; }
+.slide .q-opts { display: flex; flex-direction: column; gap: .6rem; }
+.slide button.opt {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-align: left;
+  padding: .7rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.slide button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.slide button.opt:disabled { cursor: default; opacity: .55; }
+.slide button.opt.correct { background: var(--ok-bg); border-color: var(--ok); opacity: 1; font-weight: 600; }
+.slide button.opt.wrong { background: var(--bad-bg); border-color: var(--bad); opacity: 1; }
+.slide .q-fb {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.9rem, 1.6vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.slide .q-fb.show { display: block; }
+.slide .q-fb strong { color: var(--ink); }
+.slide button.reveal {
+  font-family: var(--mono);
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .55rem 1.1rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .9rem;
+}
+.slide button.reveal:hover { background: var(--code-bg); }
+.slide .recall .answer {
+  display: none;
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.95rem, 1.7rem, 1.15rem);
+}
+.slide .recall .answer.show { display: block; }
+
+/* ---- SVG diagram furniture (local copies of lesson.css's .fig-* pattern) ---- */
+.slide-fig { margin: 1.6rem auto 0; max-width: 46rem; }
+.slide-fig svg { width: 100%; height: auto; overflow: visible; }
+.fig-word { fill: var(--ink); font-family: var(--serif); font-size: 22px; }
+.fig-arc { stroke: var(--ink-faint); stroke-width: 1.6; fill: none; }
+.fig-arc-a { stroke: var(--accent); }
+.fig-arc-b { stroke: var(--ok); }
+.fig-arc-label { fill: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+
+/* ---- Chrome: progress bar + counter ---- */
+.deck-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  z-index: 60;
+  transition: width .15s ease-out;
+}
+.deck-exit {
+  position: fixed;
+  top: .9rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  z-index: 60;
+  background: var(--bg);
+  padding: .3rem .6rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.deck-exit:hover { color: var(--accent); border-color: var(--accent); }
+.deck-counter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+}
+
+/* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
+.deck-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  overflow-y: auto;
+  padding: 4vh 6vw;
+}
+.deck-overview.show { display: block; }
+.deck-overview ol {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+  counter-reset: ov;
+}
+.deck-overview li {
+  counter-increment: ov;
+  font-size: 1.15rem;
+  padding: .6rem .8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+}
+.deck-overview li::before {
+  content: counter(ov, decimal-leading-zero);
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  font-size: .85rem;
+  padding-top: .15rem;
+}
+.deck-overview li:hover, .deck-overview li.current { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+  .slide { height: auto; min-height: 100vh; page-break-after: always; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+}
+
+
+/* Set diagram (session 1: how NLP relates to AI). Mirrors the lesson figure;
+   labels are larger here because a slide is read from the back of a room. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.6; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .12; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .15; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .22; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .20; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .14; }
+.fig-setname  { fill: var(--ink); font-size: 19px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
+
+/* Scatter plot (session 17: documents as points). Mirrors lesson.css's
+   .fig-axis/.fig-pt vocabulary rule for rule; only the type sizes differ,
+   because a slide is read from the back of a room and 12px axis labels are
+   not. Reused by session 19's angle figure. */
+.fig-axis   { stroke: var(--rule); stroke-width: 2; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1.4; }
+.fig-label  { fill: var(--ink-faint); font-size: 15px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 17px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 17px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.8; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
+/* Vector arrows (session 19: cosine as an angle). Local copies of lesson.css's
+   .fig-vec/.fig-head/.fig-gap. .fig-arc is already defined above, for session
+   1's figure, and is reused here for the angle arc. */
+.fig-vec    { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2.5; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2.5; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 2 3; }
+
+/* Network diagrams (session 20 onward: neurons, layers, loss curves). Local
+   copies of lesson.css's .fig-node/.fig-edge/.fig-glyph vocabulary, at slide
+   sizes. .fig-edge-w carries its weight as an inline opacity, as in the
+   lessons — the class only supplies colour and width. */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 2; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 2; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-edge-w { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 21px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+
+/* Gates and operators sitting on a line (session 25's LSTM, session 26's GRU).
+   Local copies of lesson.css's .fig-gate pair, at slide type sizes. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.8; }
+.fig-gate-t  { fill: var(--ink); font-size: 17px; text-anchor: middle; }
+
+/* A shaded region marking blocked or unreachable values (session 26's dial,
+   and the masked future in 29 and 31). Local copy of lesson.css's .fig-mask. */
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+
+/* Matrix cells shaded by a weight (session 29's attention matrix onward).
+   Local copies of lesson.css's pair: .fig-cell carries no stroke of its own,
+   because the grid is a separate layer of .fig-cellg rectangles drawn over the
+   shading, so a cell whose weight is zero still shows its outline. Opacity is
+   set inline per cell, as in the lessons. */
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+
+</style>
+</head>
+<body>
+
+<div class="deck-progress"></div>
+<a class="deck-exit" href="../lessons/0036-chatbots-and-wrap-up.html">&larr; Lesson</a>
+<div class="deck-counter"></div>
+
+<div class="deck">
+
+  <section class="slide slide--title" data-title="Title">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 36</p>
+      <h1>Chatbots, and the course wrap-up</h1>
+      <p class="subtitle">A task-oriented chatbot fills a frame. Then the table session 22 left
+      standing, extended to the rest of the course.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two jobs, one hour">
+    <div class="slide-inner">
+      <p>The syllabus clause is the application. The calendar also gives this sitting the wrap-up:
+      the argument the other thirty-five sessions built.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Frames and slots">
+    <div class="slide-inner">
+      <p>A traveller wants a flight. A system that books it has to know where from, where to, and
+      when.</p>
+      <footer>SLP3 Appendix K calls the structure that holds those facts a <strong>frame</strong>: a
+      collection of <strong>slots</strong>, each taking a set of possible values. The job is to fill
+      the slots and then act. The architecture is <strong>1977</strong> — GUS, a travel-planning
+      system whose frames became the industrial pattern for thirty years.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The air-travel frame">
+    <div class="slide-inner">
+      <h2>Fig. K.2</h2>
+      <table>
+        <tr><th>slot</th><th>type</th><th>the system's question</th></tr>
+        <tr><td><code>ORIGIN-CITY</code></td><td>city</td><td>"From what city are you leaving?"</td></tr>
+        <tr><td><code>DESTINATION-CITY</code></td><td>city</td><td>"Where are you going?"</td></tr>
+        <tr><td><code>DEPARTURE-TIME</code></td><td>time</td><td>"When would you like to leave?"</td></tr>
+        <tr><td><code>DEPARTURE-DATE</code></td><td>date</td><td>"What day would you like to leave?"</td></tr>
+        <tr><td><code>ARRIVAL-TIME</code></td><td>time</td><td>"When do you want to arrive?"</td></tr>
+        <tr><td><code>ARRIVAL-DATE</code></td><td>date</td><td>"What day would you like to arrive?"</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Three jobs">
+    <div class="slide-inner">
+      <h2>Filling that frame from an utterance</h2>
+      <ul>
+        <li><strong>Domain classification</strong> — which frame are we in? Airlines, an alarm clock,
+        a calendar</li>
+        <li><strong>Intent determination</strong> — what general task is the user trying to
+        accomplish? Show a flight, set an alarm, remove an appointment</li>
+        <li><strong>Slot filling</strong> — extract the particular values the utterance supplies</li>
+      </ul>
+      <p class="aside">The first two together decide which frame we are filling.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="K's worked utterance">
+    <div class="slide-inner">
+      <h2>One sentence, all three jobs</h2>
+      <pre><code>Show me morning flights from Boston to San Francisco on Tuesday
+
+DOMAIN:       AIR-TRAVEL
+INTENT:       SHOW-FLIGHTS
+ORIGIN-CITY:  Boston
+DEST-CITY:    San Francisco
+ORIGIN-DATE:  Tuesday
+ORIGIN-TIME:  morning</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The simplest extractor">
+    <div class="slide-inner">
+      <h2>K.0.1's regular expression for SET-ALARM</h2>
+      <pre><code>wake me (up) | set (the|an) alarm | get me up</code></pre>
+      <p class="aside">That is sessions 1 and 2. Intent detection can be a pattern — the course opened
+      by pulling facts out of text that way, and the last hour's simplest chatbot is the same
+      tool.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Most systems learn it">
+    <div class="slide-inner">
+      <p>Practical NLP chapter 6, the prescribed source, is six notebooks that do exactly two of the
+      three jobs: intent detection on ATIS, and slot filling on SNIPS.</p>
+      <footer>The chapter's Outline section is still empty. Appendix K is the architecture those
+      notebooks implement without naming.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Intent detection">
+    <div class="slide-inner">
+      <h2>One label for the whole utterance — session 33's sequence classification</h2>
+      <div class="meq" data-eqno="10.11"><math data-tex="y = \mathrm{softmax}(h^L_{[\mathrm{CLS}]} W_C)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mi>L</mi></msubsup><msub><mi>W</mi><mi>C</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(10.11)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A head from session 33">
+    <div class="slide-inner">
+      <p>Sentiment, topic, spam — the same recipe. Intent is that recipe pointed at
+      <code>SHOW-FLIGHTS</code> rather than at <code>negative</code>.</p>
+      <footer>Practical NLP's first three notebooks are classifiers. The prescribed chatbot's first
+      half is a head from session 33.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Slot filling is BIO">
+    <div class="slide-inner">
+      <h2>The fillers are spans — session 7's scheme, session 33's implementation</h2>
+      <pre><code>The       B-ORG
+Reserve   I-ORG
+Bank      I-ORG
+of        I-ORG
+India     I-ORG
+raised    O
+rates     O
+.</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Its third appearance">
+    <div class="slide-inner">
+      <p>Appendix K recalls the same scheme from chapter 17 — session 7's reading — and points it at
+      slots instead of organisations. <code>B-ORG</code> becomes <code>B-DES</code>.</p>
+      <footer>The encoder underneath is a pretrained language model rather than the spaCy tagger
+      session 7 ran. The scheme has not changed. This is its third appearance, twenty-nine sessions
+      after the first.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Both jobs in one pass">
+    <div class="slide-inner">
+      <h2>Fig. K.3: BIO at every token, domain and intent at <code>EOS</code></h2>
+      <pre><code>I          O
+want       O
+to         O
+fly        O
+to         O
+San        B-DES
+Francisco  I-DES
+on         O
+Monday     B-DEPTIME
+afternoon  I-DEPTIME
+please     O
+EOS        AIRLINE-SHOWFLIGHT</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Fig. K.3, redrawn">
+    <div class="slide-inner">
+      <h2>Two fine-tuning recipes sharing an encoder</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 390" role="img" aria-labelledby="k3title k3desc">
+        <title id="k3title">One encoder, two heads: BIO tags on every token, domain and intent
+        at EOS</title>
+        <desc id="k3desc">A dashed, faded rectangle labelled pretrained encoder, frozen, spans
+        the middle of the figure, with six token boxes beneath it: San, Francisco, on,
+        Monday, afternoon, EOS. Above the encoder sit two solid rectangles, the trained
+        heads. The left head is a token classifier labelled W_K, with five small tag boxes
+        B-DES, I-DES, O, B-DEPTIME, I-DEPTIME sitting on the first five tokens. The right
+        head is a sequence classifier labelled W_C, outputting AIRLINE-SHOWFLIGHT from the
+        EOS position. Solid arrows run from the encoder to each head. A small legend
+        distinguishes solid trained boxes from the dashed frozen encoder.</desc>
+
+        <rect class="fig-node" x="30" y="10" width="22" height="14" rx="2"></rect>
+        <text class="fig-label" x="58" y="21">trained (the head)</text>
+        <rect class="fig-node fig-frozen" x="230" y="10" width="22" height="14" rx="2"></rect>
+        <text class="fig-label" x="258" y="21">frozen (the encoder)</text>
+
+        <rect class="fig-node" x="30" y="40" width="430" height="70" rx="5"></rect>
+        <text class="fig-label" x="245" y="60" text-anchor="middle">token classifier</text>
+        <text class="fig-glyph" x="245" y="82" text-anchor="middle">W_K</text>
+        <text class="fig-label" x="245" y="100" text-anchor="middle">→  a BIO tag per token</text>
+
+        <rect class="fig-node" x="490" y="40" width="180" height="70" rx="5"></rect>
+        <text class="fig-label" x="580" y="60" text-anchor="middle">sequence classifier</text>
+        <text class="fig-glyph" x="580" y="82" text-anchor="middle">W_C</text>
+        <text class="fig-label" x="580" y="100" text-anchor="middle">→  domain+intent</text>
+
+        <path class="fig-edge" d="M85 168 L120 110"></path>
+        <polygon class="fig-edge-h" points="120,110 109,114 114,120"></polygon>
+        <path class="fig-edge" d="M190 168 L190 110"></path>
+        <polygon class="fig-edge-h" points="190,110 186.5,120 193.5,120"></polygon>
+        <path class="fig-edge" d="M300 168 L300 110"></path>
+        <polygon class="fig-edge-h" points="300,110 296.5,120 303.5,120"></polygon>
+        <path class="fig-edge" d="M405 168 L405 110"></path>
+        <polygon class="fig-edge-h" points="405,110 401.5,120 408.5,120"></polygon>
+        <path class="fig-edge" d="M500 168 L500 110"></path>
+        <polygon class="fig-edge-h" points="500,110 496.5,120 503.5,120"></polygon>
+        <path class="fig-edge" d="M605 168 L580 110"></path>
+        <polygon class="fig-edge-h" points="580,110 585,120 590,114"></polygon>
+
+        <rect class="fig-node fig-frozen" x="30" y="168" width="640" height="56" rx="6"></rect>
+        <text class="fig-label" x="350" y="192" text-anchor="middle">pretrained encoder</text>
+        <text class="fig-label" x="350" y="210" text-anchor="middle">frozen, or barely updated</text>
+
+        <rect class="fig-gate" x="40" y="244" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="85" y="268" text-anchor="middle">San</text>
+        <rect class="fig-gate" x="145" y="244" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="190" y="268" text-anchor="middle">Francisco</text>
+        <rect class="fig-gate" x="250" y="244" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="295" y="268" text-anchor="middle">on</text>
+        <rect class="fig-gate" x="355" y="244" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="400" y="268" text-anchor="middle">Monday</text>
+        <rect class="fig-gate" x="460" y="244" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="505" y="268" text-anchor="middle">afternoon</text>
+        <rect class="fig-gate" x="565" y="244" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="610" y="268" text-anchor="middle">EOS</text>
+
+        <path class="fig-edge" d="M85 244 L85 224"></path>
+        <polygon class="fig-edge-h" points="85,224 81.5,234 88.5,234"></polygon>
+        <path class="fig-edge" d="M190 244 L190 224"></path>
+        <polygon class="fig-edge-h" points="190,224 186.5,234 193.5,234"></polygon>
+        <path class="fig-edge" d="M295 244 L295 224"></path>
+        <polygon class="fig-edge-h" points="295,224 291.5,234 298.5,234"></polygon>
+        <path class="fig-edge" d="M400 244 L400 224"></path>
+        <polygon class="fig-edge-h" points="400,224 396.5,234 403.5,234"></polygon>
+        <path class="fig-edge" d="M505 244 L505 224"></path>
+        <polygon class="fig-edge-h" points="505,224 501.5,234 508.5,234"></polygon>
+        <path class="fig-edge" d="M610 244 L610 224"></path>
+        <polygon class="fig-edge-h" points="610,224 606.5,234 613.5,234"></polygon>
+
+        <text class="fig-label" x="85" y="304" text-anchor="middle">B-DES</text>
+        <text class="fig-label" x="190" y="304" text-anchor="middle">I-DES</text>
+        <text class="fig-label" x="295" y="304" text-anchor="middle">O</text>
+        <text class="fig-label" x="400" y="304" text-anchor="middle">B-DEPTIME</text>
+        <text class="fig-label" x="505" y="304" text-anchor="middle">I-DEPTIME</text>
+        <text class="fig-label" x="610" y="304" text-anchor="middle">AIRLINE-</text>
+        <text class="fig-label" x="610" y="318" text-anchor="middle">SHOWFLIGHT</text>
+
+        <text class="fig-label" x="245" y="348" text-anchor="middle">head reads every hᵢ — session 33, equation (10.12)</text>
+        <text class="fig-label" x="580" y="348" text-anchor="middle">head reads EOS, not [CLS]</text>
+        <text class="fig-label" x="350" y="376" text-anchor="middle">the large object is shared; the two small objects on top are session 33's two recipes</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One designated position">
+    <div class="slide-inner">
+      <p>Session 33 sat the sequence classifier on <code>[CLS]</code>; Appendix K sits it on
+      <code>EOS</code>. One designated position carries the whole-sequence label — a convention, not
+      a law.</p>
+      <footer>A working system wraps a small loop around that extractor: ask questions until the
+      slots are full, query a database, report back, using templates for the replies. Dialogue acts,
+      state tracking and sentence realisation are the rest of Appendix K, and not this clause.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: two utterances">
+    <div class="slide-inner">
+      <h2>Exercise</h2>
+      <div class="recall">
+        <span class="label">(a) then (b)</span>
+        <p><strong>(a)</strong> <em>book me a flight to Bengaluru on Tuesday morning</em> — which
+        part is the intent, which are slots, and which session taught each?</p>
+        <p><strong>(b)</strong> <em>I need to be in Bengaluru for a meeting on Wednesday
+        morning.</em> Which slots can the tagger fill?</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p><strong>(a).</strong> Intent <code>SHOW-FLIGHTS</code> or <code>BOOK-FLIGHT</code>, from
+          a whole-sequence head — session 33, equation (10.11). Slots
+          <code>DESTINATION-CITY = Bengaluru</code>, <code>DEPARTURE-DATE = Tuesday</code>,
+          <code>DEPARTURE-TIME = morning</code>, via BIO tagging — sessions 7 and 33, equation
+          (10.12).</p>
+          <p><strong>(b).</strong> Destination, yes. Departure date — <strong>there is no token to
+          tag</strong>. The intended answer is Tuesday, and it comes from knowing that people arrive
+          the day before a meeting, not from the sentence. Same machinery as (a), and it has just run
+          out.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what machinery is new">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What machinery does a frame-based chatbot need that this course has not
+        already taught?</p>
+        <div class="q-opts">
+          <button class="opt">None — it is sequence classification plus sequence labeling</button>
+          <button class="opt">A dialogue-specific neural architecture, trained end-to-end on conversations</button>
+          <button class="opt">A separate language model for generating the system's replies</button>
+          <button class="opt">Question answering, because a chatbot is a QA system with memory</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>none</strong>. Intent is (10.11); slots are (10.12) with BIO tags. Fig.
+          K.3 is those two heads on one frozen encoder, and the loop around them is templates.</p>
+          <p>The second is what "chatbot" suggests in 2026, and it is a different column of the table
+          that comes next. The third is sentence realisation, which Appendix K covers and this hour
+          does not. The fourth is the syllabus-level confusion: QA is session 35, and Practical NLP
+          chapter 6 contains none of it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Two kinds of chatbot">
+    <div class="slide-inner">
+      <h2>Both are real, and they are not the same system</h2>
+      <table>
+        <tr><th></th><th>task-oriented (Appendix K, Practical NLP Ch6)</th><th>LLM assistant</th></tr>
+        <tr><td>what it does</td><td>fills a frame, then acts</td><td>generates a response</td></tr>
+        <tr><td>how it is built</td><td>fine-tuned classifiers — sessions 32–33</td>
+        <td>pretrain, then post-train</td></tr>
+        <tr><td>scope</td><td>one domain, known slots</td><td>open domain</td></tr>
+        <tr><td>fails by</td><td>not understanding</td><td>understanding and being wrong</td></tr>
+      </table>
+      <p class="aside">The prescribed source is only the left-hand column. Question answering is not
+      the right-hand column either — it is session 35, listed separately in the syllabus.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Where the left column stops">
+    <div class="slide-inner">
+      <h2>A travel agent and a client, from SLP3 chapter 25</h2>
+      <pre><code>A:  And, what day in May did you want to travel?
+C:  OK uh I need to be there for a meeting that's from the 12th to the 15th.</code></pre>
+      <p class="aside">The client never states a travel date. The right answer is the 11th: people
+      arrive the day before a meeting. <strong>There is no token to tag.</strong></p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why the right column exists">
+    <div class="slide-inner">
+      <p>Everything this session has taught — frames, BIO, a head on <code>EOS</code> — stops at the
+      words that were said.</p>
+      <footer>The right-hand column exists because the left-hand column cannot draw that
+      inference.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="And a base model does not follow instructions">
+    <div class="slide-inner">
+      <h2>Chapter 9's own demonstration, from early GPT</h2>
+      <pre><code>Prompt:   Translate to French: The small dog
+Output:   The small dog crossed the road.</code></pre>
+      <p class="aside">Session 34's translator would not do that — it was trained to translate. A
+      base language model ignores the instruction and keeps writing English.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Named, and not taught">
+    <div class="slide-inner">
+      <p>How the right-hand column is built is SLP3 chapter 9, <em>Post-training: Instruction Tuning,
+      Alignment, and Test-Time Compute</em>.</p>
+      <footer>Everything this course has built stops at the base model. Chapter 9 is the step across,
+      and it is the next thing to read, not a thing this hour teaches.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Evaluating a task-based system">
+    <div class="slide-inner">
+      <p>Appendix K evaluates two ways, and they are session 14's names.</p>
+      <footer><strong>Task success rate</strong> is extrinsic — the percentage of times the system
+      booked the right flight, the only thing the user cares about, and it needs a whole dialogue to
+      measure. <strong>Slot error rate</strong> is intrinsic: "a more fine-grained, but less
+      extrinsic metric."</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Slot error rate">
+    <div class="slide-inner">
+      <h2>Insertions, deletions and substitutions over the reference slot count</h2>
+      <div class="meq" data-eqno="K.1"><math data-tex="\mathrm{SlotErrorRate} = \frac{n_{\mathrm{err}}}{n_{\mathrm{ref}}}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>SlotErrorRate</mi></mpadded><mo>=</mo><mfrac><msub><mi>n</mi><mpadded lspace="0"><mi>err</mi></mpadded></msub><msub><mi>n</mi><mpadded lspace="0"><mi>ref</mi></mpadded></msub></mfrac></mrow></math><span class="eqno">(K.1)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="K's worked example">
+    <div class="slide-inner">
+      <h2>One slot wrong out of three</h2>
+      <pre><code>Make an appointment with Chris at 10:30 in Gates 104
+
+PERSON:  Chris
+TIME:    11:30 a.m.
+ROOM:    Gates 104</code></pre>
+      <p class="aside">Slot error rate 1/3. The number does not say that the one wrong slot is the one
+      that makes the appointment useless. Session 35 closed on the same habit: perplexity, chrF, token
+      F1, and now slot error rate. K notes slot precision, recall and F-score can also be used — lab
+      6 defined those three in week 6, and this is week 12.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="When not to answer">
+    <div class="slide-inner">
+      <h2>K.1.3's confidence thresholds</h2>
+      <table>
+        <tr><th>the system's confidence</th><th>what it does</th></tr>
+        <tr><td>below <math data-tex="\alpha"><mi>α</mi></math></td>
+        <td><strong>reject</strong> — "I'm sorry, I didn't understand that"</td></tr>
+        <tr><td><math data-tex="\ge \alpha"><mrow><mo>≥</mo><mi>α</mi></mrow></math></td><td><strong>confirm explicitly</strong> — "…Is that
+        correct?"</td></tr>
+        <tr><td><math data-tex="\ge \beta"><mrow><mo>≥</mo><mi>β</mi></mrow></math></td><td><strong>confirm implicitly</strong> — "When do you want to
+        travel <em>to Shanghai</em>?"</td></tr>
+        <tr><td><math data-tex="\ge \gamma"><mrow><mo>≥</mo><mi>γ</mi></mrow></math></td><td>act, and say nothing</td></tr>
+      </table>
+      <p class="aside">Explicit confirmation makes errors easy to correct and is, K says,
+      "time-consuming and awkward".</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The oldest and the newest">
+    <div class="slide-inner">
+      <p>Session 34 closed on §12.7: systems need confidence values so they can abstain from
+      translations that may cause harm. Knowing when not to answer was the open problem that chapter
+      named.</p>
+      <footer>A frame-filler from 1977 and a translator from 2026 have the same problem — and the
+      course can say so because session 34 already named it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The bridge session 35 assembled">
+    <div class="slide-inner">
+      <p>Three architectures in one sequence: <strong>frames and slots</strong>, this session →
+      <strong>retrieval-augmented generation</strong>, session 35 → <strong>instruction tuning and
+      alignment</strong>, chapter 9.</p>
+      <footer>The course covers the first two. The third is the chapter it names and stops at.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why not open-domain">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Why can a task-oriented chatbot not answer an open-domain question?</p>
+        <div class="q-opts">
+          <button class="opt">Its frames and slots are defined in advance for one domain</button>
+          <button class="opt">It has too few parameters</button>
+          <button class="opt">It is the same as question answering, which this course already covered</button>
+          <button class="opt">BIO tagging cannot handle more than a handful of slot types</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the frames are defined in advance</strong>. Domain classification picks
+          among known frames; slot filling extracts known slots. An open-domain question has no such
+          frame. A structural limit, not a size one.</p>
+          <p>The second is a size explanation for a structural limit, which is the more instructive
+          error. The fourth confuses a tagging scheme with a domain ontology — BIO will tag as many
+          slot types as the label set contains; what it will not do is invent a slot the frame does
+          not have.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="What session 1 promised">
+    <div class="slide-inner">
+      <h2>Five things session 1 opened with</h2>
+      <table>
+        <tr><th>session 1</th><th>where it landed</th></tr>
+        <tr><td>Your phone predicted the next word as you typed</td>
+        <td>language models, sessions 11–14</td></tr>
+        <tr><td>Your email put a message in the spam folder</td>
+        <td>classification, sessions 15–16 and 33</td></tr>
+        <tr><td>A search engine found a page that did not contain your exact words</td>
+        <td>vocabulary mismatch, sessions 8–10, paid in session 35</td></tr>
+        <tr><td>Something translated a sentence for you</td><td>session 34</td></tr>
+        <tr><td>You asked a chatbot a question and got a sensible answer back</td><td>this hour</td></tr>
+      </table>
+      <p class="aside">The third bullet is session 35's vocabulary-mismatch problem, named in week 1
+      before the course had a word for it. That arc is twenty-seven sessions long.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Session 22's six rows">
+    <div class="slide-inner">
+      <h2>The table session 22 left standing</h2>
+      <table>
+        <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
+        <tr><td>8</td><td>Incidence matrix</td><td>a word is present or absent — one bit</td></tr>
+        <tr><td>17</td><td>Bag-of-words</td><td>presence becomes a count</td></tr>
+        <tr><td>18</td><td>TF-IDF</td><td>the count is reweighted by how rare the word is</td></tr>
+        <tr><td>19</td><td>Cosine similarity</td><td>compare those vectors by angle, not length</td></tr>
+        <tr><td>21</td><td>Word2Vec</td><td>stop counting context, predict it, keep the weights</td></tr>
+        <tr><td>22</td><td>GloVe</td><td>count context globally, fit vectors to the counts
+        directly</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The three debts, paid">
+    <div class="slide-inner">
+      <h2>Session 22 listed three things none of that fixes</h2>
+      <table>
+        <tr><th>what session 22 named</th><th>paid in</th></tr>
+        <tr><td>One vector per word, regardless of how many senses</td>
+        <td><strong>session 32.</strong> Session 21's neighbours of <code>bank</code> were
+        <code>banks 0.744, banking 0.690, Bank 0.670, lender 0.634…</code> — every one financial, the
+        river sense absent. Session 32 put those digits back up and produced two vectors</td></tr>
+        <tr><td>Fixed at training time</td>
+        <td><strong>session 35, RAG.</strong> Weights stay frozen; the documents are current. Session
+        21's missing <code>COVID</code>, <code>selfie</code>, <code>blockchain</code> and
+        <code>emoji</code> is the same limitation, fourteen sessions earlier</td></tr>
+        <tr><td>Blind to order</td>
+        <td><strong>sessions 23–31.</strong> Session 23 measured it:
+        <math data-tex="\cos\bigl(\mathrm{avg}(\text{dog},\text{bites},\text{man}),\ \mathrm{avg}(\text{man},\text{bites},\text{dog})\bigr) = 0.9999999999999998"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mpadded lspace="0"><mi>avg</mi></mpadded><mo form="prefix" stretchy="false">(</mo><mtext>dog</mtext><mo separator="true">,</mo><mtext>bites</mtext><mo separator="true">,</mo><mtext>man</mtext><mo form="postfix" stretchy="false">)</mo><mo separator="true">,</mo><mtext> </mtext><mpadded lspace="0"><mi>avg</mi></mpadded><mo form="prefix" stretchy="false">(</mo><mtext>man</mtext><mo separator="true">,</mo><mtext>bites</mtext><mo separator="true">,</mo><mtext>dog</mtext><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mo>=</mo><mn>0.9999999999999998</mn></mrow></math></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Four more rows">
+    <div class="slide-inner">
+      <h2>The Unit III extension</h2>
+      <table>
+        <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
+        <tr><td>23–26</td><td>Recurrent hidden state</td>
+        <td>the sequence is processed as a sequence; memory still decays</td></tr>
+        <tr><td>29–31</td><td>Self-attention over the whole sequence</td>
+        <td>every position sees every other; order only via positions</td></tr>
+        <tr><td>32</td><td>Contextual embeddings</td>
+        <td>one vector per <em>occurrence</em>, not per type</td></tr>
+        <tr><td>35</td><td>RAG</td><td>documents stay current while weights stay frozen</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Ten rows, drawn">
+    <div class="slide-inner">
+      <h2>Six rows, then four — and the three debts against the rows that paid them</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 712" role="img" aria-labelledby="stairtitle stairdesc">
+        <title id="stairtitle">Ten representations, from an incidence bit to RAG, with
+        session 22's three debts marked where they were paid</title>
+        <desc id="stairdesc">Ten horizontal bars stacked from the bottom of the figure
+        to the top. The bottom six, drawn with a lighter outline, are session 22's table:
+        incidence matrix, bag of words, TF-IDF, cosine, Word2Vec, GloVe. A horizontal
+        rule labelled Unit II / Unit III separates them from the top four, drawn with a
+        heavier outline: recurrent state, self-attention, contextual embeddings, RAG.
+        Three labels sit to the right of the Unit III bars: blind to order against
+        recurrence and attention, one vector per word against contextual embeddings,
+        and fixed at training time against RAG. Session numbers sit in each bar. The
+        two groups are distinguished by outline weight, not by colour alone.</desc>
+
+        <text class="fig-axname" x="280" y="22" text-anchor="middle">Unit III — the three debts paid</text>
+
+        <rect class="fig-node" x="80" y="36" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="66">35</text>
+        <text class="fig-label" x="280" y="58" text-anchor="middle">RAG</text>
+        <text class="fig-label" x="280" y="74" text-anchor="middle">documents current, weights frozen</text>
+        <text class="fig-label" x="600" y="66" text-anchor="middle">fixed at training time</text>
+
+        <path class="fig-edge" d="M280 84 L280 100"></path>
+        <polygon class="fig-edge-h" points="280,84 276.5,94 283.5,94"></polygon>
+
+        <rect class="fig-node" x="80" y="100" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="130">32</text>
+        <text class="fig-label" x="280" y="122" text-anchor="middle">contextual embeddings</text>
+        <text class="fig-label" x="280" y="138" text-anchor="middle">one vector per occurrence</text>
+        <text class="fig-label" x="600" y="130" text-anchor="middle">one vector per word</text>
+
+        <path class="fig-edge" d="M280 148 L280 164"></path>
+        <polygon class="fig-edge-h" points="280,148 276.5,158 283.5,158"></polygon>
+
+        <rect class="fig-node" x="80" y="164" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="100" y="194">29–31</text>
+        <text class="fig-label" x="280" y="186" text-anchor="middle">self-attention</text>
+        <text class="fig-label" x="280" y="202" text-anchor="middle">whole sequence; order via positions</text>
+
+        <path class="fig-edge" d="M280 212 L280 228"></path>
+        <polygon class="fig-edge-h" points="280,212 276.5,222 283.5,222"></polygon>
+
+        <rect class="fig-node" x="80" y="228" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="100" y="258">23–26</text>
+        <text class="fig-label" x="280" y="250" text-anchor="middle">recurrent hidden state</text>
+        <text class="fig-label" x="280" y="266" text-anchor="middle">sequence as sequence; memory decays</text>
+        <text class="fig-label" x="600" y="222" text-anchor="middle">blind to order</text>
+
+        <line class="fig-split" x1="40" y1="292" x2="660" y2="292"></line>
+        <text class="fig-axname" x="280" y="314" text-anchor="middle">Unit II — session 22's table, as printed</text>
+
+        <rect class="fig-node-q" x="80" y="328" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="358">22</text>
+        <text class="fig-label" x="280" y="350" text-anchor="middle">GloVe</text>
+        <text class="fig-label" x="280" y="366" text-anchor="middle">count globally, fit to the counts</text>
+
+        <path class="fig-edge" d="M280 376 L280 392"></path>
+        <polygon class="fig-edge-h" points="280,376 276.5,386 283.5,386"></polygon>
+
+        <rect class="fig-node-q" x="80" y="392" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="422">21</text>
+        <text class="fig-label" x="280" y="414" text-anchor="middle">Word2Vec</text>
+        <text class="fig-label" x="280" y="430" text-anchor="middle">predict context, keep the weights</text>
+
+        <path class="fig-edge" d="M280 440 L280 456"></path>
+        <polygon class="fig-edge-h" points="280,440 276.5,450 283.5,450"></polygon>
+
+        <rect class="fig-node-q" x="80" y="456" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="486">19</text>
+        <text class="fig-label" x="280" y="478" text-anchor="middle">cosine similarity</text>
+        <text class="fig-label" x="280" y="494" text-anchor="middle">compare by angle, not length</text>
+
+        <path class="fig-edge" d="M280 504 L280 520"></path>
+        <polygon class="fig-edge-h" points="280,504 276.5,514 283.5,514"></polygon>
+
+        <rect class="fig-node-q" x="80" y="520" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="550">18</text>
+        <text class="fig-label" x="280" y="542" text-anchor="middle">TF-IDF</text>
+        <text class="fig-label" x="280" y="558" text-anchor="middle">reweight by how rare the word is</text>
+
+        <path class="fig-edge" d="M280 568 L280 584"></path>
+        <polygon class="fig-edge-h" points="280,568 276.5,578 283.5,578"></polygon>
+
+        <rect class="fig-node-q" x="80" y="584" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="614">17</text>
+        <text class="fig-label" x="280" y="606" text-anchor="middle">bag of words</text>
+        <text class="fig-label" x="280" y="622" text-anchor="middle">presence becomes a count</text>
+
+        <path class="fig-edge" d="M280 632 L280 648"></path>
+        <polygon class="fig-edge-h" points="280,632 276.5,642 283.5,642"></polygon>
+
+        <rect class="fig-node-q" x="80" y="648" width="400" height="48" rx="4"></rect>
+        <text class="fig-glyph" x="108" y="678">8</text>
+        <text class="fig-label" x="280" y="670" text-anchor="middle">incidence matrix</text>
+        <text class="fig-label" x="280" y="686" text-anchor="middle">a word is present or absent — one bit</text>
+
+        <text class="fig-label" x="600" y="400" text-anchor="middle">session 22 named</text>
+        <text class="fig-label" x="600" y="416" text-anchor="middle">three remaining</text>
+        <text class="fig-label" x="600" y="432" text-anchor="middle">limitations</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Three habits">
+    <div class="slide-inner">
+      <p class="lede">The architectures will date</p>
+      <p>Three habits the course kept finding will not.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Check the claim against the evidence">
+    <div class="slide-inner">
+      <p>Session 26 counted four: session 18's idf against the Shakespeare features, session 21's
+      <math data-tex="\mathrm{king} - \mathrm{man} + \mathrm{woman}"><mrow><mpadded lspace="0"><mi>king</mi></mpadded><mo>−</mo><mpadded lspace="0"><mi>man</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>woman</mi></mpadded></mrow></math> landing on <code>king</code>, session 22's
+      GloVe against Word2Vec, session 26's LSTM against GRU in a paper two of the GRU's authors
+      signed.</p>
+      <footer>Session 32 made next-sentence prediction the fifth, and said so. Session 34 ran the
+      same move without numbering it: the easy claim is that MT reflects its training data; Prates et
+      al. found amplification. The habit is more durable than any of the results.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Know what a method cannot do">
+    <div class="slide-inner">
+      <p>Every session in Unit III closed on a limitation, and each limitation was the next session's
+      subject.</p>
+      <footer>This session's own limitation — the meeting that implies a flight date — is the last
+      one, and it has no next session. Chapter 9 is the pointer, not the patch.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Every metric is a proxy">
+    <div class="slide-inner">
+      <p>Perplexity, chrF, token F1 — and now slot error rate.</p>
+      <footer>Intrinsic evaluation is inexpensive and approximate; extrinsic evaluation is expensive
+      and definitive. Session 34 restated that trade for translation; K.0.2 uses it almost verbatim,
+      twenty-two sessions after session 14 taught it. Lab 6 remains the reference for precision,
+      recall and F1.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where this leaves us">
+    <div class="slide-inner">
+      <p>Session 1 promised five applications and a way of turning language into numbers a machine
+      can compare. The five landed.</p>
+      <footer>The numbers ran from one bit per word to a contextual vector per occurrence, and then
+      to a generator conditioned on documents the weights never saw. And knowing when not to answer
+      is still open, for the oldest architecture in this hour and for the newest alike.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Summary">
+    <div class="slide-inner">
+      <p class="lede">Summary</p>
+      <p>A frame is a collection of slots; filling it is domain classification plus intent
+      determination plus slot filling. Intent is session 33's sequence classification; slots are
+      session 7's BIO tags. Fig. K.3 does both on one encoder, with the whole-sequence label on
+      <code>EOS</code> rather than <code>[CLS]</code>.</p>
+      <footer>Slot error rate is intrinsic, task success extrinsic, and confidence thresholds decide
+      when to reject, confirm or act. Session 22's six representations extend by four, and the three
+      debts it named are paid. Chapter 9 is named and not taught.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--refs" data-title="References">
+    <div class="slide-inner">
+      <h2>Reading</h2>
+      <ul class="ref-list">
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <strong>Appendix K</strong>, <em>Frame-Based
+          Dialogue Systems</em></p>
+          <p class="ref-note"><strong>K.0.1</strong> for frames, slots, domain, intent, slot filling
+          and Figs. K.2 and K.3; <strong>K.0.2</strong> for task success and slot error rate;
+          <strong>K.1.3</strong> for the confidence thresholds. Skip K.1.1, K.1.2 and K.1.4 —
+          dialogue acts, state tracking and sentence realisation, not this hour.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/K.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/K.pdf</a>
+        </li>
+        <li>
+          <p class="ref-title">Practical NLP, chapter 6</p>
+          <p class="ref-note">Six notebooks: intent detection on ATIS (CNN/RNN, BERT, BERT-binary),
+          slot filling on SNIPS (CRFs, BERT), and the Chatfuel bot the README describes as a simple
+          chatbot which does not have "intelligence". The chapter Outline is empty; Appendix K is the
+          architecture.</p>
+        </li>
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <strong>chapter 9</strong>,
+          <em>Post-training: Instruction Tuning, Alignment, and Test-Time Compute</em></p>
+          <p class="ref-note">The next thing to read, and not this hour. Do not start at chapter 25;
+          it is a stub, and the one sentence this session took from it is already on the page.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
+        </li>
+      </ul>
+      <a class="deck-onward" href="../reference/glossary.html">End of AME 5003 theory &mdash;
+      the glossary &rarr;</a>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+<script>
+/* Slide-deck navigation — MSIS NLP teaching workspace.
+ * Zero dependencies. The deck already works with this script disabled:
+ * CSS scroll-snap (assets/slides.css, .deck/.slide) handles navigation on
+ * its own. This file only adds keyboard/click convenience, a progress bar,
+ * a slide counter, and a jump overview on top of that.
+ *
+ * USAGE — markup contract:
+ *   <div class="deck">
+ *     <div class="deck-progress"></div>
+ *     <div class="deck-counter"></div>
+ *     <section class="slide slide--title" data-title="Short label">…</section>
+ *     …
+ *   </div>
+ * data-title is what shows up in the "o" overview list.
+ *
+ * Reuses assets/quiz.js unchanged for .quiz/.recall slides — this script
+ * never touches that markup, it only guards against stealing its clicks.
+ */
+
+(function () {
+  "use strict";
+
+  var deck = document.querySelector(".deck");
+  if (!deck) return;
+
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.querySelector(".deck-progress");
+  var counter = document.querySelector(".deck-counter");
+  var current = 0;
+
+  function updateChrome(index) {
+    current = index;
+    if (counter) {
+      counter.textContent =
+        String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    if (progress) {
+      var pct = slides.length > 1 ? (index / (slides.length - 1)) * 100 : 0;
+      progress.style.setProperty("--progress", pct + "%");
+    }
+    var ovItems = document.querySelectorAll(".deck-overview li");
+    ovItems.forEach(function (li, i) {
+      li.classList.toggle("current", i === index);
+    });
+  }
+
+  // Tracks position for wheel/trackpad/swipe scrolling, which never calls
+  // goTo() — the observer is the only thing that knows the slide changed.
+  // It intentionally does NOT drive keyboard/click navigation (see goTo).
+  var observer = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          var idx = slides.indexOf(entry.target);
+          if (idx !== -1) updateChrome(idx);
+        }
+      });
+    },
+    { root: deck, threshold: 0.6 }
+  );
+  slides.forEach(function (s) {
+    observer.observe(s);
+  });
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(slides.length - 1, index));
+    // Explicit "instant" on purpose: with CSS scroll-behavior:smooth on
+    // .deck, a JS-triggered scroll that doesn't override behavior inherits
+    // "smooth" (per the scrollTop/scrollIntoView spec) and animates via
+    // requestAnimationFrame. That animation can stall — e.g. under tab
+    // throttling — leaving navigation stuck. Native wheel/trackpad
+    // scrolling still gets the CSS smooth glide; only JS-driven jumps
+    // (keyboard, click, overview) are forced instant for reliability.
+    slides[index].scrollIntoView({ block: "start", behavior: "instant" });
+    // Updated synchronously here, not left to the IntersectionObserver —
+    // that observer can lag a JS-driven jump by a frame or more, and a
+    // second key/click before it fires would compute next() against a
+    // stale index and look like a dropped input.
+    updateChrome(index);
+    if (history.replaceState) {
+      history.replaceState(null, "", "#" + (index + 1));
+    }
+  }
+
+  function next() {
+    goTo(current + 1);
+  }
+  function prev() {
+    goTo(current - 1);
+  }
+
+  // ---- Overview / jump list ----
+  var overview = document.querySelector(".deck-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "deck-overview";
+    var ol = document.createElement("ol");
+    slides.forEach(function (s, i) {
+      var li = document.createElement("li");
+      li.textContent = s.dataset.title || "Slide " + (i + 1);
+      li.addEventListener("click", function () {
+        goTo(i);
+        toggleOverview(false);
+      });
+      ol.appendChild(li);
+    });
+    overview.appendChild(ol);
+    document.body.appendChild(overview);
+  }
+
+  function toggleOverview(force) {
+    var show = typeof force === "boolean" ? force : !overview.classList.contains("show");
+    overview.classList.toggle("show", show);
+  }
+
+  // ---- Fullscreen ----
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", function (e) {
+    if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+      case "PageDown":
+        e.preventDefault();
+        next();
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault();
+        prev();
+        break;
+      case "Home":
+        e.preventDefault();
+        goTo(0);
+        break;
+      case "End":
+        e.preventDefault();
+        goTo(slides.length - 1);
+        break;
+      case "f":
+        toggleFullscreen();
+        break;
+      case "o":
+        toggleOverview();
+        break;
+      case "Escape":
+        toggleOverview(false);
+        break;
+    }
+  });
+
+  // ---- Click-to-advance ----
+  // Guarded so it never steals clicks meant for quiz options, the recall
+  // reveal button, or links — and so it never steals a text selection. A
+  // press that travels more than a few pixels is a drag, and a release that
+  // leaves text selected is a selection; neither is a request for the next
+  // slide.
+  var pressX = 0;
+  var pressY = 0;
+  var DRAG_SLOP = 5;
+
+  deck.addEventListener("pointerdown", function (e) {
+    pressX = e.clientX;
+    pressY = e.clientY;
+  });
+
+  deck.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
+        Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
+    next();
+  });
+
+  // ---- Initial position from location.hash ----
+  // Deferred a frame: this script runs while the browser parses the end of
+  // <body>, before it has necessarily committed layout for a 22-slide-tall
+  // deck. Calling goTo() synchronously here can compute against a stale
+  // (pre-layout) box and land on the wrong offset.
+  var hash = parseInt(location.hash.replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 1 && hash <= slides.length) {
+    requestAnimationFrame(function () {
+      goTo(hash - 1);
+    });
+  } else {
+    updateChrome(0);
+  }
+})();
+
+</script>
+</body>
+</html>

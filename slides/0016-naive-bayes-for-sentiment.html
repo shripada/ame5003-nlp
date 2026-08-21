@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 16: Naïve Bayes for sentiment, worked through</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,324 +773,335 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0016-naive-bayes-for-sentiment.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 16</p>
+      <h1>Naïve Bayes for sentiment, worked through</h1>
+      <p class="subtitle">Five short reviews, one new sentence, and every number done by hand. The
+      training is nothing but counting, and the first attempt fails completely.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--math" data-title="Where session 15 left off">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <h2>The classifier, with no numbers in it</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; P(c) \prod_{w \in d} P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><munder><mo movablelimits="false">∏</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="Two quantities to learn">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p>Two quantities have to come from data: the prior <math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> and the likelihoods
+      <math data-tex="P(w \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. Both are counts.</p>
+      <footer>There is no training loop and nothing to tune. We count, we divide, and the classifier
+      is complete.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--table" data-title="The training data">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>Five short reviews, already labelled</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>class</th><th>document</th></tr>
+        <tr><td>−</td><td>just plain boring</td></tr>
+        <tr><td>−</td><td>entirely predictable and lacks energy</td></tr>
+        <tr><td>−</td><td>no surprises and very few laughs</td></tr>
+        <tr><td>+</td><td>very powerful</td></tr>
+        <tr><td>+</td><td>the most fun film of the summer</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--code" data-title="The sentence to classify">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <h2>The sentence the model has not seen</h2>
+      <pre><code>predictable with no fun</code></pre>
+      <p class="aside">A human reads this as negative, on <em>predictable</em> and <em>no fun</em>.
+      Whether the arithmetic agrees is the test.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--math" data-title="Step 1: the prior">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <h2>Step 1 — the prior, by counting <em>documents</em></h2>
+      <div class="meq"><math data-tex="P(-) = \tfrac{3}{5} = 0.6 \qquad P(+) = \tfrac{2}{5} = 0.4" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>5</mn></mfrac></mstyle><mo>=</mo><mn>0.6</mn><mspace width="2em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>=</mo><mn>0.4</mn></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--math" data-title="Step 2: the likelihoods">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
+      <h2>Step 2 — the likelihoods, by counting <em>words</em></h2>
+      <div class="meq"><math data-tex="P(w \mid c) = \frac{\text{count of } w \text{ in class } c}{\text{total words in class } c}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mtext>count of </mtext><mi>w</mi><mtext> in class </mtext><mi>c</mi></mrow><mrow><mtext>total words in class </mtext><mi>c</mi></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="It matched the entire line">
+  <section class="slide slide--table" data-title="The two big documents">
     <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+      <h2>Concatenate each class into one big document</h2>
+      <table>
+        <tr><th>class</th><th>big document</th><th>tokens</th></tr>
+        <tr><td>−</td><td>just plain boring entirely predictable and lacks energy no surprises and
+        very few laughs</td><td><strong>14</strong></td></tr>
+        <tr><td>+</td><td>very powerful the most fun film of the summer</td><td><strong>9</strong></td></tr>
+      </table>
+      <p class="aside">The positive document is <strong>9</strong> tokens, not 8 —
+      <code>the</code> appears twice.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
+  <section class="slide slide--statement warn" data-title="Two different denominators">
     <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
+      <p>The prior divides by <strong>5</strong>, the number of documents. The likelihood divides by
+      <strong>14</strong> or <strong>9</strong>, the number of words in that class.</p>
+      <footer>Different questions, different denominators. Confusing them is the most common source
+      of error in this calculation.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
+  <section class="slide slide--table" data-title="The first attempt">
     <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
+      <h2>Apply the counts to the test sentence</h2>
+      <table>
+        <tr><th>word</th><th>count in −</th><th><math data-tex="P(w \mid -)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th>count in +</th>
+        <th><math data-tex="P(w \mid +)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
+        <tr><td><code>predictable</code></td><td>1</td><td>1/14</td><td><strong>0</strong></td>
+        <td><strong>0</strong></td></tr>
+        <tr><td><code>no</code></td><td>1</td><td>1/14</td><td><strong>0</strong></td>
+        <td><strong>0</strong></td></tr>
+        <tr><td><code>fun</code></td><td><strong>0</strong></td><td><strong>0</strong></td>
+        <td>1</td><td>1/9</td></tr>
+      </table>
+      <p class="aside"><code>with</code> is set aside for the moment.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A more precise alternative">
+  <section class="slide slide--math" data-title="Both classes score zero">
     <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
+      <h2>Multiplying through</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+P(-) \, P(S \mid -) &amp;= 0.6 \times \tfrac{1}{14} \times \tfrac{1}{14} \times 0 = 0 \\
+P(+) \, P(S \mid +) &amp;= 0.4 \times 0 \times 0 \times \tfrac{1}{9} = 0
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.6</mn><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>14</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>14</mn></mfrac></mstyle><mo>×</mo><mn>0</mn><mo>=</mo><mn>0</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.4</mn><mo>×</mo><mn>0</mn><mo>×</mo><mn>0</mn><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>9</mn></mfrac></mstyle><mo>=</mo><mn>0</mn></mrow></mtd></mtr></mtable></math></div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--statement warn" data-title="It cannot choose at all">
     <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
+      <p>Both classes score exactly zero, so there is nothing to compare and the classifier
+      <strong>cannot choose at all</strong>.</p>
+      <footer>Nothing unusual has happened. Every word is ordinary and appears in the training data.
+      They just did not all appear in <em>both</em> classes, which is expected with five short
+      documents.</footer>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--statement" data-title="The third appearance of one failure">
     <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
+      <p>This failure has now appeared three times: session 12's zero-probability sentence, session
+      13's treatment of it, and here.</p>
+      <footer>The cause is the same each time — a product is zero if any factor is zero, and
+      estimation by counting produces zeros readily.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--math" data-title="Add-one smoothing">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <h2>Session 13's correction, applied here</h2>
+      <div class="meq"><math data-tex="P(w \mid c) = \frac{\mathrm{count}(w, c) + 1}{\text{total words in } c + |V|}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo separator="true">,</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>1</mn></mrow><mrow><mtext>total words in </mtext><mi>c</mi><mo>+</mo><mi>|</mi><mi>V</mi><mi>|</mi></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--statement" data-title="Why add-one is right here">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <p class="lede">Session 13 objected to add-one on scale</p>
+      <p>A language model has <math data-tex="V"><mi>V</mi></math> around 50,000, so add-one gave a bigram seen on every
+      opportunity a probability of 0.008%. Here <math data-tex="V"><mi>V</mi></math> is <strong>20</strong>.</p>
+      <footer>The correction is small, the values stay sensible, and add-one is what is actually
+      used for Naïve Bayes in practice. The method has not changed; the vocabulary size has.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
+  <section class="slide slide--code" data-title="What goes in V">
     <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
+      <h2><math data-tex="|V|"><mrow><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> is the distinct word types across <em>both</em> classes</h2>
+      <pre><code>and · boring · energy · entirely · few · film · fun · just · lacks · laughs
+most · no · of · plain · powerful · predictable · summer · surprises · the · very</code></pre>
+      <p class="aside">Twenty of them.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="One dictionary per line">
+  <section class="slide slide--statement warn" data-title="V is not per class">
     <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
+      <p>It is tempting to use the negative class's own vocabulary for negative likelihoods. That is
+      wrong: both classes use the same <math data-tex="|V| = 20"><mrow><mi>|</mi><mi>V</mi><mi>|</mi><mo>=</mo><mn>20</mn></mrow></math>.</p>
+      <footer>Two classes' scores are comparable only over the same set of possible words. Per-class
+      V compares probabilities defined over different outcomes — and the numbers still look
+      reasonable, which is what makes it hard to catch.</footer>
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--statement" data-title="The word with">
+    <div class="slide-inner">
+      <p><code>with</code> appears nowhere in the training data, in either class. It is not in
+      <math data-tex="V"><mi>V</mi></math>, so there is nothing to smooth. The rule is to <strong>drop it</strong>.</p>
+      <footer>A classifier only compares classes, and an unknown word contributes equally to every
+      class, so it cannot change the winner. Dropping it is not an approximation.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Compare with session 13">
+    <div class="slide-inner">
+      <p>A <em>language model</em> needed <code>&lt;UNK&gt;</code>, because it must assign the
+      sentence a probability and cannot pretend part of it is absent.</p>
+      <footer>The right treatment depends on what the model is <em>for</em>, not only on the problem
+      it runs into.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The smoothed likelihoods">
+    <div class="slide-inner">
+      <h2>Denominators are <math data-tex="14 + 20 = 34"><mrow><mn>14</mn><mo>+</mo><mn>20</mn><mo>=</mo><mn>34</mn></mrow></math> and <math data-tex="9 + 20 = 29"><mrow><mn>9</mn><mo>+</mo><mn>20</mn><mo>=</mo><mn>29</mn></mrow></math></h2>
+      <table>
+        <tr><th>word</th><th><math data-tex="P(w \mid -)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w \mid +)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
+        <tr><td><code>predictable</code></td><td>(1+1)/34 = 2/34</td><td>(0+1)/29 = 1/29</td></tr>
+        <tr><td><code>no</code></td>         <td>(1+1)/34 = 2/34</td><td>(0+1)/29 = 1/29</td></tr>
+        <tr><td><code>fun</code></td>        <td>(0+1)/34 = 1/34</td><td>(1+1)/29 = 2/29</td></tr>
+      </table>
+      <p class="aside">No zeros anywhere.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The full calculation">
+    <div class="slide-inner">
+      <h2>With the prior in front</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+P(-) \, P(S \mid -) &amp;= \tfrac{3}{5} \times \frac{2 \times 2 \times 1}{34^3} = 6.1 \times 10^{-5} \\
+P(+) \, P(S \mid +) &amp;= \tfrac{2}{5} \times \frac{1 \times 1 \times 2}{29^3} = 3.2 \times 10^{-5}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">−</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mfrac><mrow><mn>2</mn><mo>×</mo><mn>2</mn><mo>×</mo><mn>1</mn></mrow><msup><mn>34</mn><mn>3</mn></msup></mfrac><mo>=</mo><mn>6.1</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>5</mn></mrow></msup></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>S</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mo form="prefix" stretchy="false">+</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mfrac><mrow><mn>1</mn><mo>×</mo><mn>1</mn><mo>×</mo><mn>2</mn></mrow><msup><mn>29</mn><mn>3</mn></msup></mfrac><mo>=</mo><mn>3.2</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>5</mn></mrow></msup></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The classifier returns negative">
+    <div class="slide-inner">
+      <p class="lede">The classifier returns <strong>negative</strong></p>
+      <p>This agrees with the human judgement, and it was reached with no knowledge of English, from
+      five documents and a few divisions.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where the decision came from">
+    <div class="slide-inner">
+      <p>Each class had one word in its favour and two against, so the margin is small.</p>
+      <footer><code>predictable</code> and <code>no</code> each appeared in negative reviews and
+      never in positive ones, and together they outweighed <code>fun</code>. The prior helped too:
+      negative reviews were more common in the training set.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: the positive calculation">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">The negative side is worked in full above</span>
+        <p>Carry out the positive calculation and confirm it gives 3.2 × 10⁻⁵. You need the prior
+        2/5 and the three probabilities 1/29, 1/29, 2/29.</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <div class="meq"><math data-tex="\tfrac{2}{5} \times \tfrac{1}{29} \times \tfrac{1}{29} \times \tfrac{2}{29} = \tfrac{2}{5} \times \tfrac{2}{24389} = \tfrac{4}{121945} = 3.28 \times 10^{-5}" display="block" class="tml-display" style="display:block math;"><mrow><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>29</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>29</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>29</mn></mfrac></mstyle><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>5</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>24389</mn></mfrac></mstyle><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>121945</mn></mfrac></mstyle><mo>=</mo><mn>3.28</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>5</mn></mrow></msup></mrow></math></div>
+          <p>The denominator is <strong>29</strong> because the positive big document has
+          <strong>9</strong> tokens and <math data-tex="|V|"><mrow><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> is 20. A denominator of 28 means the second
+          <code>the</code> in <em>the most fun film of the summer</em> was missed.</p>
+          <p>A much larger result means a per-class vocabulary was used instead of |V| = 20.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Underflow">
+    <div class="slide-inner">
+      <h2>A real review has two hundred words, not three</h2>
+      <pre><code>0.01 ^ 200   ->   0.0     (not "very small" — zero, in ordinary floating point)</code></pre>
+      <p class="aside">This is <strong>underflow</strong>. It would zero every class again, this
+      time for a purely arithmetic reason rather than a missing count.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Working in logarithms">
+    <div class="slide-inner">
+      <h2>Logarithms turn the product into a sum</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \log P(c) + \sum_{w \in d} \log P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mrow><mspace width="0.1667em"></mspace><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The same example in logs">
+    <div class="slide-inner">
+      <h2>Our example, in natural logarithms</h2>
+      <table>
+        <tr><th>class</th><th>log prior</th><th>+ log likelihoods</th><th>total</th></tr>
+        <tr><td>−</td><td>−0.51</td><td>−2.83 − 2.83 − 3.53</td><td><strong>−9.70</strong> ←
+        larger</td></tr>
+        <tr><td>+</td><td>−0.92</td><td>−3.37 − 3.37 − 2.67</td><td><strong>−10.33</strong></td></tr>
+      </table>
+      <p class="aside">Moderate negative numbers, around −3 rather than 10⁻¹⁴⁷, so nothing
+      underflows. The negative class again scores higher, as it must.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why logs preserve the ranking">
+    <div class="slide-inner">
+      <p>The logarithm is <strong>monotonic</strong>: if a &gt; b then log a &gt; log b, always. The
+      winning class cannot change.</p>
+      <footer>What is lost is the interpretable scale, and that was already given up in session 15
+      when <math data-tex="P(d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> was dropped. Every practical implementation works in log space — which is why
+      <code>predict_log_proba</code> exists in scikit-learn.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what |V| is">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">In add-one smoothing for Naïve Bayes, what is the <code>|V|</code> added
+        to the denominator?</p>
+        <div class="q-opts">
+          <button class="opt">The number of training documents that belong to the class c</button>
+          <button class="opt">The number of running words in class c's combined big document</button>
+          <button class="opt">The number of distinct word types found in class c's documents</button>
+          <button class="opt">The number of distinct word types across all classes together</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>distinct word types across all classes together</strong>.</p>
+          <p>Both classes use the same |V| — 20 in our example. Give each class its own vocabulary
+          and the two scores are computed over different sets of possible words. The numbers still
+          look reasonable, which is why this error often goes unnoticed.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why logs are safe">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Why does working in log space not change which class the classifier
+        picks?</p>
+        <div class="q-opts">
+          <button class="opt">Because the log function is monotonic, so it preserves score order</button>
+          <button class="opt">Because the log values are rounded before the comparison is made</button>
+          <button class="opt">Because the log of the prior and the likelihood cancel each other</button>
+          <button class="opt">Because both classes get shifted by the same amount when using logs</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the log function is monotonic, so it preserves score
+          order</strong>.</p>
+          <p>A larger number always has a larger logarithm, so the winner cannot change. Logarithms
+          address underflow and are not a modelling decision. The last option is wrong: the two
+          classes are not shifted by the same amount, and they do not need to be.</p>
         </div>
       </div>
     </div>
@@ -1099,9 +1110,22 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Training is two sets of counts: the prior from documents, the likelihoods from words within
+      each class's combined text. Unsmoothed they produce zeros that leave both classes scoring
+      nothing. Add-one fixes it, using the whole training vocabulary. Unknown words are dropped, and
+      the products are computed as sums of logarithms.</p>
+      <footer>This answers VADER's failure on <code>nightmare</code>: a classifier that learns from
+      labelled examples rather than a hand-written lexicon.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One unnamed operation">
+    <div class="slide-inner">
+      <p>Consider what we did to the documents: discard word order, keep a count for each word. We
+      have not named that operation.</p>
+      <footer>It is a way of representing a document as numbers, and it is not specific to
+      classification — search, similarity and recommendation all need the same thing. Session 17
+      names it and develops it into a vector.</footer>
     </div>
   </section>
 
@@ -1110,22 +1134,17 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          <strong>Appendix B</strong></p>
+          <p class="ref-note">Read <strong>§B.2</strong> on training and <strong>§B.3</strong> on
+          smoothing, unknown words, and the same worked example carried out above. Again: Appendix
+          B, <em>not</em> chapter 4.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0017-bag-of-words-and-the-vector-space-model.html">Next deck
+      &mdash; session 17: Bag of Words and the vector space model &rarr;</a>
     </div>
   </section>
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 33: Fine-tuning, DistilBERT and knowledge distillation</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,448 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0033-fine-tuning-and-distillation.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 33</p>
+      <h1>Fine-tuning, DistilBERT and knowledge distillation</h1>
+      <p class="subtitle">Session 32 built BERT and stopped at what it is. This session is what it is
+      for: a small head trained on labelled data, the same head pointed at session 7's tagging
+      scheme, and then a smaller copy trained to behave like the large one.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="A head on a pretrained model">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <p class="lede">SLP3 §10.4</p>
+      <p>"We add application-specific circuitry (often called a special head) on top of pretrained
+      models… The finetuning process consists of using labeled data about the application to train
+      these additional application-specific parameters. Typically, this training will either freeze
+      or make only minimal adjustments to the pretrained language model parameters."</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="Transfer learning">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p>SLP3 places this under <strong>transfer learning</strong>: knowledge acquired on one task —
+      masked language modelling on unlabelled text — applied to a new one, whatever we have labels
+      for.</p>
+      <footer>Two consequences, and they are why this is the paradigm the course ends on. The
+      expensive part is already done, once, by someone else. And the labelled data needed is small,
+      because it trains a head rather than a model.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="How small">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p>For three-way sentiment with BERT-base, the head is a matrix <math data-tex="W_C"><msub><mi>W</mi><mi>C</mi></msub></math> of shape
+      <math data-tex="[768 \times 3]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>768</mn><mo>×</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> — <strong>2,304 parameters</strong> — against the 108 million session 32
+      counted in the encoder.</p>
+      <footer>In practice the last few transformer layers are often updated too; SLP3 names that as
+      typical. What is <em>not</em> typical is retraining those 108 million from scratch on the
+      labelled set.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
-      <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
-      </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
-    <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where does a word end?">
-    <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--quiz" data-title="Quiz: what is trained">
     <div class="slide-inner">
       <div class="quiz" data-answer="0">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
+        <p class="q-text">In fine-tuning, what is usually trained?</p>
         <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
+          <button class="opt">The task-specific head, with the pretrained parameters frozen or only slightly updated</button>
+          <button class="opt">The whole model, retrained from scratch on the labelled task</button>
+          <button class="opt">Only the embedding table, because that is 21% of BERT and is where the words live</button>
+          <button class="opt">Only the [CLS] token's embedding, since that is the position the classifier reads</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
+          <p>Correct: <strong>the head, with the pretrained weights frozen or barely touched</strong>
+          — §10.4's definition, and the reason fine-tuning is cheap. The 108 million parameters
+          already encode language; the labelled set trains a few thousand more.</p>
+          <p>The second is what "training" suggests if you have only trained from scratch, and it is
+          the opposite of the point. The fourth confuses the position the head <em>reads</em> with
+          the parameters it <em>updates</em> — <code>[CLS]</code>'s vector is an activation produced
+          by the frozen stack.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--math" data-title="Sequence classification">
     <div class="slide-inner">
-      <div class="quiz" data-answer="2">
+      <h2><code>[CLS]</code> returns, with a second job</h2>
+      <div class="meq" data-eqno="10.11"><math data-tex="y = \mathrm{softmax}(h^L_{[\mathrm{CLS}]} W_C)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>CLS</mi></mpadded><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mi>L</mi></msubsup><msub><mi>W</mi><mi>C</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(10.11)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The packing">
+    <div class="slide-inner">
+      <h2>The NSP packing, minus the second sentence</h2>
+      <pre><code>[CLS] entirely predictable and lacks energy [SEP]     ->  negative</code></pre>
+      <p class="aside">Session 32 introduced <code>[CLS]</code> as the place that carried
+      next-sentence prediction. Fine-tuning uses the same position for a different decision:
+      sentiment, topic, spam. For three-way sentiment <math data-tex="W_C"><msub><mi>W</mi><mi>C</mi></msub></math> is <math data-tex="[d \times 3]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The alternative §10.4.1 names">
+    <div class="slide-inner">
+      <p>"Take the sum or the mean of the last output vector from each token" and classify that.
+      BERT uses a dedicated token instead.</p>
+      <footer>Two earlier results make that alternative look familiar, and there is a reason they do
+      not quite settle it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why they do not settle it">
+    <div class="slide-inner">
+      <p>Session 23 measured that averaging <em>raw</em> word vectors cannot see order:
+      <math data-tex="0.9999999999999998"><mn>0.9999999999999998</mn></math>. Lab 8 lost 20 splits out of 20 — Word2Vec 0.731, GloVe 0.724,
+      against TF-IDF at 0.851.</p>
+      <footer>But averaging BERT's last-layer vectors is not that operation. Each is already
+      contextualised by the whole sequence — closer to session 23's pooling of RNN hidden states than
+      to lab 8's average of static rows. A token <em>trained</em> to summarise is a third option, and
+      it is the one BERT uses.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Sequence-pair classification">
+    <div class="slide-inner">
+      <h2>The same head, pointed at two sentences</h2>
+      <pre><code>[CLS] I'm confused. [SEP] Not all of it is very clear to me. [SEP]   ->  entails
+[CLS] Tourist Information offices can be very helpful. [SEP]
+      Tourist Information offices are never of any help. [SEP]        ->  contradicts</code></pre>
+      <p class="aside">SLP3's own MultiNLI examples. Entailment, paraphrase, discourse coherence —
+      anything whose label is a relation between A and B. The classifier is (10.11) again.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What NSP built">
+    <div class="slide-inner">
+      <p>A pair packed around <code>[SEP]</code>, a yes/no sitting on <code>[CLS]</code> — exactly
+      the input format this family of tasks needs.</p>
+      <footer>RoBERTa found the pretraining objective dispensable. The packing is still how a pair is
+      presented to the model.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Sequence labeling">
+    <div class="slide-inner">
+      <p>Session 32 named NER as the task that makes peeking ahead worth wanting. That was the
+      motivation for bidirectionality.</p>
+      <footer>This is the other half of the same debt: how the model that can see ahead is pointed at
+      that task. Sequence classification puts one head on one token; sequence labeling puts the same
+      head on <em>every</em> token.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Same paradigm, more predictions">
+    <div class="slide-inner">
+      <h2><math data-tex="W_K"><msub><mi>W</mi><mi>K</mi></msub></math> is <math data-tex="[d \times k]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><mi>k</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, with <math data-tex="k"><mi>k</mi></math> the number of tags</h2>
+      <div class="meq" data-eqno="10.12"><math data-tex="y_i = \mathrm{softmax}(h^L_i W_K)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>y</mi><mi>i</mi></msub><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>h</mi><mi>i</mi><mi>L</mi></msubsup><msub><mi>W</mi><mi>K</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(10.12)</span></div>
+      <div class="meq"><math data-tex="t_i = \mathrm{argmax}(y_i)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>t</mi><mi>i</mi></msub><mo>=</mo><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The tags are session 7's">
+    <div class="slide-inner">
+      <h2>The same sentence, the same scheme</h2>
+      <pre><code>The       B-ORG
+Reserve   I-ORG
+Bank      I-ORG
+of        I-ORG
+India     I-ORG
+raised    O
+rates     O
+.</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Unchanged, with a different encoder">
+    <div class="slide-inner">
+      <p>§10.5.2 gives the same argument for a separate <code>B-</code> tag: two names of the same
+      type can sit next to each other. Session 7's pair was <code>Google Microsoft</code>; SLP3's is
+      <code>Jane Villanueva of United Airlines Holding</code>.</p>
+      <footer>The scheme has not changed. What has is the encoder underneath it — twelve unmasked
+      transformer blocks instead of the spaCy tagger session 7 ran — and that the loss training
+      <math data-tex="W_K"><msub><mi>W</mi><mi>K</mi></msub></math> can also make small updates in the last few of those blocks.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="One encoder, three heads">
+    <div class="slide-inner">
+      <h2>The large object is shared and unchanged; the small object on top varies</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 410" role="img" aria-labelledby="headstitle headsdesc">
+        <title id="headstitle">One pretrained encoder, three heads: sequence classification, pair classification, and sequence labeling</title>
+        <desc id="headsdesc">A dashed, faded rectangle labelled pretrained encoder, frozen, spans
+        the bottom of the figure, with six token boxes beneath it: CLS, x1, x2, x3, x4, SEP.
+        Above the encoder sit three solid rectangles, the trained heads. The left head is a
+        sequence classifier sitting on CLS, labelled W_C, outputting one class. The middle head
+        is a pair classifier, also sitting on CLS, labelled W_C, outputting entails. The right
+        head is a per-token classifier labelled W_K, with four small tag boxes B-ORG, I-ORG, O, O
+        sitting on x1 through x4. Solid arrows run from the encoder to each head; the encoder
+        rectangle is dashed to mark it as frozen. A small legend distinguishes solid trained
+        boxes from the dashed frozen encoder.</desc>
+
+        <!-- legend -->
+        <rect class="fig-node" x="30" y="14" width="22" height="14" rx="2"></rect>
+        <text class="fig-label" x="58" y="25">trained (the head)</text>
+        <rect class="fig-node fig-frozen" x="230" y="14" width="22" height="14" rx="2"></rect>
+        <text class="fig-label" x="258" y="25">frozen (the encoder)</text>
+
+        <!-- head 1: sequence classification -->
+        <rect class="fig-node" x="30" y="48" width="190" height="70" rx="5"></rect>
+        <text class="fig-label" x="125" y="68" text-anchor="middle">sequence classifier</text>
+        <text class="fig-glyph" x="125" y="92" text-anchor="middle">W_C</text>
+        <text class="fig-label" x="125" y="108" text-anchor="middle">→  one label</text>
+
+        <!-- head 2: pair classification -->
+        <rect class="fig-node" x="255" y="48" width="190" height="70" rx="5"></rect>
+        <text class="fig-label" x="350" y="68" text-anchor="middle">pair classifier</text>
+        <text class="fig-glyph" x="350" y="92" text-anchor="middle">W_C</text>
+        <text class="fig-label" x="350" y="108" text-anchor="middle">→  entails</text>
+
+        <!-- head 3: sequence labeling -->
+        <rect class="fig-node" x="480" y="48" width="190" height="70" rx="5"></rect>
+        <text class="fig-label" x="575" y="68" text-anchor="middle">token classifier</text>
+        <text class="fig-glyph" x="575" y="92" text-anchor="middle">W_K</text>
+        <text class="fig-label" x="575" y="108" text-anchor="middle">→  a tag per token</text>
+
+        <!-- both classification heads read [CLS], so both arrows originate at that column -->
+        <path class="fig-edge" d="M85 175 L125 118"></path>
+        <polygon class="fig-edge-h" points="125,118 114,123 118,128"></polygon>
+        <path class="fig-edge" d="M85 175 C 85 145, 350 145, 350 118"></path>
+        <polygon class="fig-edge-h" points="350,118 346.5,128 353.5,128"></polygon>
+        <path class="fig-edge" d="M510 175 L510 118"></path>
+        <polygon class="fig-edge-h" points="510,118 506.5,128 513.5,128"></polygon>
+        <path class="fig-edge" d="M555 175 L555 118"></path>
+        <polygon class="fig-edge-h" points="555,118 551.5,128 558.5,128"></polygon>
+        <path class="fig-edge" d="M600 175 L600 118"></path>
+        <polygon class="fig-edge-h" points="600,118 596.5,128 603.5,128"></polygon>
+        <path class="fig-edge" d="M640 175 L640 118"></path>
+        <polygon class="fig-edge-h" points="640,118 636.5,128 643.5,128"></polygon>
+
+        <!-- frozen encoder -->
+        <rect class="fig-node fig-frozen" x="30" y="175" width="640" height="72" rx="6"></rect>
+        <text class="fig-label" x="350" y="206" text-anchor="middle">pretrained bidirectional encoder</text>
+        <text class="fig-label" x="350" y="226" text-anchor="middle">frozen, or barely updated</text>
+
+        <!-- token boxes -->
+        <rect class="fig-gate" x="40" y="268" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="85" y="292" text-anchor="middle">[CLS]</text>
+        <rect class="fig-gate" x="145" y="268" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="190" y="292" text-anchor="middle">x₁</text>
+        <rect class="fig-gate" x="250" y="268" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="295" y="292" text-anchor="middle">x₂</text>
+        <rect class="fig-gate" x="355" y="268" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="400" y="292" text-anchor="middle">x₃</text>
+        <rect class="fig-gate" x="460" y="268" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="505" y="292" text-anchor="middle">x₄</text>
+        <rect class="fig-gate" x="565" y="268" width="90" height="36" rx="3"></rect>
+        <text class="fig-glyph" x="610" y="292" text-anchor="middle">[SEP]</text>
+
+        <!-- ticks from tokens into encoder -->
+        <path class="fig-edge" d="M85 268 L85 247"></path>
+        <polygon class="fig-edge-h" points="85,247 81.5,257 88.5,257"></polygon>
+        <path class="fig-edge" d="M190 268 L190 247"></path>
+        <polygon class="fig-edge-h" points="190,247 186.5,257 193.5,257"></polygon>
+        <path class="fig-edge" d="M295 268 L295 247"></path>
+        <polygon class="fig-edge-h" points="295,247 291.5,257 298.5,257"></polygon>
+        <path class="fig-edge" d="M400 268 L400 247"></path>
+        <polygon class="fig-edge-h" points="400,247 396.5,257 403.5,257"></polygon>
+        <path class="fig-edge" d="M505 268 L505 247"></path>
+        <polygon class="fig-edge-h" points="505,247 501.5,257 508.5,257"></polygon>
+        <path class="fig-edge" d="M610 268 L610 247"></path>
+        <polygon class="fig-edge-h" points="610,247 606.5,257 613.5,257"></polygon>
+
+        <text class="fig-label" x="350" y="334" text-anchor="middle">one sequence, or two packed around [SEP]</text>
+        <text class="fig-label" x="125" y="358" text-anchor="middle">head reads [CLS]</text>
+        <text class="fig-label" x="350" y="358" text-anchor="middle">head reads [CLS]</text>
+        <text class="fig-label" x="575" y="358" text-anchor="middle">head reads every hᵢ</text>
+
+        <text class="fig-label" x="350" y="392" text-anchor="middle">the large object is shared; the small object on top varies by task</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A different question, same model">
+    <div class="slide-inner">
+      <p>BERT-base is 108 million parameters. Fine-tuning it is cheap compared with pretraining it —
+      but running it is still running 108 million parameters, and this course's labs run on Colab.</p>
+      <footer>Sanh et al. 2019 compress the model <em>during pretraining</em>, then fine-tune the
+      smaller copy the same way this session has just fine-tuned the large one.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Knowledge distillation">
+    <div class="slide-inner">
+      <p class="lede">Sanh et al. 2019, §2</p>
+      <p>"A compression technique in which a compact model — the student — is trained to reproduce
+      the behaviour of a larger model — the teacher — or an ensemble of models."</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Soft targets">
+    <div class="slide-inner">
+      <p>The student is not trained on one-hot labels alone but on the teacher's <strong>full output
+      distribution</strong>.</p>
+      <footer>Asked to fill <code>I think this is the beginning of a beautiful [MASK]</code>,
+      BERT-base puts most of its mass on <code>day</code> and <code>life</code>, and a long tail on
+      <code>future</code>, <code>story</code>, <code>world</code>. That ranking is information a
+      one-hot target throws away.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Two things, in the right order">
+    <div class="slide-inner">
+      <p>The syllabus line names both DistilBERT and fine-tuning, and it is easy to fuse them.
+      <strong>Distillation is how the student is pretrained. Fine-tuning is what we then do with
+      it</strong>, and it is §10.4 unchanged.</p>
+      <footer>DistilBERT is the student — a smaller BERT, pretrained by distillation from BERT-base,
+      then fine-tuned like BERT. Lab 12 loads <code>distilbert-base-uncased</code> and sits a
+      classification head on it. It does not re-run distillation.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why soft targets">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
         <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
+        <p class="q-text">Why does the student train on the teacher's full distribution rather than
+        on one-hot labels alone?</p>
         <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
+          <button class="opt">The distribution carries information about relative similarity between classes that a one-hot label discards</button>
+          <button class="opt">The labels are unavailable, so the student has to use the teacher's guesses instead</button>
+          <button class="opt">Soft targets are faster to train against, because the softmax has already been computed by the teacher</button>
+          <button class="opt">Distillation replaces masked language modelling, so there is no original token left to use as a label</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
+          <p>Correct: <strong>the distribution is a richer target</strong>. A one-hot vector says
+          <em>this class</em>; the probabilities also say <em>and that one is close, and that one is
+          not</em>.</p>
+          <p>The second is the natural misreading and it is false — DistilBERT is distilled on the
+          same corpus BERT was, and the original tokens are still there as hard targets under
+          <math data-tex="L_{\mathrm{mlm}}"><msub><mi>L</mi><mpadded lspace="0"><mi>mlm</mi></mpadded></msub></math>. The fourth inverts the design: masked language modelling is the
+          second term of the triple loss.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--table" data-title="The triple loss">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <h2>Three losses at once</h2>
+      <table>
+        <tr><th>loss</th><th>what it matches</th></tr>
+        <tr><td><math data-tex="L_{\mathrm{ce}}"><msub><mi>L</mi><mpadded lspace="0"><mi>ce</mi></mpadded></msub></math></td><td>distillation — cross-entropy against the teacher's
+        <strong>soft targets</strong>, with a softmax temperature that flattens both distributions so
+        the long tail is not near-zero</td></tr>
+        <tr><td><math data-tex="L_{\mathrm{mlm}}"><msub><mi>L</mi><mpadded lspace="0"><mi>mlm</mi></mpadded></msub></math></td><td>the ordinary masked-LM loss from session 32, against
+        the original tokens</td></tr>
+        <tr><td><math data-tex="L_{\mathrm{cos}}"><msub><mi>L</mi><mpadded lspace="0"><mi>cos</mi></mpadded></msub></math></td><td><strong>cosine embedding loss</strong>, aligning the
+        <em>directions</em> of student and teacher hidden vectors</td></tr>
+      </table>
+      <p class="aside">The paper's ablation finds dropping any of them lowers the GLUE macro-score,
+      with the distillation term carrying most of the load and the masked-LM term the least.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--statement" data-title="Session 19 returning">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <p><math data-tex="L_{\mathrm{cos}}"><msub><mi>L</mi><mpadded lspace="0"><mi>cos</mi></mpadded></msub></math> "will tend to align the directions of the student and teacher hidden
+      states vectors". <strong>Direction, not magnitude</strong> — the distinction session 19 spent
+      an hour establishing.</p>
+      <footer>The two vectors are a student hidden state and the teacher's at the same position, and
+      the loss asks them to point the same way even if they are not the same length. Third time the
+      same geometric fact has been the thing an equation depends on.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
+  <section class="slide slide--statement" data-title="The student's architecture">
     <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
+      <p>Same general architecture as BERT. Sanh removes the token-type embeddings and the pooler,
+      and halves the number of layers — twelve blocks become six.</p>
+      <footer>The paper is explicit that the cut is layers rather than width: variations in hidden
+      size "have a smaller impact on computation efficiency… than variations on other factors like
+      the number of layers". DistilBERT also drops NSP — the same finding session 32 recorded from
+      RoBERTa, arrived at independently.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="One dictionary per line">
+  <section class="slide slide--table" data-title="Why 40% and not 50%">
     <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
+      <h2>Derivable from session 32's arithmetic, so a check rather than a quotation</h2>
+      <table>
+        <tr><th></th><th>blocks</th><th>parameters</th></tr>
+        <tr><td>BERT-base</td><td>12</td><td>108,367,872</td></tr>
+        <tr><td><strong>DistilBERT</strong></td><td><strong>6</strong></td>
+        <td><strong>65,900,544</strong></td></tr>
+        <tr><td>reduction</td><td></td><td><strong>39.2%</strong></td></tr>
+      </table>
+      <p class="aside">39.2% against the paper's "40%", and 65.9M against DistilBERT's commonly
+      quoted 66M. Two independent routes to the same number.</p>
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--statement" data-title="The embeddings are why">
+    <div class="slide-inner">
+      <p>Halving twelve blocks to six removes half the <em>block</em> parameters — but the 23 million
+      embedding table is untouched.</p>
+      <footer>Session 32 already established that those embeddings are 21% of BERT, so the model
+      shrinks by less than half. "Halve the layers, halve the model" is the natural inference, and it
+      is wrong for a reason session 32 already supplied.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: compute the 40%">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Session 32's numbers: 7,077,888 per block, embeddings 23,040,000 +
+        393,216</span>
+        <p>Compute DistilBERT's parameter count with the layers halved and the embeddings kept, then
+        the reduction as a percentage. Second: why is it not 50%?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><strong>The count.</strong> Six blocks:
+          <math data-tex="6 \times 7{,}077{,}888 = 42{,}467{,}328"><mrow><mn>6</mn><mo>×</mo><mn>7,077,888</mn><mo>=</mo><mn>42,467,328</mn></mrow></math>. Embeddings unchanged:
+          <math data-tex="23{,}433{,}216"><mn>23,433,216</mn></math>. Total <math data-tex="65{,}900{,}544"><mn>65,900,544</mn></math>, and
+          <math data-tex="1 - 65{,}900{,}544 / 108{,}367{,}872 = 0.392"><mrow><mn>1</mn><mo>−</mo><mn>65,900,544</mn><mi>/</mi><mn>108,367,872</mn><mo>=</mo><mn>0.392</mn></mrow></math> — 39.2%, Sanh's "40%" to the precision
+          the headline uses.</p>
+          <p><strong>Why not 50%.</strong> Halving the layers halves the block parameters, 84,934,656
+          → 42,467,328. The embedding table does not shrink. Those 23 million are 21% of BERT-base
+          and a still larger fraction of DistilBERT, and they are a lookup over the same 30,000-token
+          vocabulary. Cutting layers cannot cut a table whose rows are word types.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where this leaves us">
+    <div class="slide-inner">
+      <p>The architecture of Unit III is finished. Sessions 34–36 are applications of it — machine
+      translation, question answering and summarisation, then chatbots.</p>
+      <footer>Lab 12 fine-tunes <code>distilbert-base-uncased</code>, not BERT. The 40% is why, and
+      the worked example in this session is the model the lab actually loads.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Fine-tuning adds a small head and trains it on labelled data with the pretrained weights
+      frozen or barely updated — 2,304 parameters against 108 million. Classification and pair
+      classification read <code>[CLS]</code>; labelling reads every token, with session 7's BIO tags
+      as the label set.</p>
+      <footer>Distillation trains a student to match a teacher's full distribution. DistilBERT is
+      BERT with the layers halved, a triple loss including a cosine term from session 19, and 39.2%
+      smaller rather than 50% because the embedding table does not shrink.</footer>
     </div>
   </section>
 
@@ -1110,22 +1223,27 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <strong>§10.4–§10.5</strong></p>
+          <p class="ref-note">§10.4 for the head-on-a-frozen-model framing; §10.4.1 for sequence
+          classification and the <code>[CLS]</code>-versus-average choice, equation (10.11); §10.4.2
+          for pair classification on MultiNLI; §10.5.2 for BIO tagging; §10.5.3 for the per-token
+          head, equation (10.12). Stop at the end of §10.5 — chapter 10 does not cover
+          distillation.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/10.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/10.pdf</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Sanh et al. 2019 — <em>DistilBERT, a distilled version of BERT</em></p>
+          <p class="ref-note">Section 2 is the definition, the soft targets, the temperature and the
+          triple loss; section 3 is the student architecture and the layers-not-width rationale.
+          Table 3 has the 66M against 110M behind the 40%; Table 1 is the GLUE comparison behind the
+          97%, and it is uneven. Table 4 is the ablation.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1910.01108"
+          target="_blank" rel="noopener">arxiv.org/abs/1910.01108</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0034-machine-translation.html">Next deck &mdash;
+      session 34: Machine translation &rarr;</a>
     </div>
   </section>
 

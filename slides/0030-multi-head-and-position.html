@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 3: Tokenization</title>
+<title>Slides — Session 30: Multi-head attention, and positional embeddings</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,338 +773,426 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0003-tokenization-and-the-vocabulary-problem.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0030-multi-head-and-position.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 03</p>
-      <h1>Tokenization</h1>
-      <p class="subtitle">How a computer splits text into words — and why that turns out to
-      be a hard problem.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 30</p>
+      <h1>Multi-head attention, and positional embeddings</h1>
+      <p class="subtitle">Session 29 removed the recurrence and got parallelism. The bill for that was
+      word order, and this session pays it. Then the same mechanism is run several times side by side
+      — which turns out to cost almost nothing.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="What tokenization is">
+  <section class="slide slide--statement" data-title="The bill from last session">
     <div class="slide-inner">
-      <h2>What tokenization is</h2>
+      <p>Self-attention computes each output as a weighted sum over pairs of positions, and nothing
+      in that computation refers to <em>where</em> anything sits. It treats its input as a
+      <strong>set</strong>.</p>
+      <footer>The recurrence used to handle order for free — an RNN reads the words one after another,
+      so it cannot fail to represent their order. Session 29 threw it away to get parallelism.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Permuting changes nothing">
+    <div class="slide-inner">
+      <h2><em>the green witch arrived</em>, shuffled to <em>arrived the witch green</em></h2>
+      <table>
+        <tr><th>token</th><th>output in the original order</th><th>output in the shuffled order</th></tr>
+        <tr><td><code>the</code></td><td><math data-tex="(-0.285,\, {-0.457},\, {-0.542},\, 0.435)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.285</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.457</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.542</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.435</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+        <td><math data-tex="(-0.285,\, {-0.457},\, {-0.542},\, 0.435)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.285</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.457</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.542</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.435</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+        <tr><td><code>green</code></td><td><math data-tex="(-0.319,\, {-0.540},\, {-0.538},\, 0.466)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.319</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.540</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.538</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.466</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+        <td><math data-tex="(-0.319,\, {-0.540},\, {-0.538},\, 0.466)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.319</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.540</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.538</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.466</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+        <tr><td><code>witch</code></td><td><math data-tex="(-0.141,\, {-0.297},\, {-0.471},\, 0.320)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.141</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.297</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.471</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.320</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+        <td><math data-tex="(-0.141,\, {-0.297},\, {-0.471},\, 0.320)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.141</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.297</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.471</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.320</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+        <tr><td><code>arrived</code></td><td><math data-tex="(-0.218,\, {-0.403},\, {-0.492},\, 0.371)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.218</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.403</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.492</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.371</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td>
+        <td><math data-tex="(-0.218,\, {-0.403},\, {-0.492},\, 0.371)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>0.218</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.403</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>0.492</mn></mrow><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.371</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math></td></tr>
+      </table>
+      <p class="aside">Not similar — <strong>identical</strong>, to every digit. Causal mask dropped so
+      every position may see every other.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why, from the equations">
+    <div class="slide-inner">
+      <p>A score is <math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math>, which depends on the two tokens and nothing else, and a
+      softmax over a set of scores does not care what order they arrived in.</p>
+      <footer>Shuffle the inputs and the same pairs give the same scores, and therefore the same
+      outputs. A model built only of self-attention cannot tell <em>the witch arrived</em> from
+      <em>arrived the witch</em> — so it cannot be the whole model.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What the causal mask does not fix">
+    <div class="slide-inner">
+      <p>A fair objection: <math data-tex="\forall j \le i"><mrow><mi>∀</mi><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> means position 5 can see position 2 and not the
+      reverse, so the model does know <em>something</em> about order.</p>
+      <footer>But <strong>the mask knows precedence, not distance</strong>. It does not say that
+      <math data-tex="j"><mi>j</mi></math> is three words before <math data-tex="i"><mi>i</mi></math> rather than thirty. Precedence alone will not
+      distinguish <em>the dog bit the man</em> from <em>the man bit the dog</em>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two embeddings, not one">
+    <div class="slide-inner">
+      <p class="lede">SLP3 §8.4 asks where <math data-tex="X"><mi>X</mi></math> comes from</p>
+      <p>"The transformer does this by separately computing two embeddings: an input token embedding,
+      and an input positional embedding."</p>
+      <footer>The token embedding is session 21's — a row of <math data-tex="E"><mi>E</mi></math>, shape
+      <math data-tex="[\lvert V \rvert \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mrow><mo fence="true" form="prefix" stretchy="false">|</mo><mi>V</mi><mo fence="true" form="postfix" stretchy="false">|</mo></mrow><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>. The positional embedding is new.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Absolute position">
+    <div class="slide-inner">
+      <p>"Just as we have an embedding for the word <em>fish</em>, we'll have an embedding for the
+      position 3. As with word embeddings, these positional embeddings are learned along with other
+      parameters during training."</p>
+      <footer>A vector for "position 1", one for "position 2", up to the context length <math data-tex="N"><mi>N</mi></math>,
+      stored in <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math> of shape <math data-tex="[N \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>N</mi><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>. Nothing tells the model what
+      position 3 means; it works out for itself what is worth storing there.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Added, not concatenated">
+    <div class="slide-inner">
+      <h2>The two embeddings are added, not concatenated</h2>
+      <div class="meq"><math data-tex="x_i = E[\mathrm{id}(i)] + E_{\mathrm{pos}}[i]" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>x</mi><mi>i</mi></msub><mo>=</mo><mi>E</mi><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mpadded lspace="0"><mi>id</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>i</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mo>+</mo><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>i</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Two consequences">
+    <div class="slide-inner">
+      <h2>Position is summed into the same <math data-tex="d"><mi>d</mi></math> numbers</h2>
       <ul>
-        <li>Break text into pieces, called <strong>tokens</strong></li>
-        <li>Sounds easy: split on spaces</li>
-        <li><code>"the cat sat"</code> &rarr; <code>["the", "cat", "sat"]</code></li>
-      </ul>
-      <p class="aside">Works for this sentence. Stops working almost immediately.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Why splitting on spaces fails">
-    <div class="slide-inner">
-      <h2>Why splitting on spaces fails</h2>
-      <pre><code>"Dr. O'Neill isn't in — he's at St. Mary's,
- re: the U.S.A. deal."</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Three problems">
-    <div class="slide-inner">
-      <h2>Splitting on spaces produces problems</h2>
-      <ul>
-        <li><code>Mary's,</code> — the comma is not part of the name</li>
-        <li><code>isn't</code> is really two words: <em>is</em> and <em>not</em></li>
-        <li><code>Dr.</code> and <code>U.S.A.</code> contain full stops — split on those and
-        you break these</li>
+        <li><strong>No dimensions are spent on position.</strong> The vector entering the first layer
+        is <math data-tex="d"><mi>d</mi></math> wide, exactly as it would be without positions, so every shape downstream is
+        unchanged. Concatenation would have widened <math data-tex="X"><mi>X</mi></math> and every matrix that touches it</li>
+        <li><strong>Word and position share the space.</strong> That looks destructive — and the
+        answer is that the model is trained <em>with</em> the sum, so it learns representations that
+        survive it. The two embedding matrices are learned together</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Every rule breaks another">
+  <section class="slide slide--statement" data-title="And where in the pipeline">
     <div class="slide-inner">
-      <p>Every rule you add to fix one case breaks another.</p>
-      <footer>Careful rules do win in the end — but they only settle the punctuation.</footer>
+      <p>Before the first attention layer, and once.</p>
+      <footer>Add position later and it is too late: the first layer's attention scores have already
+      been computed from vectors that had no idea where they were.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="The Penn Treebank tokenizer">
+  <section class="slide slide--statement" data-title="The weakness of learned positions">
     <div class="slide-inner">
-      <h2>Rule-based tokenization</h2>
-      <ul>
-        <li>The <strong>Penn Treebank</strong> tokenizer — a large set of regular
-        expressions, written by hand</li>
-        <li>Years of difficult examples, already handled</li>
-        <li>We do not write it; we call it.</li>
-      </ul>
+      <p>"There will be plenty of training examples for the initial positions in our inputs and
+      correspondingly fewer at the outer length limits. These latter embeddings may be poorly trained
+      and may not generalize well during testing."</p>
+      <footer>A counting argument. Every sentence has a position 1, so that embedding gets a gradient
+      from every example. Very few sentences are 4,000 tokens long, so position 4,000 stays close to
+      its random initialisation — and no amount of training harder fixes it, because the data is not
+      there.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="word_tokenize">
+  <section class="slide slide--statement" data-title="The one reason to want sinusoids">
     <div class="slide-inner">
-      <h2>NLTK, on the same sentence</h2>
-      <pre><code>word_tokenize("Dr. O'Neill isn't in — he's at "
-              "St. Mary's, re: the U.S.A. deal.")
-
-['Dr.', "O'Neill", 'is', "n't", 'in', '—', 'he',
- "'s", 'at', 'St.', 'Mary', "'s", ',', 're', ':',
- 'the', 'U.S.A.', 'deal', '.']</code></pre>
+      <p>Compute the positional vectors instead, from a fixed function of the position number — sines
+      and cosines at different frequencies.</p>
+      <footer>A static function has no undertrained region: position 4,000 gets the same quality of
+      vector as position 1, whether or not any training sentence was ever that long. That is the whole
+      argument, and the formula is not on the syllabus.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="It got all of them">
+  <section class="slide slide--statement" data-title="A third family, named only">
     <div class="slide-inner">
-      <h2>Checking the three problems</h2>
-      <ul>
-        <li><code>Dr.</code> and <code>U.S.A.</code> kept their full stops — it knows
-        abbreviations</li>
-        <li>The final <code>.</code> came off as its own token — that one is punctuation</li>
-        <li><code>isn't</code> &rarr; <code>is</code> + <code>n't</code> — negation stays
-        visible</li>
-        <li><code>Mary's</code> &rarr; <code>Mary</code> + <code>'s</code>, comma separate</li>
-      </ul>
+      <p><strong>Relative position</strong> methods represent the distance between two positions
+      rather than the absolute index of each.</p>
+      <footer>They are usually implemented inside the attention computation at every layer, instead of
+      being added once at the input. Mentioned here so the name is not new later.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Use the library">
-    <div class="slide-inner">
-      <p class="lede">Use the library</p>
-      <p>For English text, a good rule-based tokenizer is a <strong>solved problem</strong>.
-      There is no reason to write one by hand.</p>
-      <footer>But it stops being enough when we reach Unit III — and the reason has nothing to
-      do with punctuation.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="What we mean by a model">
-    <div class="slide-inner">
-      <h2>What we mean by a &ldquo;model&rdquo;</h2>
-      <ul>
-        <li>Sessions 1–2: <strong>rules written by hand</strong></li>
-        <li>A model is the opposite — it learns patterns from examples
-        (<strong>training</strong>)</li>
-        <li>It keeps a handful of <strong>numbers per word</strong> it knows</li>
-      </ul>
-      <p class="aside">That's all &ldquo;a model&rdquo; needs to mean today. We build one
-      properly from session 20.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="The vocabulary problem">
-    <div class="slide-inner">
-      <h2>Every model needs a vocabulary</h2>
-      <ul>
-        <li>A fixed list of every token the model knows</li>
-        <li>Built once, from training text — then fixed forever</li>
-        <li>Fixed because the model keeps a <strong>row of numbers</strong> per token</li>
-      </ul>
-      <p class="aside">Ten thousand words means ten thousand rows.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The model breaks">
-    <div class="slide-inner">
-      <h2>Language keeps inventing new words</h2>
-      <pre><code>training:  vocabulary = every word seen in training
-
-later:     model sees "doomscrolling"
-           -> not in the list -> &lt;UNK&gt;</code></pre>
-      <p class="aside">Every unseen word becomes the same token. They all look identical to
-      the model.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="The meaning is in the letters">
-    <div class="slide-inner">
-      <p><code>doomscrolling</code> contains <code>scroll</code> — a word the model knows
-      well.</p>
-      <p>The meaning is sitting right there in the letters. Splitting on spaces throws that
-      away.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: what, and where">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">The constraint</span>
-        <p>The word list is fixed, language keeps producing new words, and
-        <code>&lt;UNK&gt;</code> is not available. What can be changed?</p>
+        <span class="label">The two orderings produce the same outputs</span>
+        <p>What has to be added to break the tie? And — the part that matters — <strong>where in the
+        pipeline</strong> does it have to be added, and why would adding it later fail?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p>Make the pieces <strong>smaller than words</strong>.</p>
-          <p>Word parts can spell any new word out of parts already in the list. But single
-          letters carry no meaning on their own.</p>
-          <p><strong>Big pieces carry meaning but miss new words. Small pieces cover
-          everything but carry little meaning.</strong> Sit in the middle.</p>
+          <p><strong>What.</strong> A vector that depends on the position rather than the token — a
+          row of <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math>, added to each token's embedding. After the addition, the
+          vector at position 1 is no longer the same object as the same word at position 3, so the two
+          orderings no longer present the same set of vectors.</p>
+          <p><strong>Where.</strong> At the input, before the first attention layer. The weights are
+          computed from the vectors as they arrive: if <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> carries no position when the first
+          layer runs, that layer's whole <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix is already position-free, and its
+          outputs are already a permuted copy of what they would have been. Adding position afterwards
+          labels the result but does not change it.</p>
+          <p>A useful way to say it: position must be in the vectors that get compared, because the
+          only thing the mechanism ever looks at is dot products between vectors.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Byte-Pair Encoding">
+  <section class="slide slide--quiz" data-title="Quiz: why positional embeddings">
     <div class="slide-inner">
-      <h2>Byte-Pair Encoding</h2>
-      <ul>
-        <li>Start with a list of single characters</li>
-        <li>Count every pair of neighbouring symbols</li>
-        <li>Join the <strong>most frequent</strong> pair. Add it to the list.</li>
-        <li>Repeat <em>k</em> times</li>
-      </ul>
-      <p class="aside"><em>k</em> is a parameter we choose, and it determines the size of the
-      final list.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example">
-    <div class="slide-inner">
-      <h2>A small set of words</h2>
-      <pre><code>5  l o w _
-2  l o w e s t _
-6  n e w e r _
-3  w i d e r _
-2  n e w _
-
-list:  _, d, e, i, l, n, o, r, s, t, w</code></pre>
-      <p class="aside">Count on the left. <code>_</code> marks the end of a word.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Merge 1">
-    <div class="slide-inner">
-      <h2>Merge 1: count the pairs</h2>
-      <pre><code>e r  in newer (6) + wider (3) = 9   <- most frequent
-
-merge 1:  e + r  ->  er
-
-5  l o w _
-2  l o w e s t _
-6  n e w er _
-3  w i d er _
-2  n e w _</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Merges 2 through 6">
-    <div class="slide-inner">
-      <h2>Repeat</h2>
-      <pre><code>merge 2:  er + _  ->  er_
-merge 3:  n + e   ->  ne
-merge 4:  ne + w  ->  new
-merge 5:  l + o   ->  lo
-merge 6:  lo + w  ->  low
-
-5  low _
-2  low e s t _
-6  new er_
-3  w i d er_
-2  new _</code></pre>
-      <p class="aside">In three of these six steps, two pairs had the same count. A real
-      implementation follows a fixed rule for choosing, so that every run gives the same result.
-      <a href="bpe-explorer.html">Try it yourself, merge by merge &rarr;</a></p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="What the algorithm has learned">
-    <div class="slide-inner">
-      <p class="lede">Look at what it learned</p>
-      <p>The symbol <code>er_</code> — in English, <em>-er</em> means &ldquo;more of
-      something.&rdquo; A real piece of grammar.</p>
-      <footer>Nobody told the algorithm any of this. It only counted pairs.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Why this solves the vocabulary problem">
-    <div class="slide-inner">
-      <p class="lede">Take the word <code>lower</code> — not in the training list</p>
-      <p>BPE splits it into <code>low</code> + <code>er_</code>. Both pieces are already
-      known.</p>
-      <footer>No unknown words — any word can be spelled from pieces you already have.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Unknown characters">
-    <div class="slide-inner">
-      <h2>Unknown characters are a different matter</h2>
-      <ul>
-        <li>A script or emoji that never appeared in training is not in the list either — so
-        <code>&lt;UNK&gt;</code> comes back</li>
-        <li>GPT models run BPE over <strong>bytes</strong>, not characters</li>
-        <li>Only 256 possible bytes — all in the list from the start</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: increasing k">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
+      <div class="quiz" data-answer="0">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">What happens if you increase <em>k</em>, the number of merges?</p>
+        <p class="q-text">Why do transformers need positional embeddings at all?</p>
         <div class="q-opts">
-          <button class="opt">Smaller list of symbols, and text becomes more tokens</button>
-          <button class="opt">Smaller list of symbols, and text becomes fewer tokens</button>
-          <button class="opt">Bigger list of symbols, and text becomes fewer tokens</button>
-          <button class="opt">Bigger list of symbols, and text becomes more tokens</button>
+          <button class="opt">Because self-attention computes each output from dot products between pairs of vectors, so shuffling the input produces the same outputs in a shuffled order</button>
+          <button class="opt">Because sentences in a batch have different lengths, and the shorter ones must be padded out so that every sequence in the batch is the same size</button>
+          <button class="opt">Because the softmax in equation (8.12) would otherwise assign the same weight to every position in the sequence, whatever the tokens at those positions were</button>
+          <button class="opt">Because without them the number of parameters would grow with the length of the sentence, and a model has to have a fixed number of parameters to be trained</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>bigger list, fewer tokens</strong>.</p>
-          <p>Each merge adds one symbol to the list, and replaces two symbols with one. Real
-          systems land around 30,000–50,000 tokens — BERT 30,522, GPT-2 50,257.</p>
+          <p>Correct: <strong>self-attention is permutation-invariant</strong> — it sees a set of
+          vectors, and a set has no order, which is what the table of identical outputs shows.</p>
+          <p>The second describes a real problem that really does need solving, which is what makes it
+          tempting: different lengths are handled by <strong>padding and masking</strong>, a separate
+          mechanism. A model could pad perfectly and still not know which word came first. The fourth
+          has it backwards — <math data-tex="E_{\mathrm{pos}}"><msub><mi>E</mi><mpadded lspace="0"><mi>pos</mi></mpadded></msub></math> <em>adds</em> parameters, fixed by the context
+          length.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why the _ marker">
+  <section class="slide slide--statement" data-title="Multi-head attention">
     <div class="slide-inner">
-      <div class="quiz" data-answer="1">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does BPE mark the end of each word with <code>_</code>?</p>
-        <div class="q-opts">
-          <button class="opt">So the algorithm can remove spaces before counting</button>
-          <button class="opt">So merges cannot run past the end of one word into another</button>
-          <button class="opt">So rare words can be marked and split into characters</button>
-          <button class="opt">So lines of training text stay separate while counting</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>so merges cannot run past the end of one word</strong>.</p>
-          <p>Without the marker, the last letter of one word and the first letter of the next
-          word would count as a pair, like any other pair. You would get useless symbols that
-          cross from one word into the next.</p>
-        </div>
-      </div>
+      <p class="lede">Second topic, independent of the first</p>
+      <p>"Each head might be attending to the context for different purposes: heads might be
+      specialized to represent different linguistic relationships between context elements and the
+      current token, or to look for particular kinds of patterns in the context."</p>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Where subword tokenization is used">
+  <section class="slide slide--statement" data-title="What one head is asked to do">
     <div class="slide-inner">
-      <h2>Where this comes back</h2>
+      <p>Resolving what <em>it</em> refers to needs one kind of comparison. Deciding which verb a noun
+      is the subject of needs another. Noticing a word is inside a quotation needs a third.</p>
+      <footer>A single scoring function <math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math> has to serve all of them at once, so it
+      must compromise — one similarity measure, averaging several purposes together.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The equations, with c indexing the head">
+    <div class="slide-inner">
+      <h2>The first four are session 29's four, with a <math data-tex="c"><mi>c</mi></math> attached</h2>
       <table>
-        <tr><th>Model</th><th>What it uses</th><th>When</th></tr>
-        <tr><td>BERT, DistilBERT</td><td>WordPiece — very similar to BPE</td>
-        <td>Unit III</td></tr>
-        <tr><td>GPT models</td><td>BPE, working on bytes</td><td>Unit III</td></tr>
-        <tr><td>Word2Vec, GloVe</td><td>Whole words — still has the <code>&lt;UNK&gt;</code>
-        problem</td><td>Unit II</td></tr>
+        <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+        <tr><td>each head has its own three projections</td>
+        <td><math data-tex="q^c_i = x_i W^Q_c \quad k^c_j = x_j W^K_c \quad v^c_j = x_j W^V_c"><mrow><msubsup><mi>q</mi><mi>i</mi><mi class="tml-med-pad">c</mi></msubsup><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msubsup><mi>W</mi><mi>c</mi><mi>Q</mi></msubsup><mspace width="1em"></mspace><msubsup><mi>k</mi><mi>j</mi><mi>c</mi></msubsup><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msubsup><mi>W</mi><mi>c</mi><mi>K</mi></msubsup><mspace width="1em"></mspace><msubsup><mi>v</mi><mi>j</mi><mi class="tml-sml-pad">c</mi></msubsup><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msubsup><mi>W</mi><mi>c</mi><mi>V</mi></msubsup></mrow></math></td>
+        <td>(8.15)</td></tr>
+        <tr><td>score, within the head</td>
+        <td><math data-tex="\mathrm{score}_c(x_i, x_j) = \dfrac{q^c_i \cdot k^c_j}{\sqrt{d_k}}"><mrow><msub><mpadded lspace="0"><mi>score</mi></mpadded><mi>c</mi></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><msubsup><mi>q</mi><mi>i</mi><mi class="tml-med-pad">c</mi></msubsup><mo>⋅</mo><msubsup><mi>k</mi><mi>j</mi><mi>c</mi></msubsup></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac></mstyle></mrow></math></td><td>(8.16)</td></tr>
+        <tr><td>softmax, within the head</td>
+        <td><math data-tex="\alpha^c_{ij} = \mathrm{softmax}(\mathrm{score}_c(x_i, x_j))"><mrow><msubsup><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>c</mi></msubsup><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mpadded lspace="0"><mi>score</mi></mpadded><mi>c</mi></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>(8.17)</td></tr>
+        <tr><td>weighted average, within the head</td>
+        <td><math data-tex="\mathrm{head}^c_i = \sum_{j \le i} \alpha^c_{ij} v^c_j"><mrow><msubsup><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi><mi>c</mi></msubsup><mo>=</mo><msub><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></msub><msubsup><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow><mi>c</mi></msubsup><msubsup><mi>v</mi><mi>j</mi><mi class="tml-sml-pad">c</mi></msubsup></mrow></math></td><td>(8.18)</td></tr>
+        <tr><td><strong>concatenate and project</strong></td>
+        <td><math data-tex="a_i = (\mathrm{head}^1 \oplus \ldots \oplus \mathrm{head}^A) W^O"><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msup><mpadded lspace="0"><mi>head</mi></mpadded><mn>1</mn></msup><mo>⊕︎</mo><mo>…</mo><mo>⊕︎</mo><msup><mpadded lspace="0"><mi>head</mi></mpadded><mi>A</mi></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><msup><mi>W</mi><mi>O</mi></msup></mrow></math></td><td>(8.19)</td></tr>
       </table>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Same idea, later">
+  <section class="slide slide--statement" data-title="Only the last line is new">
     <div class="slide-inner">
-      <h2>BERT&rsquo;s tokenizer</h2>
-      <pre><code>"doomscrolling"  ->  ["doom", "##scroll", "##ing"]</code></pre>
-      <p class="aside"><code>##</code> means &ldquo;this joins to the piece before it&rdquo; —
-      same idea as our <code>_</code>, opposite end.</p>
+      <p>Single-head applied <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> to one head's output. Multi-head first
+      <strong>concatenates</strong> the <math data-tex="A"><mi>A</mi></math> outputs and then applies <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> to the
+      concatenation.</p>
+      <footer>Each head's output is <math data-tex="[1 \times d_v]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, the concatenation is
+      <math data-tex="[1 \times A \cdot d_v]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>A</mi><mo>⋅</mo><msub><mi>d</mi><mi>v</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> is <math data-tex="[A \cdot d_v \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>A</mi><mo>⋅</mo><msub><mi>d</mi><mi>v</mi></msub><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> — back to
+      <math data-tex="[1 \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> so the layer can be stacked.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What W^O is doing now">
+    <div class="slide-inner">
+      <p>It is the only part of the layer where the heads meet. Inside a head, nothing knows the other
+      heads exist.</p>
+      <footer><math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> is the learned recipe for mixing their answers back into one vector. This is
+      why session 29 said it would start to earn its place here.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The dimension choice">
+    <div class="slide-inner">
+      <h2>The original transformer: <math data-tex="d = 512"><mrow><mi>d</mi><mo>=</mo><mn>512</mn></mrow></math>, <math data-tex="d_k = d_v = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><msub><mi>d</mi><mi>v</mi></msub><mo>=</mo><mn>64</mn></mrow></math>, <math data-tex="A = 8"><mrow><mi>A</mi><mo>=</mo><mn>8</mn></mrow></math></h2>
+      <div class="meq"><math data-tex="A \times d_k = 8 \times 64 = 512 = d" display="block" class="tml-display" style="display:block math;"><mrow><mi>A</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>8</mn><mo>×</mo><mn>64</mn><mo>=</mo><mn>512</mn><mo>=</mo><mi>d</mi></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The arithmetic">
+    <div class="slide-inner">
+      <h2>The heads <em>partition</em> the width</h2>
+      <table>
+        <tr><th></th><th>projection matrices</th><th>parameters</th></tr>
+        <tr><td>one head at full width (<math data-tex="d_k = 512"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>512</mn></mrow></math>)</td><td><math data-tex="3 \times 512 \times 512"><mrow><mn>3</mn><mo>×</mo><mn>512</mn><mo>×</mo><mn>512</mn></mrow></math></td>
+        <td>786,432</td></tr>
+        <tr><td>eight heads at width 64</td><td><math data-tex="8 \times 3 \times 512 \times 64"><mrow><mn>8</mn><mo>×</mo><mn>3</mn><mo>×</mo><mn>512</mn><mo>×</mo><mn>64</mn></mrow></math></td>
+        <td>786,432</td></tr>
+        <tr><td>output projection <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math></td><td><math data-tex="512 \times 512"><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></math></td><td>262,144</td></tr>
+        <tr><td><strong>multi-head layer, total</strong></td><td></td>
+        <td><strong>1,048,576</strong></td></tr>
+      </table>
+      <p class="aside"><strong>Exactly</strong> the same, not approximately, because
+      <math data-tex="8 \times 64 = 512"><mrow><mn>8</mn><mo>×</mo><mn>64</mn><mo>=</mo><mn>512</mn></mrow></math>. Heads are close to free: they divide the width rather than adding to
+      it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The same width, two ways to spend it">
+    <div class="slide-inner">
+      <h2>Eight heads are not eight copies — they are one layer's width cut into strips</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 380" role="img" aria-labelledby="mhtitle mhdesc">
+        <title id="mhtitle">Eight heads partition the model width rather than adding to it</title>
+        <desc id="mhdesc">Two horizontal bars of exactly the same total length. The upper bar is one
+        undivided block labelled "one head, d_k = 512". The lower bar is the same length but divided into
+        eight equal segments, each labelled 64, one per head. Below them, an arrow shows the eight head
+        outputs being concatenated back into a single row of width 512, which then passes through a box
+        labelled W O, of shape 512 by 512, producing the output a i of width d.</desc>
+
+        <text class="fig-axname" x="90" y="34">the same 512 numbers, two ways to spend them</text>
+
+        <!-- one full-width head -->
+        <text class="fig-label" x="82" y="76" text-anchor="end">1 head</text>
+        <rect class="fig-cell" x="90" y="54" width="560" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cellg" x="90" y="54" width="560" height="34"></rect>
+        <text class="fig-label" x="370" y="76" text-anchor="middle">one head, d_k = 512</text>
+
+        <!-- eight narrow heads -->
+        <text class="fig-label" x="82" y="166" text-anchor="end">8 heads</text>
+        <rect class="fig-cell" x="90"  y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="160" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="230" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="300" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="370" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="440" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="510" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cell" x="580" y="144" width="70" height="34" fill-opacity="0.18"></rect>
+        <rect class="fig-cellg" x="90"  y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="160" y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="230" y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="300" y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="370" y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="440" y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="510" y="144" width="70" height="34"></rect>
+        <rect class="fig-cellg" x="580" y="144" width="70" height="34"></rect>
+        <text class="fig-label" x="125" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="195" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="265" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="335" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="405" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="475" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="545" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="615" y="166" text-anchor="middle">64</text>
+        <text class="fig-label" x="125" y="136" text-anchor="middle">h1</text>
+        <text class="fig-label" x="195" y="136" text-anchor="middle">h2</text>
+        <text class="fig-label" x="265" y="136" text-anchor="middle">h3</text>
+        <text class="fig-label" x="335" y="136" text-anchor="middle">h4</text>
+        <text class="fig-label" x="405" y="136" text-anchor="middle">h5</text>
+        <text class="fig-label" x="475" y="136" text-anchor="middle">h6</text>
+        <text class="fig-label" x="545" y="136" text-anchor="middle">h7</text>
+        <text class="fig-label" x="615" y="136" text-anchor="middle">h8</text>
+
+        <text class="fig-axname" x="370" y="112" text-anchor="middle">A × d_k = 8 × 64 = 512 = d</text>
+
+        <!-- concatenate -->
+        <path class="fig-edge" d="M370 178 L370 214"></path>
+        <polygon class="fig-edge-h" points="370,222 366.5,212 373.5,212"></polygon>
+        <text class="fig-label" x="382" y="202">concatenate the 8 head outputs</text>
+
+        <rect class="fig-cell" x="90" y="228" width="560" height="30" fill-opacity="0.10"></rect>
+        <rect class="fig-cellg" x="90" y="228" width="560" height="30"></rect>
+        <text class="fig-label" x="370" y="248" text-anchor="middle">[1 × A·d_v] = [1 × 512]</text>
+
+        <path class="fig-edge" d="M370 258 L370 288"></path>
+        <polygon class="fig-edge-h" points="370,296 366.5,286 373.5,286"></polygon>
+
+        <rect class="fig-node" x="270" y="300" width="200" height="34" rx="4"></rect>
+        <text class="fig-gate-t" x="370" y="322">W^O   [512 × 512]</text>
+
+        <text class="fig-axname" x="486" y="322">→ a_i, of width d</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What the technique actually is">
+    <div class="slide-inner">
+      <p>Multi-head attention is not "more attention". It is <strong>the same parameter budget spent
+      on eight narrow comparisons instead of one wide one</strong>.</p>
+      <footer>The argument for spending it that way: eight 64-dimensional similarity functions can
+      each specialise, where one 512-dimensional function has to average its purposes together.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Specialisation is a hope">
+    <div class="slide-inner">
+      <p>Nothing in the equations tells head 3 to learn coreference. The heads differ only because
+      they start from different random initialisations and are free to diverge.</p>
+      <footer>What they end up doing is an empirical question — in practice some heads do learn
+      recognisable jobs and others are close to redundant.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: do 8 heads cost 8 times">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">In the original transformer, do 8 attention heads cost roughly 8 times the
+        parameters of 1 head?</p>
+        <div class="q-opts">
+          <button class="opt">Yes — each head has its own W^Q, W^K and W^V, so eight heads means eight complete sets of the three projection matrices</button>
+          <button class="opt">Yes for the projections but not for the layer as a whole, because the eight heads are able to share one copy of the output projection W^O between them</button>
+          <button class="opt">No — the heads partition the model width, since A × d_k = d, so the eight narrow projections cost what one full-width head costs</button>
+          <button class="opt">No — the heads are computed one after another from the same matrices, so the extra cost of adding heads is in training time rather than in the parameter count</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>they partition the width</strong>. Each head's <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math> is
+          <math data-tex="[512 \times 64]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>512</mn><mo>×</mo><mn>64</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> rather than <math data-tex="[512 \times 512]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>512</mn><mo>×</mo><mn>512</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>; eight of those come to 786,432,
+          exactly what one full-width head's three matrices cost. With <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> the layer is
+          1,048,576 — four thirds of single-head, not eight times.</p>
+          <p>The first is the natural guess and gets the premise right: each head really does have its
+          own three matrices. What it misses is that those matrices are <strong>narrower</strong>. The
+          fourth is wrong about the mechanism — the heads are independent and computed in parallel,
+          which is much of why the design is attractive on modern hardware.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where this leaves us">
+    <div class="slide-inner">
+      <p>That completes the attention layer of a transformer: <math data-tex="X"><mi>X</mi></math> built from token and
+      positional embeddings, and multi-head scaled dot-product self-attention computed over it.</p>
+      <footer>What is missing is everything <em>around</em> it. §8.2: the transformer block is the
+      attention layer plus "(1) a feedforward layer, (2) residual connections, and (3) normalizing
+      layers". The first is already in hand — session 20's feedforward network, unchanged.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Tokenization is not simply a matter of splitting strings. It determines the
-      <strong>units a model is able to represent</strong>.</p>
-      <p>Choose whole words, and new words become unknown. Choose word parts, and the model
-      can handle anything.</p>
-      <footer>Next: normalization and stop words.</footer>
+      <p>Self-attention is permutation-invariant, verified to every digit, so order is supplied
+      separately: a token embedding and a positional embedding, <strong>added</strong> not
+      concatenated, at the input and only there. Learned positions are undertrained at the far end,
+      which is the one reason to prefer sinusoids.</p>
+      <footer>Multi-head runs <math data-tex="A"><mi>A</mi></math> heads and concatenates before one <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math>. Because
+      <math data-tex="A \times d_k = d"><mrow><mi>A</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mi>d</mi></mrow></math>, eight heads cost the same 786,432 projection parameters as one
+      full-width head — the same budget spent on several narrow specialised comparisons.</footer>
     </div>
   </section>
 
@@ -1113,23 +1201,27 @@ merge 6:  lo + w  ->  low
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.4 &amp; §2.8</p>
-          <p class="ref-note">Two sections only — §2.4 (Byte-Pair Encoding) comes before
-          §2.6 in the book's own order. Optional: §2.7 does it with plain Unix tools.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 8</p>
+          <p class="ref-note">The <strong>Multi-head Attention</strong> passage at the end of
+          <strong>§8.1</strong> for equations 8.15–8.20 and Figure 8.6, and <strong>§8.4</strong> for
+          token and positional embeddings, Figures 8.12–8.14. §8.4 is short, and it is the only place
+          the input matrix <math data-tex="X"><mi>X</mi></math> is actually defined.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/8.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/8.pdf</a>
         </li>
         <li>
-          <p class="ref-title">Sennrich, Haddow &amp; Birch (2016) — <em>Neural Machine
-          Translation of Rare Words with Subword Units</em></p>
-          <p class="ref-note">The paper BPE came from. Short and readable.</p>
-          <a class="ref-link" href="https://aclanthology.org/P16-1162/" target="_blank"
-          rel="noopener">aclanthology.org/P16-1162</a>
+          <p class="ref-title">Vaswani et al. 2017</p>
+          <p class="ref-note"><strong>§3.2.2</strong> for multi-head attention in the original
+          notation, and <strong>§3.5</strong> for the sinusoidal formula. §3.5 is one paragraph, and
+          it ends by reporting that the learned and sinusoidal versions produced "nearly identical
+          results" — worth knowing, because it means the choice is not a large one in practice.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1706.03762"
+          target="_blank" rel="noopener">arxiv.org/abs/1706.03762</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0004-normalization-and-stop-words.html">Next deck &mdash;
-      session 4: Cleaning up text &rarr;</a>
+      <a class="deck-onward" href="0031-the-transformer.html">Next deck &mdash;
+      session 31: The transformer &rarr;</a>
     </div>
   </section>
 

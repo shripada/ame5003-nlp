@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 7: Named entity recognition</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,252 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0007-named-entity-recognition.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 07</p>
+      <h1>Named entity recognition</h1>
+      <p class="subtitle">Finding the names in text — people, places, companies — which is harder
+      than tagging words, because a single name can span several of them.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="What lab 2 could not do">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <p class="lede">A debt from lab 2</p>
+      <p>Regular expressions extracted the dates and the rupee amounts from bank messages. They
+      could not extract the <strong>merchant name</strong>.</p>
+      <footer>Extracting the merchant name is a job for named entity recognition, which is the
+      debt this session pays.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Why regex cannot find names">
+    <div class="slide-inner">
+      <h2>Dates have a shape; names do not</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li><code>15/03/2026</code> — a fixed pattern of digits and slashes, so a regular
+        expression matches it</li>
+        <li><code>SWIGGY</code>, <code>Reserve Bank of India</code>, <code>Rao</code> — no shared
+        pattern at all</li>
+        <li>No hand-written rule covers all three, because there is nothing common to write down</li>
       </ul>
+      <p class="aside">This is the shift from rules to learning that lab 1 showed when VADER failed
+      on <em>nightmare</em>.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--code" data-title="One name, four words">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <h2>Session 6 tagged one word at a time</h2>
+      <pre><code>The Reserve Bank of India raised rates.</code></pre>
+      <p class="aside">A word's grammatical class is a property of that word alone.
+      <code>Reserve Bank of India</code> is a single organization spread across four words, and no
+      per-word label captures it.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--code" data-title="What NER produces">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <h2>Spans, with a type on each</h2>
+      <pre><code>"The Reserve Bank of India raised rates in Mumbai on Monday."
+
+  The Reserve Bank of India   ->  ORG    (an organization)
+  Mumbai                      ->  GPE    (a place)
+  Monday                      ->  DATE</code></pre>
+      <p class="aside">Named entity recognition identifies the spans of text that are proper names
+      and labels each with its type.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--table" data-title="The entity types">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>The commonly used types</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>Type</th><th>What it covers</th><th>Example</th></tr>
+        <tr><td>PERSON</td><td>people, real or fictional</td><td><code>Rao</code></td></tr>
+        <tr><td>ORG</td><td>companies, agencies, institutions</td><td><code>Infosys</code></td></tr>
+        <tr><td>GPE</td><td>countries, cities, states</td><td><code>Mumbai</code></td></tr>
+        <tr><td>LOC</td><td>places that are not GPEs — rivers, mountains</td>
+        <td><code>Himalayas</code></td></tr>
+        <tr><td>DATE</td><td>dates and periods, exact or relative</td><td><code>Monday</code>,
+        <code>last week</code></td></tr>
+        <tr><td>MONEY</td><td>amounts, with the unit</td><td><code>$2 billion</code></td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="The problem to solve">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <p>A tagger assigns <strong>one tag per word</strong>. An entity can cover
+      <strong>several words</strong>.</p>
+      <footer>How do we mark a multi-word span with machinery that tags one word at a time?</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--bullets" data-title="The BIO scheme">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
+      <h2>BIO: three kinds of tag</h2>
       <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
+        <li><strong>B-</strong> — this word <strong>begins</strong> an entity of the given type</li>
+        <li><strong>I-</strong> — this word is <strong>inside</strong> the same entity, continuing
+        it</li>
+        <li><strong>O</strong> — this word is <strong>outside</strong> any entity</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
+  <section class="slide slide--code" data-title="The Reserve Bank sentence in BIO">
     <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
+      <h2>The same sentence, one tag per word</h2>
+      <pre><code>The       B-ORG      &lt;- the name starts here
+Reserve   I-ORG      &lt;- still inside it
+Bank      I-ORG
+of        I-ORG
+India     I-ORG      &lt;- still inside it
+raised    O          &lt;- outside; the name has ended
+rates     O
+.         O</code></pre>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A more precise alternative">
+  <section class="slide slide--statement" data-title="What BIO buys">
     <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
+      <p>One <code>B-ORG</code> followed by four <code>I-ORG</code> tags reconstructs the span
+      <code>The Reserve Bank of India</code>.</p>
+      <footer>BIO converts the problem of finding spans into the problem of tagging each word,
+      which a sequence labeller can already solve.</footer>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: why B- is needed">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Think before the answer</span>
+        <p>Why is a separate <strong>B-</strong> tag necessary? Why not tag every word of a company
+        name <code>ORG</code> and every word outside an entity <code>O</code>?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p>Because two names of the same type can occur next to each other. In
+          <code>"... met Google Microsoft ..."</code>, tagging both words <code>ORG</code> reads as
+          one two-word company.</p>
+          <p>Under BIO the tags are <code>B-ORG</code>, <code>B-ORG</code>: a second
+          <code>B-</code> means a new entity begins. The <code>B-</code> tag exists precisely to
+          mark the boundary between adjacent entities of the same type.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two further difficulties">
+    <div class="slide-inner">
+      <p>Beyond the problem of spans, there are two further difficulties.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The same name, different types">
+    <div class="slide-inner">
+      <h2>The same name can have different types</h2>
+      <ul>
+        <li><code>Washington</code> — a person, a city, a state, or a football team</li>
+        <li><code>Apple</code> — a company or a fruit</li>
+        <li>Only the context resolves it</li>
+      </ul>
+      <p class="aside">The same kind of ambiguity we saw in POS tagging, at the level of entities
+      rather than words.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="spaCy on an Indian sentence">
+    <div class="slide-inner">
+      <h2>A current system, on an Indian sentence</h2>
+      <pre><code>"Rao paid Infosys 5000 rupees last week."
+
+  spaCy finds:
+    Rao            ->  PERSON     ok
+    Infosys 5000   ->  PRODUCT    wrong  (merged the company and the amount)
+    last week      ->  DATE       ok
+  and it misses "5000 rupees" as money entirely.</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Trained on Western news text">
+    <div class="slide-inner">
+      <p>The system handled the items that resemble its training data and failed on the one that
+      does not.</p>
+      <footer>A model trained largely on Western news text performs worst on the names an Indian
+      application most needs. Measure this on your own text before relying on the output.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why NER is harder">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What makes NER harder than the POS tagging from last session?</p>
+        <div class="q-opts">
+          <button class="opt">An entity can span several words, while a POS tag is one word</button>
+          <button class="opt">There are far more entity types than there are parts of speech</button>
+          <button class="opt">NER cannot use the surrounding words, but POS tagging can</button>
+          <button class="opt">Entities must be looked up in a dictionary and POS tags need not</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>an entity can span several words</strong>.</p>
+          <p>A POS tag is a property of a single word, so one tag per word fits naturally.
+          <code>Reserve Bank of India</code> is one entity spanning four words, which needs a scheme
+          such as BIO. Both tasks use context; the span is the additional difficulty.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what I-ORG means">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">In the BIO scheme, what does <code>I-ORG</code> mean?</p>
+        <div class="q-opts">
+          <button class="opt">The most important word of an organization's name</button>
+          <button class="opt">An incorrect organization tag, flagged for review</button>
+          <button class="opt">The first word of an organization's name</button>
+          <button class="opt">A word inside an organization name that began earlier</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>a word inside an organization name that began earlier</strong>.</p>
+          <p><code>I-</code> stands for "inside": the word continues an entity a <code>B-</code>
+          tag has already begun. <code>B-ORG I-ORG I-ORG</code> is one three-word organization.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Where NER is used">
+    <div class="slide-inner">
+      <h2>Where NER is used</h2>
+      <ul>
+        <li><strong>Information extraction</strong> — the task lab 2 attempted, carried out
+        properly, over documents, contracts and news</li>
+        <li><strong>Search</strong> — a query for "Apple" can be directed to the company or the
+        fruit once the sense is known</li>
+        <li><strong>Redaction</strong> — locating and concealing every PERSON in a document</li>
+        <li><strong>Question answering</strong> — "who", "where" and "when" are answered by an
+        entity, so finding entities comes first. This returns in Unit III</li>
+      </ul>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>NER locates and types the name spans in a text. BIO tagging turns finding spans into
+      tagging each word, so a sequence labeller can do it.</p>
+      <footer>Next: we stop analysing one text and start searching a whole collection of them.
+      That is the second half of Unit I.</footer>
     </div>
   </section>
 
@@ -1110,22 +1027,16 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 17</p>
+          <p class="ref-note">&ldquo;Sequence Labeling for Parts of Speech and Named
+          Entities&rdquo;. Read the sections on named entities and on the BIO tagging scheme.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/17.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/17.pdf</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0008-incidence-matrix-and-boolean-search.html">Next deck &mdash;
+      session 8: Searching a collection &rarr;</a>
     </div>
   </section>
 

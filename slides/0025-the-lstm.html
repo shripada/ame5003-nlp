@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 25: The LSTM</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,324 +773,476 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0025-the-lstm.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 25</p>
+      <h1>The LSTM: two vectors, and three gates that manage them</h1>
+      <p class="subtitle">Session 24 found two problems. The first one — one vector asked to do two
+      jobs — is what this architecture is built to fix. The gates are how it does the managing, not
+      what the design is about.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--bullets" data-title="Session 24's two reasons">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <h2>Session 24's two reasons</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li>The hidden layer does <strong>two jobs at once</strong> — serve the current decision, and
+        carry information forward. One vector, no machinery separating them</li>
+        <li>The gradient is <strong>multiplied once per step</strong> on the backward pass, driving
+        it toward zero over any real distance</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="The sentence we stopped at">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p class="lede">SLP3 §13.5, the sentence session 24 stopped before</p>
+      <p>"…architectures designed to explicitly manage the task of maintaining relevant context over
+      time, by <strong>enabling the network to learn to forget information that is no longer
+      needed</strong> and <strong>to remember information required for decisions still to
+      come</strong>."</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="Notice what it is about">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p>It is about managing context. It says nothing about gradients.</p>
+      <footer>The architecture that follows is a response to <strong>reason 1</strong>. It helps with
+      reason 2 as well, and we get to that — but taking the gradient as the motivation makes the rest
+      of the hour look like an arbitrary list of parts.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement" data-title="The design decision">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <p class="lede">The clause that matters most</p>
+      <p>"The key to solving both problems is to <strong>learn how to manage this context rather
+      than hard-coding a strategy into the architecture</strong>."</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--statement" data-title="The fourth time">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <p>Session 4 hard-coded a strategy with a stop-word list. Session 5 hard-coded one with a
+      stemmer's rules. Session 20 replaced counted weights with fitted ones.</p>
+      <footer>This is the same trade applied to memory: rather than deciding in advance what to
+      forget, learn it. It is the fourth time the course has made that trade.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--table" data-title="One structural change">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>Before any gate: a second vector</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>vector</th><th>job</th></tr>
+        <tr><td><math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math></td><td>carry information forward — the long-term memory of the
+        unit</td></tr>
+        <tr><td><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math></td><td>serve the current step — what the unit outputs now, and what the
+        next step's gates read</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">That is the architecture. Everything else is machinery that manages the two,
+      and the gates exist <em>because</em> <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> exists — not the other way round.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="Two lines, not one">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
+      <p>The essential change is that <strong>two lines run through the unit</strong> rather than
+      one.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The gate design pattern">
+    <div class="slide-inner">
+      <p class="lede">All three gates are the same construction</p>
+      <p>A feedforward layer, then a sigmoid, then a pointwise multiplication with the layer being
+      gated.</p>
+      <footer>The sigmoid pushes its outputs toward 0 or 1, so multiplying by it acts as a
+      <strong>soft binary mask</strong>: near 1 lets a value through, near 0 erases it. Because the
+      gate is computed from weights, the mask is <em>learned</em> rather than fixed.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The sigmoid's third job">
+    <div class="slide-inner">
+      <p>Session 20 used the sigmoid to make a score readable as a probability. Session 21 used it
+      to score a word pair in negative sampling. Here it is a mask.</p>
+      <footer>Same function, three different jobs — the function does not carry a meaning, the
+      surrounding architecture assigns it one.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One piece of notation">
+    <div class="slide-inner">
+      <p><math data-tex="\odot"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">⊙</mo></math> is the <strong>element-wise product</strong>: multiply two vectors of the same
+      length position by position, producing a third of that length.</p>
+      <footer>Also called the Hadamard product. It is not a dot product and not a matrix multiply —
+      nothing is summed, and no dimension changes.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The forget gate">
+    <div class="slide-inner">
+      <h2>The forget gate — what to delete</h2>
+      <div class="meq" data-eqno="13.20"><math data-tex="f_t = \sigma(U_f h_{t-1} + W_f x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>f</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>f</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>f</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.20)</span></div>
+      <div class="meq" data-eqno="13.21"><math data-tex="k_t = c_{t-1} \odot f_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>k</mi><mi>t</mi></msub><mo>=</mo><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>⊙</mo><msub><mi>f</mi><mi>t</mi></msub></mrow></math><span class="eqno">(13.21)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Reading the forget gate">
+    <div class="slide-inner">
+      <p>The gate is computed, then multiplied into the previous context. Where <math data-tex="f_t"><msub><mi>f</mi><mi>t</mi></msub></math> is near
+      0, that part of the context is erased; near 1, it survives.</p>
+      <footer><math data-tex="k_t"><msub><mi>k</mi><mi>t</mi></msub></math> is the part of the old context being kept.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The add gate">
+    <div class="slide-inner">
+      <h2>The add gate — what to write</h2>
+      <div class="meq" data-eqno="13.22"><math data-tex="g_t = \tanh(U_g h_{t-1} + W_g x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>g</mi><mi>t</mi></msub><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>g</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>g</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.22)</span></div>
+      <div class="meq" data-eqno="13.23"><math data-tex="i_t = \sigma(U_i h_{t-1} + W_i x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>i</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>i</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>i</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.23)</span></div>
+      <div class="meq" data-eqno="13.24"><math data-tex="j_t = g_t \odot i_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>j</mi><mi>t</mi></msub><mo>=</mo><msub><mi>g</mi><mi>t</mi></msub><mo>⊙</mo><msub><mi>i</mi><mi>t</mi></msub></mrow></math><span class="eqno">(13.24)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two things, kept apart">
+    <div class="slide-inner">
+      <p><math data-tex="g_t"><msub><mi>g</mi><mi>t</mi></msub></math> is the <strong>candidate</strong> — the new information extracted from this
+      step's input. <math data-tex="i_t"><msub><mi>i</mi><mi>t</mi></msub></math> is the gate that decides <em>how much of it actually is</em>
+      written.</p>
+      <footer>Their product <math data-tex="j_t"><msub><mi>j</mi><mi>t</mi></msub></math> is what gets written.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="g is not a gate">
+    <div class="slide-inner">
+      <p><math data-tex="g_t"><msub><mi>g</mi><mi>t</mi></msub></math> is content, computed <em>exactly as a plain RNN computes its hidden state</em>:
+      the same two weight matrices on the same two inputs, squashed by <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math>.</p>
+      <footer>The old RNN is still in there, as one line of a larger unit. It is also the only
+      <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> of the four — the three gates use <math data-tex="\sigma"><mi>σ</mi></math>, because a gate needs to be a
+      mask between 0 and 1, while content needs to be able to be negative.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="A naming collision">
+    <div class="slide-inner">
+      <p>SLP3 calls this the <strong>add gate</strong>. Olah — the second reading — and essentially
+      everyone else call it the <strong>input gate</strong>, which is why its symbol is <math data-tex="i_t"><msub><mi>i</mi><mi>t</mi></msub></math>.</p>
+      <footer>Same gate, same equation, two names. There is no fourth gate. The same kind of
+      collision as session 23's, where one book's <math data-tex="W"><mi>W</mi></math> and <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math> were another's <math data-tex="U"><mi>U</mi></math>,
+      <math data-tex="W"><mi>W</mi></math> and <math data-tex="V"><mi>V</mi></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The new context">
+    <div class="slide-inner">
+      <h2>What was kept, plus what was written</h2>
+      <div class="meq" data-eqno="13.25"><math data-tex="c_t = j_t + k_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math><span class="eqno">(13.25)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="An addition">
+    <div class="slide-inner">
+      <p>That is the whole update, and it is an <strong>addition</strong>.</p>
+      <footer>That it is an addition rather than a product matters for the gradient, and the point
+      returns later in the session.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The output gate">
+    <div class="slide-inner">
+      <h2>The output gate — what this step needs now</h2>
+      <div class="meq" data-eqno="13.26"><math data-tex="o_t = \sigma(U_o h_{t-1} + W_o x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>o</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>U</mi><mi>o</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>W</mi><mi>o</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.26)</span></div>
+      <div class="meq" data-eqno="13.27"><math data-tex="h_t = o_t \odot \tanh(c_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>o</mi><mi>t</mi></msub><mo>⊙</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>c</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.27)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The separation, in one line">
+    <div class="slide-inner">
+      <p>The context is up to date; the last question is how much of it this step should expose, and
+      <math data-tex="o_t"><msub><mi>o</mi><mi>t</mi></msub></math> answers it.</p>
+      <footer>This is the separation of the two jobs in one line: the unit can hold something in
+      <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> and still emit almost nothing in <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The three gates">
+    <div class="slide-inner">
+      <h2>Three gates, three questions</h2>
+      <table>
+        <tr><th>gate</th><th>decides</th><th>equations</th></tr>
+        <tr><td><strong>forget</strong></td><td>what to delete from context</td><td>13.20–21</td></tr>
+        <tr><td><strong>add</strong> (input)</td><td>what to write into context</td><td>13.22–24</td></tr>
+        <tr><td>—</td><td>the new context, <math data-tex="c_t = j_t + k_t"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math></td><td>13.25</td></tr>
+        <tr><td><strong>output</strong></td><td>what to emit at this step</td><td>13.26–27</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A worked example">
+    <div class="slide-inner">
+      <p>Everything one-dimensional, so <math data-tex="\odot"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">⊙</mo></math> is ordinary multiplication. The gate values are
+      <strong>given, not derived from weights</strong> — the question is what the context line does,
+      not where a sigmoid comes from.</p>
+      <footer>If a gate's pre-activation were <math data-tex="-4"><mrow><mo form="prefix" stretchy="false">−</mo><mn>4</mn></mrow></math>, then <math data-tex="\sigma(-4) = 0.0180"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>4</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.0180</mn></mrow></math> — the sort
+      of number in the <code>f</code> column. We are simply starting after the computation. Three
+      steps from <math data-tex="c_0 = 0"><mrow><msub><mi>c</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow></math>: write, hold, wipe.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Write, hold, wipe">
+    <div class="slide-inner">
+      <h2>Three steps</h2>
+      <table>
+        <tr><th>step</th><th><code>f</code></th><th><code>i</code></th><th><code>g</code></th>
+        <th><code>o</code></th><th><math data-tex="k"><mi>k</mi></math></th><th><math data-tex="j"><mi>j</mi></math></th><th><math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math></th>
+        <th><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math></th></tr>
+        <tr><td>1 · write</td><td>0.02</td><td>0.95</td><td>+0.80</td><td>0.90</td>
+        <td>0.0000</td><td>+0.7600</td><td><strong>0.7600</strong></td><td>0.5770</td></tr>
+        <tr><td>2 · hold</td><td>0.98</td><td>0.03</td><td>−0.50</td><td>0.10</td>
+        <td>0.7448</td><td>−0.0150</td><td><strong>0.7298</strong></td><td>0.0623</td></tr>
+        <tr><td>3 · wipe</td><td>0.01</td><td>0.05</td><td>+0.10</td><td>0.95</td>
+        <td>0.0073</td><td>+0.0050</td><td><strong>0.0123</strong></td><td>0.0117</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What row 2 shows">
+    <div class="slide-inner">
+      <p class="lede">Row 2, in detail</p>
+      <p>Context arrives at 0.7600 and leaves at 0.7298 — a loss of <strong>4%</strong> — while the
+      unit emits <math data-tex="h = 0.0623"><mrow><mi>h</mi><mo>=</mo><mn>0.0623</mn></mrow></math>, which is nearly nothing.</p>
+      <footer>Whatever step 2's input was, it was not written into memory (<math data-tex="i = 0.03"><mrow><mi>i</mi><mo>=</mo><mn>0.03</mn></mrow></math>) and not
+      reported (<math data-tex="o = 0.10"><mrow><mi>o</mi><mo>=</mo><mn>0.10</mn></mrow></math>). The unit is <strong>remembering without acting</strong>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A plain RNN cannot do that">
+    <div class="slide-inner">
+      <p>In an RNN, <math data-tex="h"><mi>h</mi></math> <em>is</em> the memory — the vector it emits is the vector it carries.
+      Emitting nearly zero therefore means remembering nearly zero.</p>
+      <footer>The two jobs are one vector, which is session 24's reason 1 stated as arithmetic. Here
+      they are two vectors, and row 2 is what the separation buys.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Rows 1 and 3">
+    <div class="slide-inner">
+      <p>Row 1 writes: <math data-tex="i = 0.95"><mrow><mi>i</mi><mo>=</mo><mn>0.95</mn></mrow></math> lets the candidate through almost intact. Row 3 wipes:
+      <math data-tex="f = 0.01"><mrow><mi>f</mi><mo>=</mo><mn>0.01</mn></mrow></math> deletes what was held, and context drops to 0.0123.</p>
+      <footer>Note <math data-tex="o = 0.95"><mrow><mi>o</mi><mo>=</mo><mn>0.95</mn></mrow></math> in row 3 — the output gate is wide open and the unit still emits
+      almost nothing, because there is nothing left to emit. The gates control different things and
+      are genuinely independent.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Two lines, drawn">
+    <div class="slide-inner">
+      <h2>The context line crosses each step with a multiply and an add</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 400" role="img" aria-labelledby="lstmtitle lstmdesc">
+          <title id="lstmtitle">Three LSTM timesteps drawn as two horizontal lines, a context line
+          above and a hidden state line below</title>
+          <desc id="lstmdesc">Two long horizontal lines run left to right. The upper line is
+          labelled c, the context; at each of three timesteps it passes through a circle marked with
+          an element-wise product, labelled with a forget gate, and then a circle marked with a
+          plus, labelled with what is added. It carries no weight matrix anywhere along its length.
+          The lower line is the hidden state, three circles joined left to right, each receiving an
+          input x from below and a vertical arrow down from the context line. Faint dashed arrows
+          run from each hidden node up to the next timestep's gates.</desc>
+
+          <line class="fig-edge" x1="30" y1="95" x2="668" y2="95"></line>
+          <polygon class="fig-edge-h" points="678,95 668,98.5 668,91.5"></polygon>
+          <text class="fig-axname" x="30" y="66">c — context</text>
+
+          <line class="fig-edge" x1="30" y1="255" x2="668" y2="255"></line>
+          <polygon class="fig-edge-h" points="678,255 668,258.5 668,251.5"></polygon>
+          <text class="fig-axname" x="30" y="304">h — hidden state</text>
+
+          <circle class="fig-gate" cx="90" cy="95" r="15"></circle>
+          <text class="fig-gate-t" x="90" y="101">⊙</text>
+          <text class="fig-label" x="90" y="132" text-anchor="middle">f₁</text>
+          <circle class="fig-gate" cx="140" cy="95" r="15"></circle>
+          <text class="fig-gate-t" x="140" y="101">+</text>
+          <text class="fig-label" x="140" y="132" text-anchor="middle">j₁</text>
+          <line class="fig-edge" x1="190" y1="110" x2="190" y2="219"></line>
+          <polygon class="fig-edge-h" points="190,229 193.5,219 186.5,219"></polygon>
+          <circle class="fig-node" cx="190" cy="255" r="26"></circle>
+          <text class="fig-glyph" x="190" y="263" text-anchor="middle">h₁</text>
+          <line class="fig-edge" x1="190" y1="345" x2="190" y2="291"></line>
+          <polygon class="fig-edge-h" points="190,281 193.5,291 186.5,291"></polygon>
+          <text class="fig-label" x="190" y="364" text-anchor="middle">x₁</text>
+
+          <circle class="fig-gate" cx="290" cy="95" r="15"></circle>
+          <text class="fig-gate-t" x="290" y="101">⊙</text>
+          <text class="fig-label" x="290" y="132" text-anchor="middle">f₂</text>
+          <circle class="fig-gate" cx="340" cy="95" r="15"></circle>
+          <text class="fig-gate-t" x="340" y="101">+</text>
+          <text class="fig-label" x="340" y="132" text-anchor="middle">j₂</text>
+          <line class="fig-edge" x1="390" y1="110" x2="390" y2="219"></line>
+          <polygon class="fig-edge-h" points="390,229 393.5,219 386.5,219"></polygon>
+          <circle class="fig-node" cx="390" cy="255" r="26"></circle>
+          <text class="fig-glyph" x="390" y="263" text-anchor="middle">h₂</text>
+          <line class="fig-edge" x1="390" y1="345" x2="390" y2="291"></line>
+          <polygon class="fig-edge-h" points="390,281 393.5,291 386.5,291"></polygon>
+          <text class="fig-label" x="390" y="364" text-anchor="middle">x₂</text>
+
+          <circle class="fig-gate" cx="490" cy="95" r="15"></circle>
+          <text class="fig-gate-t" x="490" y="101">⊙</text>
+          <text class="fig-label" x="490" y="132" text-anchor="middle">f₃</text>
+          <circle class="fig-gate" cx="540" cy="95" r="15"></circle>
+          <text class="fig-gate-t" x="540" y="101">+</text>
+          <text class="fig-label" x="540" y="132" text-anchor="middle">j₃</text>
+          <line class="fig-edge" x1="590" y1="110" x2="590" y2="219"></line>
+          <polygon class="fig-edge-h" points="590,229 593.5,219 586.5,219"></polygon>
+          <circle class="fig-node" cx="590" cy="255" r="26"></circle>
+          <text class="fig-glyph" x="590" y="263" text-anchor="middle">h₃</text>
+          <line class="fig-edge" x1="590" y1="345" x2="590" y2="291"></line>
+          <polygon class="fig-edge-h" points="590,281 593.5,291 586.5,291"></polygon>
+          <text class="fig-label" x="590" y="364" text-anchor="middle">x₃</text>
+
+          <path class="fig-gap" d="M 212 233 C 240 200 265 150 288 112"></path>
+          <path class="fig-gap" d="M 412 233 C 440 200 465 150 488 112"></path>
+
+          <text class="fig-label" x="240" y="207">o ⊙ tanh(c)</text>
+
+          <text class="fig-axname" x="350" y="182" text-anchor="middle">on the c line: a multiply by
+          a gate, then an add — and no weight matrix anywhere</text>
+        </svg>
       </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement" data-title="Compare with session 24's figure">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p>Session 24's figure had a <math data-tex="\times U"><mrow><mo form="prefix" stretchy="false">×</mo><mi>U</mi></mrow></math> on every hop of a single chain. The context line
+      here crosses each timestep with an element-wise multiply by a gate and an addition.</p>
+      <footer><strong>No weight matrix sits on it at all.</strong> The lower line is the hidden
+      state, which does still get transformed at every step.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: carry without emitting">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Carry the context forward untouched while emitting almost nothing</span>
+        <p>What would <code>f</code>, <code>i</code> and <code>o</code> have to be? And what would a
+        plain RNN have to do to achieve the same thing?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><math data-tex="f \approx 1"><mrow><mi>f</mi><mo>≈</mo><mn>1</mn></mrow></math> so nothing is deleted, <math data-tex="i \approx 0"><mrow><mi>i</mi><mo>≈</mo><mn>0</mn></mrow></math> so nothing new is written,
+          <math data-tex="o \approx 0"><mrow><mi>o</mi><mo>≈</mo><mn>0</mn></mrow></math> so nearly nothing is emitted. That is row 2, which used 0.98, 0.03 and
+          0.10 and lost 4%. <code>g</code> does not matter — with <math data-tex="i \approx 0"><mrow><mi>i</mi><mo>≈</mo><mn>0</mn></mrow></math> the candidate is
+          masked out whatever it is.</p>
+          <p>A plain RNN cannot do it. Its memory and its output are the same vector, so "emit almost
+          nothing" and "carry everything forward" are contradictory instructions. No setting of
+          <math data-tex="U"><mi>U</mi></math> and <math data-tex="W"><mi>W</mi></math> satisfies both, because the problem is not the weights — it is that
+          there is only one vector.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why a second vector">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">Why does the LSTM add a second vector <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> alongside <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>?</p>
+        <div class="q-opts">
+          <button class="opt">To make the gradient path additive rather than multiplicative, so that it stops vanishing over long sequences</button>
+          <button class="opt">Because the hidden state was serving the current decision and carrying information forward, with nothing separating the two jobs</button>
+          <button class="opt">To store the input sequence itself, so that earlier words can be looked up again later without being recomputed</button>
+          <button class="opt">Because one vector was not large enough to hold the information a long sequence requires it to carry</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the hidden state was doing two jobs at once</strong> — SLP3's framing
+          and session 24's reason 1.</p>
+          <p>The first is the tempting one and it is <em>true as a consequence</em>, but it is not
+          the motivation. Remember the LSTM as a gradient trick and its three gates become an
+          arbitrary list. The third describes something closer to attention, session 28: nothing is
+          stored per word here. The fourth is a size explanation for a structural problem.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The gradient consequence">
+    <div class="slide-inner">
+      <h2>Look again at 13.25</h2>
+      <div class="meq"><math data-tex="c_t = j_t + k_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A sum, not a product">
+    <div class="slide-inner">
+      <p>Travelling backward along the context line, the gradient passes through an addition and an
+      element-wise multiply by a gate — not through a weight matrix, and not through the same weight
+      matrix once per step.</p>
+      <footer>A path built from additions does not decay exponentially the way a repeated product
+      does. This is why the LSTM also helps with reason 2.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Where that explanation comes from">
+    <div class="slide-inner">
+      <p>This is <strong>the standard explanation, not SLP3's framing</strong>, and should not be
+      attributed to the book.</p>
+      <footer>Chapter 13 motivates the architecture as context management and does not present the
+      additive path as the reason for the design. Take it as a consequence rather than a purpose —
+      session 24 said the same, and the two sessions agree deliberately.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What this does not fix">
+    <div class="slide-inner">
+      <h2>Three limits that matter for what comes next</h2>
+      <ul>
+        <li><strong>Still sequential.</strong> Computing <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math> needs <math data-tex="c_{t-1}"><msub><mi>c</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, so steps
+        cannot run in parallel across time however much hardware there is. That is the limitation the
+        transformer removes</li>
+        <li><strong>Still one vector per position.</strong> Everything to the left is compressed into
+        <math data-tex="c_t"><msub><mi>c</mi><mi>t</mi></msub></math>, whatever the length. Better, not solved</li>
+        <li><strong>Four times the parameters.</strong> Eight matrices against two — at
+        <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math>, <strong>720,000 against 180,000</strong></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The next question">
+    <div class="slide-inner">
+      <p>Three gates and eight weight matrices, and the unit does one job: manage a context vector.
+      Is all of it necessary?</p>
+      <footer>Could the same behaviour be obtained with fewer gates? The GRU is one answer to that
+      question, and it is session 26.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what the output gate controls">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What does the output gate <math data-tex="o_t"><msub><mi>o</mi><mi>t</mi></msub></math> control?</p>
+        <div class="q-opts">
+          <button class="opt">Which parts of the network's final prediction are passed on to the loss function at the end of the sequence</button>
+          <button class="opt">How much of the current context is exposed as this step's output, as distinct from what stays retained in context</button>
+          <button class="opt">How much of the previous context survives into the current step, once the new candidate has been written into it</button>
+          <button class="opt">How much of the current input is allowed to be written into the context vector at this timestep</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>how much of the context is emitted now</strong>, which is a separate
+          question from how much is kept. Row 2 is the evidence: 0.7298 held, 0.0623 emitted.</p>
+          <p>The third is the <strong>forget</strong> gate and the fourth the <strong>add</strong>
+          gate — both real, just not this one, and mixing them up is the ordinary way to get
+          13.20–13.27 wrong. The three gates answer three different questions: what to delete, what
+          to write, what to say.</p>
         </div>
       </div>
     </div>
@@ -1099,9 +1251,13 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>The LSTM exists because one hidden state cannot both serve the current decision and carry
+      information forward. Its one structural change is a second vector. Three gates manage it, all
+      the same pattern — layer, sigmoid, element-wise multiply — so each is a learned soft mask, and
+      <math data-tex="g_t"><msub><mi>g</mi><mi>t</mi></msub></math> is not a gate but the candidate content.</p>
+      <footer>Because <math data-tex="c_t = j_t + k_t"><mrow><msub><mi>c</mi><mi>t</mi></msub><mo>=</mo><msub><mi>j</mi><mi>t</mi></msub><mo>+</mo><msub><mi>k</mi><mi>t</mi></msub></mrow></math> is an addition, the gradient also survives better along
+      it — a consequence of the design rather than its purpose. Still sequential, still one vector,
+      and four times the parameters. That last cost is session 26's opening question.</footer>
     </div>
   </section>
 
@@ -1110,22 +1266,31 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          <strong>§13.5</strong></p>
+          <p class="ref-note">In full. Equations 13.20 to 13.27 are the ones used above, with the
+          same numbering.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/13.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/13.pdf</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Christopher Olah — <em>Understanding LSTM Networks</em></p>
+          <p class="ref-note">The assigned second read, and the best set of diagrams anyone has
+          drawn for this. It calls the add gate the <em>input</em> gate — same gate, same equation,
+          and there is no fourth one.</p>
+          <a class="ref-link" href="https://colah.github.io/posts/2015-08-Understanding-LSTMs/"
+          target="_blank" rel="noopener">colah.github.io/posts/2015-08-Understanding-LSTMs/</a>
+        </li>
+        <li>
+          <p class="ref-title">Hochreiter &amp; Schmidhuber (1997)</p>
+          <p class="ref-note">The original architecture, cited inline by SLP3. Worth knowing this is
+          a 1997 idea, not a recent one.</p>
+          <a class="ref-link" href="https://doi.org/10.1162/neco.1997.9.8.1735"
+          target="_blank" rel="noopener">doi.org/10.1162/neco.1997.9.8.1735</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0026-the-gru.html">Next deck &mdash;
+      session 26: The GRU &rarr;</a>
     </div>
   </section>
 

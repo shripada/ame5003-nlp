@@ -742,7 +742,7 @@ the whole lesson:</p>
   <span class="label">Normalization</span>
   <p><mark>Normalization deliberately destroys information that we have judged to be
   irrelevant.</mark></p>
-  <p>This is not a side effect but the purpose of the operation. We discard detail on purpose, so
+  <p>More text to process means more resources such as memory and time are required. We discard detail on purpose, so
   that items we consider equivalent are counted as equivalent. The difficulty lies in deciding
   what is safe to discard, and that decision depends entirely on the task.</p>
 </div>
@@ -805,8 +805,7 @@ one form and the stored text contains the other, the lookup fails without raisin
 match simply never occurs.</p>
 
 <p>The solution is <strong>Unicode normalization</strong>: convert every string to one standard
-form before comparing. The usual choice is <strong>NFC</strong>.</p>
-
+form before comparing. The usual choice is <strong>Normalization Form C (NFC)</strong>. NFC (Normalization Form C) is a Unicode Standard process that turns text into a canonical composed form</p>
 <pre><code>normalize("NFC", a) == normalize("NFC", b)    →    True</code></pre>
 
 <div class="callout warn">

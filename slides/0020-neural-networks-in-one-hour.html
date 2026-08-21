@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slides — Session 20: Neural networks in one hour</title>
+<style>
+/* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
+   Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
+   lesson.css, not a consumer of it — decks live in slides/, lessons in
+   lessons/, and the two documents have opposite goals (reading measure vs.
+   projector legibility), so this file duplicates the token blocks below
+   rather than @import-ing lesson.css and fighting its page rules.
+
+   KEEP THE TOKEN BLOCK BELOW IN SYNC WITH assets/lesson.css. Same names,
+   same values — only the layout below differs. */
+
+:root {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+strong { font-weight: 600; }
+
+/* ---- Deck + slide scaffolding ----
+   scroll-snap does the actual navigation. slides.js only adds keyboard/click
+   convenience on top — the deck already works with JS disabled. */
+.deck {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+.slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4vh 6vw;
+  position: relative;
+  text-align: center;
+}
+.slide-inner { width: 100%; max-width: 62rem; }
+
+/* ---- Eyebrow / kicker, reused across shapes ---- */
+.slide-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.2rem;
+}
+
+/* ---- Subordinate text, reused across shapes ----
+   The note under a code block, table or bullet list (.aside), and the qualifier
+   under a big statement (.slide--statement footer). Both say the thing the main
+   content needs in order to be read correctly — the callback, the caveat, the
+   pointer to the next session — so both are projected text and share one scale.
+   Sized here once for every shape: .aside used to be declared per shape, which
+   left the code and table slides with no rule at all and their notes at the
+   browser's 16px default. */
+.slide .aside,
+.slide--statement footer {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.slide .aside {
+  margin-top: 2rem;
+}
+
+/* ---- Shape: title ---- */
+.slide--title h1 {
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 1.12;
+  margin: 0 0 1.2rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.slide--title .subtitle {
+  color: var(--ink-soft);
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ---- Shape: bullets ---- */
+.slide--bullets h2,
+.slide--split h2,
+.slide--table h2,
+.slide--code h2,
+.slide--refs h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+.slide--bullets ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+.slide--bullets li {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  margin-bottom: .9rem;
+  /* In em, not rem: the indent has to grow with the bullet text, which itself
+     scales with the viewport. A fixed 1.6rem gap was narrower than one
+     character at projector size, so the marker crowded the first word. */
+  padding-left: 1.5em;
+  position: relative;
+}
+/* A round marker rather than an em dash. The dash is nearly a full em wide,
+   which is what left it sitting almost against the text, and it reads as
+   punctuation mid-sentence when a line wraps. This also matches the lessons,
+   which leave list markers at the browser's default disc. */
+.slide--bullets li::before {
+  content: "\2022";
+  position: absolute;
+  left: .1em;
+  color: var(--accent);
+  line-height: inherit;
+}
+/* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 46rem;
+}
+.ref-list li {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.ref-list li:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+/* The reading list is projected and then photographed off the screen, so all
+   three lines are sized to be read from the back of the room. The note is the
+   line that says which sections to actually read, which makes it the one that
+   matters most; it stays a step below the title, and the title moves up to keep
+   that order. */
+.ref-list .ref-title {
+  font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+  margin: 0 0 .5rem;
+}
+.ref-list .ref-note {
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0 0 .7rem;
+}
+.ref-list .ref-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.4vw, 1.05rem);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* The onward link, on the last slide of a deck. A deck is a standalone file
+   with no index above it, so this is the only way to reach the next session
+   without editing the URL. It is real markup rather than something the script
+   injects, for the same reason the deck-exit link is: the deck has to work
+   with JavaScript off. Sits inside the slide, not in the fixed chrome, so it
+   appears once, at the end, and never over a slide being presented. */
+.deck-onward {
+  display: inline-block;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.78rem, 1.3vw, .95rem);
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: .55rem 1rem;
+}
+.deck-onward:hover,
+.deck-onward:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Shape: statement (the big single-line slides) ---- */
+.slide--statement p {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.28;
+  margin: 0;
+  text-wrap: balance;
+}
+.slide--statement .lede {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, .9rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.6rem;
+}
+/* Size, line-height and colour come from the shared subordinate-text rule near
+   the top of this file, alongside .aside. Only the mono face and the spacing
+   above it are particular to the statement shape. */
+.slide--statement footer {
+  margin-top: 1.8rem;
+  font-family: var(--mono);
+}
+.slide--statement.warn p { color: var(--warn); }
+.slide--statement q { quotes: none; }
+/* A second statement paragraph, set off from the first. Use this rather than an
+   inline margin, so the gap is the same on every deck that needs it. */
+.slide--statement p.spaced { margin-top: 1.4rem; }
+
+/* ---- Shape: code ---- */
+.slide pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1.6rem 2rem;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.5rem);
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.slide code { font-family: var(--mono); }
+.slide pre code { background: none; padding: 0; }
+
+/* ---- Mathematics ----
+   Same contract as lessons: maths is authored as LaTeX in <m> and rendered to
+   MathML by tools/mathify.py, which writes the result into the deck. Nothing
+   is fetched when the deck is shown — no library, no webfont, no CDN, which
+   matters more here than in a lesson, because a deck is opened in front of a
+   room on whatever network the room has.
+
+       python3 tools/mathify.py slides/0029-self-attention.html
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Figure labels stay
+   <text> inside the SVG.
+
+   THE RUNTIME GROUP BELOW IS DUPLICATED FROM assets/lesson.css — trimmed from
+   Temml's stylesheet (MIT), plus that file's own Chromium and WebKit
+   corrections. It is copied for the same reason the token block above is:
+   a deck must stand alone. If you fix a rendering bug in one file, fix it in
+   the other. Only the sizing group at the end differs, because a lesson is
+   read at arm's length and a deck from the back of a room.
+
+   Colour is never set here. MathML paints in currentColor, so it follows
+   --ink and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium reserves the radical glyph's full advance and then draws the
+     overbar to fit the content, leaving <msqrt> a box 0.42em wider than its
+     ink. Scale-invariant, so it corrects in em. See lesson.css for the
+     measurement; recheck it if --math changes. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* ---- Sizing: this is the part that differs from lesson.css ----
+   A variable in a bullet inherits that bullet's clamp, so inline maths is
+   corrected relatively, exactly as in a lesson — a symbol in prose must not
+   open the leading. */
+.slide p math, .slide li math, .slide td math, .slide th math,
+.slide .q-text math, .slide .subtitle math, .slide .aside math {
+  font-size: 1.06em;
+}
+
+/* Display equations. Centred rather than left-aligned, and with no reading
+   measure: 55ch is right for a paragraph and wrong for a projector. The
+   equation number is SLP3's, printed as text — a citation into the book, not
+   a counter of ours — so it must not renumber itself when a deck quotes
+   equations out of order. */
+.slide .meq {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.4rem;
+  margin: 1.8rem 0 0;
+  overflow-x: auto;
+  font-size: clamp(1.3rem, 3.2vw, 2.4rem);
+}
+.slide .meq > math { flex: 0 1 auto; }
+.slide .meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: clamp(.8rem, 1.3vw, 1rem);
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* Shape: math — a heading and one equation, the display counterpart of
+   slide--statement. Nothing else: if a slide needs prose around the equation,
+   it is a bullets or statement slide with a .meq inside it. */
+.slide--math h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 1.4rem;
+  text-wrap: balance;
+}
+/* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
+.slide--split .split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem;
+  text-align: left;
+  align-items: start;
+}
+.slide--split .split-col .col-label {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .7rem;
+}
+.slide--split .split-col.bad .col-label { color: var(--bad); }
+.slide--split .split-col.good .col-label { color: var(--ok); }
+.slide--split .split-col.bad pre { border-left-color: var(--bad); }
+.slide--split .split-col.good pre { border-left-color: var(--ok); }
+@media (max-width: 900px) {
+  .slide--split .split-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Shape: table (own larger-type variant — lesson.css's tables are too
+   dense to read from the back of a room) ---- */
+.slide--table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  text-align: left;
+}
+.slide--table th, .slide--table td {
+  padding: .8rem 1.4rem .8rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.slide--table th {
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: .82em;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.slide--table td code, .slide--table th code { font-size: 1em; }
+
+/* ---- Quiz / recall reuse (assets/quiz.js) — scoped to fit one viewport ---- */
+.slide .quiz, .slide .recall {
+  text-align: left;
+  max-width: 46rem;
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 1.8rem 2.2rem;
+  margin: 0 auto;
+}
+.slide .recall { border-style: dashed; border-color: var(--ink-faint); }
+.slide .q-num, .slide .recall .label {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .8rem;
+}
+.slide .q-text { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: 0 0 1.2rem; }
+.slide .q-opts { display: flex; flex-direction: column; gap: .6rem; }
+.slide button.opt {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-align: left;
+  padding: .7rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.slide button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.slide button.opt:disabled { cursor: default; opacity: .55; }
+.slide button.opt.correct { background: var(--ok-bg); border-color: var(--ok); opacity: 1; font-weight: 600; }
+.slide button.opt.wrong { background: var(--bad-bg); border-color: var(--bad); opacity: 1; }
+.slide .q-fb {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.9rem, 1.6vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.slide .q-fb.show { display: block; }
+.slide .q-fb strong { color: var(--ink); }
+.slide button.reveal {
+  font-family: var(--mono);
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .55rem 1.1rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .9rem;
+}
+.slide button.reveal:hover { background: var(--code-bg); }
+.slide .recall .answer {
+  display: none;
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.95rem, 1.7rem, 1.15rem);
+}
+.slide .recall .answer.show { display: block; }
+
+/* ---- SVG diagram furniture (local copies of lesson.css's .fig-* pattern) ---- */
+.slide-fig { margin: 1.6rem auto 0; max-width: 46rem; }
+.slide-fig svg { width: 100%; height: auto; overflow: visible; }
+.fig-word { fill: var(--ink); font-family: var(--serif); font-size: 22px; }
+.fig-arc { stroke: var(--ink-faint); stroke-width: 1.6; fill: none; }
+.fig-arc-a { stroke: var(--accent); }
+.fig-arc-b { stroke: var(--ok); }
+.fig-arc-label { fill: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+
+/* ---- Chrome: progress bar + counter ---- */
+.deck-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  z-index: 60;
+  transition: width .15s ease-out;
+}
+.deck-exit {
+  position: fixed;
+  top: .9rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  z-index: 60;
+  background: var(--bg);
+  padding: .3rem .6rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.deck-exit:hover { color: var(--accent); border-color: var(--accent); }
+.deck-counter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+}
+
+/* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
+.deck-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  overflow-y: auto;
+  padding: 4vh 6vw;
+}
+.deck-overview.show { display: block; }
+.deck-overview ol {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+  counter-reset: ov;
+}
+.deck-overview li {
+  counter-increment: ov;
+  font-size: 1.15rem;
+  padding: .6rem .8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+}
+.deck-overview li::before {
+  content: counter(ov, decimal-leading-zero);
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  font-size: .85rem;
+  padding-top: .15rem;
+}
+.deck-overview li:hover, .deck-overview li.current { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+  .slide { height: auto; min-height: 100vh; page-break-after: always; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+}
+
+
+/* Set diagram (session 1: how NLP relates to AI). Mirrors the lesson figure;
+   labels are larger here because a slide is read from the back of a room. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.6; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .12; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .15; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .22; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .20; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .14; }
+.fig-setname  { fill: var(--ink); font-size: 19px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
+
+/* Scatter plot (session 17: documents as points). Mirrors lesson.css's
+   .fig-axis/.fig-pt vocabulary rule for rule; only the type sizes differ,
+   because a slide is read from the back of a room and 12px axis labels are
+   not. Reused by session 19's angle figure. */
+.fig-axis   { stroke: var(--rule); stroke-width: 2; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1.4; }
+.fig-label  { fill: var(--ink-faint); font-size: 15px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 17px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 17px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.8; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
+/* Vector arrows (session 19: cosine as an angle). Local copies of lesson.css's
+   .fig-vec/.fig-head/.fig-gap. .fig-arc is already defined above, for session
+   1's figure, and is reused here for the angle arc. */
+.fig-vec    { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2.5; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2.5; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 2 3; }
+
+/* Network diagrams (session 20 onward: neurons, layers, loss curves). Local
+   copies of lesson.css's .fig-node/.fig-edge/.fig-glyph vocabulary, at slide
+   sizes. .fig-edge-w carries its weight as an inline opacity, as in the
+   lessons — the class only supplies colour and width. */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 2; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 2; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-edge-w { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 21px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+
+/* Gates and operators sitting on a line (session 25's LSTM, session 26's GRU).
+   Local copies of lesson.css's .fig-gate pair, at slide type sizes. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.8; }
+.fig-gate-t  { fill: var(--ink); font-size: 17px; text-anchor: middle; }
+
+/* A shaded region marking blocked or unreachable values (session 26's dial,
+   and the masked future in 29 and 31). Local copy of lesson.css's .fig-mask. */
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+
+/* Matrix cells shaded by a weight (session 29's attention matrix onward).
+   Local copies of lesson.css's pair: .fig-cell carries no stroke of its own,
+   because the grid is a separate layer of .fig-cellg rectangles drawn over the
+   shading, so a cell whose weight is zero still shows its outline. Opacity is
+   set inline per cell, as in the lessons. */
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+
+</style>
+</head>
+<body>
+
+<div class="deck-progress"></div>
+<a class="deck-exit" href="../lessons/0020-neural-networks-in-one-hour.html">&larr; Lesson</a>
+<div class="deck-counter"></div>
+
+<div class="deck">
+
+  <section class="slide slide--title" data-title="Title">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 20</p>
+      <h1>Neural networks in one hour</h1>
+      <p class="subtitle">Nothing in this session is usable on its own, which is deliberate. It
+      supplies the machinery session 21 requires: five ideas, each selected because Word2Vec uses
+      it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Counting versus learning">
+    <div class="slide-inner">
+      <p>Sessions 17 to 19 built vectors by <strong>counting</strong> and <strong>weighting</strong>.
+      Every step could be done by hand and every session ended with a usable method.</p>
+      <footer>Session 21 <strong>learns</strong> its vectors. Nothing is counted into them: they
+      start as random numbers and are adjusted until they do well on a prediction task.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="No method at the end">
+    <div class="slide-inner">
+      <p>Nothing here is usable on its own — no method, no dataset, nothing to run.</p>
+      <footer>It exists so that no step in session 21 is unexplained.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The number to beat">
+    <div class="slide-inner">
+      <p class="lede">Lab 7 left two baselines on the table</p>
+      <p><strong>0.809</strong> accuracy from raw counts, <strong>0.823</strong> from sublinear
+      TF-IDF, on 2,000 real movie reviews. That is what counting and weighting achieve.</p>
+      <footer>An hour of prerequisites is justified only if learned vectors improve on 0.823 — and
+      that is a question we can answer by measurement rather than assertion.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Session 16's classifier">
+    <div class="slide-inner">
+      <h2>Session 16's classifier, in log space</h2>
+      <div class="meq"><math data-tex="\hat{c} = \underset{c \in C}{\mathrm{argmax}}\; \log P(c) + \sum_{w \in d} \log P(w \mid c)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>c</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><munder><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>c</mi><mo>∈</mo><mi>C</mi></mrow></munder></mrow><mspace width="0.2778em"></mspace><mrow><mspace width="0.1667em"></mspace><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>w</mi><mo>∈</mo><mi>d</mi></mrow></munder></mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The object we are about to define">
+    <div class="slide-inner">
+      <h2>And the object underlying every neural model to come</h2>
+      <div class="meq"><math data-tex="\mathrm{score} = b + \sum_i w_i x_i" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>score</mi></mpadded><mo>=</mo><mi>b</mi><mo>+</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Same shape">
+    <div class="slide-inner">
+      <p><math data-tex="\log P(c)"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a constant added regardless of the document — that is <math data-tex="b"><mi>b</mi></math>. Each
+      <math data-tex="\log P(w \mid c)"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a fixed number attached to a word, times how often it occurs — that
+      is <math data-tex="w_i x_i"><mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub></mrow></math>.</p>
+      <footer>Naïve Bayes in log space <strong>is a weighted sum of features</strong>. We built one
+      in session 16 without calling it a neural network.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The essential difference">
+    <div class="slide-inner">
+      <p class="lede">Naïve Bayes' weights are counted. A neuron's weights are fitted.</p>
+      <p>Session 16 counted and divided, and the weights were fixed. A neuron's weights start
+      arbitrary and are adjusted until the model predicts well.</p>
+      <footer>Counting cannot detect that a feature is useless; fitting can drive its weight to
+      zero. Counting cannot detect that two features matter only in combination; fitting a second
+      layer can.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The neuron">
+    <div class="slide-inner">
+      <h2>A weighted sum, a constant, and one function</h2>
+      <div class="meq"><math data-tex="y = f\!\left(\sum_i w_i x_i + b\right)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The neuron, drawn">
+    <div class="slide-inner">
+      <h2>A neuron, drawn</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 560 300" role="img" aria-labelledby="neurontitle neurondesc">
+          <title id="neurontitle">A single neuron: three weighted inputs feeding a summation and an
+          activation function, producing one output</title>
+          <desc id="neurondesc">Three circles on the left labelled x sub one, x sub two and x sub
+          three. An arrow runs from each to a large circle on the right, and each arrow is labelled
+          with a weight. The large circle is split down the middle: the left half holds a summation
+          sign and the right half holds the letter f. A single arrow leaves the right of the large
+          circle and is labelled y, the output, which is one number.</desc>
+
+          <circle class="fig-node-q" cx="95" cy="55" r="20"></circle>
+          <circle class="fig-node-q" cx="95" cy="150" r="20"></circle>
+          <circle class="fig-node-q" cx="95" cy="245" r="20"></circle>
+          <text class="fig-glyph" x="95" y="62" text-anchor="middle">x₁</text>
+          <text class="fig-glyph" x="95" y="157" text-anchor="middle">x₂</text>
+          <text class="fig-glyph" x="95" y="252" text-anchor="middle">x₃</text>
+
+          <line class="fig-edge" x1="113.54" y1="62.50" x2="281.80" y2="130.51"></line>
+          <polygon class="fig-edge-h" points="281.80,130.51 271.03,130.47 274.03,123.05"></polygon>
+          <line class="fig-edge" x1="115" y1="150" x2="278" y2="150"></line>
+          <polygon class="fig-edge-h" points="278,150 268,146 268,154"></polygon>
+          <line class="fig-edge" x1="113.54" y1="237.50" x2="281.80" y2="169.49"></line>
+          <polygon class="fig-edge-h" points="281.80,169.49 274.03,176.95 271.03,169.53"></polygon>
+
+          <text class="fig-label" x="197" y="88"  text-anchor="middle">w₁</text>
+          <text class="fig-label" x="197" y="140" text-anchor="middle">w₂</text>
+          <text class="fig-label" x="197" y="214" text-anchor="middle">w₃</text>
+
+          <circle class="fig-node" cx="330" cy="150" r="52"></circle>
+          <line class="fig-split" x1="330" y1="98" x2="330" y2="202"></line>
+          <text class="fig-glyph" x="303" y="158" text-anchor="middle">Σ</text>
+          <text class="fig-glyph" x="357" y="158" text-anchor="middle">f</text>
+
+          <line class="fig-edge" x1="382" y1="150" x2="490" y2="150"></line>
+          <polygon class="fig-edge-h" points="490,150 480,146 480,154"></polygon>
+          <text class="fig-glyph" x="503" y="157">y</text>
+
+          <text class="fig-label" x="250" y="234" text-anchor="middle">Σwᵢxᵢ + b</text>
+          <text class="fig-label" x="412" y="234" text-anchor="middle">f(·)</text>
+          <text class="fig-axname" x="330" y="266" text-anchor="middle">one number in, one number
+          out</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Naming the parts">
+    <div class="slide-inner">
+      <p><math data-tex="x"><mi>x</mi></math> are the inputs, <math data-tex="w"><mi>w</mi></math> the weights, <math data-tex="b"><mi>b</mi></math> the <strong>bias</strong>, and
+      <math data-tex="f"><mi>f</mi></math> the <strong>activation function</strong> — the one non-linear step.</p>
+      <footer>The sum inside is often written <math data-tex="z"><mi>z</mi></math> and called the pre-activation. Everything
+      left of the split is the arithmetic from session 16; the function on the right is the only
+      addition.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="A worked example">
+    <div class="slide-inner">
+      <h2>Three features: <code>great</code>, <code>the</code>, <code>awful</code></h2>
+      <div class="meq"><math data-tex="w = [\,1.4,\, 0.0,\, -1.9\,] \qquad b = -1.0 \qquad f = \sigma" display="block" class="tml-display" style="display:block math;"><mrow><mi>w</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>1.4</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mo>−</mo><mn>1.9</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><mspace width="2em"></mspace><mi>b</mi><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mn>1.0</mn><mspace width="2em"></mspace><mi>f</mi><mo>=</mo><mi>σ</mi></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Two reviews">
+    <div class="slide-inner">
+      <h2>Two reviews through the same neuron</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+\text{review A:} \quad x &amp;= [\,2,\, 5,\, 0\,] \\
+z &amp;= 1.4{\times}2 + 0.0{\times}5 + (-1.9){\times}0 - 1.0 = 1.8 \\
+y &amp;= \sigma(1.8) = 0.858 \\[4pt]
+\text{review B:} \quad x &amp;= [\,0,\, 5,\, 3\,] \\
+z &amp;= 1.4{\times}0 + 0.0{\times}5 + (-1.9){\times}3 - 1.0 = -6.7 \\
+y &amp;= \sigma(-6.7) = 0.001
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>review A:</mtext><mspace width="1em"></mspace><mi>x</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>2</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>5</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>z</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>1.4</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>2</mn><mo>+</mo><mn>0.0</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>5</mn><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>1.9</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>0</mn><mo>−</mo><mn>1.0</mn><mo>=</mo><mn>1.8</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>y</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1.8</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.858</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>review B:</mtext><mspace width="1em"></mspace><mi>x</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>5</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>3</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>z</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>1.4</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>0</mn><mo>+</mo><mn>0.0</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>5</mn><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>1.9</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>3</mn><mo>−</mo><mn>1.0</mn><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mn>6.7</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>y</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo form="prefix" stretchy="false">−</mo><mn>6.7</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.001</mn></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The middle weight">
+    <div class="slide-inner">
+      <p><code>the</code> carries a weight of essentially zero, so it contributes nothing however
+      often it appears — and a weight near zero is something fitting can reach on its own.</p>
+      <footer>Session 16 could not. It counted <code>the</code> in both classes and carried two
+      nearly equal log terms for ever, which is why session 4 was spent on stop-word lists. Fitted
+      weights can make some preprocessing unnecessary.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The sigmoid">
+    <div class="slide-inner">
+      <h2>The sigmoid</h2>
+      <div class="meq"><math data-tex="\sigma(z) = \frac{1}{1 + e^{-z}}" display="block" class="tml-display" style="display:block math;"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mn>1</mn><mrow><mn>1</mn><mo>+</mo><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mi>z</mi></mrow></msup></mrow></mfrac></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why the sigmoid, here">
+    <div class="slide-inner">
+      <p>It maps any real number into <math data-tex="(0, 1)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>: large positive <math data-tex="z"><mi>z</mi></math> near 1, large negative
+      near 0, and <math data-tex="\sigma(0) = 0.5"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.5</mn></mrow></math> exactly.</p>
+      <footer>That is why its output reads as a probability, and why we introduce it now — session
+      21's negative sampling scores a word pair as <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, this function applied to
+      a dot product.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Why the non-linearity is necessary">
+    <div class="slide-inner">
+      <h2>A stack of linear layers is one linear layer</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+\text{layer 1:} \quad h &amp;= W_1 x \\
+\text{layer 2:} \quad y &amp;= W_2 h = W_2 (W_1 x) = (W_2 W_1) x = W x
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>layer 1:</mtext><mspace width="1em"></mspace><mi>h</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>layer 2:</mtext><mspace width="1em"></mspace><mi>y</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msub><mi>W</mi><mn>2</mn></msub><mi>h</mi><mo>=</mo><msub><mi>W</mi><mn>2</mn></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>x</mi><mo>=</mo><mi>W</mi><mi>x</mi></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Depth needs the non-linearity">
+    <div class="slide-inner">
+      <p><math data-tex="W_2 W_1"><mrow><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub></mrow></math> is simply another matrix. Three layers collapse the same way, and so do
+      thirty.</p>
+      <footer>Without a non-linearity, depth provides nothing — a hundred-layer linear network
+      computes what one layer computes. The activation function is the only reason depth is
+      meaningful.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Word2Vec is deliberately shallow">
+    <div class="slide-inner">
+      <p class="lede">A shallow model, deliberately</p>
+      <p><strong>Word2Vec has no hidden non-linearity.</strong> CBOW averages some vectors, does one
+      matrix multiply, and applies a softmax.</p>
+      <footer>The collapse argument is about <em>depth</em>, and Word2Vec is not deep. Being shallow
+      is what lets it train on a billion words on modest hardware. A sigmoid does appear, in
+      negative sampling — not as a hidden layer, but to turn one dot product into one
+      probability.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="A layer is a matrix multiply">
+    <div class="slide-inner">
+      <h2>Several neurons side by side, written once</h2>
+      <div class="meq"><math data-tex="y = f(Wx + b)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Shapes">
+    <div class="slide-inner">
+      <h2>The shapes of <math data-tex="W"><mi>W</mi></math>, <math data-tex="x"><mi>x</mi></math>, <math data-tex="b"><mi>b</mi></math> and <math data-tex="y"><mi>y</mi></math></h2>
+      <table>
+        <tr><th><math data-tex="W"><mi>W</mi></math></th><th><math data-tex="x"><mi>x</mi></math></th><th><math data-tex="b"><mi>b</mi></math></th><th><math data-tex="y"><mi>y</mi></math></th></tr>
+        <tr><td>out × in</td><td>in</td><td>out</td><td>out</td></tr>
+      </table>
+      <p class="aside">Row <math data-tex="i"><mi>i</mi></math> of <math data-tex="W"><mi>W</mi></math> times <math data-tex="x"><mi>x</mi></math> is exactly neuron <math data-tex="i"><mi>i</mi></math>'s weighted
+      sum, and there are as many rows as neurons. Introduced now so <math data-tex="Wx + b"><mrow><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow></math> reads instantly
+      next session.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Session 21's actual shapes">
+    <div class="slide-inner">
+      <h2>The same notation, with next session's numbers</h2>
+      <table>
+        <tr><th></th><th>what it is</th><th>shape</th><th>note</th></tr>
+        <tr><td><math data-tex="E"><mi>E</mi></math></td><td>embedding matrix</td><td>10000 × 300</td><td>one row per word in
+        the vocabulary</td></tr>
+        <tr><td><math data-tex="x"><mi>x</mi></math></td><td>averaged context</td><td>300</td><td>mean of a few rows of
+        <math data-tex="E"><mi>E</mi></math></td></tr>
+        <tr><td><math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math></td><td>output matrix</td><td>10000 × 300</td><td>one row per word again,
+        on the way out</td></tr>
+        <tr><td><math data-tex="z"><mi>z</mi></math></td><td>scores</td><td>10000</td><td><math data-tex="z = W&#x27;x"><mrow><mi>z</mi><mo>=</mo><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mi>x</mi></mrow></math>, one score per
+        vocabulary word</td></tr>
+        <tr><td><math data-tex="p"><mi>p</mi></math></td><td>probabilities</td><td>10000</td><td><math data-tex="p = \mathrm{softmax}(z)"><mrow><mi>p</mi><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The word vectors are a weight matrix">
+    <div class="slide-inner">
+      <p class="lede">The word vectors <em>are</em> a weight matrix</p>
+      <p><math data-tex="E"><mi>E</mi></math> is a layer's weights, fitted by the same procedure as any other weights. When
+      session 21 says "the word vectors", it means the rows of <math data-tex="E"><mi>E</mi></math>.</p>
+      <footer>There is no separate step where vectors are extracted from the model. The vectors are
+      part of the model.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Softmax">
+    <div class="slide-inner">
+      <h2>Ten thousand scores in, ten thousand probabilities out</h2>
+      <div class="meq"><math data-tex="\mathrm{softmax}(z)_i = \frac{e^{z_i}}{\sum_j e^{z_j}}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>softmax</mi></mpadded><msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>i</mi></msub><mo>=</mo><mfrac><msup><mi>e</mi><msub class="tml-sml-pad"><mi>z</mi><mi>i</mi></msub></msup><mrow><msub><mo movablelimits="false">∑</mo><mi>j</mi></msub><msup><mi>e</mi><msub class="tml-sml-pad"><mi>z</mi><mi>j</mi></msub></msup></mrow></mfrac></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Softmax on three scores">
+    <div class="slide-inner">
+      <h2>Exponentiate, then divide by the total</h2>
+      <table>
+        <tr><th>word</th><th>score <math data-tex="z"><mi>z</mi></math></th><th><math data-tex="e^z"><msup><mi>e</mi><mi class="tml-sml-pad">z</mi></msup></math></th><th>probability</th></tr>
+        <tr><td><code>bank</code></td>  <td>3.0</td><td>20.086</td><td><strong>0.836</strong></td></tr>
+        <tr><td><code>river</code></td> <td>1.0</td><td>2.718</td> <td>0.113</td></tr>
+        <tr><td><code>money</code></td> <td>0.2</td><td>1.221</td> <td>0.051</td></tr>
+        <tr><td></td><td></td><td><strong>24.025</strong></td><td><strong>1.000</strong></td></tr>
+      </table>
+      <p class="aside">Everything comes out positive, because <math data-tex="e^z"><msup><mi>e</mi><mi class="tml-sml-pad">z</mi></msup></math> is positive whatever
+      <math data-tex="z"><mi>z</mi></math> was. And everything sums to 1, because we divided by the total. That is a
+      distribution.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Softmax exaggerates">
+    <div class="slide-inner">
+      <p><code>bank</code> beat <code>river</code> by 2.0 on the scores, a modest margin. In
+      probability it beats it by a factor of <strong>7.4</strong>.</p>
+      <footer>Not specific to these numbers: a gap of 2 always becomes a ratio of
+      <math data-tex="e^2 = 7.39"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">2</mn></msup><mo>=</mo><mn>7.39</mn></mrow></math>, and a gap of 5 a ratio of 148. Softmax turns small differences in score into
+      large differences in probability — which is what the name refers to.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: softmax on three scores">
+    <div class="slide-inner">
+      <h2>Exercise — calculator allowed</h2>
+      <div class="recall">
+        <span class="label">Three scores</span>
+        <p><math data-tex="z = [\,2,\, 1,\, 0\,]"><mrow><mi>z</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>2</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math>. What distribution does softmax give? And which is bigger —
+        the gap between the first two probabilities, or between the last two?</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p><math data-tex="e^2 = 7.389"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">2</mn></msup><mo>=</mo><mn>7.389</mn></mrow></math>, <math data-tex="e^1 = 2.718"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">1</mn></msup><mo>=</mo><mn>2.718</mn></mrow></math>, <math data-tex="e^0 = 1.000"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">0</mn></msup><mo>=</mo><mn>1.000</mn></mrow></math>, summing to <math data-tex="11.107"><mn>11.107</mn></math>.
+          Dividing: <strong>0.665, 0.245, 0.090</strong>.</p>
+          <p>The scores are evenly spaced, one step apart, and the probabilities are not: the first
+          gap is <strong>0.420</strong>, the second only <strong>0.155</strong>.</p>
+          <p>Both gaps are the same <em>ratio</em> —
+          <math data-tex="0.665/0.245 \approx 0.245/0.090 \approx 2.718"><mrow><mn>0.665</mn><mi>/</mi><mn>0.245</mn><mo>≈</mo><mn>0.245</mn><mi>/</mi><mn>0.090</mn><mo>≈</mo><mn>2.718</mn></mrow></math>, which is <math data-tex="e^1"><msup><mi>e</mi><mn class="tml-sml-pad">1</mn></msup></math>. The same ratio
+          near the top of a distribution is far more absolute probability than near the bottom.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The loss function">
+    <div class="slide-inner">
+      <h2>Cross-entropy loss, for a single prediction</h2>
+      <div class="meq"><math data-tex="\mathrm{loss} = -\log\bigl(\text{probability the model gave the correct answer}\bigr)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>loss</mi></mpadded><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mtext>probability the model gave the correct answer</mtext><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Three cases">
+    <div class="slide-inner">
+      <h2>The whole definition, applied</h2>
+      <table>
+        <tr><th>if the correct word was</th><th>we said</th><th>loss</th></tr>
+        <tr><td><code>bank</code></td>  <td>0.836</td><td><strong>0.179</strong> — nearly right,
+        small penalty</td></tr>
+        <tr><td><code>river</code></td> <td>0.113</td><td>2.180</td></tr>
+        <tr><td><code>money</code></td> <td>0.051</td><td><strong>2.980</strong> — badly wrong,
+        large penalty</td></tr>
+      </table>
+      <p class="aside">A probability of exactly 0 would give infinite loss, which is appropriate —
+      and is the same reason session 13 could not tolerate a zero.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="This loss under another name">
+    <div class="slide-inner">
+      <p>Session 14's <strong>perplexity</strong> was the exponentiated average of exactly this
+      quantity.</p>
+      <footer>Cross-entropy loss is not new machinery. It is what was inside perplexity all along,
+      used directly rather than expressed as a branching factor. Minimising one is minimising the
+      other.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Gradient descent, in words">
+    <div class="slide-inner">
+      <p>Think of the loss as a surface: every setting of the weights is a position, and the loss is
+      the height. We want the lowest point.</p>
+      <footer>We cannot see the surface — it has hundreds of thousands of dimensions and we occupy
+      one point. But at any point we can compute the <strong>gradient</strong>: which way is uphill,
+      and how steeply.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The update rule">
+    <div class="slide-inner">
+      <h2>Step the other way, and repeat</h2>
+      <div class="meq"><math data-tex="w \leftarrow w - \eta \cdot \left(\text{gradient of the loss with respect to } w\right)" display="block" class="tml-display" style="display:block math;"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mtext>gradient of the loss with respect to </mtext><mi>w</mi><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Gradient descent, drawn">
+    <div class="slide-inner">
+      <h2>The steps shrink on their own as the curve flattens</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 560 300" role="img" aria-labelledby="gdtitle gddesc">
+          <title id="gdtitle">A one-dimensional loss curve with four successive gradient-descent
+          steps marked, getting closer together as they approach the minimum</title>
+          <desc id="gddesc">A U-shaped curve with weight on the horizontal axis and loss on the
+          vertical. Four filled dots sit on the curve. The leftmost is high up the left wall of the
+          U; a dashed tangent line through it shows the slope at that point. The next three dots are
+          progressively lower and closer to the bottom, and the spacing between consecutive dots
+          shrinks sharply. A hollow circle marks the minimum, which the steps approach but do not
+          reach.</desc>
+
+          <path class="fig-axis" d="M 70 50 L 70 255 L 515 255"></path>
+          <text class="fig-axname" x="515" y="279" text-anchor="end">weight w &rarr;</text>
+          <text class="fig-axname" x="70" y="40" text-anchor="middle">loss &uarr;</text>
+
+          <path class="fig-curve" d="M 100 70.1 Q 307.5 362.3 515 103.3"></path>
+
+          <line class="fig-gap" x1="105" y1="81.0" x2="195" y2="184.7"></line>
+          <text class="fig-label" x="140" y="202" text-anchor="middle">slope here</text>
+
+          <circle class="fig-pt" cx="140"   cy="121.3" r="6"></circle>
+          <circle class="fig-pt" cx="221"   cy="193.6" r="6"></circle>
+          <circle class="fig-pt" cx="265.6" cy="215.5" r="6"></circle>
+          <circle class="fig-pt" cx="290.1" cy="222.1" r="6"></circle>
+          <circle class="fig-node-q" cx="320" cy="225" r="6"></circle>
+
+          <text class="fig-label" x="140"   y="106" text-anchor="middle">start</text>
+          <text class="fig-label" x="223"   y="179" text-anchor="middle">1</text>
+          <text class="fig-label" x="267"   y="201" text-anchor="middle">2</text>
+          <text class="fig-label" x="293"   y="208" text-anchor="middle">3</text>
+          <text class="fig-label" x="345"   y="244">minimum</text>
+
+          <text class="fig-axname" x="292" y="294" text-anchor="middle">each step: w &larr; w
+          &minus; η · gradient</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The iterates">
+    <div class="slide-inner">
+      <h2><math data-tex="\eta = 0.2"><mrow><mi>η</mi><mo>=</mo><mn>0.2</mn></mrow></math>, loss <math data-tex="(w-3)^2"><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></math> — checkable by hand</h2>
+      <table>
+        <tr><th>step</th><th><math data-tex="w"><mi>w</mi></math></th><th>loss <math data-tex="(w-3)^2"><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></math></th><th>gradient <math data-tex="2(w-3)"><mrow><mn>2</mn><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
+        <tr><td>start</td><td>0.000</td><td>9.000</td><td>−6.000</td></tr>
+        <tr><td>1</td><td>1.200</td><td>3.240</td><td>−3.600</td></tr>
+        <tr><td>2</td><td>1.920</td><td>1.166</td><td>−2.160</td></tr>
+        <tr><td>3</td><td>2.352</td><td>0.420</td><td>−1.296</td></tr>
+        <tr><td>4</td><td>2.611</td><td>0.151</td><td>−0.778</td></tr>
+        <tr><td>5</td><td>2.767</td><td>0.054</td><td>−0.467</td></tr>
+      </table>
+      <p class="aside">It never exactly arrives, and does not need to. <math data-tex="\eta"><mi>η</mi></math> is the
+      <strong>learning rate</strong>: too small and convergence crawls, too large and each step
+      overshoots.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Real training">
+    <div class="slide-inner">
+      <p>Real training differs in scale, not in kind: millions of weights instead of one, so the
+      gradient is millions of numbers updated together, and the loss is averaged over a batch.</p>
+      <footer>The line <math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math> is unchanged, and it
+      trains every model in the rest of the course.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Backpropagation">
+    <div class="slide-inner">
+      <p class="lede">Backpropagation</p>
+      <p>Getting the gradient of a weight buried deep in a network means differentiating a function
+      composed of many others. Backpropagation is <strong>the chain rule applied
+      systematically</strong>, working backwards from the loss.</p>
+      <footer>That much is enough here. SLP3 §6.6 derives it properly; no session in this course
+      needs it by
+      hand, and PyTorch does it automatically by exactly this procedure.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why the non-linearity">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">Why does stacking layers without a non-linearity between them gain you
+        nothing?</p>
+        <div class="q-opts">
+          <button class="opt">Because gradient descent cannot compute gradients through more than one layer of weights at a time</button>
+          <button class="opt">Because the extra weights would make the model too slow to train on any realistic amount of text</button>
+          <button class="opt">Because two matrix multiplies in a row are one matrix multiply, so the whole stack collapses to a single layer</button>
+          <button class="opt">Because the second layer would receive the same inputs as the first and so compute the same output</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the stack collapses</strong>.</p>
+          <p><math data-tex="W_2 (W_1 x) = (W_2 W_1) x"><mrow><msub><mi>W</mi><mn>2</mn></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>1</mn></msub><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mn>2</mn></msub><msub><mi>W</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>x</mi></mrow></math>, and that is simply another matrix. A hundred linear
+          layers compute what one computes.</p>
+          <p>But note what this does <em>not</em> say. It is an argument about depth, and shallow
+          models are respectable: Word2Vec has no hidden non-linearity at all, and being shallow is
+          what lets it train on a billion words.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: which part is the vectors">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Next session trains a model and then hands you "the word vectors". Which
+        part of the trained model <em>is</em> the word vectors?</p>
+        <div class="q-opts">
+          <button class="opt">The softmax probabilities the model outputs, one per word in the vocabulary</button>
+          <button class="opt">The weight matrix of the first layer — one row of weights per vocabulary word</button>
+          <button class="opt">The gradients accumulated for each word over the course of training</button>
+          <button class="opt">A separate lookup table built afterwards by recording each word's average activation</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the weight matrix of the first layer</strong>.</p>
+          <p>There is no extraction step and no afterwards. <math data-tex="E"><mi>E</mi></math> is 10000 × 300 and is fitted by
+          the same gradient descent as everything else. When training stops you throw away the rest
+          of the network and keep that matrix.</p>
+          <p>The softmax outputs are wrong for a simple reason: they are a distribution produced for
+          <em>one particular context</em> and change with every input. A word vector has to be a
+          fixed property of the word.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One sentence from session 21">
+    <div class="slide-inner">
+      <p class="lede">A sentence from session 21</p>
+      <p><strong>"CBOW averages the context word vectors, multiplies by an output matrix, applies
+      softmax, and does gradient descent on the cross-entropy loss."</strong></p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Term by term">
+    <div class="slide-inner">
+      <h2>Term by term</h2>
+      <table>
+        <tr><th>the phrase</th><th>what it means, from today</th></tr>
+        <tr><td><strong>the context word vectors</strong></td><td>Rows of the embedding matrix
+        <code>E</code> — which is a layer's weight matrix. The vectors are weights.</td></tr>
+        <tr><td><strong>averages</strong></td><td>Pull the rows for the surrounding words, add,
+        divide by how many. One 300-number vector out.</td></tr>
+        <tr><td><strong>multiplies by an output matrix</strong></td><td>A layer: <math data-tex="z = W&#x27;x"><mrow><mi>z</mi><mo>=</mo><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup><mi>x</mi></mrow></math>. 300
+        numbers in, 10,000 scores out.</td></tr>
+        <tr><td><strong>applies softmax</strong></td><td>Those 10,000 scores become 10,000
+        probabilities, positive and summing to 1.</td></tr>
+        <tr><td><strong>cross-entropy loss</strong></td><td><math data-tex="-\log"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></mrow></math> of the probability given to
+        the word actually there.</td></tr>
+        <tr><td><strong>gradient descent</strong></td><td><math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math>,
+        applied to every weight — including every number in <math data-tex="E"><mi>E</mi></math>.</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The essential point">
+    <div class="slide-inner">
+      <p>The word vectors are not an output produced at the end of training. They are
+      <strong>parameters being trained</strong>, moved slightly on every example until words
+      appearing in similar contexts have similar vectors.</p>
+      <footer>No information about meaning was supplied to the model.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What was left out">
+    <div class="slide-inner">
+      <p>A great deal was omitted: backpropagation is named rather than derived, and there is
+      nothing here on optimisers, regularisation, dropout, batching, or how a learning rate is
+      chosen.</p>
+      <footer>The softmax over 10,000 words is also extremely expensive, which is why session 21
+      spends much of its time avoiding it. What this session establishes is enough to follow session
+      21 with no unexplained step, and that is all it sets out to do.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Summary">
+    <div class="slide-inner">
+      <p class="lede">Summary</p>
+      <p>A neuron is a weighted sum plus a bias through one non-linear function — session 16's
+      score, with fitted weights instead of counted ones. Stacking turns the sums into
+      <math data-tex="Wx + b"><mrow><mi>W</mi><mi>x</mi><mo>+</mo><mi>b</mi></mrow></math>, and the non-linearity stops the stack collapsing. Softmax makes any scores into
+      a distribution, exaggerating as it goes.</p>
+      <footer>Training is one line: measure error as <math data-tex="-\log"><mrow><mo form="prefix" stretchy="false">−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></mrow></math> of the probability given to the
+      correct answer, then repeatedly apply
+      <math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--refs" data-title="References">
+    <div class="slide-inner">
+      <h2>Reading</h2>
+      <ul class="ref-list">
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 6</p>
+          <p class="ref-note"><em>Neural Networks</em>. §6.1–6.4 covers everything above at a
+          comfortable pace, and §6.6 derives backpropagation properly if you want it.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
+        </li>
+        <li>
+          <p class="ref-title">Yoav Goldberg — <em>A Primer on Neural Network Models for Natural
+          Language Processing</em> (2015)</p>
+          <p class="ref-note">The syllabus's listed source, written for exactly our situation —
+          people who know NLP and need neural networks. The better second read once SLP3 chapter 6
+          has landed.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1510.00726"
+          target="_blank" rel="noopener">arxiv.org/abs/1510.00726</a>
+        </li>
+      </ul>
+      <a class="deck-onward" href="0021-word2vec-cbow-and-skip-gram.html">Next deck &mdash;
+      session 21: Word2Vec — CBOW and Skip-gram &rarr;</a>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+<script>
+/* Slide-deck navigation — MSIS NLP teaching workspace.
+ * Zero dependencies. The deck already works with this script disabled:
+ * CSS scroll-snap (assets/slides.css, .deck/.slide) handles navigation on
+ * its own. This file only adds keyboard/click convenience, a progress bar,
+ * a slide counter, and a jump overview on top of that.
+ *
+ * USAGE — markup contract:
+ *   <div class="deck">
+ *     <div class="deck-progress"></div>
+ *     <div class="deck-counter"></div>
+ *     <section class="slide slide--title" data-title="Short label">…</section>
+ *     …
+ *   </div>
+ * data-title is what shows up in the "o" overview list.
+ *
+ * Reuses assets/quiz.js unchanged for .quiz/.recall slides — this script
+ * never touches that markup, it only guards against stealing its clicks.
+ */
+
+(function () {
+  "use strict";
+
+  var deck = document.querySelector(".deck");
+  if (!deck) return;
+
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.querySelector(".deck-progress");
+  var counter = document.querySelector(".deck-counter");
+  var current = 0;
+
+  function updateChrome(index) {
+    current = index;
+    if (counter) {
+      counter.textContent =
+        String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    if (progress) {
+      var pct = slides.length > 1 ? (index / (slides.length - 1)) * 100 : 0;
+      progress.style.setProperty("--progress", pct + "%");
+    }
+    var ovItems = document.querySelectorAll(".deck-overview li");
+    ovItems.forEach(function (li, i) {
+      li.classList.toggle("current", i === index);
+    });
+  }
+
+  // Tracks position for wheel/trackpad/swipe scrolling, which never calls
+  // goTo() — the observer is the only thing that knows the slide changed.
+  // It intentionally does NOT drive keyboard/click navigation (see goTo).
+  var observer = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          var idx = slides.indexOf(entry.target);
+          if (idx !== -1) updateChrome(idx);
+        }
+      });
+    },
+    { root: deck, threshold: 0.6 }
+  );
+  slides.forEach(function (s) {
+    observer.observe(s);
+  });
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(slides.length - 1, index));
+    // Explicit "instant" on purpose: with CSS scroll-behavior:smooth on
+    // .deck, a JS-triggered scroll that doesn't override behavior inherits
+    // "smooth" (per the scrollTop/scrollIntoView spec) and animates via
+    // requestAnimationFrame. That animation can stall — e.g. under tab
+    // throttling — leaving navigation stuck. Native wheel/trackpad
+    // scrolling still gets the CSS smooth glide; only JS-driven jumps
+    // (keyboard, click, overview) are forced instant for reliability.
+    slides[index].scrollIntoView({ block: "start", behavior: "instant" });
+    // Updated synchronously here, not left to the IntersectionObserver —
+    // that observer can lag a JS-driven jump by a frame or more, and a
+    // second key/click before it fires would compute next() against a
+    // stale index and look like a dropped input.
+    updateChrome(index);
+    if (history.replaceState) {
+      history.replaceState(null, "", "#" + (index + 1));
+    }
+  }
+
+  function next() {
+    goTo(current + 1);
+  }
+  function prev() {
+    goTo(current - 1);
+  }
+
+  // ---- Overview / jump list ----
+  var overview = document.querySelector(".deck-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "deck-overview";
+    var ol = document.createElement("ol");
+    slides.forEach(function (s, i) {
+      var li = document.createElement("li");
+      li.textContent = s.dataset.title || "Slide " + (i + 1);
+      li.addEventListener("click", function () {
+        goTo(i);
+        toggleOverview(false);
+      });
+      ol.appendChild(li);
+    });
+    overview.appendChild(ol);
+    document.body.appendChild(overview);
+  }
+
+  function toggleOverview(force) {
+    var show = typeof force === "boolean" ? force : !overview.classList.contains("show");
+    overview.classList.toggle("show", show);
+  }
+
+  // ---- Fullscreen ----
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", function (e) {
+    if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+      case "PageDown":
+        e.preventDefault();
+        next();
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault();
+        prev();
+        break;
+      case "Home":
+        e.preventDefault();
+        goTo(0);
+        break;
+      case "End":
+        e.preventDefault();
+        goTo(slides.length - 1);
+        break;
+      case "f":
+        toggleFullscreen();
+        break;
+      case "o":
+        toggleOverview();
+        break;
+      case "Escape":
+        toggleOverview(false);
+        break;
+    }
+  });
+
+  // ---- Click-to-advance ----
+  // Guarded so it never steals clicks meant for quiz options, the recall
+  // reveal button, or links — and so it never steals a text selection. A
+  // press that travels more than a few pixels is a drag, and a release that
+  // leaves text selected is a selection; neither is a request for the next
+  // slide.
+  var pressX = 0;
+  var pressY = 0;
+  var DRAG_SLOP = 5;
+
+  deck.addEventListener("pointerdown", function (e) {
+    pressX = e.clientX;
+    pressY = e.clientY;
+  });
+
+  deck.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
+        Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
+    next();
+  });
+
+  // ---- Initial position from location.hash ----
+  // Deferred a frame: this script runs while the browser parses the end of
+  // <body>, before it has necessarily committed layout for a 22-slide-tall
+  // deck. Calling goTo() synchronously here can compute against a stale
+  // (pre-layout) box and land on the wrong offset.
+  var hash = parseInt(location.hash.replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 1 && hash <= slides.length) {
+    requestAnimationFrame(function () {
+      goTo(hash - 1);
+    });
+  } else {
+    updateChrome(0);
+  }
+})();
+
+</script>
+</body>
+</html>

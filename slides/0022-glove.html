@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 22: GloVe</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,422 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0022-glove.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 22</p>
+      <h1>GloVe</h1>
+      <p class="subtitle">One loss function and one co-occurrence matrix. The session's real subject
+      is the question GloVe raises about Word2Vec, and the answer, which differs from the one
+      GloVe's own paper gives.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="The question this session asks">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <p>Session 21 set counting aside and replaced it with predicting: delete a word, predict it,
+      keep the weights.</p>
+      <footer>This session asks the question that move raises and does not answer — <strong>was
+      prediction necessary, or would counting have worked all along, given the right quantity to
+      count?</strong></footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="GloVe's objection">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p>Word2Vec slides a window across the corpus, asks one question at each position, and
+      discards the window. Over a billion tokens it meets <code>(ice, steam)</code> thousands of
+      times and never holds the <em>total</em>.</p>
+      <footer>The corpus already contains that total. Counting once how often every word appears
+      near every other produces a table Word2Vec spends a whole training run approximating one
+      window at a time.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="Global Vectors">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p class="lede">Global Vectors</p>
+      <p>Build the global co-occurrence matrix, then fit vectors to it directly.</p>
+      <footer><math data-tex="X_{ij}"><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></math> is how many times word <em>j</em> appears within some window of word
+      <em>i</em>, across the whole corpus — session 19's pie/data/computer table, scaled to every
+      word against every word.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement" data-title="The paper's actual contribution">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <p>Co-occurrence matrices long predate the paper. Its contribution is the claim that <strong>a
+      single probability is not the informative quantity, and a ratio of two probabilities
+      is</strong>.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
-      <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
-      </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
-    <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where does a word end?">
-    <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: espresso and juice">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Both drinks have 10,000 co-occurrences in total, so the counts compare
+        directly</span>
+        <div class="meq"><math data-tex="\begin{aligned}
+X(\text{espresso}, \text{sugar}) &amp;= 5 &amp; X(\text{juice}, \text{sugar}) &amp;= 45 \\
+X(\text{espresso}, \text{caffeine}) &amp;= 80 &amp; X(\text{juice}, \text{caffeine}) &amp;= 4
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>espresso</mtext><mo separator="true">,</mo><mtext>sugar</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>5</mn></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>juice</mtext><mo separator="true">,</mo><mtext>sugar</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>45</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>espresso</mtext><mo separator="true">,</mo><mtext>caffeine</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>80</mn></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow><mi>X</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>juice</mtext><mo separator="true">,</mo><mtext>caffeine</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>4</mn></mrow></mtd></mtr></mtable></math></div>
+        <p>Work out <math data-tex="P(k \mid \text{espresso}) / P(k \mid \text{juice})"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>espresso</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>juice</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> for each probe. Which
+        word is each ratio "about"? And what would a ratio near <strong>1</strong> tell you?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><code>sugar</code>: 5/45 ≈ <strong>0.11</strong> — small, so <code>sugar</code> belongs
+          to <code>juice</code>.</p>
+          <p><code>caffeine</code>: 80/4 = <strong>20</strong> — large, so <code>caffeine</code>
+          belongs to <code>espresso</code>.</p>
+          <p>A ratio near 1 means the probe is equally associated with both, or with neither, and
+          carries no information for distinguishing them. A plain probability says only that two
+          words co-occur often or rarely; the ratio says which of two candidates a third word
+          belongs with.</p>
+          <p>The equal totals are what let the 10,000s cancel. That is a convenience of this
+          exercise — in the real table below the two words have very different totals.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Real counts">
+    <div class="slide-inner">
+      <h2><code>text8</code>: 17 million tokens, window 10, top 20,000 words</h2>
+      <table>
+        <tr><th></th><th><code>solid</code></th><th><code>gas</code></th><th><code>water</code></th>
+        <th><code>fashion</code></th><th>row total</th></tr>
+        <tr><td><code>ice</code></td>   <td>30</td><td>14</td><td>128</td><td>2</td><td>32,068</td></tr>
+        <tr><td><code>steam</code></td> <td>2</td> <td>12</td><td>30</td> <td>0</td><td>8,024</td></tr>
+      </table>
+      <p class="aside">The row totals are not decoration — they are what makes this a ratio of
+      probabilities rather than a ratio of counts. <code>ice</code> occurs about four times as often
+      as <code>steam</code>, so all its raw counts are inflated by roughly that factor.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The ratio">
+    <div class="slide-inner">
+      <h2>Normalise each row by its total</h2>
+      <div class="meq"><math data-tex="\mathrm{ratio} = \frac{P(k \mid \text{ice})}{P(k \mid \text{steam})} = \frac{X_{ik} / 32{,}068}{X_{sk} / 8{,}024}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>ratio</mi></mpadded><mo>=</mo><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>ice</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>k</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>steam</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac><mo>=</mo><mfrac><mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mi>/</mi><mn>32,068</mn></mrow><mrow><msub><mi>X</mi><mrow><mi>s</mi><mi>k</mi></mrow></msub><mi>/</mi><mn>8,024</mn></mrow></mfrac></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Four probes">
+    <div class="slide-inner">
+      <h2>Four probe words</h2>
+      <table>
+        <tr><th>probe <math data-tex="k"><mi>k</mi></math></th><th>value</th><th>reading</th></tr>
+        <tr><td><code>solid</code></td><td>3.75</td><td>larger, correctly: ice relates to solid more
+        than steam does</td></tr>
+        <tr><td><code>gas</code></td><td>0.29</td><td>smaller, correctly: steam relates to gas more
+        than ice does</td></tr>
+        <tr><td><code>water</code></td><td>1.07</td><td>near 1, correctly: both relate to water
+        about equally</td></tr>
+        <tr><td><code>fashion</code></td><td><math data-tex="\infty"><mi>∞</mi></math></td><td>steam and fashion co-occur zero
+        times in this corpus</td></tr>
+      </table>
+      <p class="aside">Without the normalisation, <code>solid</code> gives <math data-tex="30/2 = 15"><mrow><mn>30</mn><mi>/</mi><mn>2</mn><mo>=</mo><mn>15</mn></mrow></math> rather
+      than 3.75 — same direction, but most of that factor is just <code>ice</code> being the more
+      frequent word.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="The zero problem, again">
+    <div class="slide-inner">
+      <p><code>fashion</code> is meant to be the probe irrelevant to both, giving a ratio near 1. In
+      17 million tokens, <code>steam</code> and <code>fashion</code> never occur within ten words of
+      each other, so the ratio divides by zero instead.</p>
+      <footer>Pennington et al. trained on <strong>6 billion</strong> tokens, 350 times this corpus,
+      where two arbitrary words almost always co-occur by chance. Sparse counts fail where they
+      always fail — this is session 13's smoothing problem in a different matrix.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="From ratio to loss">
+    <div class="slide-inner">
+      <h2>Fit the vectors to the <em>log</em> of the raw count</h2>
+      <div class="meq"><math data-tex="w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j = \log X_{ij}" display="block" class="tml-display" style="display:block math;"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>=</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Reading the equation">
+    <div class="slide-inner">
+      <p><math data-tex="w_i"><msub><mi>w</mi><mi>i</mi></msub></math> is word <em>i</em>'s vector, <math data-tex="\tilde{w}_j"><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub></math> is word <em>j</em>'s vector in
+      the context role, and the <math data-tex="b"><mi>b</mi></math> terms are per-word biases.</p>
+      <footer>The biases absorb how frequent each word is on its own, leaving the dot product to
+      encode the relationship rather than raw frequency.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="GloVe's loss">
+    <div class="slide-inner">
+      <h2>Over every nonzero cell of <math data-tex="X"><mi>X</mi></math></h2>
+      <div class="meq"><math data-tex="J = \sum_{ij} f(X_{ij}) \left(w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j - \log X_{ij}\right)^2" display="block" class="tml-display" style="display:block math;"><mrow><mi>J</mi><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>i</mi><mi>j</mi></mrow></munder></mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>−</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mn>2</mn></msup></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why the logarithm">
+    <div class="slide-inner">
+      <p class="lede">The algebraic identity</p>
+      <p><math data-tex="\log(X_{ik}) - \log(X_{jk}) = \log(X_{ik} / X_{jk})"><mrow><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>−</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mi>log</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub><mi>/</mi><msub><mi>X</mi><mrow><mi>j</mi><mi>k</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. So if the model fits
+      <math data-tex="w_i^{\mathsf{T}} \tilde{w}_k \approx \log X_{ik}"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>k</mi></msub><mo>≈</mo><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>k</mi></mrow></msub></mrow></math> for every word, then a
+      <em>difference</em> of dot products is automatically fitting the log of the ratio.</p>
+      <footer>The log is what turns "fit a count" into "fit the ratio that carries the meaning". The
+      paper's three-page derivation is not needed to use the result.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A problem session 18 already named">
+    <div class="slide-inner">
+      <p>Squared error on <math data-tex="\log X_{ij}"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math> lets a few extremely frequent pairs —
+      <code>(the, of)</code>, <code>(a, the)</code> — dominate the loss and suppress everything
+      else.</p>
+      <footer>Exactly how one very large raw count previously overwhelmed idf. The correction has
+      the same form as session 18's log damping.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The weighting function">
+    <div class="slide-inner">
+      <h2>Cap how much any single pair can contribute</h2>
+      <div class="meq"><math data-tex="f(x) = \begin{cases} (x / x_{\max})^{\alpha} &amp; \text{if } x &lt; x_{\max} \\ 1 &amp; \text{otherwise} \end{cases}" display="block" class="tml-display" style="display:block math;"><mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true">{</mo><mtable><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mi>/</mi><msub><mi>x</mi><mrow><mi>max</mi><mo>⁡</mo></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>α</mi></msup></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>if </mtext><mi>x</mi><mo>&lt;</mo><msub><mi>x</mi><mrow><mi>max</mi><mo>⁡</mo></mrow></msub></mrow></mtd></mtr><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mn>1</mn></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mtext>otherwise</mtext></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true"></mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What the weighting does">
+    <div class="slide-inner">
+      <p>The paper's values are <math data-tex="x_{\max} = 100"><mrow><msub><mi>x</mi><mrow><mi>max</mi><mo>⁡</mo></mrow></msub><mo>=</mo><mn>100</mn></mrow></math> and <math data-tex="\alpha = 3/4"><mrow><mi>α</mi><mo>=</mo><mn>3</mn><mi>/</mi><mn>4</mn></mrow></math>.</p>
+      <footer>Frequent pairs are capped at full weight rather than growing without bound, and very
+      rare pairs — co-occurring once or twice — are down-weighted too, because a single accidental
+      co-occurrence is largely noise. Same problem as session 18, same form of correction, different
+      matrix.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two vectors, added">
+    <div class="slide-inner">
+      <p>There are two matrices, <math data-tex="w"><mi>w</mi></math> and <math data-tex="\tilde{w}"><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover></math>, corresponding to Word2Vec's <math data-tex="E"><mi>E</mi></math>
+      and <math data-tex="W&#x27;"><msup><mi>W</mi><mo lspace="0em" rspace="0em" class="tml-prime">′</mo></msup></math>. Session 21 said some implementations offer to average the two, and that this is
+      rarely done.</p>
+      <footer><strong>GloVe is the implementation that does it.</strong> Summing
+      <math data-tex="w + \tilde{w}"><mrow><mi>w</mi><mo>+</mo><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover></mrow></math> gives marginally better vectors than either alone, and every released
+      GloVe file has it already applied.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: the target value">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">GloVe's loss pulls
+        <math data-tex="w_i^{\mathsf{T}} \tilde{w}_j + b_i + \tilde{b}_j"><mrow><msubsup><mi>w</mi><mi>i</mi><mi class="tml-med-pad">𝖳</mi></msubsup><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med" style="math-depth:0;">~</mo></mover><mi>j</mi></msub><mo>+</mo><msub><mi>b</mi><mi>i</mi></msub><mo>+</mo><msub><mover><mi>b</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>j</mi></msub></mrow></math> toward a target value. What is that
+        target?</p>
+        <div class="q-opts">
+          <button class="opt">The probability that word <em>j</em> is the true context of word <em>i</em></button>
+          <button class="opt">A ranking score used to sort words by similarity</button>
+          <button class="opt">The logarithm of how many times <em>i</em> and <em>j</em> co-occurred in the corpus</button>
+          <button class="opt">The cosine similarity between the two words' final vectors</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the log of the raw co-occurrence count</strong>, <math data-tex="\log X_{ij}"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>X</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mrow></math>.</p>
+          <p>Nothing here is a probability of anything — no softmax, no prediction step, no
+          sampling. GloVe is closer to matrix factorisation than to a classifier. The log matters
+          because a <em>difference</em> of two such fits reconstructs the co-occurrence
+          <em>ratio</em>, which is what the method is built to recover.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The two pitches">
+    <div class="slide-inner">
+      <h2>Both accounts sound decisive</h2>
+      <table>
+        <tr><th></th><th>Word2Vec</th><th>GloVe</th></tr>
+        <tr><td>what it sees</td><td>one window at a time</td><td>the whole corpus, counted once up
+        front</td></tr>
+        <tr><td>training signal</td><td>predict a missing word</td><td>reconstruct a co-occurrence
+        count</td></tr>
+        <tr><td>statistics used</td><td>local, implicitly</td><td>global, explicitly</td></tr>
+        <tr><td>cost shape</td><td>many cheap passes over text</td><td>one expensive count, then fit
+        on the nonzeros</td></tr>
+        <tr><td>the pitch</td><td>prediction beats counting</td><td>you already had the counts — use
+        them</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="What the vectors actually produce">
+    <div class="slide-inner">
+      <h2>Nearest neighbours, same five words</h2>
+      <table>
+        <tr><th>word</th><th>Word2Vec (session 21)</th><th>GloVe</th></tr>
+        <tr><td><code>movie</code></td><td>film 0.868, movies 0.801, films 0.736</td>
+        <td>film 0.859, movies 0.849, films 0.791</td></tr>
+        <tr><td><code>terrible</code></td><td>horrible 0.924, horrendous 0.847, dreadful 0.802</td>
+        <td>horrible 0.862, awful 0.788, dreadful 0.724</td></tr>
+        <tr><td><code>battle</code></td><td>battles 0.829, tussle 0.714, fight 0.702</td>
+        <td>battles 0.820, fought 0.682, fight 0.631</td></tr>
+        <tr><td><code>wit</code></td><td>humor 0.719, wry_humor 0.667, witty 0.643</td>
+        <td>humor 0.694, wry 0.657, humour 0.645</td></tr>
+        <tr><td><code>king</code></td><td>kings 0.714, queen 0.651, monarch 0.641</td>
+        <td>queen 0.634, prince 0.620, monarch 0.590</td></tr>
+      </table>
+      <p class="aside">This is about as much agreement as two different methods trained on different
+      corpora could show, and nothing in it supports the claims either paper makes for itself.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The analogy task in both">
+    <div class="slide-inner">
+      <h2>The same analogy, both representations</h2>
+      <table>
+        <tr><th><math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math></th><th>Word2Vec</th><th>GloVe</th></tr>
+        <tr><td>excluding the inputs</td><td>queen 0.7118, monarch 0.6190, princess 0.5902</td>
+        <td>queen 0.6713, princess 0.5433, throne 0.5386</td></tr>
+        <tr><td>excluding nothing</td><td>king 0.8449 — nearest is itself — then queen 0.7301</td>
+        <td>king 0.8066 — nearest is itself — then queen 0.6896</td></tr>
+      </table>
+      <p class="aside">Session 21's correction applies unchanged: the vector lands near
+      <code>king</code> rather than on <code>queen</code>, in <em>both</em>. The same phenomenon and
+      the same overstatement, across two unrelated training methods.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The difference on good">
+    <div class="slide-inner">
+      <h2>Session 21's most awkward finding, asked of GloVe</h2>
+      <pre><code>good  ->  better 0.766, really 0.736, always 0.717, you 0.707, well 0.705,
+          excellent 0.704, very 0.697, things 0.694, think 0.690, way 0.684
+
+cos(good, bad) = 0.645     &lt;- real, but doesn't crack the top ten</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What this does not show">
+    <div class="slide-inner">
+      <p>It would be natural to conclude that GloVe has solved the antonym problem, but it has
+      <strong>not</strong>. 0.645 is still a high cosine, close behind the tenth-ranked word.</p>
+      <footer>And this file used different preprocessing (lower-cased), a different corpus
+      (Wikipedia and Gigaword), and different hyperparameters. The defensible reading: two
+      representations trained on different data with different settings disagree at the
+      margins.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="No consistent pattern">
+    <div class="slide-inner">
+      <h2>Four antonym pairs</h2>
+      <table>
+        <tr><th>pair</th><th>Word2Vec</th><th>GloVe</th></tr>
+        <tr><td><code>increase</code> ↔ <code>decrease</code></td><td>0.837</td><td>0.814</td></tr>
+        <tr><td><code>good</code> ↔ <code>bad</code></td><td>0.719</td><td>0.645</td></tr>
+        <tr><td><code>up</code> ↔ <code>down</code></td><td>0.640</td><td>0.747</td></tr>
+        <tr><td><code>always</code> ↔ <code>never</code></td><td>0.601</td><td>0.720</td></tr>
+      </table>
+      <p class="aside">GloVe is lower on two pairs and higher on the other two. If its use of counts
+      were fundamentally better at separating antonyms, this table would lean one way. It does
+      not.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The current answer">
+    <div class="slide-inner">
+      <p class="lede">About the same — and the theoretical distinction is smaller than either
+      paper's framing suggests</p>
+      <p>Levy &amp; Goldberg (2014) proved Skip-gram with negative sampling is implicitly
+      factorising a matrix of shifted pointwise mutual information: it was using global corpus
+      statistics all along, just never writing them down.</p>
+      <footer>Levy, Goldberg &amp; Dagan (2015) then showed that matching hyperparameters mostly
+      closes the gap. The real lesson of GloVe is not "counting beats predicting" — it is that
+      counting and predicting were never as different as either abstract made them sound.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what later research says">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What does later research (Levy &amp; Goldberg) say about GloVe vs.
+        Word2Vec?</p>
+        <div class="q-opts">
+          <button class="opt">GloVe is strictly better because it uses global statistics that Word2Vec cannot see</button>
+          <button class="opt">Word2Vec is strictly better because prediction is a stronger learning signal than counting</button>
+          <button class="opt">They are unrelated techniques that happen to produce vectors of the same shape</button>
+          <button class="opt">Skip-gram with negative sampling implicitly uses global statistics too, and with matched hyperparameters the two perform about the same</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>Skip-gram was already using global statistics, and matched
+          hyperparameters close most of the gap</strong>.</p>
+          <p>GloVe's own paper argues the third option is false, and its pitch is the first option.
+          The 2014 result is what makes that pitch hard to defend: SGNS is provably factorising a
+          PMI-based matrix, so "counts vs. prediction" was never a clean split. The 2015 follow-up
+          measured it and found hyperparameters mattered more than the choice of method.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Unit II end to end">
+    <div class="slide-inner">
+      <h2>Six representations, one sequence</h2>
+      <table>
+        <tr><th>Session</th><th>Representation</th><th>What changed</th></tr>
+        <tr><td>8</td><td>Incidence matrix</td><td>a word is present or absent — one bit</td></tr>
+        <tr><td>17</td><td>Bag-of-words</td><td>presence becomes a count</td></tr>
+        <tr><td>18</td><td>TF-IDF</td><td>the count is reweighted by how rare the word is</td></tr>
+        <tr><td>19</td><td>Cosine similarity</td><td>compare those vectors by angle, not
+        length</td></tr>
+        <tr><td>21</td><td>Word2Vec</td><td>stop counting context, predict it, keep the
+        weights</td></tr>
+        <tr><td>22</td><td>GloVe</td><td>count context globally, fit vectors to the counts
+        directly</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Sparse to dense, counted to learned">
+    <div class="slide-inner">
+      <p>Every representation from session 8 onward answers the same question: how to turn a word or
+      a document into numbers a machine can compare.</p>
+      <footer>Each answer corrected something the previous one got wrong, at the cost of some of its
+      interpretability. Sessions 21 and 22 are where that trade is most pronounced — a
+      300-dimensional vector contains no single number whose meaning can be stated.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What none of this fixes">
+    <div class="slide-inner">
+      <h2>Both share every limitation session 21 identified</h2>
+      <ul>
+        <li><strong>One vector per word</strong>, regardless of how many senses it has —
+        <code>bank</code> gets a single point wherever the river and financial senses average
+        out</li>
+        <li><strong>Fixed at training time</strong> — a word absent from the corpus has no vector at
+        all. Session 3's vocabulary problem, unchanged</li>
+        <li><strong>Blind to order</strong> — both are fit from window-based co-occurrence, so
+        neither represents a <em>sequence</em></li>
+      </ul>
+      <p class="aside">All three are Unit III topics. The third is why Unit III opens with a model
+      built to process a sequence <em>as</em> a sequence, one step at a time.</p>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>GloVe counts once, then fits vectors so their dot product recovers the <em>log</em> of each
+      count — because a difference of two such fits reconstructs the ratio that actually
+      distinguishes one word from another. A weighting function stops frequent pairs dominating, the
+      same complaint session 18 made about raw counts.</p>
+      <footer>In practice it produces vectors about as good as Word2Vec's, not better, and the
+      "global counts beat local prediction" story does not survive Levy &amp; Goldberg. That closes
+      Unit II.</footer>
     </div>
   </section>
 
@@ -1110,22 +1197,27 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Pennington, Socher &amp; Manning — <em>GloVe: Global Vectors for Word
+          Representation</em> (2014)</p>
+          <p class="ref-note">Short, and §3 is the only section that matters for this course.</p>
+          <a class="ref-link" href="https://nlp.stanford.edu/pubs/glove.pdf"
+          target="_blank" rel="noopener">nlp.stanford.edu/pubs/glove.pdf</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Levy &amp; Goldberg — <em>Neural Word Embedding as Implicit Matrix
+          Factorization</em> (NeurIPS 2014)</p>
+          <p class="ref-note">The result that makes GloVe's pitch hard to defend: Skip-gram with
+          negative sampling is provably factorising a PMI-based matrix.</p>
+        </li>
+        <li>
+          <p class="ref-title">Levy, Goldberg &amp; Dagan — <em>Improving Distributional Similarity
+          with Lessons Learned from Word2Vec</em> (TACL 2015)</p>
+          <p class="ref-note">Measures it directly, and finds hyperparameters matter more than the
+          choice of method.</p>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0023-recurrent-neural-networks.html">Next deck &mdash;
+      session 23: The RNN — hidden state, shared weights &rarr;</a>
     </div>
   </section>
 

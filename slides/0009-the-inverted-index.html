@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 9: The inverted index</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,324 +773,196 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0009-the-inverted-index.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 09</p>
+      <h1>The inverted index</h1>
+      <p class="subtitle">Keep only the ones. For each word, a list of the documents it appears in —
+      and a fast way to answer a query by walking two lists at once.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="Where session 8 left off">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <p class="lede">Where session 8 left off</p>
+      <p>The incidence matrix was 99.8% zeros, and those zeros carried no information we needed.
+      The correction was to stop storing them and keep only the ones.</p>
+      <footer>Today that principle becomes the data structure real search engines use.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Two parts">
+    <div class="slide-inner">
+      <h2>An inverted index has two parts</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li>A <strong>dictionary</strong> — every term in the collection</li>
+        <li>For each term, a <strong>postings list</strong> — the document IDs where that term
+        appears, in <strong>sorted order</strong></li>
+      </ul>
+      <p class="aside">It is <em>inverted</em> because it reverses the natural direction: a document
+      normally points to its words; here each word points to its documents.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The index for the six plays">
+    <div class="slide-inner">
+      <h2>The same six plays, numbered 1 to 6</h2>
+      <pre><code>Antony     ->  1 -> 2 -> 6
+Brutus     ->  1 -> 2 -> 4
+Caesar     ->  1 -> 2 -> 4 -> 5 -> 6
+Calpurnia  ->  2
+Cleopatra  ->  1
+mercy      ->  1 -> 3 -> 4 -> 5 -> 6
+worser     ->  1 -> 3 -> 4 -> 5</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where the saving comes from">
+    <div class="slide-inner">
+      <p>The matrix row for <code>Caesar</code> was <code>1 1 0 1 1 1</code> — six cells. The
+      postings list <code>1 2 4 5 6</code> records the same thing in five numbers, with no zeros
+      stored.</p>
+      <footer>A word in three documents needs three entries, whether the collection holds six
+      documents or six billion. The size of a postings list depends on the word, not on the
+      collection.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Answering a query">
+    <div class="slide-inner">
+      <p>For <code>Brutus AND mercy</code> we need the documents in <em>both</em> postings lists —
+      their <strong>intersection</strong>.</p>
+      <footer>Because both lists are sorted, we need not compare every pair.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The two-pointer merge">
+    <div class="slide-inner">
+      <h2>Advance the pointer at the smaller ID</h2>
+      <pre><code>Brutus:  1 -> 2 -> 4
+mercy:   1 -> 3 -> 4 -> 5 -> 6
+
+step 1:  1 vs 1   equal   -> keep 1, advance both
+step 2:  2 vs 3   2 &lt; 3   -> advance Brutus (2 can't be in mercy now)
+step 3:  4 vs 3   4 &gt; 3   -> advance mercy
+step 4:  4 vs 4   equal   -> keep 4, advance both
+         Brutus is finished -> stop
+
+result:  1 -> 4      (Antony and Cleopatra, Hamlet)</code></pre>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Linear cost">
+    <div class="slide-inner">
+      <p>Each pointer only moves forward, so each list is traversed once. For lists of length
+      <em>x</em> and <em>y</em> the work is about <em>x</em> + <em>y</em>, not <em>x</em> &times;
+      <em>y</em>.</p>
+      <footer>This is why search returns quickly, and it is possible only because the lists are
+      sorted. Sorting at build time is what makes the query fast.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Why sorting is what does it">
+    <div class="slide-inner">
+      <h2>Why the postings lists are sorted</h2>
+      <ul>
+        <li><code>2</code> in one list is smaller than <code>3</code> in the other, so
+        <code>2</code> cannot appear later in the second list — every remaining entry is larger</li>
+        <li>It can be skipped and never reconsidered</li>
+        <li>Unsorted lists give no such guarantee, which forces a comparison of every pair</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--code" data-title="Completing the query">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <h2>The full query, one operation at a time</h2>
+      <pre><code>Brutus  1 2 4   INTERSECT   Caesar  1 2 4 5 6     ->   1 2 4
+        1 2 4   AND NOT     Calpurnia  2           ->   1 4</code></pre>
+      <p class="aside"><code>1 4</code> is <strong>Antony and Cleopatra</strong> and
+      <strong>Hamlet</strong> — the same answer the matrix produced in session 8, obtained without
+      storing a single zero.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="Process the rarest term first">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p class="lede">A standard query optimisation</p>
+      <p>For <code>Brutus AND Caesar AND Calpurnia</code>, begin with the <strong>shortest</strong>
+      postings list. <code>Calpurnia</code> occurs in one document, so intersecting it first leaves
+      at most one candidate.</p>
+      <footer>Processing terms from rarest to commonest minimises the total work.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
-      <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
-      </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
-    <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where does a word end?">
-    <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: Brutus AND Antony">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Carry out the merge by hand</span>
+        <p><code>Brutus</code> is <code>1 2 4</code> and <code>Antony</code> is <code>1 2 6</code>.
+        Which documents are returned?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+<pre><code>Brutus:  1 -> 2 -> 4
+Antony:  1 -> 2 -> 6
+
+1 vs 1   equal   -> keep 1, advance both
+2 vs 2   equal   -> keep 2, advance both
+4 vs 6   4 &lt; 6   -> advance Brutus
+         Brutus finished -> stop
+
+result:  1 -> 2</code></pre>
+          <p><strong>Antony and Cleopatra</strong> and <strong>Julius Caesar</strong>. The
+          <code>4</code> and the <code>6</code> never match, and the traversal passes them without
+          ever comparing <code>4</code> with <code>1</code> or <code>2</code>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what a postings list holds">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What does a postings list contain?</p>
+        <div class="q-opts">
+          <button class="opt">Every word that appears in one particular document</button>
+          <button class="opt">The 0s and 1s of one row of the incidence matrix</button>
+          <button class="opt">The sorted IDs of the documents that contain one term</button>
+          <button class="opt">The list of queries a given document has matched</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the sorted IDs of the documents that contain one term</strong>.</p>
+          <p>The dictionary holds the terms, and each term points to its postings list:
+          <code>Caesar → 1 2 4 5 6</code>. The sorting is what makes the merge fast.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why x + y steps">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Why can two postings lists be intersected in roughly <em>x</em> +
+        <em>y</em> steps instead of <em>x</em> &times; <em>y</em>?</p>
+        <div class="q-opts">
+          <button class="opt">Because both lists are sorted, so each pointer only moves forward</button>
+          <button class="opt">Because postings lists are always short enough to fit in memory</button>
+          <button class="opt">Because the shorter list is always checked against the longer one</button>
+          <button class="opt">Because bitwise <code>AND</code> compares all documents at once</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>both lists are sorted, so each pointer only moves forward</strong>.</p>
+          <p>When one ID is smaller than the other it cannot appear later in the other list, so it
+          is skipped and never revisited. Each list is traversed once. Without the sorting, every
+          pair must be checked.</p>
         </div>
       </div>
     </div>
@@ -1099,9 +971,11 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>An inverted index stores, for each term, a sorted list of the documents containing it —
+      only the ones. Queries are answered by merging those lists with a two-pointer walk in linear
+      time.</p>
+      <footer>A document still either matches or it does not, and the result is an unordered set.
+      Next: ranking, where numbers replace the 0s and 1s.</footer>
     </div>
   </section>
 
@@ -1110,22 +984,17 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Manning, Raghavan &amp; Schütze — <em>Introduction to Information
+          Retrieval</em>, chapter 1</p>
+          <p class="ref-note">The construction of the inverted index and the postings-merge
+          algorithm. Read &ldquo;Processing Boolean queries&rdquo; and follow the merge pseudocode,
+          which is the traversal carried out by hand above.</p>
+          <a class="ref-link" href="https://nlp.stanford.edu/IR-book/"
+          target="_blank" rel="noopener">nlp.stanford.edu/IR-book/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0010-ranking-with-tf-idf.html">Next deck &mdash;
+      session 10: Ranking results with TF-IDF &rarr;</a>
     </div>
   </section>
 

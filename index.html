@@ -7,8 +7,8 @@
 <!--
   TEMPLATE. Do not edit ame5003-nlp/index.html directly — it is generated.
   Edit this file, then run: python3 tools/publish.py
-  The two placeholder tokens below are filled in from the built student files.
-  Do not write either token anywhere else in this file, including in comments:
+  The three placeholder tokens below are filled in from the built student files.
+  Do not write any of them anywhere else in this file, including in comments:
   every occurrence is replaced.
 -->
 <style>
@@ -97,7 +97,7 @@ footer {
 
 <p class="eyebrow">MSIS Manipal · AME 5003 &amp; AME 5053</p>
 <h1>Principles of Natural Language Processing</h1>
-<p class="subtitle">Everything for this course — lessons, labs and the glossary — lives here.</p>
+<p class="subtitle">Everything for this course — lessons, labs, the classroom demos and the glossary — lives here.</p>
 
 <div class="callout">
   <span class="label">Start here</span>
@@ -384,6 +384,83 @@ footer {
   <span class="n">Lab 08 · Week 8</span>
   <span class="t">Word2Vec, GloVe, and the comparison</span>
   <span class="d">Train Word2Vec, download GloVe, and measure — for real — whether either beats TF-IDF at sentiment.</span>
+</a>
+
+<h3 class="unit">Unit III — Deep learning and applications</h3>
+
+<a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-09-rnn-lstm.ipynb">
+  <span class="n">Lab 09 · Week 9</span>
+  <span class="t">Sequence models: the RNN and the LSTM</span>
+  <span class="d">Build an RNN and an LSTM in PyTorch, and find out whether reading in order beats the bag of words that threw order away.</span>
+</a>
+
+<a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-10-attention-seq2seq.ipynb">
+  <span class="n">Lab 10 · Week 10</span>
+  <span class="t">Attention, and a translation system</span>
+  <span class="d">Build a working English-to-French translation system, then plot what it attends to while it translates.</span>
+</a>
+
+<a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-11-transformers.ipynb">
+  <span class="n">Lab 11 · Week 11</span>
+  <span class="t">Encoder and decoder transformers</span>
+  <span class="d">Write one transformer block from the equations, then use it twice — as a classifier and as a text generator, one mask apart.</span>
+</a>
+
+<h2>Classroom demos</h2>
+
+<p>The scripts run live in class. Each one prints its way through a single idea, using the same
+examples as the lesson it belongs to, so what you run matches what you read. They are for
+following along and experimenting — they are not assessed, and nothing in the labs depends on
+them.</p>
+
+<p>These run on your own machine rather than in Colab. You need
+<a href="https://docs.astral.sh/uv/getting-started/installation/">uv</a>. Clone the repository,
+then once, inside <code>classroom/</code>, run <code>uv sync</code> and
+<code>uv run bootstrap.py</code> — the second one downloads the spaCy model and the NLTK corpora
+that pip does not install. The
+<a href="https://github.com/shripada/ame5003-nlp/tree/main/classroom">README there</a> has the
+detail.</p>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s01_regex_intro.py">
+  <span class="n">Session 01</span>
+  <span class="t">Regular expressions from scratch, and why <code>re</code> is not enough</span>
+  <span class="d">demos/s01_regex_intro.py</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s02_regex_greedy.py">
+  <span class="n">Session 02</span>
+  <span class="t">Groups, non-capturing groups, and the greedy trap</span>
+  <span class="d">demos/s02_regex_greedy.py</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s03_bpe.py">
+  <span class="n">Session 03</span>
+  <span class="t">Byte pair encoding, trained step by step on a small corpus</span>
+  <span class="d">demos/s03_bpe.py</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s04_stopwords.py">
+  <span class="n">Session 04</span>
+  <span class="t">Stop words: the routine step that reverses a review</span>
+  <span class="d">demos/s04_stopwords.py</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s04_unicode.py">
+  <span class="n">Session 04</span>
+  <span class="t">Unicode: why two identical-looking strings are not equal</span>
+  <span class="d">demos/s04_unicode.py</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s05_stem_lemma.py">
+  <span class="n">Session 05</span>
+  <span class="t">Stemming vs lemmatization, on the words from the lesson</span>
+  <span class="d">demos/s05_stem_lemma.py</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/classroom/demos/s06_pos_tagging.py">
+  <span class="n">Session 06</span>
+  <span class="t">Part-of-speech tagging, including one sentence spaCy gets wrong</span>
+  <span class="d">demos/s06_pos_tagging.py</span>
 </a>
 
 <h2>Reference</h2>

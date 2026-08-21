@@ -37,7 +37,10 @@ There is nothing to activate. `uv run` uses `.venv` on its own.
 | `demos/s01_regex_intro.py` | 01 | regular expressions from scratch, and why `re` is not enough |
 | `demos/s02_regex_greedy.py` | 02 | groups, non-capturing groups, and the greedy trap |
 | `demos/s03_bpe.py` | 03 | byte pair encoding, trained step by step on a small corpus |
+| `demos/s04_stopwords.py` | 04 | stop words: the routine step that reverses a review |
 | `demos/s04_unicode.py` | 04 | Unicode: why two identical-looking strings are not equal |
+| `demos/s05_stem_lemma.py` | 05 | stemming vs lemmatization, on the words from the lesson |
+| `demos/s06_pos_tagging.py` | 06 | part-of-speech tagging, including one sentence spaCy gets wrong |
 
 ## Notes
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 14: Judging a language model</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,324 +773,415 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0014-evaluation-and-perplexity.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 14</p>
+      <h1>Judging a language model: perplexity</h1>
+      <p class="subtitle">We have built three models and have no way to say which is best. The
+      measure that settles it is a single number, but it means something only when computed on text
+      the model has never seen.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--bullets" data-title="Choices we cannot settle">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <h2>Three sessions of choices, none of them settled</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li>Bigram or trigram?</li>
+        <li>Add-one, backoff, or interpolation?</li>
+        <li>If interpolation — which <math data-tex="\lambda"><mi>λ</mi></math> values?</li>
       </ul>
+      <p class="aside">Each is an empirical question. None can be resolved by argument.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="Extrinsic evaluation">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p class="lede">Extrinsic evaluation</p>
+      <p>Put model A inside the speech recogniser and measure the system. Swap in model B and
+      measure again. The model producing the better system is the better model.</p>
+      <footer>This is the only kind of evaluation that answers the question we actually care
+      about.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement warn" data-title="And it is expensive">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p>Running a full speech recogniser over a test corpus twice can take hours or days — and we
+      may need to compare twenty models, not two.</p>
+      <footer>Tuning <math data-tex="\lambda"><mi>λ</mi></math> that way is not feasible. We also want a cheap measure that
+      scores the language model on its own, with no application attached: an <strong>intrinsic</strong>
+      evaluation. The standard one is <strong>perplexity</strong>.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement" data-title="Never evaluate on training text">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <p>A model cannot be evaluated on the text it was trained on.</p>
+      <footer>The point of a language model is to predict text it has not seen. Scored on its own
+      training corpus it is being asked to recall, not to predict, and it will look far better than
+      it is.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--table" data-title="Three splits">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>The corpus is split three ways</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>set</th><th>what it is for</th><th>how often you touch it</th></tr>
+        <tr><td><strong>training set</strong></td><td>get the counts; learn the
+        probabilities</td><td>constantly</td></tr>
+        <tr><td><strong>development set</strong></td><td>choose between models; tune <math data-tex="\lambda"><mi>λ</mi></math>,
+        k, n</td><td>as often as you like</td></tr>
+        <tr><td><strong>test set</strong></td><td>the final, honest number</td>
+        <td><strong>once</strong>, at the very end</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">Evaluating on the test set fifty times while adjusting <math data-tex="\lambda"><mi>λ</mi></math> lets its
+      quirks steer those choices. That is what the development set is for.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="The held-out set">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <p>This also explains session 13's <strong>held-out set</strong>, the one the <math data-tex="\lambda"><mi>λ</mi></math>
+      values came from.</p>
+      <footer>A held-out set is exactly this: data withheld from training so it can answer a
+      question the training data cannot answer without bias.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement warn" data-title="Training on the test set">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p class="lede">Training on the test set</p>
+      <p>Also called <strong>data contamination</strong>. It does not produce a small error; it
+      produces excellent numbers that mean nothing.</p>
+      <footer>It happens by accident: duplicate documents in a scraped corpus, or a shuffled split
+      putting two halves of one article on both sides. When a result is reported, the first question
+      is what it was measured on.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--statement" data-title="The criterion">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
+      <p class="lede">The criterion</p>
+      <p>The better model is the one that assigns <strong>higher probability to the test
+      set</strong>.</p>
+      <footer>Higher probability means the model was less surprised by real text — precisely the
+      ability we want it to have.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="It matched the entire line">
+  <section class="slide slide--statement" data-title="One defect">
     <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+      <p>A sentence probability is a product of numbers below 1, so every extra word makes it
+      smaller. A 10-word test set gives about 0.0001; a 1,000-word one gives hundreds of zeros after
+      the point.</p>
+      <footer>The magnitude reflects the length of the text, not the quality of the model. Normalise
+      by length and what remains is a per-word figure.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
+  <section class="slide slide--math" data-title="Perplexity">
     <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
+      <h2>Perplexity: inverted, and normalised per token</h2>
+      <div class="meq"><math data-tex="\mathrm{PP}(W) = P(w_1 w_2 \ldots w_N)^{-1/N} = \sqrt[N]{\frac{1}{P(W)}}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>P</mi><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><msub><mi>w</mi><mn>2</mn></msub><mo>…</mo><msub><mi>w</mi><mi>N</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></msup><mo>=</mo><mroot><mfrac><mn>1</mn><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>W</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac><mi>N</mi></mroot></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Two operations in one formula">
+    <div class="slide-inner">
+      <h2>Two separate operations</h2>
       <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
+        <li>The <math data-tex="-1"><mrow><mo form="prefix" stretchy="false">−</mo><mn>1</mn></mrow></math> <strong>inverts</strong> the probability, so a high probability becomes a
+        low number. <strong>Lower perplexity is better</strong> — the most commonly misremembered
+        property of the measure</li>
+        <li>The <math data-tex="1/N"><mrow><mn>1</mn><mi>/</mi><mi>N</mi></mrow></math> takes the <math data-tex="N"><mi>N</mi></math>-th root, removing the effect of length and turning a
+        whole-text probability into a per-token quantity</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
+  <section class="slide slide--statement" data-title="What N counts">
     <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
+      <p><math data-tex="N"><mi>N</mi></math> is the number of tokens the model <strong>predicted</strong> — so it includes
+      <code>&lt;/s&gt;</code> and excludes <code>&lt;s&gt;</code>.</p>
+      <footer>The same rule that made <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math> rather than 11 last session. Our four-sentence
+      corpus has 26 such tokens. If <math data-tex="N"><mi>N</mi></math> is wrong, every perplexity below is wrong and nothing
+      will say so.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A more precise alternative">
+  <section class="slide slide--statement" data-title="Branching factor">
     <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
+      <p class="lede">Perplexity is a branching factor</p>
+      <p>Roughly, the number of choices the model was effectively selecting between at each
+      step.</p>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--math" data-title="The model that knows nothing">
     <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
+      <h2>A model that treats all 10 tokens as equally likely</h2>
+      <div class="meq"><math data-tex="\mathrm{PP} = \left(\left(\tfrac{1}{10}\right)^{N}\right)^{-1/N} = 10" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>10</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mi>N</mi></msup><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></msup><mo>=</mo><mn>10</mn></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--statement" data-title="Reading the reference point">
     <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
+      <p>Ten, because at every position it picks blindly among ten options. A model scoring 4 has
+      cut ten options to about four; a model scoring 1 named the next word exactly, every time.</p>
+      <footer>This is a reference point, not an upper bound — a model can do worse than 10 by being
+      confidently wrong. Guessing uniformly is only the performance obtainable without effort.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--statement" data-title="Why weighted">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <p>This is why perplexity is a <em>weighted</em> branching factor.</p>
+      <footer>A raw branching factor counts the options. Perplexity weights them by probability, so
+      a model that formally allows ten words but concentrates on one scores low.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--code" data-title="The same four sentences">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <h2>Four measurements, from the corpus we know</h2>
+      <pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
+&lt;s&gt; I want to eat Chinese food &lt;/s&gt;
+&lt;s&gt; I want Indian food &lt;/s&gt;
+&lt;s&gt; she wants to eat Indian food &lt;/s&gt;</code></pre>
+      <p class="aside">The four numbers that follow build a single argument rather than four
+      separate examples.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
+  <section class="slide slide--math" data-title="2. A training sentence">
     <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
+      <h2>The trained bigram model, on a <em>training</em> sentence</h2>
+      <div class="meq"><math data-tex="\mathrm{PP} = \left(\tfrac{1}{3}\right)^{-1/7} = 3^{1/7} = 1.17" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>3</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><msup><mn>3</mn><mrow><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><mn>1.17</mn></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="One dictionary per line">
+  <section class="slide slide--statement warn" data-title="Why 1.17 is not good news">
     <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
+      <p>1.17 against a reference of 10 does not mean an excellent model. It means the model was
+      scored on its own training data and reproduced it.</p>
+      <footer>This is how contamination presents in practice — not as an obvious error but as an
+      implausibly good result. A perplexity that looks too good usually means a flawed
+      experiment.</footer>
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--math" data-title="3. A genuine test sentence, MLE">
+    <div class="slide-inner">
+      <h2>A sentence it has not seen, of words it does know</h2>
+      <div class="meq"><math data-tex="P(\text{I want Chinese food}) = \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{0}{3} \times \tfrac{1}{1} \times \tfrac{4}{4} = 0" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want Chinese food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>0</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>1</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>4</mn></mfrac></mstyle><mo>=</mo><mn>0</mn></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Perplexity is infinite">
+    <div class="slide-inner">
+      <h2>Which makes the perplexity a division by zero</h2>
+      <div class="meq"><math data-tex="\mathrm{PP} = 0^{-1/5} = \frac{1}{0} = \infty" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mo>=</mo><msup><mn>0</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><mfrac><mn>1</mn><mn>0</mn></mfrac><mo>=</mo><mi>∞</mi></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Smoothing is not optional">
+    <div class="slide-inner">
+      <p>Session 13's zero problem, with its consequence made explicit: an unsmoothed model
+      <strong>cannot be evaluated at all</strong>.</p>
+      <footer>One unseen pair anywhere in a million-word test set sends the perplexity of the whole
+      set to infinity. Without smoothing there is no number to report.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="4. Add-one smoothed">
+    <div class="slide-inner">
+      <h2>The same sentence, add-one smoothed, <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math></h2>
+      <table>
+        <tr><th>bigram</th><th>counts</th><th>add-one probability</th></tr>
+        <tr><td><code>&lt;s&gt; I</code></td>      <td>3 / 4</td><td>4/14 = 0.286</td></tr>
+        <tr><td><code>I want</code></td>           <td>3 / 3</td><td>4/13 = 0.308</td></tr>
+        <tr><td><code>want Chinese</code></td>     <td>0 / 3</td><td>1/13 = 0.077</td></tr>
+        <tr><td><code>Chinese food</code></td>     <td>1 / 1</td><td>2/11 = 0.182</td></tr>
+        <tr><td><code>food &lt;/s&gt;</code></td>  <td>4 / 4</td><td>5/14 = 0.357</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="4.69">
+    <div class="slide-inner">
+      <h2>The add-one perplexity of that sentence</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+P &amp;= \tfrac{4}{14} \times \tfrac{4}{13} \times \tfrac{1}{13} \times \tfrac{2}{11} \times \tfrac{5}{14} = 0.000439 \\
+\mathrm{PP} &amp;= 0.000439^{-1/5} = 4.69
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>P</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>14</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>4</mn><mn>13</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>13</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>11</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>5</mn><mn>14</mn></mfrac></mstyle><mo>=</mo><mn>0.000439</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>PP</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msup><mn>0.000439</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><mn>4.69</mn></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The four numbers together">
+    <div class="slide-inner">
+      <h2>The four numbers together</h2>
+      <table>
+        <tr><th>model, and what it was scored on</th><th>perplexity</th></tr>
+        <tr><td>knows nothing (uniform over <math data-tex="V = 10"><mrow><mi>V</mi><mo>=</mo><mn>10</mn></mrow></math>)</td><td>10</td></tr>
+        <tr><td>bigram MLE, scored on a <em>training</em> sentence</td><td>1.17 — meaningless</td></tr>
+        <tr><td>bigram MLE, scored on a <em>test</em> sentence</td><td><math data-tex="\infty"><mi>∞</mi></math> — unusable</td></tr>
+        <tr><td>bigram add-one, scored on a <em>test</em> sentence</td><td><strong>4.69</strong></td></tr>
+      </table>
+      <p class="aside">Only the last row is a genuine result. The other three each show a condition
+      required to obtain one.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One qualification">
+    <div class="slide-inner">
+      <p>Perplexity is normally computed over a <strong>whole test set</strong>: all its sentence
+      probabilities multiplied together, with <math data-tex="N"><mi>N</mi></math> the total token count.</p>
+      <footer>Single sentences appear here only because four training sentences are all we have. A
+      one-sentence test set is far too small to be representative.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="At realistic scale">
+    <div class="slide-inner">
+      <h2>38 million words of Wall Street Journal, tested on 1.5 million</h2>
+      <table>
+        <tr><th>model</th><th>perplexity</th></tr>
+        <tr><td>unigram</td><td>962</td></tr>
+        <tr><td>bigram</td><td>170</td></tr>
+        <tr><td>trigram</td><td><strong>109</strong></td></tr>
+      </table>
+      <p class="aside">Read as branching factors: no context means choosing among a thousand; one
+      previous word cuts it to 170; two cut it to 109.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Diminishing returns">
+    <div class="slide-inner">
+      <p>The table measures what would otherwise be an assertion, and it shows the returns
+      diminishing: the first word of context is worth far more than the second.</p>
+      <footer>The trend cannot continue. A 10-gram model would have almost no counts. More context
+      helps only while there is data enough to estimate it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Three ways perplexity misleads">
+    <div class="slide-inner">
+      <h2>Three ways perplexity can mislead</h2>
+      <ul>
+        <li><strong>Only comparable on the same test set and vocabulary.</strong> A weak model on
+        easy text beats a strong model on hard text</li>
+        <li><strong><code>&lt;UNK&gt;</code> can be gamed.</strong> Shrink the vocabulary, replace
+        most words with <code>&lt;UNK&gt;</code>, and perplexity drops sharply while the model
+        becomes less useful</li>
+        <li><strong>Better perplexity does not guarantee a better system.</strong> A model can
+        predict slightly better on average without changing a single decision the recogniser
+        makes</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What follows in practice">
+    <div class="slide-inner">
+      <p>Use perplexity routinely — it is fast and generally right about large differences.</p>
+      <footer>Then confirm the decision that matters with an end-to-end test. A figure is meaningful
+      only reported alongside its vocabulary size and its <code>&lt;UNK&gt;</code> policy.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: perplexity reverses a ranking">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Session 12's two sentences</span>
+        <p><code>I want Indian food</code> scored 1/4 = 0.250 and <code>she wants to eat Indian
+        food</code> scored 1/6 = 0.167. By raw probability the first ranks higher. What does
+        perplexity give? Take <math data-tex="N"><mi>N</mi></math> as 5 and 7.</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <div class="meq"><math data-tex="\begin{aligned}
+\mathrm{PP}(\text{I want Indian food}) &amp;= \left(\tfrac{1}{4}\right)^{-1/5} = 4^{1/5} = 1.320 \\
+\mathrm{PP}(\text{she wants to eat Indian food}) &amp;= \left(\tfrac{1}{6}\right)^{-1/7} = 6^{1/7} = 1.292
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>4</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><msup><mn>4</mn><mrow><mn>1</mn><mi>/</mi><mn>5</mn></mrow></msup><mo>=</mo><mn>1.320</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mpadded lspace="0"><mi>PP</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>she wants to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msup><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>1</mn><mn>6</mn></mfrac></mstyle><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><msup><mn>6</mn><mrow><mn>1</mn><mi>/</mi><mn>7</mn></mrow></msup><mo>=</mo><mn>1.292</mn></mrow></mtd></mtr></mtable></math></div>
+          <p>Perplexity reverses the ranking. The longer sentence had the lower raw probability but
+          the better per-token score — it simply had two more words to account for. Raw probability
+          was partly measuring length, and perplexity divides that out.</p>
+          <p>Note what the <math data-tex="-1/N"><mrow><mo form="prefix" stretchy="false">−</mo><mn>1</mn><mi>/</mi><mi>N</mi></mrow></math> is for: it lets one model be compared across test sets of
+          different sizes. Perplexity measures <strong>models</strong>. It is not a way to decide
+          which sentence is better English.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: perplexity 1.2 on training data">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 3</span>
+        <p class="q-text">A model gets perplexity 1.2 on the corpus it was trained on. What does
+        that tell you?</p>
+        <div class="q-opts">
+          <button class="opt">It generalises well and is ready to be turned loose on new text</button>
+          <button class="opt">It is badly undertrained, since a good perplexity sits close to zero</button>
+          <button class="opt">Almost nothing — it was scored on text it memorised, not predicted</button>
+          <button class="opt">Its vocabulary must be large, since perplexity grows with vocabulary</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>almost nothing — it was scored on text it memorised</strong>.</p>
+          <p>Perplexity on training data measures recall, not prediction, and is always misleadingly
+          low. It indicates a flawed experiment rather than a good model. The only figure worth
+          reporting comes from held-out data.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why infinite">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 2 of 3</span>
+        <p class="q-text">Why is the perplexity of an unsmoothed model on a real test set usually
+        infinite?</p>
+        <div class="q-opts">
+          <button class="opt">Because test sets are far too large for the arithmetic to stay finite</button>
+          <button class="opt">Because a single unseen n-gram makes P = 0, and perplexity inverts it</button>
+          <button class="opt">Because unsmoothed models have no vocabulary limit, so N is unbounded</button>
+          <button class="opt">Because perplexity needs probabilities that sum to more than 1 to work</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>one unseen n-gram makes P = 0, and perplexity inverts it</strong>.</p>
+          <p>The test-set probability is a product, so one zero anywhere zeroes the whole thing, and
+          perplexity raises that to a negative power — division by zero. Any real test set contains
+          unseen n-grams.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: 140 versus 95">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 3 of 3</span>
+        <p class="q-text">Model A has perplexity 140 and model B has perplexity 95. Which is the
+        better language model?</p>
+        <div class="q-opts">
+          <button class="opt">Model A, since higher perplexity means it copes with more variety</button>
+          <button class="opt">Model B, by a margin wide enough that no further checking is needed</button>
+          <button class="opt">Neither — perplexity has no direction, so neither number is better</button>
+          <button class="opt">Model B, if both were measured on one test set with one vocabulary</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>model B, if both were measured on the same test set with the same
+          vocabulary</strong>.</p>
+          <p>Lower is better, so model B — but only under that condition. Perplexity depends on the
+          text as well as the model, and shrinking the vocabulary lowers it without improving
+          anything.</p>
         </div>
       </div>
     </div>
@@ -1099,9 +1190,19 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Perplexity is the test-set probability, inverted and normalised per token, so lower is
+      better, and it reads as the average number of words the model was choosing between. On
+      training data it looks excellent and means nothing; without smoothing it is infinite.</p>
+      <footer>That completes the n-gram model: count, assume a short history, smooth, and
+      measure.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What session 15 changes">
+    <div class="slide-inner">
+      <p>Session 15 changes the question. Instead of asking how likely a piece of text is, we ask
+      what it is <strong>about</strong> — is this review positive or negative?</p>
+      <footer>The probability machinery carries over directly, aimed at a different target.</footer>
     </div>
   </section>
 
@@ -1110,22 +1211,17 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 3</p>
+          <p class="ref-note">Read <strong>§3.2</strong> on training and test sets and
+          <strong>§3.3</strong> on perplexity. The book also writes perplexity a second way, using
+          logarithms; it is the same quantity, and logarithms come properly in session 16.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0015-bayes-rule-and-naive-bayes.html">Next deck &mdash;
+      session 15: Bayes' rule and the Naïve Bayes classifier &rarr;</a>
     </div>
   </section>
 

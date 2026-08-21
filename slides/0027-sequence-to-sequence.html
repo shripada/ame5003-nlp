@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 27: Sequence-to-sequence</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,400 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0027-sequence-to-sequence.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 27</p>
+      <h1>Sequence-to-sequence: the encoder-decoder shape</h1>
+      <p class="subtitle">Four sessions built a recurrent unit; this session leaves it alone. It is
+      the first in Unit III about what is built <em>out of</em> two of them, and about a task that
+      no improvement to the unit could have solved.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="The unit is a black box now">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <p>SLP3 writes <math data-tex="g"><mi>g</mi></math> throughout §13.7 as "a stand-in for some flavor of RNN", and we do
+      the same: <strong>the unit is a black box from here on</strong>.</p>
+      <footer>This is the first session in Unit III about an <em>architecture</em> rather than a
+      cell. Nothing below depends on which of the three units is inside the box.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--code" data-title="A task the previous shape cannot do">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <h2>SLP3's own pair</h2>
+      <pre><code>source (English) :  the    green   witch   arrived
+target (Spanish) :  llegó  la      bruja   verde
+glossed          :  arrived the    witch   green</code></pre>
+      <p class="aside">Read the alignment off the gloss: <strong>4, 1, 3, 2</strong>. Not monotonic,
+      so no scheme that emits one output per input as it goes can produce it.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="And this example is kind">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p>Everything in Unit III so far has been <strong>sequence labelling</strong> — one output per
+      input — or <strong>sequence classification</strong>, one output at the end.</p>
+      <footer>This example is unusually kind: in general the two sentences need not even be the same
+      length, so there is no one-to-one correspondence to align in the first place.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
-      <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
-      </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
-    <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where does a word end?">
-    <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: point the tagger at translation">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Session 6's POS tagger, asked to emit one Spanish word per English
+        word</span>
+        <p>Give <strong>two separate reasons</strong> it cannot produce
+        <code>llegó la bruja verde</code>.</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><strong>One:</strong> the alignment is 4, 1, 3, 2. At the first position it would have
+          to emit <code>llegó</code>, which comes from <code>arrived</code> — a word it has not read
+          yet. A one-output-per-input model commits before the evidence arrives.</p>
+          <p><strong>Two:</strong> the lengths are equal here by luck. "I don't know" is three words
+          and "no sé" is two. A one-tag-per-token model emits exactly as many outputs as it read.</p>
+          <p>The second reason is the more fundamental. The first could in principle be patched by
+          reading the whole sentence first; the second cannot, because it is a property of the
+          shape.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The three components">
+    <div class="slide-inner">
+      <h2>Three parts</h2>
+      <ul>
+        <li>An <strong>encoder</strong> that takes the input <math data-tex="x_{1:n}"><msub><mi>x</mi><mrow><mn>1</mn><mo lspace="0.2222em" rspace="0.2222em">:</mo><mi>n</mi></mrow></msub></math> and produces
+        contextualised representations <math data-tex="h_{1:n}"><msub><mi>h</mi><mrow><mn>1</mn><mo lspace="0.2222em" rspace="0.2222em">:</mo><mi>n</mi></mrow></msub></math></li>
+        <li>A <strong>context vector <math data-tex="c"><mi>c</mi></math></strong>, a function of <math data-tex="h_{1:n}"><msub><mi>h</mi><mrow><mn>1</mn><mo lspace="0.2222em" rspace="0.2222em">:</mo><mi>n</mi></mrow></msub></math>, which "conveys
+        the essence of the input to the decoder"</li>
+        <li>A <strong>decoder</strong> that accepts <math data-tex="c"><mi>c</mi></math> and generates an
+        <strong>arbitrary-length</strong> sequence of hidden states, and from them the outputs</li>
+      </ul>
+      <p class="aside">"Arbitrary-length" is the direct answer to the second reason above: the
+      decoder stops when it decides to stop, not when the input runs out.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A shape, not a model">
+    <div class="slide-inner">
+      <p>SLP3 is explicit that "LSTMs, convolutional networks, and transformers can all be employed
+      as encoders", and the same for decoders. Nothing above says what is inside the boxes.</p>
+      <footer>That is why this session survives session 31: when the transformer arrives it goes
+      <em>into</em> this shape rather than replacing it, and session 34's machine translation reuses
+      the same three components with a different unit inside them.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The one slight change">
+    <div class="slide-inner">
+      <p class="lede">SLP3 does not build this from scratch</p>
+      <p>"We only have to make one slight change to turn this language model with autoregressive
+      generation into an encoder-decoder model… <strong>add a sentence separation marker at the end
+      of the source text, and then simply concatenate the target text</strong>."</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="One training string">
+    <div class="slide-inner">
+      <h2>The training example is one string</h2>
+      <pre><code>the green witch arrived &lt;s&gt; llegó la bruja verde
+|__________ source _________|   |______ target ______|</code></pre>
+      <p class="aside">Train an ordinary RNN language model on that. Everything before
+      <code>&lt;s&gt;</code> is read; everything after it is generated.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A language model as a translation model">
+    <div class="slide-inner">
+      <p>A model that predicts the next word, given a string that happens to contain a separator, is
+      a translation model.</p>
+      <footer>Because predicting the words after the separator, given the words before it,
+      <em>is</em> translating.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="And the objective is not new">
+    <div class="slide-inner">
+      <h2>SLP3 starts §13.7 from the chain rule</h2>
+      <div class="meq" data-eqno="13.28"><math data-tex="p(y) = p(y_1)\, p(y_2 \mid y_1)\, p(y_3 \mid y_1, y_2) \cdots p(y_m \mid y_1, \ldots, y_{m-1})" display="block" class="tml-display" style="display:block math;"><mrow><mi>p</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>p</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>p</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>y</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>p</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mn>3</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>y</mi><mn>1</mn></msub><mo separator="true">,</mo><msub><mi>y</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>⋯</mo><mi>p</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mi>m</mi></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>y</mi><mn>1</mn></msub><mo separator="true">,</mo><mo>…</mo><mo separator="true">,</mo><msub><mi>y</mi><mrow><mi>m</mi><mo>−</mo><mn>1</mn></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.28)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Session 12's equation">
+    <div class="slide-inner">
+      <p>That is session 12's equation, unchanged. The n-gram models of Unit II factored a sentence's
+      probability exactly this way, and made a Markov assumption to make the conditionals
+      tractable.</p>
+      <footer>Here the conditioning context is a hidden state instead, so no truncation is needed —
+      but the factorisation is the one the course has used for fifteen sessions.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The recurrent language model">
+    <div class="slide-inner">
+      <h2>Per step, with <math data-tex="g"><mi>g</mi></math> a stand-in for whichever unit you chose</h2>
+      <div class="meq" data-eqno="13.29"><math data-tex="h_t = g(h_{t-1}, x_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.29)</span></div>
+      <div class="meq" data-eqno="13.30"><math data-tex="\hat{y}_t = \mathrm{softmax}(h_t)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mover><mi>y</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mi>t</mi></msub><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>h</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.30)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The two halves">
+    <div class="slide-inner">
+      <h2>The context vector is the encoder's <em>final</em> hidden state</h2>
+      <div class="meq"><math data-tex="c = h^e_n" display="block" class="tml-display" style="display:block math;"><mrow><mi>c</mi><mo>=</mo><msubsup><mi>h</mi><mi>n</mi><mi>e</mi></msubsup></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The decoder">
+    <div class="slide-inner">
+      <h2>Initialised from it, <math data-tex="h^d_0 = c"><mrow><msubsup><mi>h</mi><mn>0</mn><mi>d</mi></msubsup><mo>=</mo><mi>c</mi></mrow></math>, then</h2>
+      <div class="meq" data-eqno="13.32"><math data-tex="h^d_t = g(\hat{y}_{t-1}, h^d_{t-1}, c)" display="block" class="tml-display" style="display:block math;"><mrow><msubsup><mi>h</mi><mi>t</mi><mi>d</mi></msubsup><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mover><mi>y</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo separator="true">,</mo><msubsup><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow><mi>d</mi></msubsup><mo separator="true">,</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(13.32)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="c appears twice">
+    <div class="slide-inner">
+      <p>The decoder's state depends on the word it just produced, its own previous state, and
+      <strong><math data-tex="c"><mi>c</mi></math> again</strong>. The context vector is not only used to start the decoder — it
+      is supplied at <em>every</em> decoding step.</p>
+      <footer>SLP3 says why: passing <math data-tex="c"><mi>c</mi></math> to every step ensures "that the influence of the
+      context vector, c, doesn't wane as the output sequence is generated". Left to the recurrence
+      alone the source would fade — sessions 24 and 25's problem, for a third time in a new
+      place.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The shape, drawn">
+    <div class="slide-inner">
+      <h2>Wide on both sides, narrow in the middle</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 300" role="img" aria-labelledby="edtitle eddesc">
+          <title id="edtitle">The encoder-decoder, with every path passing through one small context
+          vector</title>
+          <desc id="eddesc">On the left, four large circles represent the encoder's hidden states,
+          labelled with the source words, joined left to right. An arrow from the last leads into a
+          single small circle in the centre labelled c. From it, four arrows fan out to the right,
+          one into each of four large circles representing the decoder's states, which produce the
+          Spanish words and are also joined left to right.</desc>
+
+          <line class="fig-edge" x1="77" y1="150" x2="113" y2="150"></line>
+          <polygon class="fig-edge-h" points="123,150 113,153.5 113,146.5"></polygon>
+          <line class="fig-edge" x1="147" y1="150" x2="183" y2="150"></line>
+          <polygon class="fig-edge-h" points="193,150 183,153.5 183,146.5"></polygon>
+          <line class="fig-edge" x1="217" y1="150" x2="253" y2="150"></line>
+          <polygon class="fig-edge-h" points="263,150 253,153.5 253,146.5"></polygon>
+          <line class="fig-edge" x1="287" y1="150" x2="331" y2="150"></line>
+          <polygon class="fig-edge-h" points="341,150 331,153.5 331,146.5"></polygon>
+
+          <circle class="fig-node" cx="55" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="55" y="158" text-anchor="middle">h₁</text>
+          <circle class="fig-node" cx="125" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="125" y="158" text-anchor="middle">h₂</text>
+          <circle class="fig-node" cx="195" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="195" y="158" text-anchor="middle">h₃</text>
+          <circle class="fig-node" cx="265" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="265" y="158" text-anchor="middle">h₄</text>
+
+          <text class="fig-label" x="55" y="198" text-anchor="middle">the</text>
+          <text class="fig-label" x="125" y="198" text-anchor="middle">green</text>
+          <text class="fig-label" x="195" y="198" text-anchor="middle">witch</text>
+          <text class="fig-label" x="265" y="198" text-anchor="middle">arrived</text>
+          <text class="fig-axname" x="160" y="64" text-anchor="middle">encoder — n states wide</text>
+
+          <circle class="fig-node-q" cx="355" cy="150" r="13"></circle>
+          <text class="fig-label" x="355" y="155" text-anchor="middle">c</text>
+          <text class="fig-label" x="355" y="198" text-anchor="middle">&lt;s&gt;</text>
+
+          <path class="fig-edge" d="M 366 141 C 400 110 420 118 442 128"></path>
+          <polygon class="fig-edge-h" points="451,132 441,131 444,124"></polygon>
+          <path class="fig-edge" d="M 366 143 C 420 105 480 112 512 128"></path>
+          <polygon class="fig-edge-h" points="521,132 511,131 514,124"></polygon>
+          <path class="fig-edge" d="M 366 145 C 440 100 540 108 582 128"></path>
+          <polygon class="fig-edge-h" points="591,132 581,131 584,124"></polygon>
+          <path class="fig-edge" d="M 366 147 C 460 96 600 104 652 128"></path>
+          <polygon class="fig-edge-h" points="661,132 651,131 654,124"></polygon>
+
+          <line class="fig-edge" x1="477" y1="150" x2="513" y2="150"></line>
+          <polygon class="fig-edge-h" points="523,150 513,153.5 513,146.5"></polygon>
+          <line class="fig-edge" x1="547" y1="150" x2="583" y2="150"></line>
+          <polygon class="fig-edge-h" points="593,150 583,153.5 583,146.5"></polygon>
+          <line class="fig-edge" x1="617" y1="150" x2="653" y2="150"></line>
+          <polygon class="fig-edge-h" points="663,150 653,153.5 653,146.5"></polygon>
+
+          <circle class="fig-node" cx="455" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="455" y="158" text-anchor="middle">d₁</text>
+          <circle class="fig-node" cx="525" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="525" y="158" text-anchor="middle">d₂</text>
+          <circle class="fig-node" cx="595" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="595" y="158" text-anchor="middle">d₃</text>
+          <circle class="fig-node" cx="665" cy="150" r="22"></circle>
+          <text class="fig-glyph" x="665" y="158" text-anchor="middle">d₄</text>
+
+          <text class="fig-label" x="455" y="198" text-anchor="middle">llegó</text>
+          <text class="fig-label" x="525" y="198" text-anchor="middle">la</text>
+          <text class="fig-label" x="595" y="198" text-anchor="middle">bruja</text>
+          <text class="fig-label" x="665" y="198" text-anchor="middle">verde</text>
+          <text class="fig-axname" x="560" y="64" text-anchor="middle">decoder — m states wide</text>
+
+          <text class="fig-axname" x="350" y="248" text-anchor="middle">everything the source said,
+          in one vector of fixed size — however long the source was</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The pinch in the middle">
+    <div class="slide-inner">
+      <p>The encoder is <math data-tex="n"><mi>n</mi></math> states wide and the decoder <math data-tex="m"><mi>m</mi></math>, and <math data-tex="n"><mi>n</mi></math> need not equal
+      <math data-tex="m"><mi>m</mi></math>. Between them sits <strong>one</strong> state.</p>
+      <footer>Every word of the source has to reach the decoder through it. The four fanned arrows
+      are equation (13.32), <math data-tex="c"><mi>c</mi></math> at every step rather than only the first. The pinch in the
+      middle is the shape of this session's closing problem.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what c is">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What is the context vector <math data-tex="c"><mi>c</mi></math> in this architecture?</p>
+        <div class="q-opts">
+          <button class="opt">The average of all the encoder's hidden states, so that every source word contributes equally to what the decoder receives</button>
+          <button class="opt">The embedding of the source sentence's most informative word, selected by the encoder as it reads through the sequence</button>
+          <button class="opt">The encoder's final hidden state — one vector of fixed size, whatever the length of the source</button>
+          <button class="opt">The sequence of all encoder hidden states, passed to the decoder so it can consult any source position it needs</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the encoder's final hidden state</strong>. Earlier source words reach
+          the decoder only through what survived the chain into that last state.</p>
+          <p>The first is a productive error worth remembering, because it is <em>nearly</em> what
+          session 28 will do. The fourth is closer still and equally not this: keeping all <math data-tex="n"><mi>n</mi></math>
+          states is exactly what the fixed-size <math data-tex="c"><mi>c</mi></math> refuses to do, and the refusal is the
+          point.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Training">
+    <div class="slide-inner">
+      <p>Training is end-to-end on paired strings, and the loss is the <strong>average
+      cross-entropy per target word</strong> — session 20's loss, unchanged.</p>
+      <footer>The optimisation is unchanged. The training procedure, however, has one feature worth
+      examining closely.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Teacher forcing">
+    <div class="slide-inner">
+      <h2>What the decoder is fed at step <math data-tex="t"><mi>t</mi></math></h2>
+      <table>
+        <tr><th></th><th>input to decoder step <math data-tex="t"><mi>t</mi></math></th><th>consequence</th></tr>
+        <tr><td>training</td><td>the gold word <math data-tex="y_{t-1}"><msub><mi>y</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math></td>
+        <td>every step is conditioned on a correct prefix</td></tr>
+        <tr><td>inference</td><td>the model's own <math data-tex="\hat{y}_{t-1}"><msub><mover><mi>y</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math></td>
+        <td>errors compound as generation continues</td></tr>
+      </table>
+      <p class="aside">SLP3 notes the consequence at inference: the decoder "will tend to deviate
+      more and more from the gold target sentence as it keeps generating". One wrong word early, and
+      everything after is conditioned on a mistake.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="The training/inference mismatch">
+    <div class="slide-inner">
+      <p><strong>The model is trained in a condition it never encounters when used.</strong></p>
+      <footer>It has only ever seen correct prefixes, and at inference it will routinely be standing
+      on its own errors.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Scheduled sampling">
+    <div class="slide-inner">
+      <p>One response is to narrow the gap during training: feed the gold word most of the time and
+      the model's own output some of the time, so it gets practice at recovering.</p>
+      <footer>That is <strong>scheduled sampling</strong>. You meet it in lab 10, where the decoder
+      takes a <code>sample_probability</code> argument controlling exactly this mixture.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: teacher forcing">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What is teacher forcing?</p>
+        <div class="q-opts">
+          <button class="opt">During training the decoder is fed the gold target word as its next input, rather than the word it actually predicted</button>
+          <button class="opt">During inference the decoder is fed the gold target word, which improves translation accuracy on the test set</button>
+          <button class="opt">The encoder is run twice, once forward and once backward, so the decoder is given a better-informed context vector to start from</button>
+          <button class="opt">The loss is weighted so that errors early in the target sentence count for more than errors made near the end</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the gold word is used as the decoder's input during training</strong>,
+          keeping every step conditioned on a correct prefix.</p>
+          <p>The second is the one to rule out firmly. At inference there is no gold target — that
+          is the thing being produced. If you had it, you would not need the model. The third
+          describes a bidirectional encoder, a real technique and not this one.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="What has to fit through c">
+    <div class="slide-inner">
+      <h2><math data-tex="c"><mi>c</mi></math> is a vector of fixed size — take <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math></h2>
+      <table>
+        <tr><th>source length</th><th>numbers entering the encoder</th><th>size of <math data-tex="c"><mi>c</mi></math></th>
+        <th>compression</th></tr>
+        <tr><td>4 words</td><td>1,200</td><td>300</td><td>4 : 1</td></tr>
+        <tr><td>10 words</td><td>3,000</td><td>300</td><td>10 : 1</td></tr>
+        <tr><td>25 words</td><td>7,500</td><td>300</td><td>25 : 1</td></tr>
+        <tr><td>50 words</td><td>15,000</td><td>300</td><td><strong>50 : 1</strong></td></tr>
+      </table>
+      <p class="aside">A fifty-word sentence is compressed more than twelve times harder than a
+      four-word one, and <strong>nothing in the architecture notices</strong>. There is no mechanism
+      that allocates more room, or that reports having run out.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Where this leaves the architecture">
+    <div class="slide-inner">
+      <p>Every word of the source must reach every word of the target through one fixed-size
+      vector.</p>
+      <footer>Whatever did not survive the encoder's chain into <math data-tex="h^e_n"><msubsup><mi>h</mi><mi>n</mi><mi>e</mi></msubsup></math> is <strong>not
+      available to the decoder at all</strong> — not attenuated, not harder to reach, simply absent.
+      The longer the source, the more that is.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where this session stops">
+    <div class="slide-inner">
+      <p>The problem is real, and it is a consequence of the <em>shape</em> rather than of the unit
+      inside it.</p>
+      <footer>It has a fix — which is session 28, and which begins by quoting the paragraph of SLP3
+      that starts exactly here.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Sequence labelling cannot translate: the alignment need not be monotonic, and the lengths
+      need not match. The encoder-decoder is a different shape — encoder, context vector, decoder —
+      and it is a shape rather than a model. The construction is a small change to a language model
+      we already had: separator, concatenate, train next-word.</p>
+      <footer>Teacher forcing trains it in a condition it never meets in use. And <math data-tex="c"><mi>c</mi></math> is one
+      fixed-size vector however long the source: at <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math>, fifty words squeezed 50 : 1
+      where four are squeezed 4 : 1.</footer>
     </div>
   </section>
 
@@ -1110,22 +1175,27 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          <strong>§13.7</strong> and <strong>§13.7.1</strong></p>
+          <p class="ref-note">Equations 13.28 to 13.32, with the same numbering used above. Stop at
+          the end of §13.7.1 — §13.8 is session 28 and it opens on the problem this session closed
+          with.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/13.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/13.pdf</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Sutskever et al. 2014</p>
+          <p class="ref-note">The paper that made this work at scale, with two differences from
+          §13.7 flagged in advance: it <strong>reverses the source sentence</strong> — which it calls
+          one of its key technical contributions, and which §13.7 never mentions — and it passes the
+          context <strong>only as the initial hidden state</strong>, the simpler design SLP3
+          improves on with (13.32). Both are correct descriptions of things people built.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1409.3215"
+          target="_blank" rel="noopener">arxiv.org/abs/1409.3215</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0028-attention.html">Next deck &mdash;
+      session 28: The bottleneck, and attention as the fix &rarr;</a>
     </div>
   </section>
 

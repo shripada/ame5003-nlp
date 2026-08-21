@@ -1,0 +1,1580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slides — Session 29: Self-attention</title>
+<style>
+/* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
+   Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
+   lesson.css, not a consumer of it — decks live in slides/, lessons in
+   lessons/, and the two documents have opposite goals (reading measure vs.
+   projector legibility), so this file duplicates the token blocks below
+   rather than @import-ing lesson.css and fighting its page rules.
+
+   KEEP THE TOKEN BLOCK BELOW IN SYNC WITH assets/lesson.css. Same names,
+   same values — only the layout below differs. */
+
+:root {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+strong { font-weight: 600; }
+
+/* ---- Deck + slide scaffolding ----
+   scroll-snap does the actual navigation. slides.js only adds keyboard/click
+   convenience on top — the deck already works with JS disabled. */
+.deck {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+.slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4vh 6vw;
+  position: relative;
+  text-align: center;
+}
+.slide-inner { width: 100%; max-width: 62rem; }
+
+/* ---- Eyebrow / kicker, reused across shapes ---- */
+.slide-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.2rem;
+}
+
+/* ---- Subordinate text, reused across shapes ----
+   The note under a code block, table or bullet list (.aside), and the qualifier
+   under a big statement (.slide--statement footer). Both say the thing the main
+   content needs in order to be read correctly — the callback, the caveat, the
+   pointer to the next session — so both are projected text and share one scale.
+   Sized here once for every shape: .aside used to be declared per shape, which
+   left the code and table slides with no rule at all and their notes at the
+   browser's 16px default. */
+.slide .aside,
+.slide--statement footer {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.slide .aside {
+  margin-top: 2rem;
+}
+
+/* ---- Shape: title ---- */
+.slide--title h1 {
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 1.12;
+  margin: 0 0 1.2rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.slide--title .subtitle {
+  color: var(--ink-soft);
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ---- Shape: bullets ---- */
+.slide--bullets h2,
+.slide--split h2,
+.slide--table h2,
+.slide--code h2,
+.slide--refs h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+.slide--bullets ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+.slide--bullets li {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  margin-bottom: .9rem;
+  /* In em, not rem: the indent has to grow with the bullet text, which itself
+     scales with the viewport. A fixed 1.6rem gap was narrower than one
+     character at projector size, so the marker crowded the first word. */
+  padding-left: 1.5em;
+  position: relative;
+}
+/* A round marker rather than an em dash. The dash is nearly a full em wide,
+   which is what left it sitting almost against the text, and it reads as
+   punctuation mid-sentence when a line wraps. This also matches the lessons,
+   which leave list markers at the browser's default disc. */
+.slide--bullets li::before {
+  content: "\2022";
+  position: absolute;
+  left: .1em;
+  color: var(--accent);
+  line-height: inherit;
+}
+/* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 46rem;
+}
+.ref-list li {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.ref-list li:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+/* The reading list is projected and then photographed off the screen, so all
+   three lines are sized to be read from the back of the room. The note is the
+   line that says which sections to actually read, which makes it the one that
+   matters most; it stays a step below the title, and the title moves up to keep
+   that order. */
+.ref-list .ref-title {
+  font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+  margin: 0 0 .5rem;
+}
+.ref-list .ref-note {
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0 0 .7rem;
+}
+.ref-list .ref-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.4vw, 1.05rem);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* The onward link, on the last slide of a deck. A deck is a standalone file
+   with no index above it, so this is the only way to reach the next session
+   without editing the URL. It is real markup rather than something the script
+   injects, for the same reason the deck-exit link is: the deck has to work
+   with JavaScript off. Sits inside the slide, not in the fixed chrome, so it
+   appears once, at the end, and never over a slide being presented. */
+.deck-onward {
+  display: inline-block;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.78rem, 1.3vw, .95rem);
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: .55rem 1rem;
+}
+.deck-onward:hover,
+.deck-onward:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Shape: statement (the big single-line slides) ---- */
+.slide--statement p {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.28;
+  margin: 0;
+  text-wrap: balance;
+}
+.slide--statement .lede {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, .9rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.6rem;
+}
+/* Size, line-height and colour come from the shared subordinate-text rule near
+   the top of this file, alongside .aside. Only the mono face and the spacing
+   above it are particular to the statement shape. */
+.slide--statement footer {
+  margin-top: 1.8rem;
+  font-family: var(--mono);
+}
+.slide--statement.warn p { color: var(--warn); }
+.slide--statement q { quotes: none; }
+/* A second statement paragraph, set off from the first. Use this rather than an
+   inline margin, so the gap is the same on every deck that needs it. */
+.slide--statement p.spaced { margin-top: 1.4rem; }
+
+/* ---- Shape: code ---- */
+.slide pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1.6rem 2rem;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.5rem);
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.slide code { font-family: var(--mono); }
+.slide pre code { background: none; padding: 0; }
+
+/* ---- Mathematics ----
+   Same contract as lessons: maths is authored as LaTeX in <m> and rendered to
+   MathML by tools/mathify.py, which writes the result into the deck. Nothing
+   is fetched when the deck is shown — no library, no webfont, no CDN, which
+   matters more here than in a lesson, because a deck is opened in front of a
+   room on whatever network the room has.
+
+       python3 tools/mathify.py slides/0029-self-attention.html
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Figure labels stay
+   <text> inside the SVG.
+
+   THE RUNTIME GROUP BELOW IS DUPLICATED FROM assets/lesson.css — trimmed from
+   Temml's stylesheet (MIT), plus that file's own Chromium and WebKit
+   corrections. It is copied for the same reason the token block above is:
+   a deck must stand alone. If you fix a rendering bug in one file, fix it in
+   the other. Only the sizing group at the end differs, because a lesson is
+   read at arm's length and a deck from the back of a room.
+
+   Colour is never set here. MathML paints in currentColor, so it follows
+   --ink and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium reserves the radical glyph's full advance and then draws the
+     overbar to fit the content, leaving <msqrt> a box 0.42em wider than its
+     ink. Scale-invariant, so it corrects in em. See lesson.css for the
+     measurement; recheck it if --math changes. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* ---- Sizing: this is the part that differs from lesson.css ----
+   A variable in a bullet inherits that bullet's clamp, so inline maths is
+   corrected relatively, exactly as in a lesson — a symbol in prose must not
+   open the leading. */
+.slide p math, .slide li math, .slide td math, .slide th math,
+.slide .q-text math, .slide .subtitle math, .slide .aside math {
+  font-size: 1.06em;
+}
+
+/* Display equations. Centred rather than left-aligned, and with no reading
+   measure: 55ch is right for a paragraph and wrong for a projector. The
+   equation number is SLP3's, printed as text — a citation into the book, not
+   a counter of ours — so it must not renumber itself when a deck quotes
+   equations out of order. */
+.slide .meq {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.4rem;
+  margin: 1.8rem 0 0;
+  overflow-x: auto;
+  font-size: clamp(1.3rem, 3.2vw, 2.4rem);
+}
+.slide .meq > math { flex: 0 1 auto; }
+.slide .meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: clamp(.8rem, 1.3vw, 1rem);
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* Shape: math — a heading and one equation, the display counterpart of
+   slide--statement. Nothing else: if a slide needs prose around the equation,
+   it is a bullets or statement slide with a .meq inside it. */
+.slide--math h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 1.4rem;
+  text-wrap: balance;
+}
+/* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
+.slide--split .split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem;
+  text-align: left;
+  align-items: start;
+}
+.slide--split .split-col .col-label {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .7rem;
+}
+.slide--split .split-col.bad .col-label { color: var(--bad); }
+.slide--split .split-col.good .col-label { color: var(--ok); }
+.slide--split .split-col.bad pre { border-left-color: var(--bad); }
+.slide--split .split-col.good pre { border-left-color: var(--ok); }
+@media (max-width: 900px) {
+  .slide--split .split-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Shape: table (own larger-type variant — lesson.css's tables are too
+   dense to read from the back of a room) ---- */
+.slide--table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  text-align: left;
+}
+.slide--table th, .slide--table td {
+  padding: .8rem 1.4rem .8rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.slide--table th {
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: .82em;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.slide--table td code, .slide--table th code { font-size: 1em; }
+
+/* ---- Quiz / recall reuse (assets/quiz.js) — scoped to fit one viewport ---- */
+.slide .quiz, .slide .recall {
+  text-align: left;
+  max-width: 46rem;
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 1.8rem 2.2rem;
+  margin: 0 auto;
+}
+.slide .recall { border-style: dashed; border-color: var(--ink-faint); }
+.slide .q-num, .slide .recall .label {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .8rem;
+}
+.slide .q-text { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: 0 0 1.2rem; }
+.slide .q-opts { display: flex; flex-direction: column; gap: .6rem; }
+.slide button.opt {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-align: left;
+  padding: .7rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.slide button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.slide button.opt:disabled { cursor: default; opacity: .55; }
+.slide button.opt.correct { background: var(--ok-bg); border-color: var(--ok); opacity: 1; font-weight: 600; }
+.slide button.opt.wrong { background: var(--bad-bg); border-color: var(--bad); opacity: 1; }
+.slide .q-fb {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.9rem, 1.6vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.slide .q-fb.show { display: block; }
+.slide .q-fb strong { color: var(--ink); }
+.slide button.reveal {
+  font-family: var(--mono);
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .55rem 1.1rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .9rem;
+}
+.slide button.reveal:hover { background: var(--code-bg); }
+.slide .recall .answer {
+  display: none;
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.95rem, 1.7rem, 1.15rem);
+}
+.slide .recall .answer.show { display: block; }
+
+/* ---- SVG diagram furniture (local copies of lesson.css's .fig-* pattern) ---- */
+.slide-fig { margin: 1.6rem auto 0; max-width: 46rem; }
+.slide-fig svg { width: 100%; height: auto; overflow: visible; }
+.fig-word { fill: var(--ink); font-family: var(--serif); font-size: 22px; }
+.fig-arc { stroke: var(--ink-faint); stroke-width: 1.6; fill: none; }
+.fig-arc-a { stroke: var(--accent); }
+.fig-arc-b { stroke: var(--ok); }
+.fig-arc-label { fill: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+
+/* ---- Chrome: progress bar + counter ---- */
+.deck-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  z-index: 60;
+  transition: width .15s ease-out;
+}
+.deck-exit {
+  position: fixed;
+  top: .9rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  z-index: 60;
+  background: var(--bg);
+  padding: .3rem .6rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.deck-exit:hover { color: var(--accent); border-color: var(--accent); }
+.deck-counter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+}
+
+/* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
+.deck-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  overflow-y: auto;
+  padding: 4vh 6vw;
+}
+.deck-overview.show { display: block; }
+.deck-overview ol {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+  counter-reset: ov;
+}
+.deck-overview li {
+  counter-increment: ov;
+  font-size: 1.15rem;
+  padding: .6rem .8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+}
+.deck-overview li::before {
+  content: counter(ov, decimal-leading-zero);
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  font-size: .85rem;
+  padding-top: .15rem;
+}
+.deck-overview li:hover, .deck-overview li.current { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+  .slide { height: auto; min-height: 100vh; page-break-after: always; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+}
+
+
+/* Set diagram (session 1: how NLP relates to AI). Mirrors the lesson figure;
+   labels are larger here because a slide is read from the back of a room. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.6; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .12; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .15; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .22; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .20; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .14; }
+.fig-setname  { fill: var(--ink); font-size: 19px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
+
+/* Scatter plot (session 17: documents as points). Mirrors lesson.css's
+   .fig-axis/.fig-pt vocabulary rule for rule; only the type sizes differ,
+   because a slide is read from the back of a room and 12px axis labels are
+   not. Reused by session 19's angle figure. */
+.fig-axis   { stroke: var(--rule); stroke-width: 2; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1.4; }
+.fig-label  { fill: var(--ink-faint); font-size: 15px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 17px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 17px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.8; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
+/* Vector arrows (session 19: cosine as an angle). Local copies of lesson.css's
+   .fig-vec/.fig-head/.fig-gap. .fig-arc is already defined above, for session
+   1's figure, and is reused here for the angle arc. */
+.fig-vec    { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2.5; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2.5; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 2 3; }
+
+/* Network diagrams (session 20 onward: neurons, layers, loss curves). Local
+   copies of lesson.css's .fig-node/.fig-edge/.fig-glyph vocabulary, at slide
+   sizes. .fig-edge-w carries its weight as an inline opacity, as in the
+   lessons — the class only supplies colour and width. */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 2; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 2; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-edge-w { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 21px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+
+/* Gates and operators sitting on a line (session 25's LSTM, session 26's GRU).
+   Local copies of lesson.css's .fig-gate pair, at slide type sizes. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.8; }
+.fig-gate-t  { fill: var(--ink); font-size: 17px; text-anchor: middle; }
+
+/* A shaded region marking blocked or unreachable values (session 26's dial,
+   and the masked future in 29 and 31). Local copy of lesson.css's .fig-mask. */
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+
+/* Matrix cells shaded by a weight (session 29's attention matrix onward).
+   Local copies of lesson.css's pair: .fig-cell carries no stroke of its own,
+   because the grid is a separate layer of .fig-cellg rectangles drawn over the
+   shading, so a cell whose weight is zero still shows its outline. Opacity is
+   set inline per cell, as in the lessons. */
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+
+</style>
+</head>
+<body>
+
+<div class="deck-progress"></div>
+<a class="deck-exit" href="../lessons/0029-self-attention.html">&larr; Lesson</a>
+<div class="deck-counter"></div>
+
+<div class="deck">
+
+  <section class="slide slide--title" data-title="Title">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 29</p>
+      <h1>Self-attention: query, key, value, and the <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math></h1>
+      <p class="subtitle">Session 28's three operations, pointed at one sequence instead of two. The
+      arithmetic barely changes. What changes is that the recurrence is left with nothing to do — and
+      that a set of vectors compared pairwise has no notion of word order at all.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One sequence, not two">
+    <div class="slide-inner">
+      <p>Session 28's two sequences were different sequences: a decoder state asked the question and
+      the encoder states answered it.</p>
+      <footer>In <strong>self-attention</strong>, each position of a sequence attends to positions of
+      that <em>same</em> sequence. Nothing in score–softmax–weighted-average changes. What changes is
+      what is being compared to what.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why that is worth doing">
+    <div class="slide-inner">
+      <p class="lede">SLP3's opening example: <em>The chicken didn't cross the road because it was
+      too tired</em></p>
+      <p>Computing the representation for <em>it</em>, "the tokens <strong>chicken</strong> and
+      <strong>road</strong> both have a high attention weight… since it will end up coreferring with
+      either <em>chicken</em> or <em>road</em>."</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The same job, reached differently">
+    <div class="slide-inner">
+      <p>This is the job session 23's recurrence was doing — build a representation of a word that
+      depends on its context.</p>
+      <footer>The RNN carried context forward one step at a time through <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math>. Self-attention
+      fetches it directly, in one operation, from wherever in the sentence it happens to be.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Three roles">
+    <div class="slide-inner">
+      <p class="lede">Three names, introduced as three roles one input vector plays</p>
+      <p>A <strong>query</strong> is what a position uses to ask. A <strong>key</strong> is what it
+      offers to be matched against. A <strong>value</strong> is what it contributes once matched.</p>
+      <footer>Every position plays all three in one layer: query when its own output is being
+      computed, key and value when everybody else's is.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Three projections">
+    <div class="slide-inner">
+      <h2>Each role gets its own learned projection</h2>
+      <div class="meq" data-eqno="8.9"><math data-tex="q_i = x_i W^Q \qquad k_i = x_i W^K \qquad v_i = x_i W^V" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>Q</mi></msup><mspace width="2em"></mspace><msub><mi>k</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>K</mi></msup><mspace width="2em"></mspace><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>V</mi></msup></mrow></math><span class="eqno">(8.9)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The shapes">
+    <div class="slide-inner">
+      <p><math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math> and <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math> are both <math data-tex="[d \times d_k]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><msub><mi>d</mi><mi>k</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math> — a query and a key get
+      dot-producted together, so they must have the same dimensionality.</p>
+      <footer><math data-tex="W^V"><msup><mi>W</mi><mi>V</mi></msup></math> is <math data-tex="[d \times d_v]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>d</mi><mo>×</mo><msub><mi>d</mi><mi>v</mi></msub><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and <math data-tex="d_v"><msub><mi>d</mi><mi>v</mi></msub></math> is free. Nothing dots a value
+      against anything.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Session 25's diagnosis again">
+    <div class="slide-inner">
+      <p>Session 25 opened on one vector asked to do more than one job: a plain RNN's <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is
+      the memory, the output and the next input at once. Its answer was to <strong>split the
+      vector</strong>.</p>
+      <footer>Self-attention reaches the same diagnosis about <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> and answers it differently:
+      <strong>project the vector three ways instead of splitting it</strong>. The projections are
+      learned, so what a position advertises as a key need not be what it hands over as a
+      value.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The whole layer">
+    <div class="slide-inner">
+      <h2>Single-head self-attention, in SLP3's numbering</h2>
+      <table>
+        <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+        <tr><td>project each input into its three roles</td>
+        <td><math data-tex="q_i = x_i W^Q \quad k_j = x_j W^K \quad v_j = x_j W^V"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>Q</mi></msup><mspace width="1em"></mspace><msub><mi>k</mi><mi>j</mi></msub><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msup><mi>W</mi><mi>K</mi></msup><mspace width="1em"></mspace><msub><mi>v</mi><mi>j</mi></msub><mo>=</mo><msub><mi>x</mi><mi>j</mi></msub><msup><mi>W</mi><mi>V</mi></msup></mrow></math></td><td>(8.10)</td></tr>
+        <tr><td><strong>score</strong>, scaled</td>
+        <td><math data-tex="\mathrm{score}(x_i, x_j) = \dfrac{q_i \cdot k_j}{\sqrt{d_k}}"><mrow><mpadded lspace="0"><mi>score</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mstyle displaystyle="true" scriptlevel="0"><mfrac><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></mfrac></mstyle></mrow></math></td><td>(8.11)</td></tr>
+        <tr><td><strong>normalise</strong> into weights</td>
+        <td><math data-tex="\alpha_{ij} = \mathrm{softmax}(\mathrm{score}(x_i, x_j))\ \forall j \le i"><mrow><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>score</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><msub><mi>x</mi><mi>j</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mtext> </mtext><mi>∀</mi><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math></td>
+        <td>(8.12)</td></tr>
+        <tr><td><strong>average</strong> the values</td>
+        <td><math data-tex="\mathrm{head}_i = \sum_{j \le i} \alpha_{ij} v_j"><mrow><msub><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi></msub><mo>=</mo><msub><mo movablelimits="false">∑</mo><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></msub><msub><mi>α</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub><msub><mi>v</mi><mi>j</mi></msub></mrow></math></td><td>(8.13)</td></tr>
+        <tr><td>reshape the result</td><td><math data-tex="a_i = \mathrm{head}_i W^O"><mrow><msub><mi>a</mi><mi>i</mi></msub><mo>=</mo><msub><mpadded lspace="0"><mi>head</mi></mpadded><mi>i</mi></msub><msup><mi>W</mi><mi>O</mi></msup></mrow></math></td><td>(8.14)</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Two differences and no others">
+    <div class="slide-inner">
+      <h2>The middle three are session 28's three, unchanged</h2>
+      <ul>
+        <li><strong>The score compares projections instead of raw states.</strong> And it is a
+        <em>parameterised</em> score:
+        <math data-tex="q_i \cdot k_j = x_i W^Q (W^K)^{\mathsf{T}} x_j^{\mathsf{T}}"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub><msup><mi>W</mi><mi>Q</mi></msup><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msup><mi>W</mi><mi>K</mi></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>𝖳</mi></msup><msubsup><mi>x</mi><mi>j</mi><mi class="tml-sml-pad">𝖳</mi></msubsup></mrow></math> is (13.38)'s bilinear form with
+        <math data-tex="W_s = W^Q (W^K)^{\mathsf{T}}"><mrow><msub><mi>W</mi><mi>s</mi></msub><mo>=</mo><msup><mi>W</mi><mi>Q</mi></msup><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msup><mi>W</mi><mi>K</mi></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>𝖳</mi></msup></mrow></math>. Session 28's table already had a row for this</li>
+        <li><strong>The score is divided by <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>.</strong> That is the next section</li>
+      </ul>
+      <p class="aside">(8.14) is new rather than different: <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> reshapes the head's output
+      back to width <math data-tex="d"><mi>d</mi></math>, so the layer can be stacked. It does no attending, and it matters far
+      more in session 30.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Why the sum runs over j less than i">
+    <div class="slide-inner">
+      <p>Chapter 8 develops self-attention for a <em>left-to-right language model</em>, so every
+      equation restricts attention to the current position and earlier ones. A model trained to
+      predict the next word must not be allowed to look at it.</p>
+      <footer>That restriction is <strong>causal masking</strong>, it is not part of the mechanism,
+      and session 31 teaches it once encoder and decoder blocks are separated. For now: the sum runs
+      over <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> because chapter 8's model is a decoder.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="SLP3's reason for the scaling">
+    <div class="slide-inner">
+      <p>The chapter says the scaling exists because "the result of a dot product can be an
+      arbitrarily large value, and exponentiating large values can lead to numerical issues and loss
+      of gradients during training".</p>
+      <footer>That explains why <em>some</em> division is wanted. It does not explain why the divisor
+      is <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> rather than <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>, or <math data-tex="\log d_k"><mrow><mrow><mi>log</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow><msub><mi>d</mi><mi>k</mi></msub></mrow></math>, or 10.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Vaswani's footnote 4">
+    <div class="slide-inner">
+      <p class="lede">The derivation, and it is two sentences</p>
+      <p>"Assume that the components of <math data-tex="q"><mi>q</mi></math> and <math data-tex="k"><mi>k</mi></math> are independent random variables with
+      mean 0 and variance 1. Then their dot product, <math data-tex="q \cdot k = \sum_i q_i k_i"><mrow><mi>q</mi><mo>⋅</mo><mi>k</mi><mo>=</mo><msub><mo movablelimits="false">∑</mo><mi>i</mi></msub><msub><mi>q</mi><mi>i</mi></msub><msub><mi>k</mi><mi>i</mi></msub></mrow></math>, has mean 0
+      and variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>."</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The whole argument">
+    <div class="slide-inner">
+      <p>A dot product of two <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>-dimensional vectors is a sum of <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> independent
+      terms; variances of independent terms add. Variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math> means a standard deviation of
+      <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>.</p>
+      <footer>So the typical size of a score grows like <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>, and dividing by
+      <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> puts it back to about 1 whatever the dimension. <strong>The divisor is the
+      standard deviation of the thing being divided.</strong></footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Checked by simulation">
+    <div class="slide-inner">
+      <h2>20,000 pairs of vectors per row, standard normal components</h2>
+      <table>
+        <tr><th><math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math></th><th>observed var(<math data-tex="q \cdot k"><mrow><mi>q</mi><mo>⋅</mo><mi>k</mi></mrow></math>)</th><th>predicted variance</th>
+        <th>observed sd</th><th><math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math></th></tr>
+        <tr><td>8</td><td>8.0</td><td>8</td><td>2.82</td><td>2.83</td></tr>
+        <tr><td>64</td><td>63.6</td><td>64</td><td>7.98</td><td>8.00</td></tr>
+        <tr><td>512</td><td>515.1</td><td>512</td><td>22.70</td><td>22.63</td></tr>
+      </table>
+      <p class="aside"><math data-tex="d_k = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>64</mn></mrow></math> is the original transformer's value, so the middle row is the
+      case that matters: without the division, scores reach the softmax spread over about ±8 instead
+      of ±1.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What a softmax does with that">
+    <div class="slide-inner">
+      <p><math data-tex="e^{8} \approx 2981"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">8</mn></msup><mo>≈</mo><mn>2981</mn></mrow></math> against <math data-tex="e^{-8} \approx 0.0003"><mrow><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>8</mn></mrow></msup><mo>≈</mo><mn>0.0003</mn></mrow></math>. The largest score takes
+      essentially all the weight and every other position is switched off.</p>
+      <footer>That is a <strong>saturated</strong> softmax, and its real cost is the gradient: a
+      weight already at 0.9999 has almost no derivative, so nothing about the scores can be learned
+      any more. The scaling does not change what the softmax computes — it keeps its input in the
+      range where it still distinguishes things.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Session 28's objection, settled in part">
+    <div class="slide-inner">
+      <p>The objection was correct and the promise was that this session would divide. But the two
+      divisions are not the same division.</p>
+      <footer><strong>Cosine divides by the actual lengths of the two vectors in front of it.
+      <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> divides by the expected scale of a score at this dimensionality</strong> —
+      one constant, identical for every pair. A key with a large norm still scores highly against
+      everything. What keeps that from being fatal is layer normalisation, in session 31.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: three vectors by hand">
+    <div class="slide-inner">
+      <h2>Exercise</h2>
+      <div class="recall">
+        <span class="label">Take <math data-tex="W^Q = W^K = W^V = I"><mrow><msup><mi>W</mi><mi>Q</mi></msup><mo>=</mo><msup><mi>W</mi><mi>K</mi></msup><mo>=</mo><msup><mi>W</mi><mi>V</mi></msup><mo>=</mo><mi>I</mi></mrow></math>, so <math data-tex="q_i = k_i = v_i = x_i"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>=</mo><msub><mi>k</mi><mi>i</mi></msub><mo>=</mo><msub><mi>v</mi><mi>i</mi></msub><mo>=</mo><msub><mi>x</mi><mi>i</mi></msub></mrow></math></span>
+        <div class="meq"><math data-tex="x_1 = (1,\, 0) \qquad x_2 = (0,\, 1) \qquad x_3 = (1,\, 1)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="2em"></mspace><msub><mi>x</mi><mn>3</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+        <p>Compute <math data-tex="\alpha_{2j}"><msub><mi>α</mi><mrow><mn>2</mn><mi>j</mi></mrow></msub></math> and <math data-tex="\mathrm{head}_2"><msub><mpadded lspace="0"><mi>head</mi></mpadded><mn>2</mn></msub></math>, with <math data-tex="d_k = 2"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>2</mn></mrow></math> so
+        <math data-tex="\sqrt{d_k} = 1.4142"><mrow><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo>=</mo><mn>1.4142</mn></mrow></math>, attending over all three. Then: what happens to those weights if
+        all three inputs are multiplied by 10?</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p>Raw dot products with <math data-tex="q_2 = (0,1)"><mrow><msub><mi>q</mi><mn>2</mn></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0,1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>: 0, 1, 1. Divided by 1.4142 the scaled scores
+          are 0.0000, 0.7071, 0.7071, and the softmax gives
+          <strong>0.1978, 0.4011, 0.4011</strong>.</p>
+          <div class="meq"><math data-tex="\mathrm{head}_2 = 0.1978\,(1,0) + 0.4011\,(0,1) + 0.4011\,(1,1) = (0.5989,\, 0.8022)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mpadded lspace="0"><mi>head</mi></mpadded><mn>2</mn></msub><mo>=</mo><mn>0.1978</mn><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1,0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>0.4011</mn><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0,1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mn>0.4011</mn><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1,1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0.5989</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0.8022</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+          <p>Positions 2 and 3 tie, as they should. Position 1 is orthogonal to the query and still
+          gets weight 0.198 — a score of zero is not a weight of zero, because <math data-tex="e^{0} = 1"><mrow><msup><mi>e</mi><mn class="tml-sml-pad">0</mn></msup><mo>=</mo><mn>1</mn></mrow></math>.</p>
+          <p><strong>Times 10:</strong> both query and keys grew, so the dot products grow by
+          <strong>100</strong> — 0, 100, 100, scaled to 0, 70.71, 70.71. The weights become
+          <math data-tex="9.8 \times 10^{-32}"><mrow><mn>9.8</mn><mo>×</mo><msup><mn>10</mn><mrow><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><mn>32</mn></mrow></msup></mrow></math>, 0.5, 0.5. One of the three inputs has been erased from the
+          output entirely, and nothing was masked; the softmax saturated on its own. All information
+          about <em>how much</em> more relevant the survivors were is flattened too.</p>
+          <p>Scaling inputs by 10 is not something that happens on purpose. Increasing <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>
+          is, and by footnote 4 it has the same effect for the same reason. Note the word
+          <em>delay</em>: dividing by a constant slows the growth, it does not abolish it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What it buys">
+    <div class="slide-inner">
+      <p>Sessions 25 and 26 closed on the same limitation: <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> cannot be computed until
+      <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> exists.</p>
+      <footer>Self-attention has no such dependency. Every <math data-tex="a_i"><msub><mi>a</mi><mi>i</mi></msub></math> depends only on the <math data-tex="x"><mi>x</mi></math>s
+      and never on any other <math data-tex="a"><mi>a</mi></math> — so all <math data-tex="n"><mi>n</mi></math> outputs can be computed at once.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The packed form">
+    <div class="slide-inner">
+      <h2>Pack the <math data-tex="N"><mi>N</mi></math> embeddings into <math data-tex="X"><mi>X</mi></math>, one token per row</h2>
+      <table>
+        <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+        <tr><td>all projections at once</td>
+        <td><math data-tex="Q = X W^Q \quad K = X W^K \quad V = X W^V"><mrow><mi>Q</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>Q</mi></msup><mspace width="1em"></mspace><mi>K</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>K</mi></msup><mspace width="1em"></mspace><mi>V</mi><mo>=</mo><mi>X</mi><msup><mi>W</mi><mi>V</mi></msup></mrow></math></td><td>(8.32)</td></tr>
+        <tr><td>the whole head</td>
+        <td><math data-tex="\mathrm{head} = \mathrm{softmax}(\mathrm{mask}(Q K^{\mathsf{T}} / \sqrt{d_k}))\, V"><mrow><mpadded lspace="0"><mi>head</mi></mpadded><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>mask</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>V</mi></mrow></math></td>
+        <td>(8.33)</td></tr>
+        <tr><td>output projection</td><td><math data-tex="A = \mathrm{head}\, W^O"><mrow><mi>A</mi><mo>=</mo><mpadded lspace="0"><mi>head</mi></mpadded><mspace width="0.1667em"></mspace><msup><mi>W</mi><mi>O</mi></msup></mrow></math></td><td>(8.34)</td></tr>
+      </table>
+      <p class="aside"><math data-tex="Q K^{\mathsf{T}}"><mrow><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup></mrow></math> is <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math>, and its <math data-tex="(i,j)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>i</mi><mo separator="true">,</mo><mi>j</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math> entry is
+      <math data-tex="q_i \cdot k_j"><mrow><msub><mi>q</mi><mi>i</mi></msub><mo>⋅</mo><msub><mi>k</mi><mi>j</mi></msub></mrow></math> — every score in the layer, in one multiplication.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="At what scale this matters">
+    <div class="slide-inner">
+      <p>SLP3 gives <math data-tex="N"><mi>N</mi></math> for real language models as commonly 1K to 32K tokens. That is the
+      scale at which "one matrix multiply rather than <math data-tex="N"><mi>N</mi></math> sequential steps" stops being an
+      aesthetic preference.</p>
+      <footer>It is also, unavoidably, an <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix — so the cost is
+      <strong>quadratic in sequence length</strong>. That is the price this design pays.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="And the distance collapses">
+    <div class="slide-inner">
+      <h2>A separate gain, easy to conflate with parallelism</h2>
+      <table>
+        <tr><th>sequence length <math data-tex="n"><mi>n</mi></math></th><th>RNN: steps from token 1 to token <math data-tex="n"><mi>n</mi></math></th>
+        <th>self-attention</th></tr>
+        <tr><td>10</td><td>9</td><td>1</td></tr>
+        <tr><td>50</td><td>49</td><td>1</td></tr>
+        <tr><td>200</td><td>199</td><td><strong>1</strong></td></tr>
+      </table>
+      <p class="aside">Session 24's subject was <math data-tex="U^{n-1}"><msup><mi>U</mi><mrow class="tml-sml-pad"><mi>n</mi><mo>−</mo><mn>1</mn></mrow></msup></math> either vanishing or exploding. Here
+      there is no such product, because there is no chain. The problem is not mitigated — the
+      structure that caused it is absent.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The attention matrix">
+    <div class="slide-inner">
+      <h2>One sentence attending to itself — equation (8.33) after mask and softmax</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 700 480" role="img" aria-labelledby="amtitle amdesc">
+        <title id="amtitle">The attention matrix for one sentence attending to itself</title>
+        <desc id="amdesc">An eleven by eleven grid. The sentence "The chicken didn't cross the road because
+        it was too tired" runs down the left side, one token per row, and across the top, one token per
+        column. Each cell is shaded in proportion to the attention weight from the row's token to the
+        column's token. The upper triangle above the diagonal is greyed out and empty, because a token may
+        not attend to tokens that follow it. The diagonal is generally dark, since a token is similar to
+        itself. In the row for the word "it", two cells off the diagonal are conspicuously darker than the
+        rest: the cells in the columns for "chicken" and "road".</desc>
+
+        <!-- weighted cells: fill-opacity is the attention weight itself -->
+        <rect class="fig-cell" x="132" y="112" width="30" height="30" fill-opacity="1.00"></rect>
+        <rect class="fig-cell" x="132" y="142" width="30" height="30" fill-opacity="0.25"></rect><rect class="fig-cell" x="162" y="142" width="30" height="30" fill-opacity="0.75"></rect>
+        <rect class="fig-cell" x="132" y="172" width="30" height="30" fill-opacity="0.13"></rect><rect class="fig-cell" x="162" y="172" width="30" height="30" fill-opacity="0.33"></rect><rect class="fig-cell" x="192" y="172" width="30" height="30" fill-opacity="0.54"></rect>
+        <rect class="fig-cell" x="132" y="202" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="162" y="202" width="30" height="30" fill-opacity="0.32"></rect><rect class="fig-cell" x="192" y="202" width="30" height="30" fill-opacity="0.21"></rect><rect class="fig-cell" x="222" y="202" width="30" height="30" fill-opacity="0.39"></rect>
+        <rect class="fig-cell" x="132" y="232" width="30" height="30" fill-opacity="0.23"></rect><rect class="fig-cell" x="162" y="232" width="30" height="30" fill-opacity="0.10"></rect><rect class="fig-cell" x="192" y="232" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="222" y="232" width="30" height="30" fill-opacity="0.17"></rect><rect class="fig-cell" x="252" y="232" width="30" height="30" fill-opacity="0.41"></rect>
+        <rect class="fig-cell" x="132" y="262" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="162" y="262" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="192" y="262" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="222" y="262" width="30" height="30" fill-opacity="0.20"></rect><rect class="fig-cell" x="252" y="262" width="30" height="30" fill-opacity="0.25"></rect><rect class="fig-cell" x="282" y="262" width="30" height="30" fill-opacity="0.34"></rect>
+        <rect class="fig-cell" x="132" y="292" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="162" y="292" width="30" height="30" fill-opacity="0.11"></rect><rect class="fig-cell" x="192" y="292" width="30" height="30" fill-opacity="0.10"></rect><rect class="fig-cell" x="222" y="292" width="30" height="30" fill-opacity="0.22"></rect><rect class="fig-cell" x="252" y="292" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="282" y="292" width="30" height="30" fill-opacity="0.15"></rect><rect class="fig-cell" x="312" y="292" width="30" height="30" fill-opacity="0.29"></rect>
+        <rect class="fig-cell" x="132" y="322" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="162" y="322" width="30" height="30" fill-opacity="0.33"></rect><rect class="fig-cell" x="192" y="322" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="222" y="322" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="252" y="322" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="282" y="322" width="30" height="30" fill-opacity="0.27"></rect><rect class="fig-cell" x="312" y="322" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="342" y="322" width="30" height="30" fill-opacity="0.11"></rect>
+        <rect class="fig-cell" x="132" y="352" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="162" y="352" width="30" height="30" fill-opacity="0.11"></rect><rect class="fig-cell" x="192" y="352" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="222" y="352" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="252" y="352" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="282" y="352" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="312" y="352" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="342" y="352" width="30" height="30" fill-opacity="0.22"></rect><rect class="fig-cell" x="372" y="352" width="30" height="30" fill-opacity="0.25"></rect>
+        <rect class="fig-cell" x="132" y="382" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="162" y="382" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="192" y="382" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="222" y="382" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="252" y="382" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="282" y="382" width="30" height="30" fill-opacity="0.07"></rect><rect class="fig-cell" x="312" y="382" width="30" height="30" fill-opacity="0.08"></rect><rect class="fig-cell" x="342" y="382" width="30" height="30" fill-opacity="0.11"></rect><rect class="fig-cell" x="372" y="382" width="30" height="30" fill-opacity="0.14"></rect><rect class="fig-cell" x="402" y="382" width="30" height="30" fill-opacity="0.26"></rect>
+        <rect class="fig-cell" x="132" y="412" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="162" y="412" width="30" height="30" fill-opacity="0.15"></rect><rect class="fig-cell" x="192" y="412" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="222" y="412" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="252" y="412" width="30" height="30" fill-opacity="0.04"></rect><rect class="fig-cell" x="282" y="412" width="30" height="30" fill-opacity="0.06"></rect><rect class="fig-cell" x="312" y="412" width="30" height="30" fill-opacity="0.05"></rect><rect class="fig-cell" x="342" y="412" width="30" height="30" fill-opacity="0.20"></rect><rect class="fig-cell" x="372" y="412" width="30" height="30" fill-opacity="0.09"></rect><rect class="fig-cell" x="402" y="412" width="30" height="30" fill-opacity="0.10"></rect><rect class="fig-cell" x="432" y="412" width="30" height="30" fill-opacity="0.18"></rect>
+
+        <!-- the future: blanked before the softmax (session 31) -->
+        <rect class="fig-mask" x="162" y="112" width="300" height="30"></rect>
+        <rect class="fig-mask" x="192" y="142" width="270" height="30"></rect>
+        <rect class="fig-mask" x="222" y="172" width="240" height="30"></rect>
+        <rect class="fig-mask" x="252" y="202" width="210" height="30"></rect>
+        <rect class="fig-mask" x="282" y="232" width="180" height="30"></rect>
+        <rect class="fig-mask" x="312" y="262" width="150" height="30"></rect>
+        <rect class="fig-mask" x="342" y="292" width="120" height="30"></rect>
+        <rect class="fig-mask" x="372" y="322" width="90" height="30"></rect>
+        <rect class="fig-mask" x="402" y="352" width="60" height="30"></rect>
+        <rect class="fig-mask" x="432" y="382" width="30" height="30"></rect>
+
+        <!-- grid -->
+        <rect class="fig-cellg" x="132" y="112" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="142" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="172" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="202" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="232" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="262" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="292" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="322" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="352" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="382" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="412" width="330" height="30"></rect>
+        <rect class="fig-cellg" x="132" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="162" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="192" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="222" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="252" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="282" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="312" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="342" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="372" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="402" y="112" width="30" height="330"></rect>
+        <rect class="fig-cellg" x="432" y="112" width="30" height="330"></rect>
+
+        <!-- row labels: the query -->
+        <text class="fig-label" x="126" y="132" text-anchor="end">The</text>
+        <text class="fig-label" x="126" y="162" text-anchor="end">chicken</text>
+        <text class="fig-label" x="126" y="192" text-anchor="end">didn&#39;t</text>
+        <text class="fig-label" x="126" y="222" text-anchor="end">cross</text>
+        <text class="fig-label" x="126" y="252" text-anchor="end">the</text>
+        <text class="fig-label" x="126" y="282" text-anchor="end">road</text>
+        <text class="fig-label" x="126" y="312" text-anchor="end">because</text>
+        <text class="fig-label" x="126" y="342" text-anchor="end">it</text>
+        <text class="fig-label" x="126" y="372" text-anchor="end">was</text>
+        <text class="fig-label" x="126" y="402" text-anchor="end">too</text>
+        <text class="fig-label" x="126" y="432" text-anchor="end">tired</text>
+
+        <!-- column labels: the key -->
+        <text class="fig-label" x="152" y="104" transform="rotate(-45 152 104)">The</text>
+        <text class="fig-label" x="182" y="104" transform="rotate(-45 182 104)">chicken</text>
+        <text class="fig-label" x="212" y="104" transform="rotate(-45 212 104)">didn&#39;t</text>
+        <text class="fig-label" x="242" y="104" transform="rotate(-45 242 104)">cross</text>
+        <text class="fig-label" x="272" y="104" transform="rotate(-45 272 104)">the</text>
+        <text class="fig-label" x="302" y="104" transform="rotate(-45 302 104)">road</text>
+        <text class="fig-label" x="332" y="104" transform="rotate(-45 332 104)">because</text>
+        <text class="fig-label" x="362" y="104" transform="rotate(-45 362 104)">it</text>
+        <text class="fig-label" x="392" y="104" transform="rotate(-45 392 104)">was</text>
+        <text class="fig-label" x="422" y="104" transform="rotate(-45 422 104)">too</text>
+        <text class="fig-label" x="452" y="104" transform="rotate(-45 452 104)">tired</text>
+
+        <!-- axis names and the two annotations -->
+        <text class="fig-axname" x="20" y="100">queries</text>
+        <text class="fig-axname" x="480" y="60">keys →</text>
+        <text class="fig-axname" x="480" y="335">← this row is</text>
+        <text class="fig-axname" x="480" y="355">one softmax:</text>
+        <text class="fig-axname" x="480" y="375">11 cells,</text>
+        <text class="fig-axname" x="480" y="395">summing to 1</text>
+        <text class="fig-axname" x="252" y="150">the future,</text>
+        <text class="fig-axname" x="252" y="170">blanked before</text>
+        <text class="fig-axname" x="252" y="190">the softmax</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two things the equations state but do not show">
+    <div class="slide-inner">
+      <p><strong>Every row is a distribution.</strong> The eleven cells of the <em>it</em> row sum to
+      exactly 1, which is why the first row — with only one cell available — is at full strength.</p>
+      <footer><strong>The reach is one step, not <math data-tex="n"><mi>n</mi></math>.</strong> The <em>it</em> row puts 0.33 on
+      <em>chicken</em> and 0.27 on <em>road</em>, six and two positions back, without passing through
+      anything in between. The weights shown are genuine row softmaxes over scores chosen to match
+      SLP3's Figure 8.3, not the output of a trained model.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what distinguishes self-attention">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What distinguishes self-attention from the attention taught in session
+        28?</p>
+        <div class="q-opts">
+          <button class="opt">It is faster because it has fewer parameters than session 28's mechanism, since the score no longer has to be computed once for every step of the decoder</button>
+          <button class="opt">It relates positions within a single sequence to each other, rather than relating a decoder state to the hidden states of a separate encoder</button>
+          <button class="opt">It replaces the softmax with a scaled dot product, so the weights are no longer required to be non-negative and to sum to one across a row</button>
+          <button class="opt">It attends to the input embeddings directly instead of to hidden states, which is what removes the need for an encoder to be trained at all</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>one sequence attending to itself</strong> — which is what the word
+          <em>self</em> is doing in the name.</p>
+          <p>The first needs care, because its conclusion is right and its reasoning is wrong.
+          Self-attention <em>is</em> faster, but it has <strong>more</strong> parameters, not fewer:
+          <math data-tex="W^Q"><msup><mi>W</mi><mi>Q</mi></msup></math>, <math data-tex="W^K"><msup><mi>W</mi><mi>K</mi></msup></math>, <math data-tex="W^V"><msup><mi>W</mi><mi>V</mi></msup></math> and <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math> are all new. The speed comes from
+          parallelism, not from size. The third has it backwards — the softmax is still there, and
+          the scaling happens inside it.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What it cost">
+    <div class="slide-inner">
+      <p class="lede">What self-attention gives up</p>
+      <p>(8.13) is a weighted sum of values whose weights come from dot products between pairs.
+      Nothing in that expression refers to <em>where</em> anything sits.</p>
+      <footer>Shuffle the input tokens and the same set of pairs gives the same dot products, and
+      every output is the same as before — attached to a different position, otherwise
+      untouched.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A set, not a sequence">
+    <div class="slide-inner">
+      <p>Self-attention treats its input as a <strong>set</strong> of vectors. <em>The chicken
+      crossed the road</em> and <em>the road crossed the chicken</em> are the same object to it.</p>
+      <footer>The causal mask conceals this a little, since <math data-tex="j \le i"><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow></math> at least knows which
+      positions come earlier — but knowing that <math data-tex="j"><mi>j</mi></math> precedes <math data-tex="i"><mi>i</mi></math> is a long way from knowing
+      that <math data-tex="j"><mi>j</mi></math> is three words before <math data-tex="i"><mi>i</mi></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Set against session 27">
+    <div class="slide-inner">
+      <p>Session 27 opened by arguing that translation is not word-by-word substitution: <em>the
+      green witch arrived</em> becomes <em>llegó la bruja verde</em>, an alignment of 4, 1, 3, 2.
+      Word order differs between languages and has to be handled.</p>
+      <footer>The recurrence handled order for free — it was the one thing an RNN could not fail to
+      represent, because it read the words in order. This session threw the recurrence away, and
+      order went with it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why root d_k">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Why is the dot product in equation (8.11) divided by <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>?</p>
+        <div class="q-opts">
+          <button class="opt">Because the dot product of two d_k-dimensional random vectors has variance d_k, so scores grow with the dimension and saturate the softmax</button>
+          <button class="opt">Because dividing by it is what makes the attention weights non-negative and guarantees that each row of the attention matrix sums to exactly one</button>
+          <button class="opt">Because the query and the key may have been produced by different projection matrices, and the division puts the two of them back onto a common scale</button>
+          <button class="opt">Because a dot product is proportional to the lengths of both vectors, and dividing by it removes the effect of their lengths as cosine does</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the variance argument</strong> — Vaswani's footnote 4. At
+          <math data-tex="d_k = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>64</mn></mrow></math> that is scores spread over roughly ±8, which the exercise showed is enough
+          to collapse a softmax onto one position.</p>
+          <p>The second is the likeliest error: non-negativity and summing to 1 are the
+          <strong>softmax's</strong> doing, and hold whatever the scores are. The scaling changes how
+          sharp the distribution is, never whether it is a distribution. The fourth describes cosine,
+          which divides by <em>actual</em> lengths.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Summary">
+    <div class="slide-inner">
+      <p class="lede">Summary</p>
+      <p>Session 28's mechanism pointed at one sequence, with each input projected into three roles —
+      session 25's diagnosis repaired by projection instead of splitting. The score is scaled by
+      <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> because the dot product has variance <math data-tex="d_k"><msub><mi>d</mi><mi>k</mi></msub></math>, verified by simulation.</p>
+      <footer>No output depends on any other, so <math data-tex="n"><mi>n</mi></math> sequential steps become one multiply and
+      any two positions are one dot product apart. The cost is quadratic in length — and worse, a set
+      of vectors compared pairwise carries no word order at all. Session 30 puts order back.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--refs" data-title="References">
+    <div class="slide-inner">
+      <h2>Reading</h2>
+      <ul class="ref-list">
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 8</p>
+          <p class="ref-note"><strong>§8.1</strong> and <strong>§8.1.1</strong> for query, key, value
+          and equations 8.9–8.14; <strong>§8.3</strong> for the packed form 8.32–8.34 and the mask.
+          Figure 8.3 is this lesson's sentence and Figure 8.9 is the <math data-tex="Q K^{\mathsf{T}}"><mrow><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup></mrow></math> matrix.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/8.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/8.pdf</a>
+        </li>
+        <li>
+          <p class="ref-title">Vaswani et al. 2017 — <em>Attention Is All You Need</em></p>
+          <p class="ref-note"><strong>§3.2.1</strong>, and in particular <strong>footnote 4</strong>,
+          the derivation of the <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>. The two sources divide the labour rather than
+          disagreeing: SLP3 gives the effect of the scaling, the paper gives the reason for its
+          precise form. Read footnote 4 knowing it is two sentences, or it is easy to skim past.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1706.03762"
+          target="_blank" rel="noopener">arxiv.org/abs/1706.03762</a>
+        </li>
+      </ul>
+      <a class="deck-onward" href="0030-multi-head-and-position.html">Next deck &mdash;
+      session 30: Multi-head attention, and positional embeddings &rarr;</a>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+<script>
+/* Slide-deck navigation — MSIS NLP teaching workspace.
+ * Zero dependencies. The deck already works with this script disabled:
+ * CSS scroll-snap (assets/slides.css, .deck/.slide) handles navigation on
+ * its own. This file only adds keyboard/click convenience, a progress bar,
+ * a slide counter, and a jump overview on top of that.
+ *
+ * USAGE — markup contract:
+ *   <div class="deck">
+ *     <div class="deck-progress"></div>
+ *     <div class="deck-counter"></div>
+ *     <section class="slide slide--title" data-title="Short label">…</section>
+ *     …
+ *   </div>
+ * data-title is what shows up in the "o" overview list.
+ *
+ * Reuses assets/quiz.js unchanged for .quiz/.recall slides — this script
+ * never touches that markup, it only guards against stealing its clicks.
+ */
+
+(function () {
+  "use strict";
+
+  var deck = document.querySelector(".deck");
+  if (!deck) return;
+
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.querySelector(".deck-progress");
+  var counter = document.querySelector(".deck-counter");
+  var current = 0;
+
+  function updateChrome(index) {
+    current = index;
+    if (counter) {
+      counter.textContent =
+        String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    if (progress) {
+      var pct = slides.length > 1 ? (index / (slides.length - 1)) * 100 : 0;
+      progress.style.setProperty("--progress", pct + "%");
+    }
+    var ovItems = document.querySelectorAll(".deck-overview li");
+    ovItems.forEach(function (li, i) {
+      li.classList.toggle("current", i === index);
+    });
+  }
+
+  // Tracks position for wheel/trackpad/swipe scrolling, which never calls
+  // goTo() — the observer is the only thing that knows the slide changed.
+  // It intentionally does NOT drive keyboard/click navigation (see goTo).
+  var observer = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          var idx = slides.indexOf(entry.target);
+          if (idx !== -1) updateChrome(idx);
+        }
+      });
+    },
+    { root: deck, threshold: 0.6 }
+  );
+  slides.forEach(function (s) {
+    observer.observe(s);
+  });
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(slides.length - 1, index));
+    // Explicit "instant" on purpose: with CSS scroll-behavior:smooth on
+    // .deck, a JS-triggered scroll that doesn't override behavior inherits
+    // "smooth" (per the scrollTop/scrollIntoView spec) and animates via
+    // requestAnimationFrame. That animation can stall — e.g. under tab
+    // throttling — leaving navigation stuck. Native wheel/trackpad
+    // scrolling still gets the CSS smooth glide; only JS-driven jumps
+    // (keyboard, click, overview) are forced instant for reliability.
+    slides[index].scrollIntoView({ block: "start", behavior: "instant" });
+    // Updated synchronously here, not left to the IntersectionObserver —
+    // that observer can lag a JS-driven jump by a frame or more, and a
+    // second key/click before it fires would compute next() against a
+    // stale index and look like a dropped input.
+    updateChrome(index);
+    if (history.replaceState) {
+      history.replaceState(null, "", "#" + (index + 1));
+    }
+  }
+
+  function next() {
+    goTo(current + 1);
+  }
+  function prev() {
+    goTo(current - 1);
+  }
+
+  // ---- Overview / jump list ----
+  var overview = document.querySelector(".deck-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "deck-overview";
+    var ol = document.createElement("ol");
+    slides.forEach(function (s, i) {
+      var li = document.createElement("li");
+      li.textContent = s.dataset.title || "Slide " + (i + 1);
+      li.addEventListener("click", function () {
+        goTo(i);
+        toggleOverview(false);
+      });
+      ol.appendChild(li);
+    });
+    overview.appendChild(ol);
+    document.body.appendChild(overview);
+  }
+
+  function toggleOverview(force) {
+    var show = typeof force === "boolean" ? force : !overview.classList.contains("show");
+    overview.classList.toggle("show", show);
+  }
+
+  // ---- Fullscreen ----
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", function (e) {
+    if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+      case "PageDown":
+        e.preventDefault();
+        next();
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault();
+        prev();
+        break;
+      case "Home":
+        e.preventDefault();
+        goTo(0);
+        break;
+      case "End":
+        e.preventDefault();
+        goTo(slides.length - 1);
+        break;
+      case "f":
+        toggleFullscreen();
+        break;
+      case "o":
+        toggleOverview();
+        break;
+      case "Escape":
+        toggleOverview(false);
+        break;
+    }
+  });
+
+  // ---- Click-to-advance ----
+  // Guarded so it never steals clicks meant for quiz options, the recall
+  // reveal button, or links — and so it never steals a text selection. A
+  // press that travels more than a few pixels is a drag, and a release that
+  // leaves text selected is a selection; neither is a request for the next
+  // slide.
+  var pressX = 0;
+  var pressY = 0;
+  var DRAG_SLOP = 5;
+
+  deck.addEventListener("pointerdown", function (e) {
+    pressX = e.clientX;
+    pressY = e.clientY;
+  });
+
+  deck.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
+        Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
+    next();
+  });
+
+  // ---- Initial position from location.hash ----
+  // Deferred a frame: this script runs while the browser parses the end of
+  // <body>, before it has necessarily committed layout for a 22-slide-tall
+  // deck. Calling goTo() synchronously here can compute against a stale
+  // (pre-layout) box and land on the wrong offset.
+  var hash = parseInt(location.hash.replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 1 && hash <= slides.length) {
+    requestAnimationFrame(function () {
+      goTo(hash - 1);
+    });
+  } else {
+    updateChrome(0);
+  }
+})();
+
+</script>
+</body>
+</html>

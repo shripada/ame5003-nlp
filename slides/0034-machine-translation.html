@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 34: Machine translation</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,492 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0034-machine-translation.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 34</p>
+      <h1>Machine translation</h1>
+      <p class="subtitle">Session 33 closed by saying the architecture of Unit III is finished. This
+      session is the first application of it: everything a working translation system needs that a
+      transformer diagram does not show.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="What the architecture does not cover">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <p>§12.2 in one clause: "the standard architecture for MT is the encoder-decoder transformer".
+      That architecture is already in hand, so the clause is a summary rather than a preview.</p>
+      <footer>What remains is two pieces of new machinery — a decoding rule more careful than taking
+      the best word at each step, and the first evaluation metric since session 14 that compares an
+      output against a human reference — plus why the task is hard, and a finding about gender.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Session 27's pair">
+    <div class="slide-inner">
+      <h2>One pair was enough to motivate the encoder-decoder</h2>
+      <pre><code>source (English) :  the    green   witch   arrived
+target (Spanish) :  llegó  la      bruja   verde
+glossed          :  arrived the    witch   green</code></pre>
+      <p class="aside">Alignment <strong>4, 1, 3, 2</strong>. §12.1 is the general case: that
+      reordering is one instance of a systematic phenomenon, not a quirk of Spanish.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Four translation divergences">
+    <div class="slide-inner">
+      <h2>Linguistic typology, organised into four kinds</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li><strong>Word order.</strong> English, Spanish, French, Mandarin are SVO; Hindi and
+        Japanese SOV; Irish and Arabic VSO. Two SVO languages can still disagree about adjectives —
+        <em>green witch</em> against <em>bruja verde</em>, which is the 4, 1, 3, 2</li>
+        <li><strong>Lexical.</strong> <em>bass</em> is <em>lubina</em> or <em>bajo</em>;
+        <em>brother</em> is <em>gege</em> or <em>didi</em>. Sometimes there is no word at all —
+        Mandarin <em>xiào</em>, a <strong>lexical gap</strong></li>
+        <li><strong>Morphological.</strong> Vietnamese is isolating; a polysynthetic language packs a
+        whole sentence into one word. Translating across that range means working below the word</li>
+        <li><strong>Referential density.</strong> English requires a pronoun; Spanish can drop it,
+        Japanese and Chinese drop more. SLP3: <em>cold</em> against <em>hot</em> languages</li>
       </ul>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="The point of the four">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p>Session 27 needed one pair to show that sequence labelling cannot translate. The four
+      divergences say why a pair like that is <em>normal</em>.</p>
+      <footer>Word order, lexical choice, morphology and dropped referents all require the output to
+      be a function of the whole source, of a length the source does not determine. That is the job
+      the encoder-decoder was built for. Nothing here is a new model.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="A shared vocabulary">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p class="lede">§12.2.1</p>
+      <p>"A shared vocabulary is used for the source and target languages, which makes it easy to
+      copy tokens (like names) from source to target."</p>
+      <footer>Built by running a subword algorithm on a corpus containing <em>both</em> languages —
+      session 3's BPE, whose introducing paper was titled <em>Neural Machine Translation of Rare
+      Words with Subword Units</em>.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement" data-title="What that buys">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <p>A name such as <em>Manipal</em> should survive the trip unchanged. With a shared subword
+      vocabulary the model can copy the pieces rather than invent a translation of them.</p>
+      <footer>It also makes English or Hindi, which use spaces, and Chinese or Thai, which do not,
+      the same kind of input: the units are subwords either way, so the model never has to be told
+      which side of that line it is on.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--statement" data-title="Parallel text">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <p>The training data is a <strong>parallel corpus</strong>, or bitext: sentences paired with
+      their translations. Europarl and the United Nations Parallel Corpus are the standard large
+      examples.</p>
+      <footer>The model maximises the probability of the target tokens given the source tokens —
+      session 12's chain rule pointed at a pair of languages rather than a single sentence.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--math" data-title="Greedy decoding">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
+      <h2>Session 27 never said how the decoder's own output is chosen</h2>
+      <div class="meq" data-eqno="12.14"><math data-tex="\hat{w}_t = \mathrm{argmax}_{w \in V}\, P(w \mid w_{&lt;t})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mover><mi>w</mi><mo stretchy="false" class="chr-med wbk-med-acc" style="math-depth:0;">ˆ</mo></mover><mi>t</mi></msub><mo>=</mo><msub><mpadded lspace="0"><mi>argmax</mi></mpadded><mrow><mi>w</mi><mo>∈</mo><mi>V</mi></mrow></msub><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mrow><mo lspace="0em" rspace="0em">&lt;</mo><mi>t</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(12.14)</span></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The brackets matter">
+  <section class="slide slide--statement warn" data-title="The problem, named">
     <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
+      <p class="lede">§12.4</p>
+      <p>"What looks high probability at word <em>t</em> might turn out to have been the wrong choice
+      once we get to word <em>t</em> + 1."</p>
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="Word boundaries">
+  <section class="slide slide--table" data-title="Figure 12.7 as products">
     <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>A search tree over <code>yes</code>, <code>ok</code>, <code>EOS</code></h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>path</th><th>probability</th></tr>
+        <tr><td><code>ok ok EOS</code></td>
+        <td>0.4 × 0.7 × 1.0 = <strong>0.280</strong> — the true best</td></tr>
+        <tr><td><code>yes yes …</code></td><td>0.5 × 0.4 = 0.200</td></tr>
+        <tr><td><code>yes ok …</code></td><td>0.5 × 0.3 = 0.150</td></tr>
+        <tr><td><code>yes EOS</code></td><td>0.5 × 0.2 = 0.100</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">Greedy takes <code>yes</code>, because 0.5 beats 0.4. No continuation of
+      <code>yes</code> can reach 0.280. <strong>The best first word is not the first word of the best
+      sentence.</strong></p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--code" data-title="The tree">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
+      <h2>The two paths part company immediately</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 720 400" role="img" aria-labelledby="beamtitle beamdesc">
+        <title id="beamtitle">Greedy search and the globally best path part company at the first step</title>
+        <desc id="beamdesc">A search tree growing left to right from a start node. The upper
+        branch, drawn dashed, is greedy decoding: start to yes with probability 0.5, then yes
+        again with probability 0.4, for a path probability of 0.200. Two fainter continuations
+        of yes go to ok at 0.150 and EOS at 0.100. The lower branch, drawn solid, is the
+        globally best path: start to ok with probability 0.4, then ok with probability 0.7,
+        then EOS with probability 1.0, for a path probability of 0.280. The two highlighted
+        paths diverge at the first step and the dashed one never recovers.</desc>
+
+        <!-- column labels -->
+        <text class="fig-axname" x="250" y="24" text-anchor="middle">t1</text>
+        <text class="fig-axname" x="450" y="24" text-anchor="middle">t2</text>
+        <text class="fig-axname" x="640" y="24" text-anchor="middle">t3</text>
+
+        <!-- legend: solid vs dashed, not colour alone -->
+        <line class="fig-edge-w" x1="430" y1="48" x2="470" y2="48"></line>
+        <text class="fig-label" x="478" y="52">best 0.280</text>
+        <line class="fig-edge-w" opacity="0.85" stroke-dasharray="7 5" x1="430" y1="68" x2="470" y2="68"></line>
+        <text class="fig-label" x="478" y="72">greedy 0.200</text>
+
+        <!-- faint continuations of yes -->
+        <line class="fig-edge" x1="250" y1="100" x2="450" y2="130"></line>
+        <line class="fig-edge" x1="250" y1="100" x2="450" y2="200"></line>
+
+        <!-- greedy path, dashed -->
+        <line class="fig-edge-w" opacity="0.85" stroke-dasharray="7 5" x1="80" y1="210" x2="250" y2="100"></line>
+        <line class="fig-edge-w" opacity="0.85" stroke-dasharray="7 5" x1="250" y1="100" x2="450" y2="50"></line>
+
+        <!-- best path, solid -->
+        <line class="fig-edge-w" x1="80" y1="210" x2="250" y2="310"></line>
+        <line class="fig-edge-w" x1="250" y1="310" x2="450" y2="310"></line>
+        <line class="fig-edge-w" x1="450" y1="310" x2="640" y2="310"></line>
+
+        <!-- start -->
+        <circle class="fig-node" cx="80" cy="210" r="22"></circle>
+        <text class="fig-glyph" x="80" y="216" text-anchor="middle">s</text>
+        <text class="fig-label" x="80" y="250" text-anchor="middle">start</text>
+
+        <!-- t1 yes (greedy) -->
+        <circle class="fig-node" cx="250" cy="100" r="22"></circle>
+        <text class="fig-glyph" x="250" y="106" text-anchor="middle">yes</text>
+        <text class="fig-label" x="168" y="140" text-anchor="middle">0.5</text>
+
+        <!-- t1 ok (best) -->
+        <circle class="fig-node" cx="250" cy="310" r="22"></circle>
+        <text class="fig-glyph" x="250" y="316" text-anchor="middle">ok</text>
+        <text class="fig-label" x="168" y="280" text-anchor="middle">0.4</text>
+
+        <!-- t2 yes-yes (greedy leaf) -->
+        <circle class="fig-node" cx="450" cy="50" r="22"></circle>
+        <text class="fig-glyph" x="450" y="56" text-anchor="middle">yes</text>
+        <text class="fig-label" x="352" y="60" text-anchor="middle">0.4</text>
+        <text class="fig-axname" x="450" y="88" text-anchor="middle">0.200</text>
+
+        <!-- t2 yes-ok -->
+        <circle class="fig-node-q" cx="450" cy="130" r="18"></circle>
+        <text class="fig-label" x="450" y="135" text-anchor="middle">ok</text>
+        <text class="fig-label" x="370" y="108" text-anchor="middle">0.3</text>
+        <text class="fig-axname" x="505" y="135">0.150</text>
+
+        <!-- t2 yes-EOS -->
+        <circle class="fig-node-q" cx="450" cy="200" r="18"></circle>
+        <text class="fig-label" x="450" y="205" text-anchor="middle">EOS</text>
+        <text class="fig-label" x="370" y="178" text-anchor="middle">0.2</text>
+        <text class="fig-axname" x="510" y="205">0.100</text>
+
+        <!-- t2 ok-ok (best) -->
+        <circle class="fig-node" cx="450" cy="310" r="22"></circle>
+        <text class="fig-glyph" x="450" y="316" text-anchor="middle">ok</text>
+        <text class="fig-label" x="350" y="298" text-anchor="middle">0.7</text>
+
+        <!-- t3 EOS (best leaf) -->
+        <circle class="fig-node" cx="640" cy="310" r="22"></circle>
+        <text class="fig-glyph" x="640" y="316" text-anchor="middle">EOS</text>
+        <text class="fig-label" x="545" y="298" text-anchor="middle">1.0</text>
+        <text class="fig-axname" x="640" y="348" text-anchor="middle">0.280</text>
+        </svg>
       </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement" data-title="Beam search">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p>Keep the top <math data-tex="k"><mi>k</mi></math> partial hypotheses at each step rather than one. Extend all of them by
+      every word, score the <math data-tex="k \times |V|"><mrow><mi>k</mi><mo>×</mo><mi>|</mi><mi>V</mi><mi>|</mi></mrow></math> candidates, keep the best <math data-tex="k"><mi>k</mi></math> again.</p>
+      <footer><math data-tex="k"><mi>k</mi></math> is the <strong>beam width</strong> — 5 to 10 for MT. When a hypothesis emits
+      <code>EOS</code> it is complete and the beam shrinks by one; search continues until the beam is
+      empty.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--statement" data-title="Greedy is the special case">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
+      <p>At <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> this <em>is</em> greedy decoding.</p>
+      <footer>Beam search generalises the rule the obvious choice already was. It does not replace it
+      with a different kind of object.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="It matched the entire line">
+  <section class="slide slide--statement warn" data-title="A heuristic, not a guarantee">
     <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+      <p>A wider beam explores more and still prunes, and the globally best sequence can be lost at
+      any step — exactly as <code>ok</code> is lost at step 1 when <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math>.</p>
+      <footer>Exhaustive search would find the optimum at a cost of <math data-tex="|V|^T"><mrow><mi>|</mi><mi>V</mi><msup><mi>|</mi><mi>T</mi></msup></mrow></math>. Dynamic programming
+      does not apply either — generation has long-distance dependencies, so the Viterbi argument does
+      not carry over. Beam search keeps the most probable <em>prefixes it has not yet
+      discarded</em>.</footer>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
+  <section class="slide slide--statement" data-title="One alternative, named only">
     <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
+      <p><strong>Minimum Bayes risk</strong> decoding inverts the objective rather than widening the
+      search: choose the translation likely to score best on the evaluation metric, not the most
+      probable one.</p>
+      <footer>SLP3 says it can work better than beam search, and names chrF and BERTScore as the
+      metrics to maximise — which is the next section's machinery pointed back at this one.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--quiz" data-title="Quiz: why greedy misses">
     <div class="slide-inner">
       <div class="quiz" data-answer="0">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
+        <p class="q-text">Why does greedy decoding sometimes miss the most probable sentence?</p>
         <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
+          <button class="opt">The highest-probability first word need not begin the highest-probability sequence</button>
+          <button class="opt">Greedy decoding is an approximation of beam search, so it inherits beam search's errors in a weaker form</button>
+          <button class="opt">At inference the decoder is fed its own previous output, so errors compound, which is the same gap as teacher forcing</button>
+          <button class="opt">Greedy decoding cannot emit an EOS token, so it never produces a complete sentence to compare against the others</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
+          <p>Correct: <strong>the best first word need not begin the best sequence</strong>.
+          <code>yes</code> is the best first word and <code>ok ok EOS</code> is the best sentence.</p>
+          <p>The second is backwards: beam search with <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math> <em>is</em> greedy. The third
+          confuses two gaps — teacher forcing is about what the decoder is <em>fed</em>; greedy
+          versus beam is about how the next token is <em>chosen</em>.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--statement" data-title="Evaluation: humans, then a proxy">
     <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
+      <p><strong>Adequacy</strong> is whether the translation captures the meaning;
+      <strong>fluency</strong> is whether it is natural in the target language. Humans produce the
+      best evaluations of both, and are slow and expensive.</p>
+      <footer>That is session 14's argument restated. Twenty sessions ago the stand-in was
+      perplexity; here it scores a translation against a human reference. Same trade — and a gain on
+      the proxy does not guarantee a gain on the thing we care about.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--statement" data-title="chrF, and where BLEU sits">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <p>SLP3 leads with <strong>chrF</strong>, character F-score (Popović, 2015), calling it "the
+      simplest and most robust metric for MT evaluation".</p>
+      <footer>BLEU — the name nearly every student has heard — is filed among "many other earlier
+      related metrics like BLEU, METEOR, TER". We name BLEU in a moment, because a five-minute search
+      will produce it. We do not lead with it, because the reading does not.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--math" data-title="chrF is an F-score">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <h2>Lab 6's precision, recall and F1 — now over character n-grams</h2>
+      <div class="meq" data-eqno="12.20"><math data-tex="\mathrm{chrF}_{\beta} = \frac{(1+\beta^{2})\,\mathrm{chrP}\cdot\mathrm{chrR}}{\beta^{2}\cdot\mathrm{chrP}+\mathrm{chrR}}" display="block" class="tml-display" style="display:block math;"><mrow><msub><mpadded lspace="0"><mi>chrF</mi></mpadded><mi>β</mi></msub><mo>=</mo><mfrac><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msup><mi>β</mi><mn>2</mn></msup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>⋅</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow><mrow><msup><mi>β</mi><mn>2</mn></msup><mo>⋅</mo><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow></mfrac></mrow></math><span class="eqno">(12.20)</span></div>
+      <div class="meq"><math data-tex="\mathrm{chrF}_{2} = \frac{5\cdot\mathrm{chrP}\cdot\mathrm{chrR}}{4\cdot\mathrm{chrP}+\mathrm{chrR}}" display="block" class="tml-display" style="display:block math;"><mrow><msub><mpadded lspace="0"><mi>chrF</mi></mpadded><mn>2</mn></msub><mo>=</mo><mfrac><mrow><mn>5</mn><mo>⋅</mo><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>⋅</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow><mrow><mn>4</mn><mo>⋅</mo><mpadded lspace="0"><mi>chrP</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>chrR</mi></mpadded></mrow></mfrac></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
+  <section class="slide slide--statement" data-title="The two parameters">
     <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
+      <p><strong>chrP</strong> is the average of the <math data-tex="k"><mi>k</mi></math> precisions — what fraction of the
+      hypothesis n-grams occur in the reference. <strong>chrR</strong> is the average of the <math data-tex="k"><mi>k</mi></math>
+      recalls.</p>
+      <footer>Easy to mix up: <math data-tex="k"><mi>k</mi></math> is how long the n-grams go; <math data-tex="\beta"><mi>β</mi></math> weights recall
+      against precision. Lab 6's F1 is the case <math data-tex="\beta = 1"><mrow><mi>β</mi><mo>=</mo><mn>1</mn></mrow></math>; chrF commonly uses
+      <math data-tex="\beta = 2"><mrow><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math>.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="One dictionary per line">
+  <section class="slide slide--statement warn" data-title="The whole difference is in the name">
     <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
+      <p>These are <strong>character</strong> n-grams, not word n-grams — so chrF ignores
+      spaces.</p>
+      <footer>A student who has met BLEU will tokenise into words and get every count wrong.
+      Punctuation stays; spaces come out first.</footer>
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--code" data-title="SLP3's worked example">
+    <div class="slide-inner">
+      <h2><math data-tex="k = \beta = 2"><mrow><mi>k</mi><mo>=</mo><mi>β</mi><mo>=</mo><mn>2</mn></mrow></math>, one preposition different</h2>
+      <pre><code>REF:  witnessforthepast,      18 unigrams, 17 bigrams
+HYP:  witnessofthepast,       17 unigrams, 16 bigrams</code></pre>
+      <p class="aside">Matching unigrams: 17. Matching bigrams: 13.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The four numbers">
+    <div class="slide-inner">
+      <h2>Precision and recall at each n</h2>
+      <table>
+        <tr><th></th><th>precision</th><th>recall</th></tr>
+        <tr><td>unigram</td><td>17/17 = 1.000</td><td>17/18 = 0.944</td></tr>
+        <tr><td>bigram</td><td>13/16 = 0.813</td><td>13/17 = 0.765</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="chrF2">
+    <div class="slide-inner">
+      <h2>Average, then apply the formula</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+\mathrm{chrP} &amp;= (1.000 + 0.813) / 2 = 0.906 \\
+\mathrm{chrR} &amp;= (0.944 + 0.765) / 2 = 0.855 \\
+\mathrm{chrF2} &amp;= \frac{5 \cdot 0.906 \cdot 0.855}{4 \cdot 0.906 + 0.855} = 0.864
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>chrP</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1.000</mn><mo>+</mo><mn>0.813</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mn>2</mn><mo>=</mo><mn>0.906</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>chrR</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0.944</mn><mo>+</mo><mn>0.765</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mn>2</mn><mo>=</mo><mn>0.855</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mpadded lspace="0"><mi>chrF2</mi></mpadded></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mfrac><mrow><mn>5</mn><mo>⋅</mo><mn>0.906</mn><mo>⋅</mo><mn>0.855</mn></mrow><mrow><mn>4</mn><mo>⋅</mo><mn>0.906</mn><mo>+</mo><mn>0.855</mn></mrow></mfrac><mo>=</mo><mn>0.864</mn></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="And a worse hypothesis">
+    <div class="slide-inner">
+      <p>SLP3 prints this as .86; the unrounded value is .864.</p>
+      <footer>A second hypothesis in the chapter, <em>past witness</em>, scores .62 against the same
+      reference — worse, as it should, because the words are there and the order is not.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="BLEU, named">
+    <div class="slide-inner">
+      <p><strong>BLEU</strong> (Papineni et al., 2002) is word-based rather than character-based, and
+      "purely precision-based rather than combining precision and recall".</p>
+      <footer>It also needs a brevity penalty, clipped n-gram counts, and a standardised tokeniser
+      before two numbers can be compared. chrF is what we compute; BLEU is what a paper from 2015 or
+      a leaderboard may still report. BERTScore goes further, comparing BERT embeddings — session
+      32's contextual vectors doing evaluation work.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: chrF2 by hand">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Compute chrF2 with <math data-tex="k = 2"><mrow><mi>k</mi><mo>=</mo><mn>2</mn></mrow></math>, following the worked example — including
+        the first step</span>
+        <p><code>REF: the green witch</code> against <code>HYP: the witch green</code>. Report both
+        precisions, both recalls, chrP, chrR and chrF2.</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><strong>Spaces out first.</strong> <code>thegreenwitch</code> is 13 unigrams and 12
+          bigrams; <code>thewitchgreen</code> is the same counts. The two strings are anagrams, so
+          every unigram matches: 13.</p>
+          <p>The bigrams are not. Reference: <code>th he eg gr re ee en nw wi it tc ch</code>.
+          Hypothesis: <code>th he ew wi it tc ch hg gr re ee en</code>. Ten match.</p>
+          <p>Unigram P = R = 1. Bigram P = R = 10/12 = 0.833. chrP = chrR = 0.917, and when precision
+          equals recall chrF2 equals that common value: <strong>0.917</strong>.</p>
+          <p><strong>The instructive wrong answer.</strong> Tokenising into words gives three
+          matching unigrams and zero matching bigrams, so chrP = chrR = 0.5 and chrF2 = 0.5. A
+          plausible-looking number, and it is BLEU's instinct applied to chrF. The spaces had to come
+          out first.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what chrF compares">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What does chrF compare?</p>
+        <div class="q-opts">
+          <button class="opt">Character n-gram overlap between a hypothesis and a reference, combining precision and recall</button>
+          <button class="opt">Word n-gram precision between a hypothesis and a reference, with a brevity penalty for short outputs</button>
+          <button class="opt">The perplexity of the target sentence under a language model trained on the source</button>
+          <button class="opt">The cosine similarity of BERT embeddings of the hypothesis and the reference</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>character n-gram overlap, precision and recall combined</strong>. Both
+          halves matter: characters, not words; F-score, not precision alone.</p>
+          <p>The second is BLEU, and it is what most people who have heard of a translation metric
+          will say. The third is session 14's metric pointed at the wrong object. The fourth is
+          BERTScore.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Gender the source never gave">
+    <div class="slide-inner">
+      <h2>Figure 12.12, from Prates et al. 2019</h2>
+      <table>
+        <tr><th>Hungarian (gender-neutral)</th><th>English MT output</th></tr>
+        <tr><td>ő egy ápoló</td><td><strong>she</strong> is a nurse</td></tr>
+        <tr><td>ő egy tudós</td><td><strong>he</strong> is a scientist</td></tr>
+        <tr><td>ő egy mérnök</td><td><strong>he</strong> is an engineer</td></tr>
+        <tr><td>ő egy tanár</td><td><strong>she</strong> is a teacher</td></tr>
+        <tr><td>ő egy vezérigazgató</td><td><strong>he</strong> is a CEO</td></tr>
+      </table>
+      <p class="aside">The referential-density divergence from the start of the hour, now pointed at
+      a person: English pronouns are obligatory and gendered, so the system must choose.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Amplified, not merely inherited">
+    <div class="slide-inner">
+      <p>The easy claim is that the model reflects its training data. Prates et al. found something
+      stronger: the stereotypes "can't completely be accounted for by gender bias in US labor
+      statistics, because the biases are <strong>amplified</strong>… with a probability higher than
+      if the mapping was based on actual labor employment statistics".</p>
+      <footer>The system is more biased than the data it learned from. That is a measurable claim, it
+      is checkable, and it is a different finding from "models reflect society".</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="And worse where the stereotype breaks">
+    <div class="slide-inner">
+      <p>The WinoMT challenge set (Stanovsky et al. 2019) shows MT systems performing <em>worse</em>
+      on non-stereotypical roles — <em>The doctor asked the nurse to help her in the
+      operation</em>.</p>
+      <footer>Where the pronoun and the occupation disagree with the stereotype the table
+      records.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Abstention">
+    <div class="slide-inner">
+      <p>The section does not end on a debiasing recipe. MT is used in medical and legal settings
+      where a wrong translation can cause harm.</p>
+      <footer>"In order to 'do no harm', systems need ways to assign <strong>confidence</strong>
+      values to candidate translations, so they can abstain from giving incorrect translations that
+      may cause harm." Knowing when not to answer is the open problem the chapter names.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Four divergences say why translation needs an output that is a function of the whole source.
+      A shared subword vocabulary lets names copy. Greedy decoding misses the best sentence because
+      the best first word need not begin it; beam search keeps <math data-tex="k"><mi>k</mi></math> prefixes, is greedy at
+      <math data-tex="k = 1"><mrow><mi>k</mi><mo>=</mo><mn>1</mn></mrow></math>, and still guarantees nothing.</p>
+      <footer>chrF scores character n-gram F against a human reference — session 14's proxy trade
+      pointed at a new task. And when the source does not mark gender, the system does not merely
+      inherit stereotypes: it amplifies them.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What session 35 opens on">
+    <div class="slide-inner">
+      <p>Session 35 carries two syllabus clauses in one hour — question answering and text
+      summarisation — and it opens on a retrieval problem this course built in Unit I.</p>
+      <footer>RAG waits; that session will say why Unit I is half of a modern system.</footer>
     </div>
   </section>
 
@@ -1110,22 +1267,19 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — chapter 12</p>
+          <p class="ref-note"><strong>§12.1</strong> for the four divergences; <strong>§12.2.1</strong>
+          for the shared vocabulary; <strong>§12.2.2</strong> for parallel text;
+          <strong>§12.4</strong> for beam search, Figure 12.7 and equation (12.14);
+          <strong>§12.6</strong> for evaluation and the chrF worked example; <strong>§12.7</strong>
+          for the amplification finding and abstention. <strong>Skip §12.3</strong> — that is session
+          31's cross-attention, already taught.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/12.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/12.pdf</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0035-question-answering-and-summarization.html">Next deck
+      &mdash; session 35: Question answering and text summarisation &rarr;</a>
     </div>
   </section>
 

@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 18: The TF-IDF vector model</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,384 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0018-the-tf-idf-vector-model.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 18</p>
+      <h1>The TF-IDF vector model</h1>
+      <p class="subtitle">Last session's table rewarded the wrong words. This session re-weights it,
+      and the result says something unexpected about the collection itself.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--table" data-title="Where session 17 left off">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Groups">
-    <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="In Python">
-    <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>The unresolved problem, repeated</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th>
+        <th>Henry V</th></tr>
+        <tr><td><code>battle</code></td><td>1</td><td>0</td><td>7</td><td>13</td></tr>
+        <tr><td><code>good</code></td>  <td>114</td><td>80</td><td>62</td><td>89</td></tr>
+        <tr><td><code>fool</code></td>  <td>36</td><td>58</td><td>1</td><td>4</td></tr>
+        <tr><td><code>wit</code></td>   <td>20</td><td>15</td><td>2</td><td>3</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside"><code>good</code> has the largest counts and is the least useful word in the
+      table, because it is large everywhere.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--math" data-title="Term frequency, restated">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <h2>Term frequency — unchanged from session 10</h2>
+      <div class="meq"><math data-tex="\mathrm{tf} = \begin{cases} 1 + \log_{10}(\mathrm{count}) &amp; \text{when } \mathrm{count} &gt; 0 \\ 0 &amp; \text{when } \mathrm{count} = 0 \end{cases}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true">{</mo><mtable><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>count</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>when </mtext><mpadded lspace="0"><mi>count</mi></mpadded><mo>&gt;</mo><mn>0</mn></mrow></mtd></mtr><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mn>0</mn></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>when </mtext><mpadded lspace="0"><mi>count</mi></mpadded><mo>=</mo><mn>0</mn></mrow></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true"></mo></mrow></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--math" data-title="Inverse document frequency, restated">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <h2>Inverse document frequency — also unchanged</h2>
+      <div class="meq"><math data-tex="\mathrm{idf} = \log_{10}\!\left(\frac{N}{\mathrm{df}}\right)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>N</mi><mpadded lspace="0"><mi>df</mi></mpadded></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--statement" data-title="Exactly zero">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
+      <p>A word in <em>every</em> document has <math data-tex="\mathrm{df} = N"><mrow><mpadded lspace="0"><mi>df</mi></mpadded><mo>=</mo><mi>N</mi></mrow></math>, so
+      <math data-tex="\mathrm{idf} = \log_{10}(1) = 0"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>.</p>
+      <footer>The value is <strong>exactly</strong> zero rather than merely small, and any quantity
+      multiplied by exactly zero is zero. This property is used throughout the session.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="It matched the entire line">
+  <section class="slide slide--table" data-title="idf across 37 plays">
     <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
+      <h2>Shakespeare wrote 37 plays, so <math data-tex="N = 37"><mrow><mi>N</mi><mo>=</mo><mn>37</mn></mrow></math></h2>
+      <table>
+        <tr><th>word</th><th>df (of 37 plays)</th><th>idf</th></tr>
+        <tr><td><code>Romeo</code></td>   <td>1</td>  <td>1.57</td></tr>
+        <tr><td><code>salad</code></td>   <td>2</td>  <td>1.27</td></tr>
+        <tr><td><code>Falstaff</code></td><td>4</td>  <td>0.966</td></tr>
+        <tr><td><code>forest</code></td>  <td>12</td> <td>0.489</td></tr>
+        <tr><td><code>battle</code></td>  <td>21</td> <td>0.246</td></tr>
+        <tr><td><code>wit</code></td>     <td>34</td> <td>0.037</td></tr>
+        <tr><td><code>fool</code></td>    <td>36</td> <td>0.012</td></tr>
+        <tr><td><code>good</code></td>    <td>37</td> <td><strong>0</strong></td></tr>
+        <tr><td><code>sweet</code></td>   <td>37</td> <td><strong>0</strong></td></tr>
+      </table>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
+  <section class="slide slide--code" data-title="The same nine words, drawn">
     <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
+      <h2>The bottom two words have no bar at all</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 520 290" role="img" aria-labelledby="figtitle figdesc">
+          <title id="figtitle">Inverse document frequency for nine words across Shakespeare's 37
+          plays</title>
+          <desc id="figdesc">A horizontal bar chart ordered from the longest bar to the shortest.
+          Romeo has the highest idf at 1.57 and salad, Falstaff, forest and battle follow with
+          steadily shorter bars. Wit and fool have bars almost too short to see, and good and sweet
+          have no bar at all because their idf is exactly zero.</desc>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
+          <path class="fig-axis" d="M 105 8 L 105 262"></path>
 
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
+          <line class="fig-tick" x1="105"   y1="262" x2="105"   y2="267"></line>
+          <line class="fig-tick" x1="223.8" y1="262" x2="223.8" y2="267"></line>
+          <line class="fig-tick" x1="342.5" y1="262" x2="342.5" y2="267"></line>
+          <line class="fig-tick" x1="461.2" y1="262" x2="461.2" y2="267"></line>
+          <text class="fig-label" x="105"   y="282" text-anchor="middle">0</text>
+          <text class="fig-label" x="223.8" y="282" text-anchor="middle">0.5</text>
+          <text class="fig-label" x="342.5" y="282" text-anchor="middle">1.0</text>
+          <text class="fig-label" x="461.2" y="282" text-anchor="middle">1.5</text>
+          <text class="fig-axname" x="97" y="282" text-anchor="end">idf &rarr;</text>
 
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
+          <text class="fig-ptname" x="97" y="31" text-anchor="end">Romeo</text>
+          <rect class="fig-pt" x="105" y="19" width="372.4" height="14"></rect>
+          <text class="fig-label" x="483" y="31">1.57</text>
 
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
+          <text class="fig-ptname" x="97" y="58" text-anchor="end">salad</text>
+          <rect class="fig-pt" x="105" y="46" width="301.0" height="14"></rect>
+          <text class="fig-label" x="412" y="58">1.27</text>
 
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
+          <text class="fig-ptname" x="97" y="85" text-anchor="end">Falstaff</text>
+          <rect class="fig-pt" x="105" y="73" width="229.5" height="14"></rect>
+          <text class="fig-label" x="340" y="85">0.966</text>
+
+          <text class="fig-ptname" x="97" y="112" text-anchor="end">forest</text>
+          <rect class="fig-pt" x="105" y="100" width="116.1" height="14"></rect>
+          <text class="fig-label" x="227" y="112">0.489</text>
+
+          <text class="fig-ptname" x="97" y="139" text-anchor="end">battle</text>
+          <rect class="fig-pt" x="105" y="127" width="58.4" height="14"></rect>
+          <text class="fig-label" x="169" y="139">0.246</text>
+
+          <text class="fig-ptname" x="97" y="166" text-anchor="end">wit</text>
+          <rect class="fig-pt" x="105" y="154" width="8.7" height="14"></rect>
+          <text class="fig-label" x="119" y="166">0.037</text>
+
+          <text class="fig-ptname" x="97" y="193" text-anchor="end">fool</text>
+          <rect class="fig-pt" x="105" y="181" width="2.8" height="14"></rect>
+          <text class="fig-label" x="113" y="193">0.012</text>
+
+          <text class="fig-ptname" x="97" y="220" text-anchor="end">good</text>
+          <text class="fig-label" x="111" y="220">0 &mdash; no bar</text>
+
+          <text class="fig-ptname" x="97" y="247" text-anchor="end">sweet</text>
+          <text class="fig-label" x="111" y="247">0 &mdash; no bar</text>
+        </svg>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: the weight of good">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">The largest count anywhere in the table</span>
+        <p><code>good</code> occurs <strong>114 times</strong> in <em>As You Like It</em>, and it
+        appears in all <strong>37</strong> plays. What is its tf-idf weight?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><math data-tex="\mathrm{tf} = 1 + \log_{10}(114) = 3.057"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mo>=</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>114</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>3.057</mn></mrow></math>, a healthy weight.
+          <math data-tex="\mathrm{idf} = \log_{10}(37/37) = 0"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>37</mn><mi>/</mi><mn>37</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0</mn></mrow></math>. So
+          <math data-tex="\mathrm{tf}\text{-}\mathrm{idf} = 3.057 \times 0 = 0"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mtext>-</mtext><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mn>3.057</mn><mo>×</mo><mn>0</mn><mo>=</mo><mn>0</mn></mrow></math>.</p>
+          <p>Would a larger count have helped? If <code>good</code> occurred 10,000 times then
+          <math data-tex="\mathrm{tf} = 5.0"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mo>=</mo><mn>5.0</mn></mrow></math>, and <math data-tex="5.0 \times 0"><mrow><mn>5.0</mn><mo>×</mo><mn>0</mn></mrow></math> is still <strong>0</strong>.</p>
+          <p>No term frequency can compensate for an idf of zero. Session 17's exercise concluded
+          <code>good</code> should be dropped; TF-IDF drops it automatically, and exactly rather
+          than approximately.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Re-weighting">
+    <div class="slide-inner">
+      <h2>Multiply the two, cell by cell</h2>
+      <div class="meq"><math data-tex="\mathrm{tf}\text{-}\mathrm{idf} = \mathrm{tf} \times \mathrm{idf} = (1 + \log_{10}\mathrm{count}) \times \log_{10}\!\left(\frac{N}{\mathrm{df}}\right)" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>tf</mi></mpadded><mtext>-</mtext><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mpadded lspace="0"><mi>tf</mi></mpadded><mo>×</mo><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mpadded lspace="0"><mi>count</mi></mpadded><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mfrac><mi>N</mi><mpadded lspace="0"><mi>df</mi></mpadded></mfrac><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The tf values">
+    <div class="slide-inner">
+      <h2>First the tf values</h2>
+      <table>
+        <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th>
+        <th>Henry V</th></tr>
+        <tr><td><code>battle</code></td><td>1.000</td><td>0</td>    <td>1.845</td><td>2.114</td></tr>
+        <tr><td><code>good</code></td>  <td>3.057</td><td>2.903</td><td>2.792</td><td>2.949</td></tr>
+        <tr><td><code>fool</code></td>  <td>2.556</td><td>2.763</td><td>1.000</td><td>1.602</td></tr>
+        <tr><td><code>wit</code></td>   <td>2.301</td><td>2.176</td><td>1.301</td><td>1.477</td></tr>
+      </table>
+      <p class="aside">Note the compression already: <code>good</code>'s counts ran 62 to 114, and
+      its tf now runs 2.79 to 3.06. That is what the first logarithm is for.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The weighted matrix">
+    <div class="slide-inner">
+      <h2>Now multiply each row by its idf</h2>
+      <table>
+        <tr><th></th><th>idf</th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th>
+        <th>Henry V</th></tr>
+        <tr><td><code>battle</code></td><td>0.246</td><td>0.246</td><td>0.000</td><td>0.454</td>
+        <td>0.520</td></tr>
+        <tr><td><code>good</code></td>  <td><strong>0</strong></td><td><strong>0.000</strong></td>
+        <td><strong>0.000</strong></td><td><strong>0.000</strong></td>
+        <td><strong>0.000</strong></td></tr>
+        <tr><td><code>fool</code></td>  <td>0.012</td><td>0.030</td><td>0.033</td><td>0.012</td>
+        <td>0.019</td></tr>
+        <tr><td><code>wit</code></td>   <td>0.037</td><td>0.085</td><td>0.080</td><td>0.048</td>
+        <td>0.054</td></tr>
+      </table>
+      <p class="aside">The <code>good</code> row is four zeros. Session 17's judgement, reproduced
+      by arithmetic.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What else went">
+    <div class="slide-inner">
+      <p><code>fool</code> has fallen to hundredths and <code>wit</code> is little better. Only
+      <code>battle</code> retains appreciable weight.</p>
+      <footer>But <code>fool</code> and <code>wit</code> were the words that separated the comedies.
+      Session 17's plot worked because the two comedies sat high on the <code>fool</code> axis — and
+      that axis is now almost nothing.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Distances after weighting">
+    <div class="slide-inner">
+      <h2>Measure it directly</h2>
+      <table>
+        <tr><th>pair</th><th>distance</th></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Julius Caesar</em> — comedy ↔ history</td>
+        <td><strong>0.212</strong></td></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Twelfth Night</em> — comedy ↔ comedy</td>
+        <td><strong>0.246</strong></td></tr>
+        <tr><td><em>Julius Caesar</em> ↔ <em>Henry V</em></td><td>0.067</td></tr>
+        <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.521</td></tr>
+      </table>
+      <p class="aside">After weighting, <em>As You Like It</em> is closer to a history than to the
+      other comedy. The clustering has not sharpened; it has disappeared.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Not a failure">
+    <div class="slide-inner">
+      <p class="lede">The obvious reading is that TF-IDF failed</p>
+      <p>That reading is wrong, and the reason matters more than the arithmetic does.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="idf belongs to the collection">
+    <div class="slide-inner">
+      <p><strong>idf is a property of the collection, not of the document.</strong></p>
+      <footer>Nothing about <em>As You Like It</em> changed. We asked how distinctive its words are
+      <em>among 37 Shakespeare plays</em> — and Shakespeare uses <code>fool</code> in 36 of them and
+      <code>wit</code> in 34. Within his collected works those words are close to universal.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The words did not change">
+    <div class="slide-inner">
+      <p><code>fool</code> and <code>wit</code> are genuinely good words for telling a comedy from a
+      history <em>in general</em>. In a collection of all English books they would carry real
+      signal.</p>
+      <footer>In a collection consisting entirely of Shakespeare they carry none. The words did not
+      change; the collection did.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What the numbers show">
+    <div class="slide-inner">
+      <p>TF-IDF did not break the example; it <strong>measured</strong> it.</p>
+      <footer>And the measurement says these four words cannot distinguish Shakespeare's plays,
+      because Shakespeare uses them in nearly all of them. That is a fact about the collection we
+      did not have before.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Choosing better dimensions">
+    <div class="slide-inner">
+      <h2>The idf table already holds the answer</h2>
+      <ul>
+        <li><code>Romeo</code>, idf 1.57, in exactly one play — it identifies that play alone</li>
+        <li><code>Falstaff</code>, idf 0.966, in four — it groups the Henry plays and nothing
+        else</li>
+        <li><code>forest</code>, idf 0.489, in twelve, largely the pastoral comedies</li>
+      </ul>
+      <p class="aside">These separate the plays cleanly because they are rare <em>in this
+      collection</em>. Our four words were chosen in session 17 because raw counts made them look
+      valuable.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Better informed than before">
+    <div class="slide-inner">
+      <p>Weighting the matrix has established that our features were poorly chosen, and established
+      it from the numbers rather than by judgement.</p>
+      <footer>A method that reports that the chosen features are poor for a collection is working
+      correctly, not failing.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: the best feature">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">To tell Shakespeare's 37 plays apart, which of these four words is the
+        best feature, and why?</p>
+        <div class="q-opts">
+          <button class="opt"><code>good</code> — it has by far the largest counts, so it carries the most information about each play</button>
+          <button class="opt"><code>Falstaff</code> — it appears in only 4 of the 37 plays, so its presence narrows the field sharply</button>
+          <button class="opt"><code>fool</code> — it appears in 36 of the 37 plays, so almost every play can be scored on it</button>
+          <button class="opt"><code>sweet</code> — it appears in all 37 plays, so it gives complete coverage of the collection</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong><code>Falstaff</code></strong>, idf 0.966.</p>
+          <p>Appearing in only 4 plays is exactly what makes it useful — observing it eliminates 33
+          of 37 immediately. The other three all reason from <em>coverage</em>, which is the
+          opposite of what a discriminating feature needs.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: a different collection">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">You take <em>As You Like It</em>, unchanged, and score it inside a
+        collection of ten thousand modern novels instead of Shakespeare's 37 plays. What happens to
+        its tf-idf vector?</p>
+        <div class="q-opts">
+          <button class="opt">Nothing changes — the vector describes the document, and the document is the same text</button>
+          <button class="opt">Only the tf values change, because the counts are now measured against a much larger total</button>
+          <button class="opt">Every weight changes, because idf is computed from the collection and the collection is different</button>
+          <button class="opt">All weights rise proportionally, because a bigger collection means a bigger N in the idf formula</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>every weight changes</strong>.</p>
+          <p>The tf values do not change — those are counts inside an unaltered document. Every idf
+          does, because df and N both come from the collection. <code>fool</code> and
+          <code>wit</code> would go from near-zero to informative, and <code>good</code> would stop
+          being zero as soon as one novel omitted it.</p>
+          <p>A tf-idf vector is not a description of a document. It is a description of a document
+          <em>relative to a collection</em>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A second problem">
+    <div class="slide-inner">
+      <p class="lede">One more problem, unrelated to weighting</p>
+      <p>Take <em>Julius Caesar</em>'s raw column and imagine the same text printed twice. Every
+      count doubles.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The same play, printed twice">
+    <div class="slide-inner">
+      <h2>The same play, twice over</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+d &amp;= [\,7,\, 62,\, 1,\, 2\,] &amp;&amp; \text{vector length } 62.43 \\
+2d &amp;= [\,14,\, 124,\, 2,\, 4\,] &amp;&amp; \text{vector length } 124.87
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>d</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>7</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>62</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>1</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>2</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>vector length </mtext><mn>62.43</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>14</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>124</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>2</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>4</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>vector length </mtext><mn>124.87</mn></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Distance 62.43">
+    <div class="slide-inner">
+      <p>The Euclidean distance between them is <strong>62.43</strong> — where the largest distance
+      in the whole weighted matrix was 0.521.</p>
+      <footer>By this measure the two documents are wildly different. They are the same play,
+      printed twice.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Direction, not magnitude">
+    <div class="slide-inner">
+      <p>Doubling a vector does not move it, it <strong>lengthens</strong> it. Both point in exactly
+      the same direction; one is simply longer.</p>
+      <footer>What we want to compare is <strong>direction, not magnitude</strong>. There is a
+      standard measure with exactly that property, and on these two vectors it returns 1.0000.
+      Session 19 derives it.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>TF-IDF weights each cell so common words shrink and distinctive words dominate, and a word
+      in every document collapses to exactly zero. But what counts as <em>distinctive</em> is
+      measured against a particular collection.</p>
+      <footer>When our four Shakespeare words nearly all collapsed, that was not a failure but a
+      report that those words describe <em>this</em> collection poorly.</footer>
     </div>
   </section>
 
@@ -1110,22 +1159,23 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          <strong>§11.1.2</strong></p>
+          <p class="ref-note">&ldquo;Term weighting: tf-idf and BM25&rdquo;, the source of the df
+          and idf figures. Chapter 11, not chapter 5.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Manning, Raghavan &amp; Schütze — <em>Introduction to Information
+          Retrieval</em>, chapter 6</p>
+          <p class="ref-note">The same weighting from the search side.</p>
+          <a class="ref-link" href="https://nlp.stanford.edu/IR-book/"
+          target="_blank" rel="noopener">nlp.stanford.edu/IR-book/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0019-cosine-similarity.html">Next deck &mdash;
+      session 19: Cosine similarity &rarr;</a>
     </div>
   </section>
 

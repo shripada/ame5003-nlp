@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 32: BERT and masked language modelling</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,408 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0032-bert-and-masked-language-modelling.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 32</p>
+      <h1>BERT and masked language modelling</h1>
+      <p class="subtitle">Session 31 left a sentence on the table: an encoder sees the whole
+      sequence, so it is for understanding. This session is that model — and the training objective
+      it is forced to use. Along the way it pays a debt from sessions 21 and 22.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="The sentence from last session">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <p>An encoder block and a decoder block run the same three equations. They differ only in
+      whether the future may be seen.</p>
+      <footer>That single difference is why <strong>encoder-only models are for understanding, and
+      decoder-only models are for generation</strong>. This session is the encoder-only model:
+      <strong>BERT</strong>, Devlin et al., NAACL 2019.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="SLP3's contrast">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p class="lede">§10.1</p>
+      <p>"The causal models of Chapter 8 are generative models, designed to easily generate the next
+      token in a sequence. But the focus of bidirectional encoders is instead on computing
+      contextualized representations of the input tokens."</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--statement" data-title="Why the right-hand context helps">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <p>"There are tasks for which it would be useful, when processing a token, to be able to peek
+      at future tokens. This is especially true for sequence labeling tasks… such as the named entity
+      tagging task…"</p>
+      <footer>That is <strong>session 7</strong>. Whether <code>Washington</code> is a PERSON or a
+      GPE may depend on words that come after it — <em>Washington was born in 1732</em> against
+      <em>Washington raised the federal funds rate</em>. The course set that problem up twenty-five
+      sessions ago.</footer>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement warn" data-title="Bidirectionality is not free">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
+      <p>Sessions 11–14 trained language models by predicting the next word. That works precisely
+      <em>because</em> the model cannot see ahead: the answer is hidden.</p>
+      <footer>Remove the mask and the objective collapses. A bidirectional model asked to predict the
+      word at position <math data-tex="i"><mi>i</mi></math> can simply read position <math data-tex="i"><mi>i</mi></math>. The loss goes to zero without the
+      weights learning anything. The task has become copying, and copying teaches nothing.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--statement" data-title="What that costs">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <p>Bidirectionality costs the training objective that Unit II ran on.</p>
+      <footer>A replacement is needed. Masked language modelling is an <em>answer to this
+      problem</em>, not a definition that happens to have a name.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--statement" data-title="Session 21 ran a cousin of this">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
+      <p>Delete a word, ask the model to name it, keep the weights. CBOW predicted the centre word
+      from an <em>average of nearby context vectors</em>, and out came one static vector per word
+      type.</p>
+      <footer>The same fill-in-the-blank shape, pointed at a bidirectional transformer, produces a
+      different vector for every occurrence. Hold that; it returns when we reach contextual
+      embeddings.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="The brackets matter">
+  <section class="slide slide--table" data-title="Masked language modelling">
     <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>15% of tokens are chosen — and treated three ways</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th></th><th>treatment</th><th>example</th></tr>
+        <tr><td><strong>80%</strong></td><td>replace with <code>[MASK]</code></td>
+        <td><code>lunch was [MASK]</code></td></tr>
+        <tr><td><strong>10%</strong></td><td>replace with a random token, by unigram
+        probability</td><td><code>lunch was gasp</code></td></tr>
+        <tr><td><strong>10%</strong></td><td>leave unchanged</td>
+        <td><code>lunch was delicious</code></td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">The loss is computed only at the chosen positions, and the target is always
+      the original token — even where the input was left alone. The model is asked: <em>what actually
+      belonged here?</em></p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="Why 80/10/10">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
+      <p>"Adding the [MASK] token creates a mismatch between pretraining and downstream finetuning or
+      inference… the model might only predict tokens when it sees a [MASK], but we want the model to
+      try to always predict the input token."</p>
+      <footer>At fine-tuning time there are no <code>[MASK]</code> tokens at all. A model that has
+      only ever produced a prediction where it sees one has learned a trick that does not fire when
+      the model is used. The 10% random and 10% unchanged force it to hold an opinion about every
+      position.</footer>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement" data-title="The same shape as session 27">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p>Teacher forcing trained the decoder on gold prefixes it would never have at inference;
+      scheduled sampling was the patch. Here pretraining puts <code>[MASK]</code> in the input and
+      fine-tuning never does; the 80/10/10 split is the patch.</p>
+      <footer>Two sessions apart, same diagnosis: <strong>a model trained in a condition it never
+      meets at deployment will underperform.</strong></footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--quiz" data-title="Quiz: why only 80%">
     <div class="slide-inner">
       <div class="quiz" data-answer="0">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
+        <p class="q-text">Why does MLM replace only 80% of the chosen tokens with
+        <code>[MASK]</code>, rather than all of them?</p>
         <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
+          <button class="opt">[MASK] never appears at fine-tuning time, so a model trained only on it would learn to predict only where it sees one</button>
+          <button class="opt">Replacing every chosen token would make the task harder, and 80% is a compromise that keeps pretraining loss in a range where gradients are useful</button>
+          <button class="opt">The remaining 20% are needed for next-sentence prediction, which shares the same positions and cannot run if they have been overwritten</button>
+          <button class="opt">Predicting 15% of the tokens is already expensive; masking all of them would mean a softmax over the vocabulary at every position</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
+          <p>Correct: <strong>the pretrain / fine-tune mismatch</strong>. Downstream, the input
+          contains no <code>[MASK]</code>. If the model has only ever been asked to fill one, that is
+          the only place it will bother to represent the token well.</p>
+          <p>The second is the answer nearly everyone gives, and it is not the reason — difficulty is
+          a side-effect, not the design. The fourth confuses the 15% with the 80%: the softmax is
+          already only at the chosen positions, and changing how those are <em>corrupted</em> does
+          not change how many there are.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--code" data-title="Next sentence prediction">
     <div class="slide-inner">
-      <div class="quiz" data-answer="2">
+      <h2>A second objective, trained at the same time</h2>
+      <pre><code>[CLS] lunch was delicious [SEP] I ordered seconds  [SEP]     ->  IsNext
+[CLS] lunch was delicious [SEP] the stock market fell [SEP]  ->  NotNext</code></pre>
+      <p class="aside">Given two sentences packed into one input, did the second actually follow the
+      first? Half the time it did; half the time it is sampled at random from the corpus.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why [CLS] exists">
+    <div class="slide-inner">
+      <p>The final-layer vector at <code>[CLS]</code> carries the prediction — a classifier sits on
+      that single position and outputs IsNext or NotNext.</p>
+      <footer>That is what <code>[CLS]</code> is for: a dedicated place for a sequence-level
+      decision, trained to summarise the pair. It earns a second job in session 33, when a different
+      classifier sits on the same position for a downstream task.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What later work found">
+    <div class="slide-inner">
+      <p>The paper argued NSP helps on paraphrase, entailment and discourse coherence. SLP3 records
+      what happened: "Some models, like the RoBERTa model, drop the next sentence prediction
+      objective."</p>
+      <footer>NSP belongs in the original model — it is why <code>[CLS]</code> and <code>[SEP]</code>
+      are in the input. RoBERTa kept masked language modelling, dropped NSP, trained on more data for
+      longer, and did better. The second objective was not load-bearing.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The fifth time">
+    <div class="slide-inner">
+      <p>Session 18 checked idf against the Shakespeare features. Session 21 checked
+      <math data-tex="\mathrm{king} - \mathrm{man} + \mathrm{woman}"><mrow><mpadded lspace="0"><mi>king</mi></mpadded><mo>−</mo><mpadded lspace="0"><mi>man</mi></mpadded><mo>+</mo><mpadded lspace="0"><mi>woman</mi></mpadded></mrow></math>. Session 22 checked GloVe's pitch. Session
+      26 checked the GRU, in a paper two of its authors signed.</p>
+      <footer>This is the fifth: an original claim, checked against what followed, coming back weaker
+      than advertised. The habit is more durable than any of the five results.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="One word, two vectors">
+    <div class="slide-inner">
+      <h2>Session 21's concrete failure</h2>
+      <pre><code>bank  ->  banks 0.744, banking 0.690, Bank 0.670, lender 0.634,
+          banker 0.609, depositors 0.603</code></pre>
+      <p class="aside">Every one is the financial sense. The river sense is not ranked low — it is
+      <strong>absent</strong>, because there is one vector and the more frequent sense has taken all
+      of it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The same word in SLP3">
+    <div class="slide-inner">
+      <h2>§10.3.1 opens on the same word</h2>
+      <pre><code>a bank can hold the investments
+agriculture burgeons on the east bank</code></pre>
+      <p class="aside">"The word 'bank' can mean: (1) a financial institution or (2) a sloping
+      mound."</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why the vectors differ">
+    <div class="slide-inner">
+      <p>A bidirectional encoder maps <math data-tex="(x_1 \ldots x_n)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mn>1</mn></msub><mo>…</mo><msub><mi>x</mi><mi>n</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math> to <math data-tex="(h_1 \ldots h_n)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>h</mi><mn>1</mn></msub><mo>…</mo><msub><mi>h</mi><mi>n</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>, where each
+      <math data-tex="h_i"><msub><mi>h</mi><mi>i</mi></msub></math> has been contextualised by <em>the entire sequence</em>, left and right.</p>
+      <footer><code>bank</code> in the first sentence is mixed with <code>investments</code>; in the
+      second with <code>east</code> and <code>agriculture</code>. Word2Vec could not do this even in
+      principle: its table has one row per word type, and a row cannot be two places at once.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Static and contextual vectors, drawn">
+    <div class="slide-inner">
+      <h2>One point where the contextual model has two</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 640 390" role="img" aria-labelledby="banktitle bankdesc">
+        <title id="banktitle">The same word, two sentences, two vectors — and the one static vector Word2Vec would give</title>
+        <desc id="bankdesc">A two-dimensional projection of embedding space. A single green point labelled
+        Word2Vec: bank sits near the centre, the compromise vector that blends both senses. Two red points
+        sit far apart: one in the upper left, labelled with the sentence agriculture burgeons on the east
+        bank, and one in the lower right, labelled with the sentence a bank can hold the investments.
+        Faint dashed lines run from the static point to each contextual point, indicating that the
+        Word2Vec vector is a blend of the two senses the contextual model keeps separate. Each BERT
+        point is annotated with a small sentence box.</desc>
+
+        <!-- axes -->
+        <path class="fig-axis" d="M 70 40 L 70 330 L 600 330"></path>
+        <text class="fig-axname" x="335" y="368" text-anchor="middle">dimension 1 →</text>
+        <text class="fig-axname" x="22" y="185" text-anchor="middle" transform="rotate(-90 22 185)">dimension 2 →</text>
+        <text class="fig-label" x="335" y="28" text-anchor="middle">2D projection of the embedding space</text>
+
+        <!-- blend lines: static vector is a compromise -->
+        <path class="fig-gap" d="M 310 200 L 175 95"></path>
+        <path class="fig-gap" d="M 310 200 L 500 255"></path>
+
+        <!-- Word2Vec point — the one static vector -->
+        <circle class="fig-pt-b" cx="310" cy="200" r="6"></circle>
+        <text class="fig-ptname" x="322" y="190">Word2Vec: bank</text>
+        <text class="fig-label" x="322" y="206">one vector, both senses</text>
+
+        <!-- BERT river sense -->
+        <rect class="fig-node" x="84" y="48" width="252" height="36" rx="4"></rect>
+        <text class="fig-label" x="210" y="70" text-anchor="middle">agriculture … east bank</text>
+        <circle class="fig-pt" cx="175" cy="95" r="6"></circle>
+        <text class="fig-ptname" x="188" y="112">BERT: river sense</text>
+
+        <!-- BERT finance sense -->
+        <rect class="fig-node" x="368" y="268" width="248" height="36" rx="4"></rect>
+        <text class="fig-label" x="492" y="290" text-anchor="middle">a bank can hold the investments</text>
+        <circle class="fig-pt" cx="500" cy="255" r="6"></circle>
+        <text class="fig-ptname" x="512" y="248">BERT: finance sense</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="This closes the loop">
+    <div class="slide-inner">
+      <p>The course promised this fix twice and named the unit it would arrive in. A bidirectional
+      encoder does not add a second row to Word2Vec's table — it stops having a table of word types
+      at all, <em>at the output</em>.</p>
+      <footer>The input still begins with a static embedding, looked up from 30,000 WordPiece rows.
+      The stack of unmasked encoder blocks is what contextualises it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The same argument, more sentences">
+    <div class="slide-inner">
+      <p>SLP3's Figure 10.6 takes BERT embeddings of the word <em>die</em> across many contexts,
+      projects them to two dimensions, and the points separate into <strong>three clusters</strong>:
+      the English noun, the English verb, and the German article.</p>
+      <footer>Three clusters, one spelling, no sense labels supplied. The model was never told
+      <em>die</em> has three readings. The surrounding tokens were enough.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what contextual buys">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
         <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
+        <p class="q-text">What does a contextual embedding give that Word2Vec cannot?</p>
         <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
+          <button class="opt">A different vector for the same word in different contexts</button>
+          <button class="opt">A larger vector — BERT's d = 768 against Word2Vec's 300 — so there is more room to store both senses at once</button>
+          <button class="opt">A subword vector, so bank is built from smaller pieces and can share parameters with banking and riverbank</button>
+          <button class="opt">A positional embedding added to the token, so the model knows whether bank is the first word or the fifth</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
+          <p>Correct: <strong>a different vector for the same word in different contexts</strong> —
+          the failure session 21 measured. Word2Vec has one row per word type; a bidirectional
+          encoder produces one vector per <em>occurrence</em>.</p>
+          <p>The second is true and irrelevant, which makes it a good distractor: a 768-dimensional
+          Word2Vec would still be one vector per word. The third describes WordPiece, which BERT does
+          use, but subword tokenisation still gives one embedding per subword <em>type</em>. The
+          fourth tells the model <em>where</em> a token sits, not which sense it is.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--table" data-title="BERT-base">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <h2>§10.1.1's configuration</h2>
+      <table>
+        <tr><th>setting</th><th>BERT-base</th></tr>
+        <tr><td>vocabulary</td><td>30,000 WordPiece subwords</td></tr>
+        <tr><td>context window <math data-tex="N"><mi>N</mi></math></td><td>512 tokens</td></tr>
+        <tr><td>model dimension <math data-tex="d"><mi>d</mi></math></td><td>768</td></tr>
+        <tr><td>layers <math data-tex="L"><mi>L</mi></math></td><td>12</td></tr>
+        <tr><td>heads <math data-tex="A"><mi>A</mi></math></td><td>12</td></tr>
+        <tr><td>SLP3's stated total</td><td>"about 100M parameters"</td></tr>
+      </table>
+      <p class="aside">Head width is Vaswani's: <math data-tex="d_k = 768 / 12 = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>768</mn><mi>/</mi><mn>12</mn><mo>=</mo><mn>64</mn></mrow></math>. The feedforward hidden
+      layer is the same factor of four: <math data-tex="d_{\mathrm{ff}} = 3072"><mrow><msub><mi>d</mi><mpadded lspace="0"><mi>ff</mi></mpadded></msub><mo>=</mo><mn>3072</mn></mrow></math>.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--table" data-title="Where the 100M is">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <h2>Computed from that configuration, not copied</h2>
+      <table>
+        <tr><th>component</th><th>parameters</th></tr>
+        <tr><td>token embeddings, <math data-tex="30{,}000 \times 768"><mrow><mn>30,000</mn><mo>×</mo><mn>768</mn></mrow></math></td><td>23,040,000</td></tr>
+        <tr><td>position embeddings, <math data-tex="512 \times 768"><mrow><mn>512</mn><mo>×</mo><mn>768</mn></mrow></math></td><td>393,216</td></tr>
+        <tr><td>attention in one block</td><td>2,359,296</td></tr>
+        <tr><td>feedforward in one block</td><td>4,718,592</td></tr>
+        <tr><td>one block</td><td>7,077,888</td></tr>
+        <tr><td>12 blocks</td><td>84,934,656</td></tr>
+        <tr><td><strong>total</strong> (ignoring norms and biases)</td>
+        <td><strong>108,367,872</strong></td></tr>
+      </table>
+      <p class="aside">108M against SLP3's "about 100M" — close enough to confirm the arithmetic and
+      the config together.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
+  <section class="slide slide--statement" data-title="Two things from the split">
     <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
+      <p><strong>The embedding table alone is 21% of the model</strong> — 23 million parameters
+      sitting in a lookup, before any block has run. The vocabulary is not a rounding error.</p>
+      <footer>And session 31's finding holds here: in each block the feedforward layer is twice the
+      attention, 4.7M against 2.4M, in a model whose fame is entirely about attention.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="One dictionary per line">
+  <section class="slide slide--statement" data-title="A loop from session 3">
     <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
+      <p>Session 3 taught WordPiece as "a close cousin of BPE", showed
+      <code>doomscrolling → ["doom", "##scroll", "##ing"]</code>, and promised BERT uses it.</p>
+      <footer>Here is that vocabulary: <strong>30,000 WordPiece tokens</strong>. The input still
+      begins as a lookup in a static table. What has changed is what happens after the
+      lookup.</footer>
     </div>
   </section>
 
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: bidirectional with the old objective">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">A bidirectional transformer trained to predict token <math data-tex="i+1"><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></math></span>
+        <p>First: why would training fail to teach it anything useful about language? Second: what
+        does masked language modelling change, so that the same model now has something to learn?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><strong>Why it fails.</strong> The model can see the token it is asked to predict —
+          position <math data-tex="i"><mi>i</mi></math>'s query may attend to position <math data-tex="i+1"><mrow><mi>i</mi><mo>+</mo><mn>1</mn></mrow></math>'s key and value, which is the
+          answer. The loss goes to zero by copying, and copying requires no knowledge of English. The
+          causal mask was what made next-word prediction a question with a hidden answer.</p>
+          <p><strong>What MLM changes.</strong> The answer is hidden again, but not by masking the
+          <em>future</em> — by corrupting the <em>present</em>. A subset of positions is replaced, and
+          the model must recover the originals from the surviving context on both sides. The targets
+          are no longer in the input in plain sight.</p>
+          <p>The 80/10/10 split is a refinement of the same idea: even after the answer is hidden,
+          the <em>cue</em> that it was hidden must not become the only place the model bothers to
+          think, because that cue is absent when the model is used.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where this leaves us">
+    <div class="slide-inner">
+      <p>That is a pretrained bidirectional encoder: 12 unmasked blocks, a 30,000-token
+      vocabulary, trained to fill in blanks from both sides, producing a different vector for
+      <code>bank</code> in each of two sentences.</p>
+      <footer>That is what BERT <em>is</em>. Session 33 is what it is <em>for</em>: the expensive
+      part is already done, and what remains is to sit a small head on top and train it on a labelled
+      task — and then ask whether a smaller copy can be made to behave like this one.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Bidirectionality makes next-word prediction trivial, so masked language modelling replaces
+      it: 15% chosen, 80/10/10, predicted from both sides — and the split exists because
+      <code>[MASK]</code> is absent downstream, the same mismatch as teacher forcing. NSP puts a
+      sentence-pair decision on <code>[CLS]</code>; RoBERTa dropped it and did better.</p>
+      <footer>The output is a <strong>contextual embedding</strong>: two vectors for <code>bank</code>
+      where sessions 21 and 22 could only have one. BERT-base is about 108M parameters — 21% of them
+      the embedding table, and twice as much feedforward as attention in every block.</footer>
     </div>
   </section>
 
@@ -1110,22 +1183,26 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <strong>§10.1–§10.3</strong></p>
+          <p class="ref-note">§10.1 for the contrast and the NER motivation, §10.1.1 for the
+          configuration, §10.2.1 for MLM and the 80/10/10 rule, §10.2.2 for NSP including the RoBERTa
+          sentence, §10.3.1 for <code>bank</code> and Figure 10.6 for the <em>die</em> clusters. Stop
+          at the end of §10.3 — §10.4 and §10.5 are session 33.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/10.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/10.pdf</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Devlin et al. 2019 — <em>BERT: Pre-training of Deep Bidirectional
+          Transformers for Language Understanding</em>, NAACL</p>
+          <p class="ref-note">Cite this version, not the 2018 arXiv preprint of the same work.
+          Sections 3.1 (MLM) and 3.2 (NSP) are the two pages that matter here; the fine-tuning
+          experiments wait.</p>
+          <a class="ref-link" href="https://aclanthology.org/N19-1423/"
+          target="_blank" rel="noopener">aclanthology.org/N19-1423/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0033-fine-tuning-and-distillation.html">Next deck &mdash;
+      session 33: Fine-tuning, DistilBERT and knowledge distillation &rarr;</a>
     </div>
   </section>
 

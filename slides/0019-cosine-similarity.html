@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 19: Cosine similarity</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,459 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0019-cosine-similarity.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 19</p>
+      <h1>Cosine similarity</h1>
+      <p class="subtitle">Last session quoted a number without deriving it. This session derives it,
+      and then uses it to recover session 17's clustering.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--math" data-title="The unfinished board">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <h2>A play, and the same play printed twice</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+d &amp;= [\,7,\ 62,\ 1,\ 2\,] &amp;&amp; \text{length } 62.43 \\
+2d &amp;= [\,14,\ 124,\ 2,\ 4\,] &amp;&amp; \text{length } 124.87
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mi>d</mi></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>7</mn><mo separator="true">,</mo><mtext> </mtext><mn>62</mn><mo separator="true">,</mo><mtext> </mtext><mn>1</mn><mo separator="true">,</mo><mtext> </mtext><mn>2</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>length </mtext><mn>62.43</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>14</mn><mo separator="true">,</mo><mtext> </mtext><mn>124</mn><mo separator="true">,</mo><mtext> </mtext><mn>2</mn><mo separator="true">,</mo><mtext> </mtext><mn>4</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mtext>length </mtext><mn>124.87</mn></mrow></mtd></mtr></mtable></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--table" data-title="Two measures disagree">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="In Python">
-    <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>Two measurements, opposite answers</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th>measure</th><th>value</th><th>what it reports</th></tr>
+        <tr><td>Euclidean distance</td><td>62.43</td><td>completely different documents</td></tr>
+        <tr><td>cosine</td><td>1.0000</td><td>identical documents</td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">The second is correct, and the rest of this session derives it.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="Why Euclidean is unsuitable">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
+      <p>Doubling a document does not rotate its vector. It pushes the endpoint further out along
+      the same line, leaving the direction unchanged.</p>
+      <footer>Measure the <strong>angle</strong> between two vectors instead of the gap between
+      their endpoints, and doubling a document changes nothing.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The same angle either way">
+    <div class="slide-inner">
+      <h2>Doubled, and at exactly the same angle</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 560 300" role="img" aria-labelledby="figtitle figdesc">
+          <title id="figtitle">Two document vectors from the origin, with the angle between them,
+          and one of them doubled along the same line</title>
+          <desc id="figdesc">A plot with fool counts on the horizontal axis and battle counts on
+          the vertical. As You Like It is a long vector lying almost flat along the fool axis.
+          Julius Caesar is a short vector pointing steeply upward, at about eighty degrees from the
+          first. A dashed vector twice as long lies exactly on top of the Julius Caesar line,
+          reaching twice as far in the same direction, so the angle between it and As You Like It is
+          identical.</desc>
+
+          <path class="fig-axis" d="M 70 76 L 70 255 L 515 255"></path>
+          <text class="fig-axname" x="515" y="279" text-anchor="end">fool &rarr;</text>
+          <text class="fig-axname" x="70" y="66" text-anchor="middle">battle &uarr;</text>
+          <text class="fig-label" x="62" y="270" text-anchor="end">0</text>
+
+          <line class="fig-tick" x1="175" y1="255" x2="175" y2="260"></line>
+          <line class="fig-tick" x1="280" y1="255" x2="280" y2="260"></line>
+          <line class="fig-tick" x1="385" y1="255" x2="385" y2="260"></line>
+          <line class="fig-tick" x1="490" y1="255" x2="490" y2="260"></line>
+          <text class="fig-label" x="175" y="273" text-anchor="middle">10</text>
+          <text class="fig-label" x="280" y="273" text-anchor="middle">20</text>
+          <text class="fig-label" x="385" y="273" text-anchor="middle">30</text>
+          <text class="fig-label" x="490" y="273" text-anchor="middle">40</text>
+
+          <line class="fig-tick" x1="65" y1="202.5" x2="70" y2="202.5"></line>
+          <line class="fig-tick" x1="65" y1="150"   x2="70" y2="150"></line>
+          <line class="fig-tick" x1="65" y1="97.5"  x2="70" y2="97.5"></line>
+          <text class="fig-label" x="60" y="207" text-anchor="end">5</text>
+          <text class="fig-label" x="60" y="154" text-anchor="end">10</text>
+          <text class="fig-label" x="60" y="102" text-anchor="end">15</text>
+
+          <line class="fig-vec-d" x1="70" y1="255" x2="91" y2="108"></line>
+          <polygon class="fig-head-b" points="91,108 93.55,118.47 85.63,117.33"></polygon>
+
+          <line class="fig-vec-b" x1="70" y1="255" x2="80.5" y2="181.5"></line>
+          <polygon class="fig-head-b" points="80.5,181.5 83.05,191.96 75.13,190.83"></polygon>
+
+          <line class="fig-vec" x1="70" y1="255" x2="448" y2="244.5"></line>
+          <polygon class="fig-head" points="448,244.5 438.11,248.78 437.89,240.78"></polygon>
+
+          <path class="fig-arc" d="M 124.98 253.47 A 55 55 0 0 0 77.80 200.56"></path>
+          <text class="fig-label" x="133" y="219">80.3&deg;</text>
+
+          <path class="fig-gap" d="M 91.5 184.5 L 102 111"></path>
+          <line class="fig-gap" x1="80.5" y1="181.5" x2="91.5" y2="184.5"></line>
+          <line class="fig-gap" x1="91" y1="108" x2="102" y2="111"></line>
+          <text class="fig-label" x="106" y="152">7.07 apart</text>
+
+          <text class="fig-ptname" x="440" y="230" text-anchor="end">As You Like It (36, 1)</text>
+          <text class="fig-ptname" x="101" y="112">2 &times; Julius Caesar (2, 14)</text>
+          <text class="fig-ptname" x="91" y="176">Julius Caesar (1, 7)</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The idea before the formula">
+    <div class="slide-inner">
+      <p>Vector length here mostly reflects how much was written, which is not what we set out to
+      measure.</p>
+      <footer>Compare <strong>direction rather than magnitude</strong>, so a long document and a
+      short document on the same subject count as similar.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The dot product">
+    <div class="slide-inner">
+      <h2>The dot product</h2>
+      <div class="meq"><math data-tex="a \cdot b = \sum_i a_i b_i = a_1 b_1 + a_2 b_2 + \cdots + a_n b_n" display="block" class="tml-display" style="display:block math;"><mrow><mi>a</mi><mo>⋅</mo><mi>b</mi><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>a</mi><mi>i</mi></msub><msub><mi>b</mi><mi>i</mi></msub><mo>=</mo><msub><mi>a</mi><mn>1</mn></msub><msub><mi>b</mi><mn>1</mn></msub><mo>+</mo><msub><mi>a</mi><mn>2</mn></msub><msub><mi>b</mi><mn>2</mn></msub><mo>+</mo><mo>⋯</mo><mo>+</mo><msub><mi>a</mi><mi>n</mi></msub><msub><mi>b</mi><mi>n</mi></msub></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Already a similarity score">
+    <div class="slide-inner">
+      <p>This is already an approximate similarity score: large when both vectors have large values
+      in the same positions, and exactly zero when no position has both non-zero.</p>
+      <footer>Two documents sharing no words score exactly 0.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="But it has the same defect">
+    <div class="slide-inner">
+      <h2>And it has the defect we are trying to remove</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+d \cdot d &amp;= 7{\times}7 + 62{\times}62 + 1{\times}1 + 2{\times}2 = 3898 \\
+d \cdot 2d &amp;= 7{\times}14 + 62{\times}124 + 1{\times}2 + 2{\times}4 = 7796
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>d</mi><mo>⋅</mo><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>7</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>7</mn><mo>+</mo><mn>62</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>62</mn><mo>+</mo><mn>1</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>1</mn><mo>+</mo><mn>2</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>2</mn><mo>=</mo><mn>3898</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>d</mi><mo>⋅</mo><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>7</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>14</mn><mo>+</mo><mn>62</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>124</mn><mo>+</mo><mn>1</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>2</mn><mo>+</mo><mn>2</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>4</mn><mo>=</mo><mn>7796</mn></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Twice as long, not twice as relevant">
+    <div class="slide-inner">
+      <p>The dot product with the doubled document is twice as large — not because it is twice as
+      relevant but because it is twice as long.</p>
+      <footer>A frequent word, or a long document, scores highly for reasons of size alone.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Normalising by length">
+    <div class="slide-inner">
+      <h2>Divide each vector by its own length</h2>
+      <div class="meq"><math data-tex="\cos(a, b) = \frac{a \cdot b}{|a|\, |b|} \qquad \text{where } |a| = \sqrt{\sum_i a_i^2}" display="block" class="tml-display" style="display:block math;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>a</mi><mo>⋅</mo><mi>b</mi></mrow><mrow><mi>|</mi><mi>a</mi><mi>|</mi><mspace width="0.1667em"></mspace><mi>|</mi><mi>b</mi><mi>|</mi></mrow></mfrac><mspace width="2em"></mspace><mtext>where </mtext><mi>|</mi><mi>a</mi><mi>|</mi><mo>=</mo><msqrt><mrow><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msubsup><mi>a</mi><mi>i</mi><mn>2</mn></msubsup></mrow></msqrt></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="How to think about it">
+    <div class="slide-inner">
+      <p class="lede">Cosine similarity is the dot product of two <strong>unit vectors</strong></p>
+      <p>Dividing a vector by its own length gives the same direction at length exactly 1. Both
+      vectors are reduced that way — discarding everything except direction — and only then
+      compared.</p>
+      <footer>No trigonometry is required to use this.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Following the factor of 2">
+    <div class="slide-inner">
+      <h2>Where the factor of 2 goes</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+d \cdot 2d &amp;= \sum_i d_i (2 d_i) = 2 \sum_i d_i^2 = 2 |d|^2 = 7796 \\
+|d| &amp;= 62.434 \\
+|2d| &amp;= \sqrt{\sum_i (2 d_i)^2} = \sqrt{4 \sum_i d_i^2} = 2|d| = 124.868
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>d</mi><mo>⋅</mo><mn>2</mn><mi>d</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>d</mi><mi>i</mi></msub><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>2</mn><msub><mi>d</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>2</mn><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msubsup><mi>d</mi><mi>i</mi><mn class="tml-lrg-pad">2</mn></msubsup><mo>=</mo><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup><mo>=</mo><mn>7796</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>|</mi><mi>d</mi><mi>|</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>62.434</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>|</mi><mn>2</mn><mi>d</mi><mi>|</mi></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><msqrt><mrow><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>2</mn><msub><mi>d</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></msqrt><mo>=</mo><msqrt><mrow><mn>4</mn><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msubsup><mi>d</mi><mi>i</mi><mn class="tml-lrg-pad">2</mn></msubsup></mrow></msqrt><mo>=</mo><mn>2</mn><mi>|</mi><mi>d</mi><mi>|</mi><mo>=</mo><mn>124.868</mn></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="It cancels">
+    <div class="slide-inner">
+      <h2>Once above, once below</h2>
+      <div class="meq"><math data-tex="\cos(d, 2d) = \frac{2 |d|^2}{|d| \cdot 2|d|} = \frac{2 |d|^2}{2 |d|^2} = 1" display="block" class="tml-display" style="display:block math;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo separator="true">,</mo><mn>2</mn><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup></mrow><mrow><mi>|</mi><mi>d</mi><mi>|</mi><mo>⋅</mo><mn>2</mn><mi>|</mi><mi>d</mi><mi>|</mi></mrow></mfrac><mo>=</mo><mfrac><mrow><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup></mrow><mrow><mn>2</mn><mi>|</mi><mi>d</mi><msup><mi>|</mi><mn>2</mn></msup></mrow></mfrac><mo>=</mo><mn>1</mn></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Proved, not assumed">
+    <div class="slide-inner">
+      <p>The result is <strong>exactly 1</strong> rather than approximately 1, and it would be
+      exactly 1 for any multiple: tripled, halved, or a thousand times over.</p>
+      <footer>Nothing in that derivation used our particular numbers. Scaling a vector cannot change
+      its cosine with any other vector. That is the property we needed, now proved rather than
+      assumed.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: no calculator">
+    <div class="slide-inner">
+      <h2>Exercise — no calculator</h2>
+      <div class="recall">
+        <span class="label">Two documents, two dimensions each</span>
+        <p><math data-tex="a = [\,3,\, 0\,]"><mrow><mi>a</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>3</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math> and <math data-tex="b = [\,30,\, 0\,]"><mrow><mi>b</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mspace width="0.1667em"></mspace><mn>30</mn><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mn>0</mn><mspace width="0.1667em"></mspace><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></mrow></math>. What is the Euclidean distance
+        between them? What is the cosine?</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p>Euclidean distance: <math data-tex="\sqrt{(30-3)^2 + 0^2} = 27"><mrow><msqrt><mrow><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>30</mn><mo>−</mo><mn>3</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup><mo>+</mo><msup><mn>0</mn><mn>2</mn></msup></mrow></msqrt><mo>=</mo><mn>27</mn></mrow></math>.</p>
+          <p>Cosine: <math data-tex="(3 {\times} 30 + 0 {\times} 0) / (3 \times 30) = 90/90 = 1"><mrow><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>3</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>30</mn><mo>+</mo><mn>0</mn><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">×</mo><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>3</mn><mo>×</mo><mn>30</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>90</mn><mi>/</mi><mn>90</mn><mo>=</mo><mn>1</mn></mrow></math>.</p>
+          <p>The two measurements disagree as strongly as they can, on vectors small enough to check
+          by hand. <math data-tex="b"><mi>b</mi></math> is <math data-tex="a"><mi>a</mi></math> times ten: same direction, ten times the length. Distance
+          reports 27; cosine reports identity.</p>
+          <p>This is the doubling example with the arithmetic removed — the 1.0000 did not depend on
+          <em>Julius Caesar</em>'s particular counts.</p>
         </div>
       </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement" data-title="The range">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p>Cosine runs from <strong>1</strong> (same direction) through <strong>0</strong> (right
+      angles) down to <strong>−1</strong> (opposite directions).</p>
+      <footer>For the vectors in this unit — counts, tf, tf-idf — the range is only <strong>0 to
+      1</strong>. That is a fact about our data, not about the formula.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
+  <section class="slide slide--bullets" data-title="Why a count vector is never negative">
     <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
+      <h2>Why a count vector's cosine is never negative</h2>
       <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
+        <li>Counts are never negative — a word occurs three times or zero times, never −3</li>
+        <li>So the dot product is a sum of products of non-negative numbers, and cannot be
+        negative; lengths are always positive</li>
+        <li>Geometrically, two vectors in the same corner of the space are at most 90° apart</li>
       </ul>
+      <p class="aside">This holds for count vectors, and stops holding soon. Embeddings in sessions
+      21–22 have negative components, so their cosines can be negative. Same formula, wider
+      range.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Lazy fixes it">
+  <section class="slide slide--statement" data-title="Back to Shakespeare">
     <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
+      <p>Session 18 ended on a failure: after tf-idf weighting, <em>As You Like It</em> was closer
+      to a history than to the other comedy.</p>
+      <footer>Does cosine recover it? Take session 18's tf-idf vectors unchanged and measure the
+      angle rather than the distance.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A more precise alternative">
+  <section class="slide slide--table" data-title="Cosine on the tf-idf vectors">
     <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
+      <h2>Cosine on session 18's tf-idf vectors</h2>
+      <table>
+        <tr><th>pair (tf-idf vectors, session 18)</th><th>cosine</th></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Julius Caesar</em> — comedy ↔ history</td>
+        <td><strong>0.971</strong></td></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Twelfth Night</em> — comedy ↔ comedy</td>
+        <td><strong>0.343</strong></td></tr>
+        <tr><td><em>Julius Caesar</em> ↔ <em>Henry V</em> — history ↔ history</td><td>0.9999</td></tr>
+        <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.110</td></tr>
+      </table>
+      <p class="aside">Wrong in the same direction as before.</p>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
+  <section class="slide slide--table" data-title="Why those numbers">
     <div class="slide-inner">
-      <div class="quiz" data-answer="0">
+      <h2>The reason is visible in the weighted vectors</h2>
+      <table>
+        <tr><th>play</th><th><code>battle</code></th><th><code>good</code></th><th><code>fool</code></th>
+        <th><code>wit</code></th></tr>
+        <tr><td><em>As You Like It</em></td><td>0.246</td><td>0</td><td>0.030</td><td>0.085</td></tr>
+        <tr><td><em>Twelfth Night</em></td><td><strong>0</strong></td><td>0</td><td>0.033</td>
+        <td>0.080</td></tr>
+        <tr><td><em>Julius Caesar</em></td><td>0.454</td><td>0</td><td>0.012</td><td>0.048</td></tr>
+        <tr><td><em>Henry V</em></td><td>0.520</td><td>0</td><td>0.019</td><td>0.054</td></tr>
+      </table>
+      <p class="aside">Only <code>battle</code> has appreciable size, so direction is decided by
+      that one word. <em>Twelfth Night</em> has no component on the only axis that still carries
+      weight — which is why 0.343 and 0.110 mean nearly perpendicular.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The central result">
+    <div class="slide-inner">
+      <p class="lede">Cosine fixes a length problem, not a feature problem</p>
+      <p>Session 18's difficulty was never that the vectors were the wrong length. Measuring the
+      angle between poor features yields the angle between poor features.</p>
+      <footer>No similarity measure can recover information that is not present in the
+      vector.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Change the vectors instead">
+    <div class="slide-inner">
+      <h2>Session 17's matrix, log-damped, with no idf at all</h2>
+      <table>
+        <tr><th></th><th>As You Like It</th><th>Twelfth Night</th><th>Julius Caesar</th>
+        <th>Henry V</th></tr>
+        <tr><td><code>battle</code></td><td>1.000</td><td>0</td>    <td>1.845</td><td>2.114</td></tr>
+        <tr><td><code>good</code></td>  <td>3.057</td><td>2.903</td><td>2.792</td><td>2.949</td></tr>
+        <tr><td><code>fool</code></td>  <td>2.556</td><td>2.763</td><td>1.000</td><td>1.602</td></tr>
+        <tr><td><code>wit</code></td>   <td>2.301</td><td>2.176</td><td>1.301</td><td>1.477</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="All six cosines">
+    <div class="slide-inner">
+      <h2>Every play's nearest neighbour is now its own genre</h2>
+      <table>
+        <tr><th>pair (log-tf vectors, no idf)</th><th>cosine</th></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Twelfth Night</em> — comedy ↔ comedy</td>
+        <td><strong>0.975</strong></td></tr>
+        <tr><td><em>Julius Caesar</em> ↔ <em>Henry V</em> — history ↔ history</td>
+        <td><strong>0.993</strong></td></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Henry V</em></td><td>0.934</td></tr>
+        <tr><td><em>As You Like It</em> ↔ <em>Julius Caesar</em></td><td>0.908</td></tr>
+        <tr><td><em>Twelfth Night</em> ↔ <em>Henry V</em></td><td>0.839</td></tr>
+        <tr><td><em>Twelfth Night</em> ↔ <em>Julius Caesar</em></td><td>0.806</td></tr>
+      </table>
+      <p class="aside">Session 17's clustering, recovered.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Raw counts, precisely">
+    <div class="slide-inner">
+      <p>On unlogged counts the ranking also comes out right — but <em>As You Like It</em> ↔
+      <em>Twelfth Night</em> is 0.9499 against <em>As You Like It</em> ↔ <em>Henry V</em> at 0.9490.
+      The comedy pair wins by nine ten-thousandths.</p>
+      <footer><code>good</code>'s huge counts pull all four plays into nearly one direction, so the
+      genre signal survives only in the fourth decimal. The log damping is what separates them:
+      0.975 against 0.934 can be relied on.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The three comparisons">
+    <div class="slide-inner">
+      <h2>The three comparisons together</h2>
+      <ul>
+        <li><strong>Raw counts with cosine</strong> — correct in ranking, unusable in practice: one
+        common word dominates and all four documents look alike</li>
+        <li><strong>tf-idf with cosine</strong> — worse. On this collection idf zeroed the words
+        carrying the genre signal</li>
+        <li><strong>log-tf with cosine</strong> — the genres separate cleanly</li>
+      </ul>
+      <p class="aside">This does not show idf is a poor method. It answers a different question, and
+      session 18's conclusions stand. The weighting and the similarity measure are two separate
+      choices, and both appear in the result.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why never negative">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
+        <p class="q-text">Why can the cosine between two raw word-count vectors never be
+        negative?</p>
         <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
+          <button class="opt">Because the cosine formula takes an absolute value in its numerator, so a negative result cannot survive it</button>
+          <button class="opt">Because counts are never negative, so two document vectors can never be more than 90° apart in the first place</button>
+          <button class="opt">Because dividing by the two vector lengths forces any result into the range 0 to 1, whatever went in</button>
+          <button class="opt">Because two documents always share at least some words, so their dot product is always greater than zero</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
+          <p>Correct: <strong>because counts are never negative</strong>.</p>
+          <p>A fact about the <em>data</em>, not the formula. The formula is perfectly happy to
+          return −1, and dividing by lengths only guarantees −1 to 1. That matters in a few weeks:
+          word embeddings have negative components. The last option is wrong for another reason —
+          two documents sharing no words give a dot product of exactly 0, an ordinary answer.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--quiz" data-title="Quiz: why cosine did not help">
     <div class="slide-inner">
       <div class="quiz" data-answer="2">
         <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
+        <p class="q-text">Cosine did not repair session 18's tf-idf Shakespeare vectors — a comedy
+        is still closer to a history. Why not?</p>
         <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
+          <button class="opt">Because cosine needs vectors of the same length, and the four plays are all different lengths</button>
+          <button class="opt">Because tf-idf weights are decimals rather than whole counts, and cosine is designed for counts</button>
+          <button class="opt">Because cosine removes a length effect, and the problem was features carrying no information</button>
+          <button class="opt">Because four documents are far too few for a cosine to mean anything reliable at all</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
+          <p>Correct: <strong>cosine removes a length effect, and length was not the
+          problem</strong>.</p>
+          <p>After weighting only <code>battle</code> carried anything, so three plays point nearly
+          the same way and <em>Twelfth Night</em>, which never uses it, points off at almost a right
+          angle. Neither is a fact about length, so switching from distance to angle cannot touch
+          it. Nothing about direction recovers information the weighting removed.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--table" data-title="The same formula on words">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <h2>The same formula compares <em>words</em></h2>
+      <table>
+        <tr><th></th><th><code>pie</code></th><th><code>data</code></th><th><code>computer</code></th></tr>
+        <tr><td><code>cherry</code></td>     <td>442</td><td>8</td>   <td>2</td></tr>
+        <tr><td><code>digital</code></td>    <td>5</td>  <td>1683</td><td>1670</td></tr>
+        <tr><td><code>information</code></td><td>5</td>  <td>3982</td><td>3325</td></tr>
+      </table>
+      <p class="aside">Counts of how often each word appears near <code>pie</code>,
+      <code>data</code> and <code>computer</code>.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--code" data-title="Two cosines">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <h2>No information about meaning was supplied</h2>
+      <pre><code>cos(cherry, information)      =  0.018
+cos(digital, information)     =  0.996</code></pre>
+      <p class="aside"><code>information</code>'s vector is much longer than <code>digital</code>'s
+      — 5188 against 2371 — simply because it is a more frequent word. The raw dot product would
+      have made every comparison involving it look strong for that reason alone.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
+  <section class="slide slide--statement" data-title="Keep this table">
     <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
+      <p>A word represented as a vector of the words it occurs alongside is the central idea of
+      sessions 21 and 22.</p>
+      <footer>Cosine is how those vectors are compared.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="One dictionary per line">
+  <section class="slide slide--bullets" data-title="Where cosine returns">
     <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
-    <div class="slide-inner">
-      <h2>Exercise</h2>
-      <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
-        <button class="reveal">Show answer</button>
-        <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
-        </div>
-      </div>
+      <h2>Where cosine is used from here on</h2>
+      <ul>
+        <li><strong>Search</strong> — a real engine represents the query as a vector too and ranks
+        documents by cosine with it</li>
+        <li><strong>Embeddings, sessions 21–22</strong> — every "which words are similar to this
+        one" is a cosine; every nearest-neighbour list is sorted by one</li>
+        <li><strong>Everything built on embeddings</strong> — retrieval, clustering, recommendation,
+        duplicate detection. When a modern system says two things are similar, a cosine has almost
+        always been computed</li>
+      </ul>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Cosine is the dot product of two vectors after each is shrunk to length 1 — a comparison of
+      direction with length thrown away. Scaling cancels out, so a document and the same document
+      twice score exactly 1.</p>
+      <footer>But cosine only removes the length effect. On Shakespeare it recovered the genre
+      clustering from log-tf vectors and could do nothing for the tf-idf ones, because bad features
+      stay bad however you measure the angle between them.</footer>
     </div>
   </section>
 
@@ -1110,22 +1234,24 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          <strong>§5.4</strong></p>
+          <p class="ref-note">&ldquo;Cosine for measuring similarity&rdquo;, and the source of the
+          cherry / digital / information table. <strong>§11.1.3</strong> shows the same formula used
+          for document ranking.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Manning, Raghavan &amp; Schütze — <em>Introduction to Information
+          Retrieval</em>, §6.3</p>
+          <p class="ref-note">The same ground from the search-engine side.</p>
+          <a class="ref-link" href="https://nlp.stanford.edu/IR-book/"
+          target="_blank" rel="noopener">nlp.stanford.edu/IR-book/</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0020-neural-networks-in-one-hour.html">Next deck &mdash;
+      session 20: Neural networks in one hour &rarr;</a>
     </div>
   </section>
 

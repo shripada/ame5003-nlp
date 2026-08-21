@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 23: The RNN — hidden state, shared weights</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,435 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0023-recurrent-neural-networks.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 23</p>
+      <h1>The RNN: hidden state, shared weights</h1>
+      <p class="subtitle">A feedforward layer needs an input of one fixed size, and sentences are
+      not all one size. An RNN runs the same small network once per word instead, carrying a running
+      summary — the hidden state — forward from one word to the next.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--math" data-title="Recap: the neuron">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
+      <h2>Session 20, restated and not re-derived</h2>
+      <div class="meq"><math data-tex="y = f\!\left(\sum_i w_i x_i + b\right)" display="block" class="tml-display" style="display:block math;"><mrow><mi>y</mi><mo>=</mo><mi>f</mi><mrow style="margin-left:-0.1667em;"></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>w</mi><mi>i</mi></msub><msub><mi>x</mi><mi>i</mi></msub><mo>+</mo><mi>b</mi><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="And weights are fitted">
+    <div class="slide-inner">
+      <p>Stack several neurons and it is a matrix multiply, <math data-tex="z = Wx"><mrow><mi>z</mi><mo>=</mo><mi>W</mi><mi>x</mi></mrow></math>, one row of <math data-tex="W"><mi>W</mi></math> per
+      neuron.</p>
+      <footer>The weights are not counted the way session 16's were. They start arbitrary and get
+      <strong>fitted</strong>, nudged by gradient descent until the whole thing predicts well. That
+      is everything this session needs.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="The fixed-size wall">
+    <div class="slide-inner">
+      <h2>A feedforward layer needs a fixed-size input</h2>
       <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
+        <li><math data-tex="W"><mi>W</mi></math> has a fixed number of columns, and that cannot change from one input to the
+        next</li>
+        <li><strong>CBOW</strong> (session 21) <em>averaged</em> the context words down to one
+        vector, whatever the window size</li>
+        <li><strong>Lab 8</strong> did the same to build a document vector from GloVe and Word2Vec —
+        average every word, get one fixed vector back</li>
       </ul>
+      <p class="aside">Both dodge the wall the same way, and lab 8 measured the price: TF-IDF
+      outperformed both averaged-embedding representations.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--statement" data-title="Two distinct problems">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
+      <p class="lede">Two distinct problems</p>
+      <p><strong>Fixed size.</strong> A network built for a 10-word input cannot take a 50-word
+      input without redesign.</p>
+      <footer><strong>Order-blindness.</strong> Averaging is commutative —
+      <math data-tex="\mathrm{avg}(a, b, c) = \mathrm{avg}(c, b, a)"><mrow><mpadded lspace="0"><mi>avg</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>a</mi><mo separator="true">,</mo><mi>b</mi><mo separator="true">,</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mpadded lspace="0"><mi>avg</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo separator="true">,</mo><mi>b</mi><mo separator="true">,</mo><mi>a</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, <em>exactly</em>, not approximately.
+      Whatever order the words carried is gone before the network sees the vector.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="In Python">
+  <section class="slide slide--math" data-title="Measuring the second claim">
     <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
+      <h2>The same GloVe vectors lab 8 used</h2>
+      <div class="meq"><math data-tex="\cos\Bigl(\mathrm{avg}\bigl(\text{GloVe}[\text{dog}], \text{GloVe}[\text{bites}], \text{GloVe}[\text{man}]\bigr),\ \mathrm{avg}\bigl(\text{GloVe}[\text{man}], \text{GloVe}[\text{bites}], \text{GloVe}[\text{dog}]\bigr)\Bigr) = 0.9999999999999998" display="block" class="tml-display" style="display:block math;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.8em" maxsize="1.8em">(</mo><mpadded lspace="0"><mi>avg</mi></mpadded><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>dog</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>bites</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>man</mtext><mo form="postfix" stretchy="false">]</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mo separator="true">,</mo><mtext> </mtext><mpadded lspace="0"><mi>avg</mi></mpadded><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>man</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>bites</mtext><mo form="postfix" stretchy="false">]</mo><mo separator="true">,</mo><mtext>GloVe</mtext><mo form="prefix" stretchy="false">[</mo><mtext>dog</mtext><mo form="postfix" stretchy="false">]</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo><mo fence="true" symmetric="true" minsize="1.8em" maxsize="1.8em">)</mo><mo>=</mo><mn>0.9999999999999998</mn></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="How groups change findall">
+  <section class="slide slide--statement warn" data-title="Why not exactly 1.0">
     <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
+      <p>Floating-point addition is not perfectly order-invariant, so <math data-tex="a + b + c"><mrow><mi>a</mi><mo>+</mo><mi>b</mi><mo>+</mo><mi>c</mi></mrow></math> and
+      <math data-tex="c + b + a"><mrow><mi>c</mi><mo>+</mo><mi>b</mi><mo>+</mo><mi>a</mi></mrow></math> can differ in the last bit. The rounding noise in the seventeenth digit is
+      not evidence that order mattered even a little.</p>
+      <footer>The same test on "the movie was good, not bad" against "the movie was bad, not good"
+      gives 0.9999999999999999. Averaging does not do a <em>poor</em> job of keeping order — it
+      cannot keep order, by construction.</footer>
+    </div>
+  </section>
 
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
+  <section class="slide slide--statement" data-title="Process one word at a time">
+    <div class="slide-inner">
+      <p>Feed the network one word at a time, and give it a <strong>hidden state</strong> — a vector
+      it carries from step to step — so word 50 is processed with a summary of words 1–49 already
+      folded in.</p>
+      <footer>Nothing about the network's <em>size</em> depends on sentence length, because at every
+      step it looks at one word plus one hidden state.</footer>
+    </div>
+  </section>
 
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
+  <section class="slide slide--statement" data-title="How that addresses both">
+    <div class="slide-inner">
+      <p><strong>Fixed size</strong> stops being a constraint: the input at every step is always one
+      word vector plus one hidden-state vector, three words or three hundred.</p>
+      <footer><strong>Order-blindness</strong> stops being automatic: <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is built from
+      <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, which was built from the one before — a specific, order-dependent chain, not a
+      symmetric sum.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The recurrence">
+    <div class="slide-inner">
+      <h2>Three matrices, same idea as session 20</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+h_t &amp;= g(U h_{t-1} + W x_t) &amp;&amp; \text{the hidden state, updated} \\
+y_t &amp;= f(V h_t) &amp;&amp; \text{an output, if this step produces one}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>h</mi><mi>t</mi></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>the hidden state, updated</mtext></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>y</mi><mi>t</mi></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>V</mi><msub><mi>h</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>an output, if this step produces one</mtext></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Reading the recurrence">
+    <div class="slide-inner">
+      <p><math data-tex="x_t"><msub><mi>x</mi><mi>t</mi></msub></math> is the current word's vector; <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> is everything carried forward so
+      far. <math data-tex="W"><mi>W</mi></math> reads the new word, <math data-tex="U"><mi>U</mi></math> reads the running memory, <math data-tex="V"><mi>V</mi></math> turns memory
+      into output.</p>
+      <footer><math data-tex="g"><mi>g</mi></math> is conventionally <math data-tex="\tanh"><mrow><mi>tanh</mi><mo>⁡</mo><mspace width="0.1667em"></mspace></mrow></math> rather than session 20's sigmoid — it squashes
+      into <math data-tex="[-1, 1]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mo form="prefix" stretchy="false">−</mo><mn>1</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, and the zero-centred range keeps a value fed back into itself over and
+      over from drifting all one direction.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Walking the shapes">
+    <div class="slide-inner">
+      <p>If the hidden state is 300-dimensional and each word vector is 100-dimensional: <math data-tex="U"><mi>U</mi></math> is
+      300×300, <math data-tex="W"><mi>W</mi></math> is 300×100, and <math data-tex="V"><mi>V</mi></math> is whatever the output needs — one row per class,
+      for example.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Shared weights">
+    <div class="slide-inner">
+      <p class="lede">The same three matrices at every step</p>
+      <p>Not three hundred sets of weights for a three-hundred-word document and three for a
+      three-word sentence — <strong>one set, applied again and again</strong>.</p>
+      <footer>A thousand-word document and a three-word sentence use the identical parameter count.
+      This is what session 20's feedforward layer could not do.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="Unrolled in time">
+    <div class="slide-inner">
+      <h2>The same network, drawn once per timestep</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 620 340" role="img" aria-labelledby="rnntitle rnndesc">
+          <title id="rnntitle">An RNN unrolled in time across three steps, with the same three
+          weight matrices reused at every step</title>
+          <desc id="rnndesc">A chain of four circles running left to right along the middle,
+          labelled h sub zero to h sub three, each connected to the next by an arrow labelled U.
+          Below each of h one, h two and h three a smaller circle labelled x feeds upward into it,
+          each arrow labelled W. Above each, a smaller circle labelled y receives an arrow from it,
+          each arrow labelled V. Every U arrow carries the same label, every W arrow the same, every
+          V arrow the same — the point being that these are the same three matrices at every step,
+          not three different sets.</desc>
+
+          <line class="fig-edge" x1="79.0" y1="170.0" x2="158.0" y2="170.0"></line>
+          <polygon class="fig-edge-h" points="168.0,170.0 158.0,173.5 158.0,166.5"></polygon>
+          <text class="fig-label" x="118" y="155" text-anchor="middle">U</text>
+          <line class="fig-edge" x1="200.0" y1="270.0" x2="200.0" y2="212.0"></line>
+          <polygon class="fig-edge-h" points="200.0,202.0 203.5,212.0 196.5,212.0"></polygon>
+          <text class="fig-label" x="218" y="240" text-anchor="middle">W</text>
+          <line class="fig-edge" x1="200.0" y1="138.0" x2="200.0" y2="80.0"></line>
+          <polygon class="fig-edge-h" points="200.0,70.0 203.5,80.0 196.5,80.0"></polygon>
+          <text class="fig-label" x="218" y="110" text-anchor="middle">V</text>
+          <line class="fig-edge" x1="232.0" y1="170.0" x2="343.0" y2="170.0"></line>
+          <polygon class="fig-edge-h" points="353.0,170.0 343.0,173.5 343.0,166.5"></polygon>
+          <text class="fig-label" x="288" y="155" text-anchor="middle">U</text>
+          <line class="fig-edge" x1="385.0" y1="270.0" x2="385.0" y2="212.0"></line>
+          <polygon class="fig-edge-h" points="385.0,202.0 388.5,212.0 381.5,212.0"></polygon>
+          <text class="fig-label" x="403" y="240" text-anchor="middle">W</text>
+          <line class="fig-edge" x1="385.0" y1="138.0" x2="385.0" y2="80.0"></line>
+          <polygon class="fig-edge-h" points="385.0,70.0 388.5,80.0 381.5,80.0"></polygon>
+          <text class="fig-label" x="403" y="110" text-anchor="middle">V</text>
+          <line class="fig-edge" x1="417.0" y1="170.0" x2="528.0" y2="170.0"></line>
+          <polygon class="fig-edge-h" points="538.0,170.0 528.0,173.5 528.0,166.5"></polygon>
+          <text class="fig-label" x="473" y="155" text-anchor="middle">U</text>
+          <line class="fig-edge" x1="570.0" y1="270.0" x2="570.0" y2="212.0"></line>
+          <polygon class="fig-edge-h" points="570.0,202.0 573.5,212.0 566.5,212.0"></polygon>
+          <text class="fig-label" x="588" y="240" text-anchor="middle">W</text>
+          <line class="fig-edge" x1="570.0" y1="138.0" x2="570.0" y2="80.0"></line>
+          <polygon class="fig-edge-h" points="570.0,70.0 573.5,80.0 566.5,80.0"></polygon>
+          <text class="fig-label" x="588" y="110" text-anchor="middle">V</text>
+
+          <circle class="fig-node-q" cx="55" cy="170" r="24"></circle>
+          <text class="fig-glyph" x="55" y="177" text-anchor="middle">h₀</text>
+
+          <circle class="fig-node" cx="200" cy="170" r="32"></circle>
+          <text class="fig-glyph" x="200" y="178" text-anchor="middle">h₁</text>
+          <circle class="fig-node-q" cx="200" cy="292" r="22"></circle>
+          <text class="fig-glyph" x="200" y="299" text-anchor="middle">x₁</text>
+          <circle class="fig-node-q" cx="200" cy="48" r="22"></circle>
+          <text class="fig-glyph" x="200" y="55" text-anchor="middle">y₁</text>
+
+          <circle class="fig-node" cx="385" cy="170" r="32"></circle>
+          <text class="fig-glyph" x="385" y="178" text-anchor="middle">h₂</text>
+          <circle class="fig-node-q" cx="385" cy="292" r="22"></circle>
+          <text class="fig-glyph" x="385" y="299" text-anchor="middle">x₂</text>
+          <circle class="fig-node-q" cx="385" cy="48" r="22"></circle>
+          <text class="fig-glyph" x="385" y="55" text-anchor="middle">y₂</text>
+
+          <circle class="fig-node" cx="570" cy="170" r="32"></circle>
+          <text class="fig-glyph" x="570" y="178" text-anchor="middle">h₃</text>
+          <circle class="fig-node-q" cx="570" cy="292" r="22"></circle>
+          <text class="fig-glyph" x="570" y="299" text-anchor="middle">x₃</text>
+          <circle class="fig-node-q" cx="570" cy="48" r="22"></circle>
+          <text class="fig-glyph" x="570" y="55" text-anchor="middle">y₃</text>
+
+          <text class="fig-axname" x="310" y="328" text-anchor="middle">same U, same W, same V —
+          every step</text>
+        </svg>
       </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Non-capturing groups">
+  <section class="slide slide--statement" data-title="Reading the figure">
     <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
+      <p><math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> is the starting hidden state, usually all zeros. Every <math data-tex="U"><mi>U</mi></math> arrow is the
+      identical matrix, every <math data-tex="W"><mi>W</mi></math> arrow the identical matrix, every <math data-tex="V"><mi>V</mi></math> arrow the
+      identical matrix.</p>
+      <footer>The figure draws an output at <em>every</em> step, which is the sequence-labelling
+      shape. The classification setup later keeps only the last step and drops <math data-tex="y_1"><msub><mi>y</mi><mn>1</mn></msub></math> and
+      <math data-tex="y_2"><msub><mi>y</mi><mn>2</mn></msub></math> entirely.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Alternation">
+  <section class="slide slide--quiz" data-title="Quiz: 3 words and 300">
     <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
-      <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
-      </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
-    <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
-      </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--statement" data-title="Where does a word end?">
-    <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
+      <div class="quiz" data-answer="1">
         <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
+        <p class="q-text">What makes an RNN handle a 3-word sentence and a 300-word document with
+        the <em>same</em> network, without redesigning anything?</p>
         <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
+          <button class="opt">The hidden state is padded or truncated to a fixed length before training</button>
+          <button class="opt">The weights U, W, V are reused at every timestep, so parameter count never depends on sequence length</button>
+          <button class="opt">Longer documents are split into fixed-size chunks and averaged afterward</button>
+          <button class="opt">The network has a separate copy of its weights for every possible sequence length, and picks the right one at runtime</button>
         </div>
         <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
+          <p>Correct: <strong>the same three matrices are reused at every step</strong>.</p>
+          <p>Nothing about <math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math> or <math data-tex="V"><mi>V</mi></math>'s shape mentions sequence length — they
+          map "one word plus one hidden state" to "one new hidden state", applied once per word. A
+          three-word sentence runs the loop three times; a three-hundred-word document runs it three
+          hundred times; the network is identical both times.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
+  <section class="slide slide--math" data-title="A worked example">
     <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
+      <h2>One-dimensional hidden state, no activation, checkable by hand</h2>
+      <div class="meq"><math data-tex="U = 0.5 \qquad W = 1 \qquad h_0 = 0 \qquad x_1 = 2 \qquad x_2 = 3" display="block" class="tml-display" style="display:block math;"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn><mspace width="2em"></mspace><mi>W</mi><mo>=</mo><mn>1</mn><mspace width="2em"></mspace><msub><mi>h</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn><mspace width="2em"></mspace><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mn>2</mn><mspace width="2em"></mspace><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>3</mn></mrow></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Substitution">
+  <section class="slide slide--math" data-title="Two steps">
     <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
+      <h2>Two steps of the recurrence</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+h_1 &amp;= U h_0 + W x_1 = 0.5 \cdot 0 + 1 \cdot 2 = 2 \\
+h_2 &amp;= U h_1 + W x_2 = 0.5 \cdot 2 + 1 \cdot 3 = 4
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>h</mi><mn>1</mn></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>U</mi><msub><mi>h</mi><mn>0</mn></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mn>1</mn></msub><mo>=</mo><mn>0.5</mn><mo>⋅</mo><mn>0</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>2</mn><mo>=</mo><mn>2</mn></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>h</mi><mn>2</mn></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>U</mi><msub><mi>h</mi><mn>1</mn></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>0.5</mn><mo>⋅</mo><mn>2</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>3</mn><mo>=</mo><mn>4</mn></mrow></mtd></mtr></mtable></math></div>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
+  <section class="slide slide--statement" data-title="The chain">
     <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
+      <p>Real RNNs squash every step with tanh; it is omitted here so the arithmetic can be checked
+      by hand. The structure matters more than the values.</p>
+      <footer><math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math>'s formula contains <math data-tex="h_1"><msub><mi>h</mi><mn>1</mn></msub></math>, which contained <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math>. Nothing prevents
+      <math data-tex="h_{100}"><msub><mi>h</mi><mn>100</mn></msub></math> from depending on <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> through an unbroken chain. Whether it does in
+      practice is session 24's question.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: compute h2">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">Same toy RNN</span>
+        <p><math data-tex="h_0 = 0"><mrow><msub><mi>h</mi><mn>0</mn></msub><mo>=</mo><mn>0</mn></mrow></math>, <math data-tex="U = 0.5"><mrow><mi>U</mi><mo>=</mo><mn>0.5</mn></mrow></math>, <math data-tex="W = 1"><mrow><mi>W</mi><mo>=</mo><mn>1</mn></mrow></math>, <math data-tex="h_1 = 2"><mrow><msub><mi>h</mi><mn>1</mn></msub><mo>=</mo><mn>2</mn></mrow></math>, next input <math data-tex="x_2 = 3"><mrow><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>3</mn></mrow></math>.
+        Compute <math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math>. Then: does <math data-tex="h_2"><msub><mi>h</mi><mn>2</mn></msub></math>'s formula mention <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> anywhere?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p><math data-tex="h_2 = U h_1 + W x_2 = 0.5 \cdot 2 + 1 \cdot 3 = 4"><mrow><msub><mi>h</mi><mn>2</mn></msub><mo>=</mo><mi>U</mi><msub><mi>h</mi><mn>1</mn></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mn>2</mn></msub><mo>=</mo><mn>0.5</mn><mo>⋅</mo><mn>2</mn><mo>+</mo><mn>1</mn><mo>⋅</mo><mn>3</mn><mo>=</mo><mn>4</mn></mrow></math>.</p>
+          <p>No — it mentions only <math data-tex="h_1"><msub><mi>h</mi><mn>1</mn></msub></math> and <math data-tex="x_2"><msub><mi>x</mi><mn>2</mn></msub></math>. <math data-tex="h_0"><msub><mi>h</mi><mn>0</mn></msub></math> enters only
+          <em>through</em> <math data-tex="h_1"><msub><mi>h</mi><mn>1</mn></msub></math>, one step removed.</p>
+          <p>Every hidden state reaches back one step at a time, chained — exactly the shape of thing
+          that can either carry information a long way or lose it a long way. Which one happens is
+          session 24's question.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Two output shapes">
+    <div class="slide-inner">
+      <h2>The same architecture, two output shapes</h2>
+      <ul>
+        <li><strong>Sequence labelling</strong> — an output at every step: a tag for every word, the
+        way session 6's POS tagging assigns one label per token</li>
+        <li><strong>Sequence classification</strong> — one output at the very end, the direct
+        continuation of lab 8. This is our running example</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The classification head">
+    <div class="slide-inner">
+      <h2>Take the final hidden state, feed a separate classifier</h2>
+      <div class="meq"><math data-tex="\hat{y} = \mathrm{softmax}(W_c h_n)" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>y</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mi>c</mi></msub><msub><mi>h</mi><mi>n</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="W_c is not V">
+    <div class="slide-inner">
+      <p>In a classifier there are no per-step outputs at all — no <math data-tex="y_1"><msub><mi>y</mi><mn>1</mn></msub></math>, no <math data-tex="y_2"><msub><mi>y</mi><mn>2</mn></msub></math>,
+      nothing until the last word is read. <strong>So <math data-tex="V"><mi>V</mi></math>, the figure's hidden→output matrix,
+      is simply not used here.</strong></p>
+      <footer>The classification head is an extra, separately-sized matrix bolted onto the end, with
+      one row per <em>class</em> — two, for positive/negative — not one row per whatever the RNN's
+      per-step output was.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="End-to-end training">
+    <div class="slide-inner">
+      <p>The loss comes from the classification decision alone, at the very last step, and
+      backpropagates through the classifier's weights, into <math data-tex="h_n"><msub><mi>h</mi><mi>n</mi></msub></math>, and from there back through
+      every <math data-tex="U"><mi>U</mi></math> and <math data-tex="W"><mi>W</mi></math> to the first word.</p>
+      <footer>Nothing is trained to produce a good intermediate representation directly. A good
+      representation is whatever falls out of training the final decision to be correct.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Pooling">
+    <div class="slide-inner">
+      <p class="lede">An alternative: pooling</p>
+      <p>Average <em>all</em> the hidden states instead of keeping only the last. At first glance
+      this looks like reintroducing the problem we just measured.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why pooling is different">
+    <div class="slide-inner">
+      <p>Lab 8 averaged <strong>raw word vectors</strong> — context-free, order-blind by
+      construction. Pooling averages <strong>hidden states</strong>, and every <math data-tex="h_i"><msub><mi>h</mi><mi>i</mi></msub></math> already
+      encodes everything before position <em>i</em>.</p>
+      <footer>The order information was built into each vector before the average, not thrown away
+      by it. Averaging is not the problem; averaging <em>context-free</em> vectors was.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Verified by computation">
+    <div class="slide-inner">
+      <h2>Both orderings through a randomly initialised RNN</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+h(\text{dog bites man}) &amp;\ne h(\text{man bites dog}) &amp;&amp; \text{componentwise, exactly} \\
+\cos\bigl(h(\text{dog bites man}),\, h(\text{man bites dog})\bigr) &amp;= 0.138
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>dog bites man</mtext><mo form="postfix" stretchy="false">)</mo></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>≠</mo><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>man bites dog</mtext><mo form="postfix" stretchy="false">)</mo></mrow></mtd><mtd class="tml-right" style="padding-left:1em;padding-right:0em;"><mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mtext>componentwise, exactly</mtext></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mrow><mi>cos</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>dog bites man</mtext><mo form="postfix" stretchy="false">)</mo><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mi>h</mi><mo form="prefix" stretchy="false">(</mo><mtext>man bites dog</mtext><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0.138</mn></mrow></mtd><mtd class="tml-right" style="level:0;color:undefined;font:;font-family:;font-size:1;font-weight:;font-shape:;max-size:Infinity,Infinity;padding-left:0em;padding-right:0em;"></mtd><mtd class="tml-left" style="level:0;color:undefined;font:;font-family:;font-size:1;font-weight:;font-shape:;max-size:Infinity,Infinity;padding-left:0em;padding-right:0em;"></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="What that does and does not show">
+    <div class="slide-inner">
+      <p>An untrained RNN has never been taught to do anything useful with the order it sees.
+      <strong>0.138 is not a meaningful similarity score.</strong></p>
+      <footer>The claim is narrower and does not depend on training: the architecture is
+      <em>capable</em> of seeing order; averaging raw vectors is not. Compare the two cosines —
+      0.9999999999999998 for averaging, 0.138 for the untrained RNN.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: why the RNN can see order">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="3">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">Why can lab 8's averaged embeddings not distinguish
+        <code>dog bites man</code> from <code>man bites dog</code>, while even an <em>untrained</em>
+        RNN's final hidden state can?</p>
+        <div class="q-opts">
+          <button class="opt">The RNN has more parameters, so it memorises more about each specific sentence</button>
+          <button class="opt">Averaging uses GloVe vectors and the RNN uses Word2Vec vectors, which encode order differently</button>
+          <button class="opt">The untrained RNN has already learned that word order matters, from its random initialisation</button>
+          <button class="opt">Averaging is order-independent by construction — a sum divided by a count — while the hidden state is a function of a specific, order-dependent sequence of updates</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>averaging cannot see order because addition is commutative; the RNN's
+          recurrence is not</strong>.</p>
+          <p>Training does not enter into it. An untrained RNN's weights are arbitrary, but the
+          <em>function</em> <math data-tex="h_t = g(U h_{t-1} + W x_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> still depends on which word arrived at
+          which step, because <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> feeds into <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> and not the reverse. Averaging
+          has no such asymmetry, trained or not.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Averaged embeddings versus an RNN">
+    <div class="slide-inner">
+      <h2>Side by side</h2>
+      <table>
+        <tr><th></th><th>Averaged embedding (lab 8)</th><th>RNN</th></tr>
+        <tr><td>handles variable length by</td><td>collapsing to one fixed vector first</td>
+        <td>looping the same small network once per word</td></tr>
+        <tr><td>order-sensitive?</td><td>no — commutative by construction</td>
+        <td>yes — each step depends on the specific history before it</td></tr>
+        <tr><td>parameters vs. length</td><td>fixed, but information is discarded to get there</td>
+        <td>fixed (<math data-tex="U"><mi>U</mi></math>, <math data-tex="W"><mi>W</mi></math>, <math data-tex="V"><mi>V</mi></math> reused) — nothing discarded to achieve it</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="An open question">
+    <div class="slide-inner">
+      <p>SLP3 says the recurrent connection can let a decision "depend on information from hundreds
+      of words in the past". It is worth being precise about what that establishes.</p>
+      <footer>We have shown that the architecture <em>allows</em> it: the worked example makes the
+      chain visible link by link, and nothing in the formula breaks it. Whether the dependence
+      survives training is a separate question, and session 24 takes it up.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>Every trick this course used to get a fixed-size input cannot see word order, because
+      addition is commutative. An RNN reads one word at a time, carrying
+      <math data-tex="h_t = g(U h_{t-1} + W x_t)"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>U</mi><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> forward, with the same three matrices for a three-word
+      sentence and a three-hundred-word document.</p>
+      <footer>For classification the final hidden state feeds a softmax, trained end-to-end. What
+      this session did not show is whether "everything before it" really reaches back hundreds of
+      words — only that the architecture does not forbid it.</footer>
     </div>
   </section>
 
@@ -1110,22 +1210,17 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
-        </li>
-        <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
+          chapter 13</p>
+          <p class="ref-note">§13.1 for the recurrence and the unrolled figure, §13.3.2 for sequence
+          classification and the pooling alternative. §13.1.2's one paragraph on training names
+          backpropagation through time without opening it — session 24 opens it.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/13.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/13.pdf</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0024-backprop-through-time-and-vanishing-gradients.html">Next deck
+      &mdash; session 24: Backprop through time, and the vanishing gradient &rarr;</a>
     </div>
   </section>
 

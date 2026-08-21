@@ -167,6 +167,24 @@ strong { font-weight: 600; }
   margin: 0 0 1.2rem;
 }
 
+/* ---- Subordinate text, reused across shapes ----
+   The note under a code block, table or bullet list (.aside), and the qualifier
+   under a big statement (.slide--statement footer). Both say the thing the main
+   content needs in order to be read correctly — the callback, the caveat, the
+   pointer to the next session — so both are projected text and share one scale.
+   Sized here once for every shape: .aside used to be declared per shape, which
+   left the code and table slides with no rule at all and their notes at the
+   browser's 16px default. */
+.slide .aside,
+.slide--statement footer {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.slide .aside {
+  margin-top: 2rem;
+}
+
 /* ---- Shape: title ---- */
 .slide--title h1 {
   font-weight: 400;
@@ -177,7 +195,6 @@ strong { font-weight: 600; }
   text-wrap: balance;
 }
 .slide--title .subtitle {
-  font-style: italic;
   color: var(--ink-soft);
   font-size: clamp(1.1rem, 2.2vw, 1.6rem);
   text-wrap: balance;
@@ -206,22 +223,23 @@ strong { font-weight: 600; }
   font-size: clamp(1.25rem, 2.6vw, 1.9rem);
   line-height: 1.5;
   margin-bottom: .9rem;
-  padding-left: 1.6rem;
+  /* In em, not rem: the indent has to grow with the bullet text, which itself
+     scales with the viewport. A fixed 1.6rem gap was narrower than one
+     character at projector size, so the marker crowded the first word. */
+  padding-left: 1.5em;
   position: relative;
 }
+/* A round marker rather than an em dash. The dash is nearly a full em wide,
+   which is what left it sitting almost against the text, and it reads as
+   punctuation mid-sentence when a line wraps. This also matches the lessons,
+   which leave list markers at the browser's default disc. */
 .slide--bullets li::before {
-  content: "—";
+  content: "\2022";
   position: absolute;
-  left: 0;
+  left: .1em;
   color: var(--accent);
+  line-height: inherit;
 }
-.slide--bullets .aside {
-  margin-top: 2rem;
-  font-size: clamp(1rem, 2vw, 1.3rem);
-  color: var(--ink-soft);
-  font-style: italic;
-}
-
 /* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
 .ref-list {
   list-style: none;
@@ -241,23 +259,49 @@ strong { font-weight: 600; }
   padding-bottom: 0;
   border-bottom: none;
 }
+/* The reading list is projected and then photographed off the screen, so all
+   three lines are sized to be read from the back of the room. The note is the
+   line that says which sections to actually read, which makes it the one that
+   matters most; it stays a step below the title, and the title moves up to keep
+   that order. */
 .ref-list .ref-title {
-  font-size: clamp(1.05rem, 2.1vw, 1.4rem);
-  margin: 0 0 .4rem;
+  font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+  margin: 0 0 .5rem;
 }
 .ref-list .ref-note {
-  font-size: clamp(.85rem, 1.5vw, 1.05rem);
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  line-height: 1.45;
   color: var(--ink-soft);
-  font-style: italic;
-  margin: 0 0 .55rem;
+  margin: 0 0 .7rem;
 }
 .ref-list .ref-link {
   display: inline-block;
   font-family: var(--mono);
-  font-size: clamp(.72rem, 1.2vw, .88rem);
+  font-size: clamp(.85rem, 1.4vw, 1.05rem);
   color: var(--accent);
   word-break: break-all;
 }
+
+/* The onward link, on the last slide of a deck. A deck is a standalone file
+   with no index above it, so this is the only way to reach the next session
+   without editing the URL. It is real markup rather than something the script
+   injects, for the same reason the deck-exit link is: the deck has to work
+   with JavaScript off. Sits inside the slide, not in the fixed chrome, so it
+   appears once, at the end, and never over a slide being presented. */
+.deck-onward {
+  display: inline-block;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.78rem, 1.3vw, .95rem);
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: .55rem 1rem;
+}
+.deck-onward:hover,
+.deck-onward:focus-visible { color: var(--accent); border-color: var(--accent); }
 
 /* ---- Shape: statement (the big single-line slides) ---- */
 .slide--statement p {
@@ -274,14 +318,18 @@ strong { font-weight: 600; }
   color: var(--ink-faint);
   margin: 0 0 1.6rem;
 }
+/* Size, line-height and colour come from the shared subordinate-text rule near
+   the top of this file, alongside .aside. Only the mono face and the spacing
+   above it are particular to the statement shape. */
 .slide--statement footer {
-  margin-top: 1.6rem;
+  margin-top: 1.8rem;
   font-family: var(--mono);
-  font-size: clamp(.85rem, 1.3vw, 1rem);
-  color: var(--ink-soft);
 }
 .slide--statement.warn p { color: var(--warn); }
 .slide--statement q { quotes: none; }
+/* A second statement paragraph, set off from the first. Use this rather than an
+   inline margin, so the gap is the same on every deck that needs it. */
+.slide--statement p.spaced { margin-top: 1.4rem; }
 
 /* ---- Shape: code ---- */
 .slide pre {
@@ -435,13 +483,6 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
   margin: 0 0 1.4rem;
   text-wrap: balance;
 }
-.slide--math .aside {
-  margin-top: 2rem;
-  font-size: clamp(1rem, 2vw, 1.3rem);
-  color: var(--ink-soft);
-  font-style: italic;
-}
-
 /* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
 .slide--split .split-grid {
   display: grid;
@@ -672,6 +713,61 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .fig-setname  { fill: var(--ink); font-size: 19px; text-anchor: middle; }
 .fig-setname-sm { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
 
+/* Scatter plot (session 17: documents as points). Mirrors lesson.css's
+   .fig-axis/.fig-pt vocabulary rule for rule; only the type sizes differ,
+   because a slide is read from the back of a room and 12px axis labels are
+   not. Reused by session 19's angle figure. */
+.fig-axis   { stroke: var(--rule); stroke-width: 2; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1.4; }
+.fig-label  { fill: var(--ink-faint); font-size: 15px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 17px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 17px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.8; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
+/* Vector arrows (session 19: cosine as an angle). Local copies of lesson.css's
+   .fig-vec/.fig-head/.fig-gap. .fig-arc is already defined above, for session
+   1's figure, and is reused here for the angle arc. */
+.fig-vec    { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2.5; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2.5; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 2 3; }
+
+/* Network diagrams (session 20 onward: neurons, layers, loss curves). Local
+   copies of lesson.css's .fig-node/.fig-edge/.fig-glyph vocabulary, at slide
+   sizes. .fig-edge-w carries its weight as an inline opacity, as in the
+   lessons — the class only supplies colour and width. */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 2; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 2; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-edge-w { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 21px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+
+/* Gates and operators sitting on a line (session 25's LSTM, session 26's GRU).
+   Local copies of lesson.css's .fig-gate pair, at slide type sizes. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.8; }
+.fig-gate-t  { fill: var(--ink); font-size: 17px; text-anchor: middle; }
+
+/* A shaded region marking blocked or unreachable values (session 26's dial,
+   and the masked future in 29 and 31). Local copy of lesson.css's .fig-mask. */
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+
+/* Matrix cells shaded by a weight (session 29's attention matrix onward).
+   Local copies of lesson.css's pair: .fig-cell carries no stroke of its own,
+   because the grid is a separate layer of .fig-cellg rectangles drawn over the
+   shading, so a cell whose weight is zero still shows its outline. Opacity is
+   set inline per cell, as in the lessons. */
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+
 </style>
 </head>
 <body>
@@ -686,18 +782,18 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
     <div class="slide-inner">
       <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 06</p>
       <h1>Part-of-speech tagging</h1>
-      <p class="subtitle">Labelling each word with its grammatical job — and why the same word
-      needs a different label depending on its neighbours.</p>
+      <p class="subtitle">Labelling each word with its grammatical class, and why the same word
+      takes different labels in different sentences.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Session 5 left a debt">
+  <section class="slide slide--statement" data-title="Session 5 left something unfinished">
     <div class="slide-inner">
       <p class="lede">Session 5 left something unfinished</p>
       <p>To lemmatize <code>meeting</code> we had to know whether it was a
       <strong>noun</strong> or a <strong>verb</strong>.</p>
-      <footer>We deferred that to &ldquo;a tool that works out the part of speech&rdquo;. This is
-      that tool.</footer>
+      <footer>We deferred it to a tool that works out the part of speech. That tool is the subject
+      of this session.</footer>
     </div>
   </section>
 
@@ -749,14 +845,14 @@ PRON    VERB    NOUN      ADV</code></pre>
 
   <section class="slide slide--statement" data-title="Why it is not a lookup">
     <div class="slide-inner">
-      <p>If every word belonged to one class, tagging would be a dictionary lookup.</p>
-      <p style="margin-top:1.4rem">It is not.</p>
+      <p>If every word belonged to one class, tagging would be a dictionary lookup. It is not,
+      because a word's class depends on how it is used.</p>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="book, three ways">
+  <section class="slide slide--code" data-title="book: noun and verb">
     <div class="slide-inner">
-      <h2>The same four letters, three jobs</h2>
+      <h2><code>book</code> as a noun and as a verb</h2>
       <pre><code>"Give me the book."         book  ->  NOUN
 "I can book a flight."      book  ->  VERB
 "They book flights daily."  book  ->  VERB</code></pre>
@@ -765,11 +861,11 @@ PRON    VERB    NOUN      ADV</code></pre>
 
   <section class="slide slide--bullets" data-title="The neighbours decide">
     <div class="slide-inner">
-      <h2>Only the neighbours can decide</h2>
+      <h2>Words do not have a fixed word class</h2>
       <ul>
         <li><code>the book</code> — a determiner is followed by a noun, so it is a noun</li>
         <li><code>can book</code> — a modal is followed by a verb, so it is a verb</li>
-        <li>No dictionary can choose between them. It would list both.</li>
+        <li>A dictionary lists both classes and has no way of choosing between them</li>
       </ul>
       <p class="aside">The tagger reads the whole sentence and uses each word's neighbours.</p>
     </div>
@@ -779,8 +875,8 @@ PRON    VERB    NOUN      ADV</code></pre>
     <div class="slide-inner">
       <p>This makes tagging a <strong>sequence-labelling</strong> task: a word is tagged
       <em>within</em> the sequence it sits in, never on its own.</p>
-      <footer>Context is not merely helpful here. It is the only thing that resolves the
-      ambiguity.</footer>
+      <footer>Nothing in the word itself resolves the ambiguity; only the context around it
+      does.</footer>
     </div>
   </section>
 
@@ -805,17 +901,17 @@ PRON    VERB    NOUN      ADV</code></pre>
 
   <section class="slide slide--statement warn" data-title="The tagger makes the same mistake">
     <div class="slide-inner">
-      <p class="lede">Run it through spaCy</p>
-      <p>spaCy tags <code>man</code> as a <strong>noun</strong> — exactly the error a human reader
+      <p class="lede">The same sentence through spaCy</p>
+      <p>spaCy tags <code>man</code> as a <strong>noun</strong>, which is the error a human reader
       makes on first reading.</p>
-      <footer>Taggers are about 97% accurate. Genuinely ambiguous sentences are still beyond
-      them.</footer>
+      <footer>Taggers are about 97% accurate overall, but genuinely ambiguous sentences remain
+      beyond them.</footer>
     </div>
   </section>
 
   <section class="slide slide--bullets" data-title="Tagsets">
     <div class="slide-inner">
-      <h2>How many labels? Two levels are in common use</h2>
+      <h2>Tagsets: two levels of granularity</h2>
       <ul>
         <li><strong>Universal</strong> — coarse, about 17 tags: <code>NOUN</code>,
         <code>VERB</code>, <code>ADJ</code>, <code>ADV</code>, <code>DET</code>. Readable, and
@@ -845,8 +941,8 @@ PRON    VERB    NOUN      ADV</code></pre>
     <div class="slide-inner">
       <p>Neither tagset is more correct. They describe the same thing at different
       granularity.</p>
-      <footer>Coarse is enough to feed the lemmatizer. Fine is for when singular versus plural
-      actually matters. More tags also means more ways to be wrong.</footer>
+      <footer>The coarse tagset is enough to feed a lemmatizer; the fine one is for when singular
+      versus plural matters. A larger tagset also gives a tagger more ways to be wrong.</footer>
     </div>
   </section>
 
@@ -856,8 +952,8 @@ PRON    VERB    NOUN      ADV</code></pre>
       <ul>
         <li><strong>Lemmatization</strong> — session 5 needed the part of speech, and this is
         where it comes from</li>
-        <li><strong>Named entity recognition</strong> — knowing which words are nouns is a strong
-        first clue to where the names are</li>
+        <li><strong>Named entity recognition</strong> — names are nouns, so the tags narrow down
+        where in a sentence to look for them</li>
         <li><strong>Everything downstream</strong> — classical pipelines tag first, because later
         stages depend on each word's job</li>
       </ul>
@@ -912,8 +1008,8 @@ PRON    VERB    NOUN      ADV</code></pre>
       <p class="lede">Summary</p>
       <p>Tagging labels each word with its grammatical class, and it needs the whole sentence —
       the same word is a noun in one position and a verb in another.</p>
-      <footer>Next: named entity recognition. Same chapter, same idea, harder — because an entity
-      spans several words while a tag covers one.</footer>
+      <footer>Next: named entity recognition, from the same chapter. It is the harder task, because
+      an entity can span several words while a tag covers one.</footer>
     </div>
   </section>
 
@@ -931,6 +1027,8 @@ PRON    VERB    NOUN      ADV</code></pre>
           target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/17.pdf</a>
         </li>
       </ul>
+      <a class="deck-onward" href="0007-named-entity-recognition.html">Next deck &mdash;
+      session 7: Named entity recognition &rarr;</a>
     </div>
   </section>
 
@@ -1185,9 +1283,25 @@ PRON    VERB    NOUN      ADV</code></pre>
 
   // ---- Click-to-advance ----
   // Guarded so it never steals clicks meant for quiz options, the recall
-  // reveal button, or links.
+  // reveal button, or links — and so it never steals a text selection. A
+  // press that travels more than a few pixels is a drag, and a release that
+  // leaves text selected is a selection; neither is a request for the next
+  // slide.
+  var pressX = 0;
+  var pressY = 0;
+  var DRAG_SLOP = 5;
+
+  deck.addEventListener("pointerdown", function (e) {
+    pressX = e.clientX;
+    pressY = e.clientY;
+  });
+
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
+    if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
+        Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
     next();
   });
 

@@ -1,0 +1,1673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Slides — Session 31: The transformer</title>
+<style>
+/* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
+   Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
+   lesson.css, not a consumer of it — decks live in slides/, lessons in
+   lessons/, and the two documents have opposite goals (reading measure vs.
+   projector legibility), so this file duplicates the token blocks below
+   rather than @import-ing lesson.css and fighting its page rules.
+
+   KEEP THE TOKEN BLOCK BELOW IN SYNC WITH assets/lesson.css. Same names,
+   same values — only the layout below differs. */
+
+:root {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+  }
+}
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+}
+
+/* ---- Reset / base ---- */
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  -webkit-font-smoothing: antialiased;
+}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+strong { font-weight: 600; }
+
+/* ---- Deck + slide scaffolding ----
+   scroll-snap does the actual navigation. slides.js only adds keyboard/click
+   convenience on top — the deck already works with JS disabled. */
+.deck {
+  height: 100vh;
+  height: 100dvh;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scroll-behavior: smooth;
+}
+.slide {
+  height: 100vh;
+  height: 100dvh;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 4vh 6vw;
+  position: relative;
+  text-align: center;
+}
+.slide-inner { width: 100%; max-width: 62rem; }
+
+/* ---- Eyebrow / kicker, reused across shapes ---- */
+.slide-eyebrow {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 1.2rem;
+}
+
+/* ---- Subordinate text, reused across shapes ----
+   The note under a code block, table or bullet list (.aside), and the qualifier
+   under a big statement (.slide--statement footer). Both say the thing the main
+   content needs in order to be read correctly — the callback, the caveat, the
+   pointer to the next session — so both are projected text and share one scale.
+   Sized here once for every shape: .aside used to be declared per shape, which
+   left the code and table slides with no rule at all and their notes at the
+   browser's 16px default. */
+.slide .aside,
+.slide--statement footer {
+  font-size: clamp(1.1rem, 2.1vw, 1.5rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+.slide .aside {
+  margin-top: 2rem;
+}
+
+/* ---- Shape: title ---- */
+.slide--title h1 {
+  font-weight: 400;
+  font-size: clamp(2.4rem, 6vw, 4.6rem);
+  line-height: 1.12;
+  margin: 0 0 1.2rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.slide--title .subtitle {
+  color: var(--ink-soft);
+  font-size: clamp(1.1rem, 2.2vw, 1.6rem);
+  text-wrap: balance;
+  margin: 0;
+}
+
+/* ---- Shape: bullets ---- */
+.slide--bullets h2,
+.slide--split h2,
+.slide--table h2,
+.slide--code h2,
+.slide--refs h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 2rem;
+  text-wrap: balance;
+}
+.slide--bullets ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+}
+.slide--bullets li {
+  font-size: clamp(1.25rem, 2.6vw, 1.9rem);
+  line-height: 1.5;
+  margin-bottom: .9rem;
+  /* In em, not rem: the indent has to grow with the bullet text, which itself
+     scales with the viewport. A fixed 1.6rem gap was narrower than one
+     character at projector size, so the marker crowded the first word. */
+  padding-left: 1.5em;
+  position: relative;
+}
+/* A round marker rather than an em dash. The dash is nearly a full em wide,
+   which is what left it sitting almost against the text, and it reads as
+   punctuation mid-sentence when a line wraps. This also matches the lessons,
+   which leave list markers at the browser's default disc. */
+.slide--bullets li::before {
+  content: "\2022";
+  position: absolute;
+  left: .1em;
+  color: var(--accent);
+  line-height: inherit;
+}
+/* ---- Shape: refs (closing reading list — always the deck's last slide) ---- */
+.ref-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
+  display: inline-block;
+  max-width: 46rem;
+}
+.ref-list li {
+  margin-bottom: 1.6rem;
+  padding-bottom: 1.6rem;
+  border-bottom: 1px solid var(--rule);
+}
+.ref-list li:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+/* The reading list is projected and then photographed off the screen, so all
+   three lines are sized to be read from the back of the room. The note is the
+   line that says which sections to actually read, which makes it the one that
+   matters most; it stays a step below the title, and the title moves up to keep
+   that order. */
+.ref-list .ref-title {
+  font-size: clamp(1.25rem, 2.4vw, 1.7rem);
+  margin: 0 0 .5rem;
+}
+.ref-list .ref-note {
+  font-size: clamp(1rem, 1.9vw, 1.35rem);
+  line-height: 1.45;
+  color: var(--ink-soft);
+  margin: 0 0 .7rem;
+}
+.ref-list .ref-link {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: clamp(.85rem, 1.4vw, 1.05rem);
+  color: var(--accent);
+  word-break: break-all;
+}
+
+/* The onward link, on the last slide of a deck. A deck is a standalone file
+   with no index above it, so this is the only way to reach the next session
+   without editing the URL. It is real markup rather than something the script
+   injects, for the same reason the deck-exit link is: the deck has to work
+   with JavaScript off. Sits inside the slide, not in the fixed chrome, so it
+   appears once, at the end, and never over a slide being presented. */
+.deck-onward {
+  display: inline-block;
+  margin-top: 2.6rem;
+  font-family: var(--mono);
+  font-size: clamp(.78rem, 1.3vw, .95rem);
+  letter-spacing: .04em;
+  color: var(--ink-soft);
+  text-decoration: none;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: .55rem 1rem;
+}
+.deck-onward:hover,
+.deck-onward:focus-visible { color: var(--accent); border-color: var(--accent); }
+
+/* ---- Shape: statement (the big single-line slides) ---- */
+.slide--statement p {
+  font-size: clamp(1.8rem, 4.6vw, 3.4rem);
+  line-height: 1.28;
+  margin: 0;
+  text-wrap: balance;
+}
+.slide--statement .lede {
+  font-family: var(--mono);
+  font-size: clamp(.75rem, 1.1vw, .9rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 1.6rem;
+}
+/* Size, line-height and colour come from the shared subordinate-text rule near
+   the top of this file, alongside .aside. Only the mono face and the spacing
+   above it are particular to the statement shape. */
+.slide--statement footer {
+  margin-top: 1.8rem;
+  font-family: var(--mono);
+}
+.slide--statement.warn p { color: var(--warn); }
+.slide--statement q { quotes: none; }
+/* A second statement paragraph, set off from the first. Use this rather than an
+   inline margin, so the gap is the same on every deck that needs it. */
+.slide--statement p.spaced { margin-top: 1.4rem; }
+
+/* ---- Shape: code ---- */
+.slide pre {
+  background: var(--code-bg);
+  border-left: 3px solid var(--accent);
+  border-radius: 4px;
+  padding: 1.6rem 2rem;
+  text-align: left;
+  font-size: clamp(1rem, 2.1vw, 1.5rem);
+  line-height: 1.55;
+  overflow-x: auto;
+  margin: 0;
+}
+.slide code { font-family: var(--mono); }
+.slide pre code { background: none; padding: 0; }
+
+/* ---- Mathematics ----
+   Same contract as lessons: maths is authored as LaTeX in <m> and rendered to
+   MathML by tools/mathify.py, which writes the result into the deck. Nothing
+   is fetched when the deck is shown — no library, no webfont, no CDN, which
+   matters more here than in a lesson, because a deck is opened in front of a
+   room on whatever network the room has.
+
+       python3 tools/mathify.py slides/0029-self-attention.html
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Figure labels stay
+   <text> inside the SVG.
+
+   THE RUNTIME GROUP BELOW IS DUPLICATED FROM assets/lesson.css — trimmed from
+   Temml's stylesheet (MIT), plus that file's own Chromium and WebKit
+   corrections. It is copied for the same reason the token block above is:
+   a deck must stand alone. If you fix a rendering bug in one file, fix it in
+   the other. Only the sizing group at the end differs, because a lesson is
+   read at arm's length and a deck from the back of a room.
+
+   Colour is never set here. MathML paints in currentColor, so it follows
+   --ink and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium reserves the radical glyph's full advance and then draws the
+     overbar to fit the content, leaving <msqrt> a box 0.42em wider than its
+     ink. Scale-invariant, so it corrects in em. See lesson.css for the
+     measurement; recheck it if --math changes. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* ---- Sizing: this is the part that differs from lesson.css ----
+   A variable in a bullet inherits that bullet's clamp, so inline maths is
+   corrected relatively, exactly as in a lesson — a symbol in prose must not
+   open the leading. */
+.slide p math, .slide li math, .slide td math, .slide th math,
+.slide .q-text math, .slide .subtitle math, .slide .aside math {
+  font-size: 1.06em;
+}
+
+/* Display equations. Centred rather than left-aligned, and with no reading
+   measure: 55ch is right for a paragraph and wrong for a projector. The
+   equation number is SLP3's, printed as text — a citation into the book, not
+   a counter of ours — so it must not renumber itself when a deck quotes
+   equations out of order. */
+.slide .meq {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1.4rem;
+  margin: 1.8rem 0 0;
+  overflow-x: auto;
+  font-size: clamp(1.3rem, 3.2vw, 2.4rem);
+}
+.slide .meq > math { flex: 0 1 auto; }
+.slide .meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: clamp(.8rem, 1.3vw, 1rem);
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* Shape: math — a heading and one equation, the display counterpart of
+   slide--statement. Nothing else: if a slide needs prose around the equation,
+   it is a bullets or statement slide with a .meq inside it. */
+.slide--math h2 {
+  font-weight: 400;
+  font-size: clamp(1.6rem, 3.4vw, 2.4rem);
+  margin: 0 0 1.4rem;
+  text-wrap: balance;
+}
+/* ---- Shape: split (two columns — code/output, re/regex, etc.) ---- */
+.slide--split .split-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2.2rem;
+  text-align: left;
+  align-items: start;
+}
+.slide--split .split-col .col-label {
+  font-family: var(--mono);
+  font-size: clamp(.7rem, 1vw, .85rem);
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .7rem;
+}
+.slide--split .split-col.bad .col-label { color: var(--bad); }
+.slide--split .split-col.good .col-label { color: var(--ok); }
+.slide--split .split-col.bad pre { border-left-color: var(--bad); }
+.slide--split .split-col.good pre { border-left-color: var(--ok); }
+@media (max-width: 900px) {
+  .slide--split .split-grid { grid-template-columns: 1fr; }
+}
+
+/* ---- Shape: table (own larger-type variant — lesson.css's tables are too
+   dense to read from the back of a room) ---- */
+.slide--table table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: clamp(1rem, 1.9vw, 1.4rem);
+  text-align: left;
+}
+.slide--table th, .slide--table td {
+  padding: .8rem 1.4rem .8rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+.slide--table th {
+  font-weight: 600;
+  border-bottom: 2px solid var(--ink-soft);
+  color: var(--ink-soft);
+  font-size: .82em;
+  letter-spacing: .02em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+.slide--table td code, .slide--table th code { font-size: 1em; }
+
+/* ---- Quiz / recall reuse (assets/quiz.js) — scoped to fit one viewport ---- */
+.slide .quiz, .slide .recall {
+  text-align: left;
+  max-width: 46rem;
+  width: 100%;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--surface);
+  padding: 1.8rem 2.2rem;
+  margin: 0 auto;
+}
+.slide .recall { border-style: dashed; border-color: var(--ink-faint); }
+.slide .q-num, .slide .recall .label {
+  font-family: var(--mono);
+  font-size: .75rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .8rem;
+}
+.slide .q-text { font-size: clamp(1.1rem, 2.2vw, 1.5rem); margin: 0 0 1.2rem; }
+.slide .q-opts { display: flex; flex-direction: column; gap: .6rem; }
+.slide button.opt {
+  font-family: var(--serif);
+  font-size: clamp(1rem, 1.8vw, 1.2rem);
+  text-align: left;
+  padding: .7rem 1rem;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  line-height: 1.4;
+}
+.slide button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.slide button.opt:disabled { cursor: default; opacity: .55; }
+.slide button.opt.correct { background: var(--ok-bg); border-color: var(--ok); opacity: 1; font-weight: 600; }
+.slide button.opt.wrong { background: var(--bad-bg); border-color: var(--bad); opacity: 1; }
+.slide .q-fb {
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.9rem, 1.6vw, 1.1rem);
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.slide .q-fb.show { display: block; }
+.slide .q-fb strong { color: var(--ink); }
+.slide button.reveal {
+  font-family: var(--mono);
+  font-size: .8rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .55rem 1.1rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .9rem;
+}
+.slide button.reveal:hover { background: var(--code-bg); }
+.slide .recall .answer {
+  display: none;
+  margin-top: 1.1rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--rule);
+  font-size: clamp(.95rem, 1.7rem, 1.15rem);
+}
+.slide .recall .answer.show { display: block; }
+
+/* ---- SVG diagram furniture (local copies of lesson.css's .fig-* pattern) ---- */
+.slide-fig { margin: 1.6rem auto 0; max-width: 46rem; }
+.slide-fig svg { width: 100%; height: auto; overflow: visible; }
+.fig-word { fill: var(--ink); font-family: var(--serif); font-size: 22px; }
+.fig-arc { stroke: var(--ink-faint); stroke-width: 1.6; fill: none; }
+.fig-arc-a { stroke: var(--accent); }
+.fig-arc-b { stroke: var(--ok); }
+.fig-arc-label { fill: var(--ink-soft); font-family: var(--mono); font-size: 13px; }
+
+/* ---- Chrome: progress bar + counter ---- */
+.deck-progress {
+  position: fixed;
+  top: 0; left: 0;
+  height: 3px;
+  width: var(--progress, 0%);
+  background: var(--accent);
+  z-index: 60;
+  transition: width .15s ease-out;
+}
+.deck-exit {
+  position: fixed;
+  top: .9rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  text-decoration: none;
+  z-index: 60;
+  background: var(--bg);
+  padding: .3rem .6rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+}
+.deck-exit:hover { color: var(--accent); border-color: var(--accent); }
+.deck-counter {
+  position: fixed;
+  bottom: 1rem;
+  right: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+}
+
+/* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
+.deck-overview {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: color-mix(in srgb, var(--bg) 92%, transparent);
+  backdrop-filter: blur(2px);
+  display: none;
+  overflow-y: auto;
+  padding: 4vh 6vw;
+}
+.deck-overview.show { display: block; }
+.deck-overview ol {
+  list-style: none;
+  margin: 0 auto;
+  padding: 0;
+  max-width: 40rem;
+  counter-reset: ov;
+}
+.deck-overview li {
+  counter-increment: ov;
+  font-size: 1.15rem;
+  padding: .6rem .8rem;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  gap: 1rem;
+}
+.deck-overview li::before {
+  content: counter(ov, decimal-leading-zero);
+  font-family: var(--mono);
+  color: var(--ink-faint);
+  font-size: .85rem;
+  padding-top: .15rem;
+}
+.deck-overview li:hover, .deck-overview li.current { background: var(--accent-soft); }
+
+@media (prefers-reduced-motion: reduce) {
+  .deck { scroll-behavior: auto; }
+  * { transition: none !important; animation: none !important; }
+}
+
+@media print {
+  .deck { height: auto; overflow: visible; scroll-snap-type: none; }
+  .slide { height: auto; min-height: 100vh; page-break-after: always; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+}
+
+
+/* Set diagram (session 1: how NLP relates to AI). Mirrors the lesson figure;
+   labels are larger here because a slide is read from the back of a room. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.6; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .12; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .15; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .22; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .20; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .14; }
+.fig-setname  { fill: var(--ink); font-size: 19px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 16px; text-anchor: middle; }
+
+/* Scatter plot (session 17: documents as points). Mirrors lesson.css's
+   .fig-axis/.fig-pt vocabulary rule for rule; only the type sizes differ,
+   because a slide is read from the back of a room and 12px axis labels are
+   not. Reused by session 19's angle figure. */
+.fig-axis   { stroke: var(--rule); stroke-width: 2; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1.4; }
+.fig-label  { fill: var(--ink-faint); font-size: 15px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 17px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 17px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.8; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+
+/* Vector arrows (session 19: cosine as an angle). Local copies of lesson.css's
+   .fig-vec/.fig-head/.fig-gap. .fig-arc is already defined above, for session
+   1's figure, and is reused here for the angle arc. */
+.fig-vec    { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2.5; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2.5; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1.4; fill: none; stroke-dasharray: 2 3; }
+
+/* Network diagrams (session 20 onward: neurons, layers, loss curves). Local
+   copies of lesson.css's .fig-node/.fig-edge/.fig-glyph vocabulary, at slide
+   sizes. .fig-edge-w carries its weight as an inline opacity, as in the
+   lessons — the class only supplies colour and width. */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2.5; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 2; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 2; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-edge-w { stroke: var(--accent); stroke-width: 3; fill: none; stroke-linecap: round; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.6; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 21px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2.5; fill: none; }
+
+/* Gates and operators sitting on a line (session 25's LSTM, session 26's GRU).
+   Local copies of lesson.css's .fig-gate pair, at slide type sizes. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.8; }
+.fig-gate-t  { fill: var(--ink); font-size: 17px; text-anchor: middle; }
+
+/* A shaded region marking blocked or unreachable values (session 26's dial,
+   and the masked future in 29 and 31). Local copy of lesson.css's .fig-mask. */
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+
+/* Matrix cells shaded by a weight (session 29's attention matrix onward).
+   Local copies of lesson.css's pair: .fig-cell carries no stroke of its own,
+   because the grid is a separate layer of .fig-cellg rectangles drawn over the
+   shading, so a cell whose weight is zero still shows its outline. Opacity is
+   set inline per cell, as in the lessons. */
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
+
+</style>
+</head>
+<body>
+
+<div class="deck-progress"></div>
+<a class="deck-exit" href="../lessons/0031-the-transformer.html">&larr; Lesson</a>
+<div class="deck-counter"></div>
+
+<div class="deck">
+
+  <section class="slide slide--title" data-title="Title">
+    <div class="slide-inner">
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 31</p>
+      <h1>The transformer: encoder blocks, decoder blocks, the whole picture</h1>
+      <p class="subtitle">Sessions 29 and 30 built the attention layer. This session builds the box
+      that contains it, stacks the box six times, and asks what separates an encoder from a decoder.
+      The answer is smaller than it sounds.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What is already in hand">
+    <div class="slide-inner">
+      <h2>Two sessions have gone into one layer</h2>
+      <ul>
+        <li><strong>Multi-head scaled dot-product self-attention.</strong> Three projections, scores
+        over <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math>, softmax, weighted sum of values, <math data-tex="A"><mi>A</mi></math> heads mixed by
+        <math data-tex="W^O"><msup><mi>W</mi><mi>O</mi></msup></math></li>
+        <li><strong>Positional embeddings.</strong> <math data-tex="X"><mi>X</mi></math> built by adding a learned positional
+        vector to each token's embedding, before the first layer</li>
+      </ul>
+      <p class="aside">§8.2 is precise about what is missing, and it is exactly three items: "(1) a
+      feedforward layer, (2) residual connections, and (3) normalizing layers". Only one of them is
+      genuinely unfamiliar. From here on this session is assembly.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The feedforward layer">
+    <div class="slide-inner">
+      <h2>Session 20's two-layer network, unchanged</h2>
+      <div class="meq" data-eqno="8.21"><math data-tex="\mathrm{FFN}(x_i) = \mathrm{ReLU}(x_i W_1 + b_1) W_2 + b_2" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>FFN</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mpadded lspace="0"><mi>ReLU</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><msub><mi>W</mi><mn>1</mn></msub><mo>+</mo><msub><mi>b</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><msub><mi>W</mi><mn>2</mn></msub><mo>+</mo><msub><mi>b</mi><mn>2</mn></msub></mrow></math><span class="eqno">(8.21)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="Two things about how it is used">
+    <div class="slide-inner">
+      <h2>Two things about how it is used</h2>
+      <ul>
+        <li>Applied to <strong>each position independently</strong> — the same <math data-tex="W_1"><msub><mi>W</mi><mn>1</mn></msub></math> and
+        <math data-tex="W_2"><msub><mi>W</mi><mn>2</mn></msub></math> at every token, and no position's computation looks at any other's. Whatever
+        mixing between tokens happens, it happens in the attention layer and nowhere else</li>
+        <li>The hidden layer is <strong>wider than the model</strong>: <math data-tex="d = 512"><mrow><mi>d</mi><mo>=</mo><mn>512</mn></mrow></math> and
+        <math data-tex="d_{\mathrm{ff}} = 2048"><mrow><msub><mi>d</mi><mpadded lspace="0"><mi>ff</mi></mpadded></msub><mo>=</mo><mn>2048</mn></mrow></math> in the original transformer</li>
+      </ul>
+      <p class="aside">That factor of four accounts for where the parameters sit, which the session
+      returns to later.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Layer normalisation">
+    <div class="slide-inner">
+      <p class="lede">Layer normalisation, in SLP3's words</p>
+      <p>"A variation of the z-score from statistics, applied to a single vector in a hidden
+      layer."</p>
+      <footer>Not applied to a layer, despite being called layer norm — applied to <em>one token's
+      vector at one position</em>. A <math data-tex="d"><mi>d</mi></math>-vector in, a <math data-tex="d"><mi>d</mi></math>-vector out.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Mean and standard deviation">
+    <div class="slide-inner">
+      <h2>Over the <math data-tex="d"><mi>d</mi></math> components of the vector</h2>
+      <div class="meq" data-eqno="8.22"><math data-tex="\mu = \dfrac{1}{d} \sum_i x_i" display="block" class="tml-display" style="display:block math;"><mrow><mi>μ</mi><mo>=</mo><mstyle displaystyle="true" scriptlevel="0"><mfrac><mn>1</mn><mi>d</mi></mfrac></mstyle><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msub><mi>x</mi><mi>i</mi></msub></mrow></math><span class="eqno">(8.22)</span></div>
+      <div class="meq" data-eqno="8.23"><math data-tex="\sigma = \sqrt{\dfrac{1}{d} \sum_i (x_i - \mu)^2}" display="block" class="tml-display" style="display:block math;"><mrow><mi>σ</mi><mo>=</mo><msqrt><mrow><mstyle displaystyle="true" scriptlevel="0"><mfrac><mn>1</mn><mi>d</mi></mfrac></mstyle><mrow><munder><mo movablelimits="false">∑</mo><mi>i</mi></munder></mrow><msup><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo>−</mo><mi>μ</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mn>2</mn></msup></mrow></msqrt></mrow></math><span class="eqno">(8.23)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Normalise, then put two parameters back">
+    <div class="slide-inner">
+      <h2>Mean zero, standard deviation one — then a learned gain and offset</h2>
+      <div class="meq" data-eqno="8.24"><math data-tex="\hat{x} = (x - \mu) / \sigma" display="block" class="tml-display" style="display:block math;"><mrow><mover><mi>x</mi><mo stretchy="false" class="chr-sml wbk-sml-acc" style="math-depth:0;">ˆ</mo></mover><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo>−</mo><mi>μ</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>σ</mi></mrow></math><span class="eqno">(8.24)</span></div>
+      <div class="meq" data-eqno="8.25"><math data-tex="\mathrm{LayerNorm}(x) = \gamma\, (x - \mu)/\sigma + \beta" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mi>γ</mi><mspace width="0.1667em"></mspace><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo>−</mo><mi>μ</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mi>/</mi><mi>σ</mi><mo>+</mo><mi>β</mi></mrow></math><span class="eqno">(8.25)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why do it at all">
+    <div class="slide-inner">
+      <p>The purpose is training stability rather than expressiveness: it keeps the values flowing
+      through a deep stack inside a range where gradient-based training works.</p>
+      <footer>Which matters when the stack is six or twelve or ninety-six blocks deep and each
+      block's output is the next one's input. A drift that is harmless at block 2 is not harmless by
+      block 40.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where session 28's objection lands">
+    <div class="slide-inner">
+      <p>Session 28 objected that a dot product favours long vectors. Session 29 answered half:
+      <math data-tex="\sqrt{d_k}"><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt></math> divides by the <em>expected</em> scale. It explicitly did not answer one key
+      actually being longer than another.</p>
+      <footer><strong>Layer norm is the other half.</strong> Every vector entering an attention
+      sublayer has been rescaled to mean zero and standard deviation one first, so the vectors being
+      dotted arrive at comparable lengths. Not cosine similarity, and it does not claim to be — but
+      the failure mode session 28 named is what this controls.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Residual connections">
+    <div class="slide-inner">
+      <p>One line of arithmetic: instead of a component's output <strong>replacing</strong> its
+      input, the output is <strong>added back to</strong> it.</p>
+      <footer>A plain stack computes <math data-tex="x \to f(x) \to g(f(x))"><mrow><mi>x</mi><mo>→</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>→</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. A residual stack computes
+      <math data-tex="x \to x + f(x) \to x + f(x) + g(\ldots)"><mrow><mi>x</mi><mo>→</mo><mi>x</mi><mo>+</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>→</mo><mi>x</mi><mo>+</mo><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><mi>g</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mo lspace="0em" rspace="0em">…</mo><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The residual stream">
+    <div class="slide-inner">
+      <p>Think of one <math data-tex="d"><mi>d</mi></math>-dimensional <strong>residual stream</strong> running vertically
+      through the whole model at each token position. It starts as that token's input embedding.</p>
+      <footer>Every component <em>reads</em> from the stream, computes something, and <em>adds</em>
+      its result back in. Nothing ever overwrites the stream.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What that picture explains">
+    <div class="slide-inner">
+      <p>Why gradients survive a deep stack: the stream is an uninterrupted addition path from the
+      output back to the input embedding, with no chain of matrix multiplications on it — session
+      24's problem answered by construction rather than mitigation.</p>
+      <footer>And which component does what: "the only component that takes as input information from
+      other tokens is multi-head attention". Attention is the <strong>token-mixing</strong>
+      component; the feedforward layer works within a single stream.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Two pictures of the same architecture">
+    <div class="slide-inner">
+      <p>The residual-stream framing is a modern reframing. Alammar's <em>Illustrated
+      Transformer</em> — the assigned second read — draws the older picture, with "Add &amp; Norm"
+      boxes between sublayers.</p>
+      <footer>They are the same equations. If the two readings look different, that is a difference
+      of drawing, not of model.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The block, assembled">
+    <div class="slide-inner">
+      <h2>Six lines, one per component</h2>
+      <table>
+        <tr><th></th><th>equation</th><th>SLP3 eq.</th></tr>
+        <tr><td></td><td><math data-tex="t^1_i = \mathrm{LayerNorm}(x_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">1</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>(8.26)</td></tr>
+        <tr><td></td><td><math data-tex="t^2_i = \mathrm{MultiHeadAttention}(t^1_i,\, t^1_1 \ldots t^1_N)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">2</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>MultiHeadAttention</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">1</mn></msubsup><mo separator="true">,</mo><mspace width="0.1667em"></mspace><msubsup><mi>t</mi><mn>1</mn><mn class="tml-med-pad">1</mn></msubsup><mo>…</mo><msubsup><mi>t</mi><mi>N</mi><mn class="tml-med-pad">1</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td>
+        <td>(8.27)</td></tr>
+        <tr><td>residual</td><td><math data-tex="t^3_i = t^2_i + x_i"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo>=</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">2</mn></msubsup><mo>+</mo><msub><mi>x</mi><mi>i</mi></msub></mrow></math></td><td>(8.28)</td></tr>
+        <tr><td></td><td><math data-tex="t^4_i = \mathrm{LayerNorm}(t^3_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">4</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>(8.29)</td></tr>
+        <tr><td></td><td><math data-tex="t^5_i = \mathrm{FFN}(t^4_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">5</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>FFN</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">4</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>(8.30)</td></tr>
+        <tr><td>residual</td><td><math data-tex="h_i = t^5_i + t^3_i"><mrow><msub><mi>h</mi><mi>i</mi></msub><mo>=</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">5</mn></msubsup><mo>+</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup></mrow></math></td><td>(8.31)</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The pattern of a block">
+    <div class="slide-inner">
+      <p class="lede">Normalise, attend, add back; normalise, transform, add back</p>
+      <p>A transformer block is not six unrelated steps. It is the same three-step figure performed
+      twice, once with attention in the middle and once with the feedforward network.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two details in the notation">
+    <div class="slide-inner">
+      <p>In (8.27) attention takes <math data-tex="t^1_i"><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">1</mn></msubsup></math> <em>and</em> <math data-tex="t^1_1 \ldots t^1_N"><mrow><msubsup><mi>t</mi><mn>1</mn><mn class="tml-med-pad">1</mn></msubsup><mo>…</mo><msubsup><mi>t</mi><mi>N</mi><mn class="tml-med-pad">1</mn></msubsup></mrow></math> — query from
+      position <math data-tex="i"><mi>i</mi></math>, keys and values from all positions. That is the only line where other tokens
+      appear.</p>
+      <footer>And (8.28) adds back <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math>, the block's input, while (8.31) adds back
+      <math data-tex="t^3_i"><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup></math>. Each residual reaches back to just before its own sublayer, not to the start.
+      Input and output are both <math data-tex="[1 \times d]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math>, which is what makes stacking possible.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Pre-norm and post-norm">
+    <div class="slide-inner">
+      <p>(8.26) puts <math data-tex="\mathrm{LayerNorm}"><mpadded lspace="0"><mi>LayerNorm</mi></mpadded></math> on the <em>input</em> of each sublayer. Vaswani §3.1
+      puts it on the output: <math data-tex="\mathrm{LayerNorm}(x + \mathrm{Sublayer}(x))"><mrow><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo>+</mo><mpadded lspace="0"><mi>Sublayer</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>.</p>
+      <footer>Not a notational variant — the two train differently, and post-norm typically needs a
+      learning-rate warmup that pre-norm does not. We teach pre-norm, because that is the reading. A
+      diagram drawn from the 2017 paper will show "Add &amp; Norm" <em>after</em> the box.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Stacking">
+    <div class="slide-inner">
+      <p>One block is not a transformer. The original stacks <math data-tex="N = 6"><mrow><mi>N</mi><mo>=</mo><mn>6</mn></mrow></math> in the encoder and six in
+      the decoder; language models run from 12 layers to 96 and beyond.</p>
+      <footer>Identical in <em>architecture</em>, not in parameters — every block has its own
+      weights. And one small asymmetry: after the last block there is <strong>one further layer
+      norm</strong>, run on each token's final <math data-tex="h_i"><msub><mi>h</mi><mi>i</mi></msub></math>.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Where the parameters actually are">
+    <div class="slide-inner">
+      <h2>Vaswani's base: <math data-tex="d = 512"><mrow><mi>d</mi><mo>=</mo><mn>512</mn></mrow></math>, <math data-tex="A = 8"><mrow><mi>A</mi><mo>=</mo><mn>8</mn></mrow></math>, <math data-tex="d_k = 64"><mrow><msub><mi>d</mi><mi>k</mi></msub><mo>=</mo><mn>64</mn></mrow></math>, <math data-tex="d_{\mathrm{ff}} = 2048"><mrow><msub><mi>d</mi><mpadded lspace="0"><mi>ff</mi></mpadded></msub><mo>=</mo><mn>2048</mn></mrow></math></h2>
+      <table>
+        <tr><th>component</th><th>shapes</th><th>parameters</th><th>share of the block</th></tr>
+        <tr><td>multi-head attention</td>
+        <td><math data-tex="3 \times (8 \times 512 \times 64)"><mrow><mn>3</mn><mo>×</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>8</mn><mo>×</mo><mn>512</mn><mo>×</mo><mn>64</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> + <math data-tex="512 \times 512"><mrow><mn>512</mn><mo>×</mo><mn>512</mn></mrow></math></td>
+        <td>1,048,576</td><td>33.3%</td></tr>
+        <tr><td>feedforward</td><td><math data-tex="512 \times 2048"><mrow><mn>512</mn><mo>×</mo><mn>2048</mn></mrow></math> + <math data-tex="2048 \times 512"><mrow><mn>2048</mn><mo>×</mo><mn>512</mn></mrow></math></td>
+        <td>2,097,152</td><td><strong>66.7%</strong></td></tr>
+        <tr><td>layer norm, both</td><td><math data-tex="2 \times (\gamma,\, \beta)"><mrow><mn>2</mn><mo>×</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>γ</mi><mo separator="true">,</mo><mspace width="0.1667em"></mspace><mi>β</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, each
+        <math data-tex="[1 \times 512]"><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mn>1</mn><mo>×</mo><mn>512</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow></math></td><td>2,048</td><td>0.07%</td></tr>
+        <tr><td><strong>one block</strong></td><td></td><td><strong>3,145,728</strong></td><td></td></tr>
+        <tr><td>six blocks</td><td></td><td>18,874,368</td><td></td></tr>
+      </table>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two thirds is feedforward">
+    <div class="slide-inner">
+      <p>The component the architecture is named for — the one every diagram is drawn around — is the
+      <strong>minority</strong> of the parameters, by a factor of two.</p>
+      <footer>Because <math data-tex="d_{\mathrm{ff}} = 4d"><mrow><msub><mi>d</mi><mpadded lspace="0"><mi>ff</mi></mpadded></msub><mo>=</mo><mn>4</mn><mi>d</mi></mrow></math>: each feedforward matrix is four times the size of one
+      of attention's full-width projections, and there is no equivalent widening in attention. Layer
+      norm is <em>free</em> — 2,048 against three million. And when sessions 32 and 33 quote a
+      parameter count, most of it is feedforward weight.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: where the parameters are">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">In a standard transformer block, which part holds most of the
+        parameters?</p>
+        <div class="q-opts">
+          <button class="opt">Multi-head attention — it has three projection matrices per head plus the output projection, which is more matrices than anything else in the block</button>
+          <button class="opt">The feedforward layer — about two thirds of the block, because its hidden layer is four times the model width</button>
+          <button class="opt">The two layer normalisations — each learns a gain and an offset for every one of the d dimensions, at both normalisation points</button>
+          <button class="opt">It depends on the sequence length, since the attention matrix is N × N and grows with the number of tokens in the input</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the feedforward layer</strong> — 2,097,152 against attention's
+          1,048,576, outnumbered two to one.</p>
+          <p>The first is the answer nearly everyone gives, and it is not unreasonable: attention
+          really does have more <em>matrices</em>. What it misses is that the heads partition the
+          width. The third is off by three orders of magnitude. The fourth confuses parameters with
+          activations — the <math data-tex="N \times N"><mrow><mi>N</mi><mo>×</mo><mi>N</mi></mrow></math> matrix is computed at run time and is not stored
+          weight.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The causal mask">
+    <div class="slide-inner">
+      <p>Sessions 29 and 30 both deferred the mask. Computing <math data-tex="Q K^{\mathsf{T}}"><mrow><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup></mrow></math> produces a score for every
+      query against every key — including keys at positions <em>after</em> the query.</p>
+      <footer>For a model trained to predict the next token that is fatal, and SLP3 puts it bluntly:
+      "guessing the next word is pretty simple if you already know it".</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="One addition before the softmax">
+    <div class="slide-inner">
+      <h2>Remove the future by adding a mask matrix</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+M_{ij} &amp;= -\infty \quad \forall j &gt; i \\
+M_{ij} &amp;= 0 \quad \text{otherwise}
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>M</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mi>∞</mi><mspace width="1em"></mspace><mi>∀</mi><mi>j</mi><mo>&gt;</mo><mi>i</mi></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><msub><mi>M</mi><mrow><mi>i</mi><mi>j</mi></mrow></msub></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mn>0</mn><mspace width="1em"></mspace><mtext>otherwise</mtext></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What it costs">
+    <div class="slide-inner">
+      <p>Adding <math data-tex="-\infty"><mrow><mo form="prefix" stretchy="false">−</mo><mi>∞</mi></mrow></math> and then taking a softmax gives exactly zero weight. Nothing is
+      deleted from the input and no separate machinery is needed — one addition between the scores
+      and the softmax.</p>
+      <footer>Which is why session 29's <math data-tex="\mathrm{softmax}(\mathrm{mask}(Q K^{\mathsf{T}} / \sqrt{d_k}))\, V"><mrow><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>mask</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>V</mi></mrow></math>
+      could carry it as a single function name. Note what it does <em>not</em> cost: the masked
+      scores are still computed and thrown away. Masking buys correctness, not speed.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Why an encoder has no mask">
+    <div class="slide-inner">
+      <p>An encoder is not predicting the next token. It represents an input that is already,
+      entirely, present — so there is no future to hide.</p>
+      <footer>"The multi-head attention in the encoder, however, is allowed to look ahead at the
+      entire source language text, so it is not masked."</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The distinction the next sessions run on">
+    <div class="slide-inner">
+      <p><strong>Encoder-only models are for understanding; decoder-only models are for
+      generation.</strong></p>
+      <footer>An encoder can use the right-hand context of a word to represent it, which is what you
+      want when deciding what the word means. A decoder must not, because at generation time the
+      right-hand context does not exist yet.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Cross-attention">
+    <div class="slide-inner">
+      <p class="lede">The only genuinely new mechanism in this session</p>
+      <p>"Cross-attention has the same form as the multi-head attention in a normal transformer
+      block, except that while the queries as usual come from the previous layer of the decoder,
+      <strong>the keys and values come from the output of the encoder</strong>."</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Session 29's equations, one substitution">
+    <div class="slide-inner">
+      <h2>Decoder supplies <math data-tex="Q"><mi>Q</mi></math>; the encoder's output supplies <math data-tex="K"><mi>K</mi></math> and <math data-tex="V"><mi>V</mi></math></h2>
+      <div class="meq" data-eqno="12.11"><math data-tex="Q = H_{\mathrm{dec}}[\ell-1] W^Q \qquad K = H_{\mathrm{enc}} W^K \qquad V = H_{\mathrm{enc}} W^V" display="block" class="tml-display" style="display:block math;"><mrow><mi>Q</mi><mo>=</mo><msub><mi>H</mi><mpadded lspace="0"><mi>dec</mi></mpadded></msub><mrow><mo fence="true" form="prefix" stretchy="false">[</mo><mi>ℓ</mi><mo>−</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">]</mo></mrow><msup><mi>W</mi><mi>Q</mi></msup><mspace width="2em"></mspace><mi>K</mi><mo>=</mo><msub><mi>H</mi><mpadded lspace="0"><mi>enc</mi></mpadded></msub><msup><mi>W</mi><mi>K</mi></msup><mspace width="2em"></mspace><mi>V</mi><mo>=</mo><msub><mi>H</mi><mpadded lspace="0"><mi>enc</mi></mpadded></msub><msup><mi>W</mi><mi>V</mi></msup></mrow></math><span class="eqno">(12.11)</span></div>
+      <div class="meq" data-eqno="12.12"><math data-tex="\mathrm{CrossAttention}(Q, K, V) = \mathrm{softmax}(Q K^{\mathsf{T}} / \sqrt{d_k})\, V" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>CrossAttention</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>Q</mi><mo separator="true">,</mo><mi>K</mi><mo separator="true">,</mo><mi>V</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>Q</mi><msup><mi>K</mi><mi class="tml-sml-pad">𝖳</mi></msup><mi>/</mi><msqrt><msub><mi>d</mi><mi>k</mi></msub></msqrt><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>V</mi></mrow></math><span class="eqno">(12.12)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="One mechanism, three uses">
+    <div class="slide-inner">
+      <h2>(12.12) is (8.33) with the mask removed — there is nothing to hide</h2>
+      <table>
+        <tr><th></th><th>queries come from</th><th>keys and values come from</th><th>masked?</th></tr>
+        <tr><td>encoder self-attention</td><td>the encoder</td><td>the encoder</td><td>no</td></tr>
+        <tr><td>decoder self-attention</td><td>the decoder</td><td>the decoder</td>
+        <td><strong>yes</strong></td></tr>
+        <tr><td><strong>cross-attention</strong></td><td>the decoder</td>
+        <td><strong>the encoder</strong></td><td>no</td></tr>
+      </table>
+      <p class="aside">What changed is not the mechanism but its <em>inputs</em>.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Cross-attention has a name from three sessions ago">
+    <div class="slide-inner">
+      <p>A decoder state querying a set of encoder states, producing weights over source positions,
+      returning a weighted sum — that is exactly session 28's Bahdanau attention.</p>
+      <footer>The transformer did not invent decoder-attends-to-encoder. It replaced Bahdanau's small
+      feedforward scoring network with a scaled dot product, ran it in several heads, and put it
+      inside a block. Sessions 27, 28 and 31 describe the same idea at three levels of
+      machinery.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The three attentions">
+    <div class="slide-inner">
+      <h2>The three attentions, in one picture</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 740 450" role="img" aria-labelledby="tftitle tfdesc">
+        <title id="tftitle">Three uses of one attention mechanism in an encoder-decoder transformer</title>
+        <desc id="tfdesc">An encoder stack on the left and a decoder stack on the right. The encoder block
+        contains two sublayers: multi-head self-attention and a feedforward layer. Beside the encoder's
+        self-attention sublayer is a small four by four grid with every cell shaded, indicating that every
+        position may attend to every other. A looping arrow shows the encoder attending to itself. The
+        encoder's stack output, H enc, is drawn as a bar across the top left. The decoder block contains
+        three sublayers: masked multi-head self-attention, cross-attention, and a feedforward layer.
+        Beside the decoder's self-attention sublayer is a four by four grid whose upper triangle is greyed
+        out, indicating the masked future, and a looping arrow shows the decoder attending to itself. A
+        bundle of three curved arrows runs from H enc across to the decoder's cross-attention sublayer,
+        showing that its keys and values come from the encoder while its queries come from the decoder.</desc>
+
+        <!-- ============ column headings ============ -->
+        <text class="fig-axname" x="205" y="30" text-anchor="middle">Encoder</text>
+        <text class="fig-axname" x="550" y="30" text-anchor="middle">Decoder</text>
+
+        <!-- ============ H_enc bar ============ -->
+        <rect class="fig-node-q" x="90" y="60" width="230" height="28" rx="4"></rect>
+        <text class="fig-label" x="205" y="79" text-anchor="middle">H_enc = h₁ … h_n</text>
+
+        <!-- encoder stack: blocks 2 to 6, then the stack output -->
+        <text class="fig-label" x="218" y="126">blocks 2 … 6</text>
+        <path class="fig-edge" d="M205 138 L205 96"></path>
+        <polygon class="fig-edge-h" points="205,88 201.5,98 208.5,98"></polygon>
+
+        <!-- ============ encoder block ============ -->
+        <rect class="fig-node" x="90" y="150" width="230" height="180" rx="6"></rect>
+        <text class="fig-label" x="100" y="166">Encoder block 1</text>
+
+        <!-- encoder self-attention sublayer -->
+        <rect class="fig-gate" x="110" y="175" width="190" height="48" rx="3"></rect>
+        <text class="fig-label" x="122" y="194">Multi-head</text>
+        <text class="fig-label" x="122" y="210">self-attention</text>
+        <!-- mini score matrix: no mask, all cells live -->
+        <rect class="fig-cell" x="252" y="180" width="40" height="40" fill-opacity="0.30"></rect>
+        <rect class="fig-cellg" x="252" y="180" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="262" y="180" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="272" y="180" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="282" y="180" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="252" y="180" width="40" height="10"></rect>
+        <rect class="fig-cellg" x="252" y="190" width="40" height="10"></rect>
+        <rect class="fig-cellg" x="252" y="200" width="40" height="10"></rect>
+        <rect class="fig-cellg" x="252" y="210" width="40" height="10"></rect>
+
+        <!-- encoder self-attention loop -->
+        <path class="fig-edge-w" d="M108 186 C 66 180, 66 216, 106 210" stroke-opacity="0.85"></path>
+        <polygon class="fig-edge-h" points="114,209 104,206 105,213"></polygon>
+        <text class="fig-label" x="60" y="243" text-anchor="middle">self</text>
+
+        <!-- encoder feedforward -->
+        <rect class="fig-gate" x="110" y="255" width="190" height="48" rx="3"></rect>
+        <text class="fig-gate-t" x="205" y="284">Feedforward</text>
+
+        <!-- encoder input -->
+        <path class="fig-edge" d="M205 368 L205 338"></path>
+        <polygon class="fig-edge-h" points="205,330 201.5,340 208.5,340"></polygon>
+        <text class="fig-label" x="205" y="388" text-anchor="middle">x₁ … x_n</text>
+        <text class="fig-label" x="205" y="406" text-anchor="middle">the green witch arrived</text>
+
+        <!-- ============ decoder output ============ -->
+        <text class="fig-label" x="550" y="66" text-anchor="middle">→ language modelling head → next token</text>
+        <path class="fig-edge" d="M550 118 L550 82"></path>
+        <polygon class="fig-edge-h" points="550,74 546.5,84 553.5,84"></polygon>
+        <text class="fig-label" x="563" y="111">blocks 2 … 6</text>
+
+        <!-- ============ decoder block ============ -->
+        <rect class="fig-node" x="430" y="130" width="240" height="240" rx="6"></rect>
+        <text class="fig-label" x="440" y="147">Decoder block 1</text>
+
+        <!-- decoder masked self-attention -->
+        <rect class="fig-gate" x="450" y="155" width="200" height="48" rx="3"></rect>
+        <text class="fig-label" x="462" y="174">Masked multi-head</text>
+        <text class="fig-label" x="462" y="190">self-attention</text>
+        <!-- mini score matrix: upper triangle masked -->
+        <rect class="fig-cell" x="600" y="160" width="40" height="40" fill-opacity="0.30"></rect>
+        <rect class="fig-mask" x="610" y="160" width="30" height="10"></rect>
+        <rect class="fig-mask" x="620" y="170" width="20" height="10"></rect>
+        <rect class="fig-mask" x="630" y="180" width="10" height="10"></rect>
+        <rect class="fig-cellg" x="600" y="160" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="610" y="160" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="620" y="160" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="630" y="160" width="10" height="40"></rect>
+        <rect class="fig-cellg" x="600" y="160" width="40" height="10"></rect>
+        <rect class="fig-cellg" x="600" y="170" width="40" height="10"></rect>
+        <rect class="fig-cellg" x="600" y="180" width="40" height="10"></rect>
+        <rect class="fig-cellg" x="600" y="190" width="40" height="10"></rect>
+
+        <!-- decoder self-attention loop -->
+        <path class="fig-edge-w" d="M652 166 C 694 160, 694 196, 654 190" stroke-opacity="0.85"></path>
+        <polygon class="fig-edge-h" points="646,189 656,186 655,193"></polygon>
+        <text class="fig-label" x="694" y="223" text-anchor="middle">self</text>
+
+        <!-- cross-attention sublayer -->
+        <rect class="fig-gate" x="450" y="230" width="200" height="48" rx="3"></rect>
+        <text class="fig-gate-t" x="550" y="250">Cross-attention</text>
+        <text class="fig-label" x="550" y="268" text-anchor="middle">Q: decoder · K, V: H_enc</text>
+
+        <!-- decoder feedforward -->
+        <rect class="fig-gate" x="450" y="305" width="200" height="48" rx="3"></rect>
+        <text class="fig-gate-t" x="550" y="334">Feedforward</text>
+
+        <!-- decoder input -->
+        <path class="fig-edge" d="M550 408 L550 378"></path>
+        <polygon class="fig-edge-h" points="550,370 546.5,380 553.5,380"></polygon>
+        <text class="fig-label" x="550" y="428" text-anchor="middle">y₁ … y_i    llegó la bruja …</text>
+
+        <!-- ============ cross-attention bundle ============ -->
+        <path class="fig-edge-w" d="M320 68 C 400 68, 380 240, 446 240" stroke-opacity="0.75"></path>
+        <path class="fig-edge-w" d="M320 74 C 404 74, 384 248, 446 248" stroke-opacity="0.50"></path>
+        <path class="fig-edge-w" d="M320 80 C 408 80, 388 256, 446 256" stroke-opacity="0.30"></path>
+        <polygon class="fig-edge-h" points="452,248 442,244 442,252"></polygon>
+        <text class="fig-label" x="358" y="128" text-anchor="end">cross</text>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What the figure leaves out">
+    <div class="slide-inner">
+      <p>Residual connections and the layer norms are omitted from that drawing on purpose.</p>
+      <footer>They are equations (8.26)–(8.31), and drawing them as well would bury the point the
+      figure is making: cross-attention is the only path by which the source sentence reaches the
+      decoder at all.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: encoder versus decoder block">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="0">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What distinguishes a decoder block from an encoder block?</p>
+        <div class="q-opts">
+          <button class="opt">Its self-attention is masked so that no position can see later positions, and it carries an extra cross-attention sublayer when there is an encoder to attend to</button>
+          <button class="opt">The decoder has more attention heads than the encoder, since generating a token is a harder problem than representing one and needs more parallel comparisons</button>
+          <button class="opt">The decoder has no feedforward layer, because the feedforward layer's job of transforming each position independently is already done by the encoder</button>
+          <button class="opt">The decoder uses post-norm while the encoder uses pre-norm, which is what allows the decoder to be run one token at a time during generation</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the mask, plus cross-attention</strong> — the only two differences.
+          Everything else is identical, which is why SLP3 can describe the encoder as "the same as
+          the basic transformers from Chapter 8" and the decoder as that "augmented with a special
+          new layer".</p>
+          <p>The second is simply not so: <math data-tex="A = 8"><mrow><mi>A</mi><mo>=</mo><mn>8</mn></mrow></math> on both sides. The third inverts the design.
+          The fourth mixes up two unrelated things — pre-norm versus post-norm is a whole-model
+          choice, and what lets a decoder generate one token at a time is the causal mask.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--recall" data-title="Exercise: shuffled equations">
+    <div class="slide-inner">
+      <h2>Exercise</h2>
+      <div class="recall">
+        <span class="label">The six equations of a block, shuffled</span>
+        <p>(a) <math data-tex="t^5_i = \mathrm{FFN}(t^4_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">5</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>FFN</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">4</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> · (b) <math data-tex="t^3_i = t^2_i + x_i"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo>=</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">2</mn></msubsup><mo>+</mo><msub><mi>x</mi><mi>i</mi></msub></mrow></math> ·
+        (c) <math data-tex="t^1_i = \mathrm{LayerNorm}(x_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">1</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> · (d) <math data-tex="h_i = t^5_i + t^3_i"><mrow><msub><mi>h</mi><mi>i</mi></msub><mo>=</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">5</mn></msubsup><mo>+</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup></mrow></math> ·
+        (e) <math data-tex="t^4_i = \mathrm{LayerNorm}(t^3_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">4</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> ·
+        (f) <math data-tex="t^2_i = \mathrm{MultiHeadAttention}(t^1_i,\, t^1_1 \ldots t^1_N)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">2</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>MultiHeadAttention</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">1</mn></msubsup><mo separator="true">,</mo><mspace width="0.1667em"></mspace><msubsup><mi>t</mi><mn>1</mn><mn class="tml-med-pad">1</mn></msubsup><mo>…</mo><msubsup><mi>t</mi><mi>N</mi><mn class="tml-med-pad">1</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></p>
+        <p>Put them in order. Then — the part that matters — say which lines would change under the
+        original paper's <strong>post-norm</strong> style, and how.</p>
+        <button class="reveal">Show answer</button>
+        <div class="answer">
+          <p><strong>The order</strong> is <code>c, f, b, e, a, d</code> — (8.26) through (8.31). You
+          do not have to remember it: each line's right-hand side names the variable the previous
+          line produced, so it reconstructs from the dependencies alone.</p>
+          <p><strong>The pattern</strong> is what the ordering is really testing: normalise, attend,
+          add back; normalise, transform, add back. Note also that (b) adds back <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math> and (d)
+          adds back <math data-tex="t^3_i"><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup></math> — each residual reaches to the start of its own sublayer.</p>
+          <p><strong>Under post-norm</strong> the normalisation moves to the end of each movement, so
+          the pairs collapse. The attention half becomes one line,
+          <math data-tex="t^3_i = \mathrm{LayerNorm}(\mathrm{MultiHeadAttention}(x_i,\, x_1 \ldots x_N) + x_i)"><mrow><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo>=</mo><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>MultiHeadAttention</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>x</mi><mi>i</mi></msub><mo separator="true">,</mo><mspace width="0.1667em"></mspace><msub><mi>x</mi><mn>1</mn></msub><mo>…</mo><msub><mi>x</mi><mi>N</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><msub><mi>x</mi><mi>i</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>,
+          replacing (c), (f) and (b); the feedforward half becomes
+          <math data-tex="h_i = \mathrm{LayerNorm}(\mathrm{FFN}(t^3_i) + t^3_i)"><mrow><msub><mi>h</mi><mi>i</mi></msub><mo>=</mo><mpadded lspace="0"><mi>LayerNorm</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mpadded lspace="0"><mi>FFN</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>+</mo><msubsup><mi>t</mi><mi>i</mi><mn class="tml-med-pad">3</mn></msubsup><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. Attention now consumes the raw
+          <math data-tex="x_i"><msub><mi>x</mi><mi>i</mi></msub></math>, and the residual addition happens <em>inside</em> the normalisation.</p>
+          <p>That second change is the substantive one. Under post-norm the residual stream is
+          normalised at every block, so it is no longer a clean addition path from output back to
+          input — the usual explanation for why post-norm needs a warmup and pre-norm does not.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where this leaves us">
+    <div class="slide-inner">
+      <p>That is an entire transformer: input from token and positional embeddings, blocks of
+      attention and feedforward wired with residuals and layer norms, six stacked, and two kinds of
+      block depending on whether the future may be seen.</p>
+      <footer>What each kind is used for follows directly from the mask.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What each kind becomes">
+    <div class="slide-inner">
+      <h2>Three models, one architecture</h2>
+      <ul>
+        <li><strong>Encoder alone</strong>, no mask anywhere — reads a whole input at once and
+        represents it. Good for understanding, useless for generating, since it was never trained to
+        guess what comes next. That is <strong>BERT</strong>, session 32</li>
+        <li><strong>Decoder alone</strong> — a language model</li>
+        <li><strong>Both, wired by cross-attention</strong> — the machine translation architecture of
+        session 34</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Summary">
+    <div class="slide-inner">
+      <p class="lede">Summary</p>
+      <p>A block is attention plus a feedforward layer four times the model width, layer
+      normalisation, and residual connections into a stream that is never overwritten — equations
+      (8.26)–(8.31): normalise, attend, add back; normalise, transform, add back. SLP3 uses pre-norm,
+      Vaswani post-norm.</p>
+      <footer>Two thirds of a block's parameters are feedforward. Encoder and decoder blocks differ
+      in exactly two ways: the decoder's self-attention is masked, and it carries cross-attention.
+      The same three equations, three times over, differing only in what queries what.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--refs" data-title="References">
+    <div class="slide-inner">
+      <h2>Reading</h2>
+      <ul class="ref-list">
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <strong>§8.2, "Transformer Blocks"</strong></p>
+          <p class="ref-note">The feedforward layer, layer norm and the residual stream, equations
+          8.21–8.31, with Figures 8.7 and 8.8. Four pages, and this session is essentially a reading
+          of it.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/8.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/8.pdf</a>
+        </li>
+        <li>
+          <p class="ref-title">Jurafsky &amp; Martin — <strong>§12.3</strong></p>
+          <p class="ref-note">Cross-attention, equations 12.11–12.12, Figures 12.5 and 12.6. This is
+          where the encoder-decoder transformer lives — chapter 8 builds a language model and never
+          introduces cross-attention. Figure 12.6 uses <em>llegó la bruja verde</em>, the same
+          sentence sessions 27 and 28 ran on.</p>
+          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/12.pdf"
+          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/12.pdf</a>
+        </li>
+        <li>
+          <p class="ref-title">Jay Alammar — <em>The Illustrated Transformer</em></p>
+          <p class="ref-note">The assigned visual second read. Read it after §8.2, and expect two
+          differences of drawing rather than of model: "Add &amp; Norm" boxes instead of the residual
+          stream, and the original paper's post-norm ordering.</p>
+          <a class="ref-link" href="https://jalammar.github.io/illustrated-transformer/"
+          target="_blank" rel="noopener">jalammar.github.io/illustrated-transformer/</a>
+        </li>
+        <li>
+          <p class="ref-title">Vaswani et al. 2017, <strong>§3.1</strong></p>
+          <p class="ref-note">One page, for <math data-tex="N = 6"><mrow><mi>N</mi><mo>=</mo><mn>6</mn></mrow></math> and the post-norm formulation in the
+          authors' own words.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1706.03762"
+          target="_blank" rel="noopener">arxiv.org/abs/1706.03762</a>
+        </li>
+      </ul>
+      <a class="deck-onward" href="0032-bert-and-masked-language-modelling.html">Next deck
+      &mdash; session 32: BERT and masked language modelling &rarr;</a>
+    </div>
+  </section>
+
+</div>
+
+<script>
+/* Reusable interactive components for NLP lessons.
+ * Zero dependencies. Progressive enhancement: markup is readable without JS,
+ * and prints correctly (answers force-revealed in print CSS).
+ *
+ * USAGE — quiz:
+ *   <div class="quiz" data-answer="1">
+ *     <span class="q-num">Check 1</span>
+ *     <p class="q-text">Question?</p>
+ *     <div class="q-opts">
+ *       <button class="opt">Option A</button>
+ *       <button class="opt">Option B</button>
+ *     </div>
+ *     <div class="q-fb"><p>Explanation shown after answering.</p></div>
+ *   </div>
+ *   data-answer is the 0-indexed correct option.
+ *
+ * USAGE — recall prompt:
+ *   <div class="recall">
+ *     <span class="label">Recall first</span>
+ *     <p>Prompt the learner to retrieve from memory.</p>
+ *     <button class="reveal">Show answer</button>
+ *     <div class="answer"><p>The answer.</p></div>
+ *   </div>
+ *
+ * Design note: options must be near-identical in length so formatting leaks no
+ * clue about which is correct. See SKILL.md.
+ */
+
+(function () {
+  "use strict";
+
+  function initQuiz(quiz) {
+    var answer = parseInt(quiz.getAttribute("data-answer"), 10);
+    var opts = Array.prototype.slice.call(quiz.querySelectorAll("button.opt"));
+    var fb = quiz.querySelector(".q-fb");
+
+    opts.forEach(function (btn, i) {
+      btn.addEventListener("click", function () {
+        if (quiz.dataset.done === "true") return;
+        quiz.dataset.done = "true";
+
+        opts.forEach(function (b, j) {
+          b.disabled = true;
+          if (j === answer) b.classList.add("correct");
+        });
+        if (i !== answer) btn.classList.add("wrong");
+
+        if (fb) fb.classList.add("show");
+
+        quiz.dispatchEvent(
+          new CustomEvent("quiz:answered", {
+            bubbles: true,
+            detail: { correct: i === answer, chosen: i }
+          })
+        );
+      });
+    });
+  }
+
+  function initRecall(box) {
+    var btn = box.querySelector("button.reveal");
+    var ans = box.querySelector(".answer");
+    if (!btn || !ans) return;
+    btn.addEventListener("click", function () {
+      ans.classList.add("show");
+      btn.style.display = "none";
+    });
+  }
+
+  function boot() {
+    document.querySelectorAll(".quiz[data-answer]").forEach(initQuiz);
+    document.querySelectorAll(".recall").forEach(initRecall);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
+<script>
+/* Slide-deck navigation — MSIS NLP teaching workspace.
+ * Zero dependencies. The deck already works with this script disabled:
+ * CSS scroll-snap (assets/slides.css, .deck/.slide) handles navigation on
+ * its own. This file only adds keyboard/click convenience, a progress bar,
+ * a slide counter, and a jump overview on top of that.
+ *
+ * USAGE — markup contract:
+ *   <div class="deck">
+ *     <div class="deck-progress"></div>
+ *     <div class="deck-counter"></div>
+ *     <section class="slide slide--title" data-title="Short label">…</section>
+ *     …
+ *   </div>
+ * data-title is what shows up in the "o" overview list.
+ *
+ * Reuses assets/quiz.js unchanged for .quiz/.recall slides — this script
+ * never touches that markup, it only guards against stealing its clicks.
+ */
+
+(function () {
+  "use strict";
+
+  var deck = document.querySelector(".deck");
+  if (!deck) return;
+
+  var slides = Array.prototype.slice.call(deck.querySelectorAll(".slide"));
+  var progress = document.querySelector(".deck-progress");
+  var counter = document.querySelector(".deck-counter");
+  var current = 0;
+
+  function updateChrome(index) {
+    current = index;
+    if (counter) {
+      counter.textContent =
+        String(index + 1).padStart(2, "0") + " / " + String(slides.length).padStart(2, "0");
+    }
+    if (progress) {
+      var pct = slides.length > 1 ? (index / (slides.length - 1)) * 100 : 0;
+      progress.style.setProperty("--progress", pct + "%");
+    }
+    var ovItems = document.querySelectorAll(".deck-overview li");
+    ovItems.forEach(function (li, i) {
+      li.classList.toggle("current", i === index);
+    });
+  }
+
+  // Tracks position for wheel/trackpad/swipe scrolling, which never calls
+  // goTo() — the observer is the only thing that knows the slide changed.
+  // It intentionally does NOT drive keyboard/click navigation (see goTo).
+  var observer = new IntersectionObserver(
+    function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+          var idx = slides.indexOf(entry.target);
+          if (idx !== -1) updateChrome(idx);
+        }
+      });
+    },
+    { root: deck, threshold: 0.6 }
+  );
+  slides.forEach(function (s) {
+    observer.observe(s);
+  });
+
+  function goTo(index) {
+    index = Math.max(0, Math.min(slides.length - 1, index));
+    // Explicit "instant" on purpose: with CSS scroll-behavior:smooth on
+    // .deck, a JS-triggered scroll that doesn't override behavior inherits
+    // "smooth" (per the scrollTop/scrollIntoView spec) and animates via
+    // requestAnimationFrame. That animation can stall — e.g. under tab
+    // throttling — leaving navigation stuck. Native wheel/trackpad
+    // scrolling still gets the CSS smooth glide; only JS-driven jumps
+    // (keyboard, click, overview) are forced instant for reliability.
+    slides[index].scrollIntoView({ block: "start", behavior: "instant" });
+    // Updated synchronously here, not left to the IntersectionObserver —
+    // that observer can lag a JS-driven jump by a frame or more, and a
+    // second key/click before it fires would compute next() against a
+    // stale index and look like a dropped input.
+    updateChrome(index);
+    if (history.replaceState) {
+      history.replaceState(null, "", "#" + (index + 1));
+    }
+  }
+
+  function next() {
+    goTo(current + 1);
+  }
+  function prev() {
+    goTo(current - 1);
+  }
+
+  // ---- Overview / jump list ----
+  var overview = document.querySelector(".deck-overview");
+  if (!overview) {
+    overview = document.createElement("div");
+    overview.className = "deck-overview";
+    var ol = document.createElement("ol");
+    slides.forEach(function (s, i) {
+      var li = document.createElement("li");
+      li.textContent = s.dataset.title || "Slide " + (i + 1);
+      li.addEventListener("click", function () {
+        goTo(i);
+        toggleOverview(false);
+      });
+      ol.appendChild(li);
+    });
+    overview.appendChild(ol);
+    document.body.appendChild(overview);
+  }
+
+  function toggleOverview(force) {
+    var show = typeof force === "boolean" ? force : !overview.classList.contains("show");
+    overview.classList.toggle("show", show);
+  }
+
+  // ---- Fullscreen ----
+  function toggleFullscreen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen().catch(function () {});
+    }
+  }
+
+  // ---- Keyboard ----
+  document.addEventListener("keydown", function (e) {
+    if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
+      return;
+    }
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case " ":
+      case "PageDown":
+        e.preventDefault();
+        next();
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+      case "PageUp":
+        e.preventDefault();
+        prev();
+        break;
+      case "Home":
+        e.preventDefault();
+        goTo(0);
+        break;
+      case "End":
+        e.preventDefault();
+        goTo(slides.length - 1);
+        break;
+      case "f":
+        toggleFullscreen();
+        break;
+      case "o":
+        toggleOverview();
+        break;
+      case "Escape":
+        toggleOverview(false);
+        break;
+    }
+  });
+
+  // ---- Click-to-advance ----
+  // Guarded so it never steals clicks meant for quiz options, the recall
+  // reveal button, or links — and so it never steals a text selection. A
+  // press that travels more than a few pixels is a drag, and a release that
+  // leaves text selected is a selection; neither is a request for the next
+  // slide.
+  var pressX = 0;
+  var pressY = 0;
+  var DRAG_SLOP = 5;
+
+  deck.addEventListener("pointerdown", function (e) {
+    pressX = e.clientX;
+    pressY = e.clientY;
+  });
+
+  deck.addEventListener("click", function (e) {
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
+        Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
+    var sel = window.getSelection();
+    if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
+    next();
+  });
+
+  // ---- Initial position from location.hash ----
+  // Deferred a frame: this script runs while the browser parses the end of
+  // <body>, before it has necessarily committed layout for a 22-slide-tall
+  // deck. Calling goTo() synchronously here can compute against a stale
+  // (pre-layout) box and land on the wrong offset.
+  var hash = parseInt(location.hash.replace("#", ""), 10);
+  if (!isNaN(hash) && hash >= 1 && hash <= slides.length) {
+    requestAnimationFrame(function () {
+      goTo(hash - 1);
+    });
+  } else {
+    updateChrome(0);
+  }
+})();
+
+</script>
+</body>
+</html>

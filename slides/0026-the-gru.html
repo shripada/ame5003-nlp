@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Slides — Session 2: Capturing, choosing, and the greedy trap</title>
+<title>Slides — Session 26: The GRU</title>
 <style>
 /* Shared slide-deck stylesheet — MSIS NLP teaching workspace.
    Full-bleed, one-concept-per-slide projection format. This is a SIBLING to
@@ -773,335 +773,427 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 <body>
 
 <div class="deck-progress"></div>
-<a class="deck-exit" href="../lessons/0002-regex-groups-and-the-greedy-trap.html">&larr; Lesson</a>
+<a class="deck-exit" href="../lessons/0026-the-gru.html">&larr; Lesson</a>
 <div class="deck-counter"></div>
 
 <div class="deck">
 
   <section class="slide slide--title" data-title="Title">
     <div class="slide-inner">
-      <p class="slide-eyebrow">MSIS · AME 5003 · Unit I · Session 02</p>
-      <h1>Capturing, choosing, and the greedy trap</h1>
-      <p class="subtitle">Regular expressions, part two — pulling the pieces out, and the one
-      bug everybody writes at least once.</p>
+      <p class="slide-eyebrow">MSIS · AME 5003 · Unit III · Session 26</p>
+      <h1>The GRU: two gates, one vector, and what the simplification cost</h1>
+      <p class="subtitle">Session 25 ended by asking whether three gates and eight weight matrices
+      were all necessary. The GRU is one answer. This session works out what it removed, what that
+      costs in arithmetic, and what the evidence says about the trade.</p>
     </div>
   </section>
 
-  <section class="slide slide--bullets" data-title="Where session 1 left off">
+  <section class="slide slide--statement" data-title="Session 25's closing question">
     <div class="slide-inner">
-      <h2>Where session 1 left off</h2>
-      <ul>
-        <li>Last session: describing the <strong>shape</strong> of text</li>
-        <li>But finding the text is only half the job</li>
-        <li>Today: pull the pieces out, and handle more than one format</li>
-      </ul>
+      <p class="lede">Where we stopped</p>
+      <p>"Three gates and eight weight matrices, and the unit does one job: manage a context vector.
+      Is all of it necessary? Could you get the same behaviour with fewer gates?"</p>
+      <footer>The <strong>gated recurrent unit</strong> is one answer. Cho et al., <strong>2014</strong>
+      — seventeen years after the LSTM, which is later than most people guess.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Groups">
+  <section class="slide slide--table" data-title="What the GRU removes">
     <div class="slide-inner">
-      <h2>Groups</h2>
-      <pre><code>text     "Exam on 15/03/2026."
-pattern  (\d{2})/(\d{2})/(\d{4})
-
-whole match  ->  15/03/2026
-group 1      ->  15      the day
-group 2      ->  03      the month
-group 3      ->  2026    the year</code></pre>
-      <p class="aside">Group 0 is always the whole match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="In Python">
-    <div class="slide-inner">
-      <h2>In Python</h2>
-      <pre><code>m = regex.search(r"(\d{2})/(\d{2})/(\d{4})", "Exam on 15/03/2026.")
-m.group(0)   # '15/03/2026'
-m.group(1)   # '15'
-m.group(3)   # '2026'</code></pre>
-      <p class="aside">That's the difference between &ldquo;there is a date here&rdquo; and
-      &ldquo;the exam is in March.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="How groups change findall">
-    <div class="slide-inner">
-      <h2>How groups change findall</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">With groups</p>
-          <pre><code>regex.findall(
-  r"(\d{2})/(\d{2})/(\d{4})", text)
-
-[('15','03','2026'),
- ('01','04','2026')]</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">No groups</p>
-          <pre><code>regex.findall(
-  r"\d{2}/\d{2}/\d{4}", text)
-
-['15/03/2026',
- '01/04/2026']</code></pre>
-        </div>
-      </div>
-      <p class="aside">With groups, <code>findall</code> returns the groups — not the whole
-      match.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Non-capturing groups">
-    <div class="slide-inner">
-      <h2>Non-capturing groups</h2>
-      <pre><code>regex.findall(r"(?:\d{2})/(?:\d{2})/\d{4}", text)
-# ['15/03/2026', '01/04/2026']</code></pre>
-      <p class="aside"><code>(?:...)</code> — a <strong>non-capturing group</strong>. Groups
-      for structure, not for capture.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Alternation">
-    <div class="slide-inner">
-      <h2>Alternation</h2>
-      <pre><code>\d{2}[/-]\d{2}[/-]\d{4}
-
-matches  15/03/2026
-matches  15-03-2026</code></pre>
-      <p class="aside">Real data is rarely in one format. <code>[/-]</code> is a choice
-      between single characters.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="The brackets matter">
-    <div class="slide-inner">
-      <h2>For longer choices, use <code>|</code> with brackets</h2>
-      <pre><code>(?:cat|dog)s?
-
-on "a cat, two dogs"  ->  ['cat', 'dogs']</code></pre>
-      <p class="aside"><code>cat|dogs?</code> means &ldquo;<code>cat</code>, or
-      <code>dogs?</code>&rdquo; — not what you wanted. <code>|</code> splits the whole pattern
-      unless brackets stop it.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--table" data-title="Word boundaries">
-    <div class="slide-inner">
-      <h2><code>\b</code> means word boundary</h2>
+      <h2>Start with the subtraction</h2>
       <table>
-        <tr><th>Pattern</th><th>concatenate</th><th>the cat sat</th><th>cat.</th></tr>
-        <tr><td><code>cat</code></td><td>yes</td><td>yes</td><td>yes</td></tr>
-        <tr><td><code>\bcat\b</code></td><td>no</td><td>yes</td><td>yes</td></tr>
+        <tr><th></th><th>LSTM (session 25)</th><th>GRU</th></tr>
+        <tr><td>vectors carried</td><td><math data-tex="c"><mi>c</mi></math> and <math data-tex="h"><mi>h</mi></math></td>
+        <td><strong><math data-tex="h"><mi>h</mi></math> only</strong></td></tr>
+        <tr><td>gates</td><td>forget, add, output</td><td><strong>reset, update</strong></td></tr>
+        <tr><td>matrix pairs</td><td>4</td><td><strong>3</strong></td></tr>
       </table>
-      <p class="aside">It matches a <strong>position</strong>, not a character — the edge
-      between a word character and a non-word character.</p>
+      <p class="aside">Two things are gone: the separate context vector, and the output gate. Forget
+      and add are merged into one <strong>update gate</strong> <math data-tex="z"><mi>z</mi></math>, used once as <math data-tex="z"><mi>z</mi></math> and
+      once as <math data-tex="1 - z"><mrow><mn>1</mn><mo>−</mo><mi>z</mi></mrow></math>.</p>
     </div>
   </section>
 
-  <section class="slide slide--split" data-title="Word boundaries in Kannada">
+  <section class="slide slide--statement" data-title="What the simplification cost">
     <div class="slide-inner">
-      <h2><code>\b</code> inherits <code>\w</code>'s mistake</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">re — wrong</p>
-          <pre><code>re.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# matches!</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">regex — right</p>
-          <pre><code>regex.search(
-  r"\bಕನ\b", "ಕನ್ನಡ")
-# no match</code></pre>
-        </div>
+      <p>This is a <em>simplification of</em> the LSTM, and it is fair to present it that way.</p>
+      <footer>What matters is what the simplification cost, and that is a question the arithmetic
+      answers rather than the description.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Cho's four equations">
+    <div class="slide-inner">
+      <h2>Cho et al. 2014, with the paper's own numbering</h2>
+      <div class="meq" data-eqno="5"><math data-tex="r_t = \sigma(W_r x_t + U_r h_{t-1})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>r</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mi>r</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>U</mi><mi>r</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(5)</span></div>
+      <div class="meq" data-eqno="6"><math data-tex="z_t = \sigma(W_z x_t + U_z h_{t-1})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>z</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mi>z</mi></msub><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><msub><mi>U</mi><mi>z</mi></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math><span class="eqno">(6)</span></div>
+      <div class="meq" data-eqno="7"><math data-tex="h_t = z_t \odot h_{t-1} + (1 - z_t) \odot \tilde{h}_t" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><msub><mi>z</mi><mi>t</mi></msub><mo>⊙</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>−</mo><msub><mi>z</mi><mi>t</mi></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>⊙</mo><msub><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>t</mi></msub></mrow></math><span class="eqno">(7)</span></div>
+      <div class="meq" data-eqno="8"><math data-tex="\tilde{h}_t = \tanh\bigl(W x_t + U(r_t \odot h_{t-1})\bigr)" display="block" class="tml-display" style="display:block math;"><mrow><msub><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mi>t</mi></msub><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mi>W</mi><msub><mi>x</mi><mi>t</mi></msub><mo>+</mo><mi>U</mi><mo form="prefix" stretchy="false">(</mo><msub><mi>r</mi><mi>t</mi></msub><mo>⊙</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></math><span class="eqno">(8)</span></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Equation 7 is an interpolation">
+    <div class="slide-inner">
+      <p class="lede">Read (7) aloud</p>
+      <p><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is a weighted average of the previous state and the new candidate, and
+      <strong>the two weights always sum to 1</strong>.</p>
+      <footer>So <math data-tex="z"><mi>z</mi></math> is a dial. At <math data-tex="z = 1"><mrow><mi>z</mi><mo>=</mo><mn>1</mn></mrow></math> the unit keeps the old state exactly; at
+      <math data-tex="z = 0"><mrow><mi>z</mi><mo>=</mo><mn>0</mn></mrow></math> it throws it away and takes the candidate whole; in between it blends.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="One dial, not two decisions">
+    <div class="slide-inner">
+      <p>The LSTM's forget and add gates were two independent decisions.</p>
+      <footer>Here there is one dial, and moving it toward keeping is the same act as moving it away
+      from writing.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Where the reset gate acts">
+    <div class="slide-inner">
+      <p>In (8), <math data-tex="r_t"><msub><mi>r</mi><mi>t</mi></msub></math> multiplies <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> <em>before</em> the candidate is computed. So
+      the reset gate decides <strong>how much of the past the candidate is even allowed to
+      see</strong>.</p>
+      <footer>With <math data-tex="r \approx 0"><mrow><mi>r</mi><mo>≈</mo><mn>0</mn></mrow></math> the candidate is computed from <math data-tex="x_t"><msub><mi>x</mi><mi>t</mi></msub></math> alone and the unit
+      effectively starts fresh at this word, whatever it was carrying.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Two gates, two questions">
+    <div class="slide-inner">
+      <p><math data-tex="r"><mi>r</mi></math> controls what goes <em>into</em> the candidate. <math data-tex="z"><mi>z</mi></math> controls how much of the
+      candidate comes <em>out</em>.</p>
+      <footer>Note that <strong>the gate which does the forgetting is <math data-tex="z"><mi>z</mi></math>, not
+      <math data-tex="r"><mi>r</mi></math></strong>. The reset gate does not erase memory — it hides memory from one
+      calculation.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Which way round is z">
+    <div class="slide-inner">
+      <p>Sources disagree. <strong>In this course <math data-tex="z"><mi>z</mi></math> multiplies the <em>previous</em>
+      state</strong>, as in Cho's (7). PyTorch writes the same equation with the terms reversed,
+      <math data-tex="h_t = (1 - z)\, n_t + z\, h_{t-1}"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><msub><mi>n</mi><mi>t</mi></msub><mo>+</mo><mi>z</mi><mspace width="0.1667em"></mspace><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></mrow></math>, which agrees.</p>
+      <footer>The flipped convention, with <math data-tex="z"><mi>z</mi></math> gating the candidate instead, circulates widely.
+      Check which one a source is using before comparing numbers with it.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="The same three steps">
+    <div class="slide-inner">
+      <h2>Session 25's three steps, run through a GRU</h2>
+      <table>
+        <tr><th>step</th><th><math data-tex="z"><mi>z</mi></math></th><th><math data-tex="\tilde{h}"><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></math></th>
+        <th><math data-tex="h_t = z\, h_{t-1} + (1 - z)\, \tilde{h}"><mrow><msub><mi>h</mi><mi>t</mi></msub><mo>=</mo><mi>z</mi><mspace width="0.1667em"></mspace><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>1</mn><mo>−</mo><mi>z</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></mrow></math></th></tr>
+        <tr><td>1 · write</td><td>0.05</td><td>+0.80</td><td><strong>0.7600</strong></td></tr>
+        <tr><td>2 · hold</td><td>0.98</td><td>−0.50</td><td><strong>0.7348</strong></td></tr>
+        <tr><td>3 · overwrite</td><td>0.02</td><td>+0.10</td><td><strong>0.1127</strong></td></tr>
+      </table>
+      <p class="aside">Step 1 lands on 0.7600 — exactly where the LSTM landed. The two units do the
+      same thing when asked to write into an empty memory. The differences come afterwards.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Cost 1: remembering without acting">
+    <div class="slide-inner">
+      <h2>Cost 1 — the GRU cannot remember without acting</h2>
+      <table>
+        <tr><th>row 2 · "hold"</th><th>what is retained</th><th>what is emitted</th></tr>
+        <tr><td>LSTM (session 25)</td><td><math data-tex="c = 0.7298"><mrow><mi>c</mi><mo>=</mo><mn>0.7298</mn></mrow></math></td><td><math data-tex="h = 0.0623"><mrow><mi>h</mi><mo>=</mo><mn>0.0623</mn></mrow></math></td></tr>
+        <tr><td>GRU</td><td><math data-tex="h = 0.7348"><mrow><mi>h</mi><mo>=</mo><mn>0.7348</mn></mrow></math></td><td><math data-tex="h = 0.7348"><mrow><mi>h</mi><mo>=</mo><mn>0.7348</mn></mrow></math></td></tr>
+      </table>
+      <p class="aside">The same number twice, because there is only one number. With no output gate
+      and no context vector, retention <em>is</em> output — anything the GRU holds on to, it is also
+      saying.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What session 25 called the point">
+    <div class="slide-inner">
+      <p>Session 25 treated the LSTM's ability to hold something silently as the core of the
+      architecture, and the GRU does not have it.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="Cost 2: keeping and writing are coupled">
+    <div class="slide-inner">
+      <h2>Cost 2 — <math data-tex="h_{t-1} = 0.76"><mrow><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>=</mo><mn>0.76</mn></mrow></math>, candidate <math data-tex="\tilde{h} = -0.50"><mrow><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover><mo>=</mo><mo form="prefix" stretchy="false">−</mo><mn>0.50</mn></mrow></math>, turn the dial</h2>
+      <table>
+        <tr><th><math data-tex="z"><mi>z</mi></math></th><th>keeps</th><th>writes</th><th><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math></th></tr>
+        <tr><td>0.9</td><td>90%</td><td>10%</td><td>0.6340</td></tr>
+        <tr><td>0.5</td><td>50%</td><td>50%</td><td>0.1300</td></tr>
+        <tr><td>0.1</td><td>10%</td><td>90%</td><td>−0.3740</td></tr>
+      </table>
+      <p class="aside">In the LSTM, <math data-tex="f = 1"><mrow><mi>f</mi><mo>=</mo><mn>1</mn></mrow></math> with <math data-tex="i = 1"><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow></math> keeps the old context
+      <em>and</em> adds to it. Here the weights sum to 1 by construction: keeping 90% means writing
+      at most 10%. There is no setting that does both.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--code" data-title="The dial, drawn">
+    <div class="slide-inner">
+      <h2><math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> can never leave the segment between the two</h2>
+      <div class="slide-fig">
+        <svg viewBox="0 0 660 300" role="img" aria-labelledby="dialtitle dialdesc">
+          <title id="dialtitle">The GRU's new state as a point on the segment between the previous
+          state and the candidate</title>
+          <desc id="dialdesc">A horizontal number line runs from minus 0.5 on the left, labelled the
+          candidate, to 0.76 on the right, labelled the previous state. Three marked points sit
+          between them: at z equals 0.1 the new state is minus 0.374, near the candidate end; at z
+          equals 0.5 it is 0.130, in the middle; at z equals 0.9 it is 0.634, near the previous state
+          end. Shaded regions beyond both ends are marked unreachable.</desc>
+
+          <rect class="fig-mask" x="20" y="112" width="60" height="26"></rect>
+          <rect class="fig-mask" x="580" y="112" width="60" height="26"></rect>
+          <text class="fig-label" x="50" y="104" text-anchor="middle">unreachable</text>
+          <text class="fig-label" x="610" y="104" text-anchor="middle">unreachable</text>
+
+          <line class="fig-axis" x1="80" y1="125" x2="580" y2="125"></line>
+          <line class="fig-tick" x1="80" y1="115" x2="80" y2="135"></line>
+          <line class="fig-tick" x1="580" y1="115" x2="580" y2="135"></line>
+
+          <circle class="fig-node-q" cx="80" cy="125" r="9"></circle>
+          <circle class="fig-node-q" cx="580" cy="125" r="9"></circle>
+          <text class="fig-axname" x="80" y="170" text-anchor="middle">h̃ = −0.50</text>
+          <text class="fig-label" x="80" y="190" text-anchor="middle">the candidate</text>
+          <text class="fig-axname" x="580" y="170" text-anchor="middle">h₍ₜ₋₁₎ = 0.76</text>
+          <text class="fig-label" x="580" y="190" text-anchor="middle">the previous state</text>
+
+          <circle class="fig-pt" cx="130" cy="125" r="7"></circle>
+          <text class="fig-label" x="130" y="70" text-anchor="middle">z = 0.1</text>
+          <text class="fig-axname" x="130" y="94" text-anchor="middle">−0.374</text>
+          <line class="fig-gap" x1="130" y1="100" x2="130" y2="116"></line>
+
+          <circle class="fig-pt" cx="330" cy="125" r="7"></circle>
+          <text class="fig-label" x="330" y="70" text-anchor="middle">z = 0.5</text>
+          <text class="fig-axname" x="330" y="94" text-anchor="middle">0.130</text>
+          <line class="fig-gap" x1="330" y1="100" x2="330" y2="116"></line>
+
+          <circle class="fig-pt" cx="530" cy="125" r="7"></circle>
+          <text class="fig-label" x="530" y="70" text-anchor="middle">z = 0.9</text>
+          <text class="fig-axname" x="530" y="94" text-anchor="middle">0.634</text>
+          <line class="fig-gap" x1="530" y1="100" x2="530" y2="116"></line>
+
+          <line class="fig-edge" x1="130" y1="228" x2="530" y2="228"></line>
+          <polygon class="fig-edge-h" points="120,228 130,231.5 130,224.5"></polygon>
+          <polygon class="fig-edge-h" points="540,228 530,231.5 530,224.5"></polygon>
+          <text class="fig-label" x="330" y="250" text-anchor="middle">z is a dial: more keeping ⇄
+          less writing</text>
+
+          <text class="fig-axname" x="330" y="282" text-anchor="middle">h₍ₜ₎ is always between the
+          two — the weights sum to 1</text>
+        </svg>
       </div>
-      <p class="aside"><code>re</code> thinks <code>ಕನ</code> is a whole word inside
-      <code>ಕನ್ನಡ</code>. It is the first half of one.</p>
     </div>
   </section>
 
-  <section class="slide slide--statement" data-title="Where does a word end?">
+  <section class="slide slide--statement" data-title="Neither is a defect">
     <div class="slide-inner">
-      <p class="lede">Where does a word end?</p>
-      <p>A good library gives a <strong>better wrong answer</strong>, not a right one. The
-      library is not the solution; a different method is.</p>
-      <footer>Session 3 is about what to do instead.</footer>
+      <p>That constraint is what "the weights sum to 1" means geometrically, and it is exactly the
+      constraint the LSTM does not have — with independent <math data-tex="f"><mi>f</mi></math> and <math data-tex="i"><mi>i</mi></math>, its context can
+      hold what it had <em>and</em> take on more.</p>
+      <footer>Neither cost is a defect. They are what the simplification bought. Whether the trade
+      was worth making is answered by evidence, not argument.</footer>
     </div>
   </section>
 
-  <section class="slide slide--code" data-title="Greedy and lazy quantifiers">
-    <div class="slide-inner">
-      <h2>Extracting the tags from this text</h2>
-      <pre><code>&lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">A tag is an angle bracket, then anything, then another angle bracket.
-      So the pattern is <code>&lt;.*&gt;</code>. That looks correct.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="It matched the entire line">
-    <div class="slide-inner">
-      <h2>The result</h2>
-      <pre><code>regex.search(r"&lt;.*&gt;", text).group()
-
-# &lt;b&gt;bold&lt;/b&gt; and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-      <p class="aside">One giant &ldquo;tag.&rdquo;</p>
-    </div>
-  </section>
-
-  <section class="slide slide--bullets" data-title="Quantifiers are greedy by default">
-    <div class="slide-inner">
-      <h2>Quantifiers are greedy</h2>
-      <ul>
-        <li><code>*</code> and <code>+</code> take as much as they possibly can</li>
-        <li>They give characters back only if the rest of the pattern cannot otherwise
-        match</li>
-        <li><code>&lt;.*&gt;</code> runs to the end of the line, then backs up to the
-        <em>last</em> <code>&gt;</code></li>
-      </ul>
-    </div>
-  </section>
-
-  <section class="slide slide--split" data-title="Lazy fixes it">
-    <div class="slide-inner">
-      <h2>Add <code>?</code> to make it lazy</h2>
-      <div class="split-grid">
-        <div class="split-col bad">
-          <p class="col-label">greedy</p>
-          <pre><code>r"&lt;.*&gt;"
-
-&lt;b&gt;bold&lt;/b&gt;
- and &lt;i&gt;italic&lt;/i&gt;</code></pre>
-        </div>
-        <div class="split-col good">
-          <p class="col-label">lazy</p>
-          <pre><code>r"&lt;.*?&gt;"
-
-&lt;b&gt;</code></pre>
-        </div>
-      </div>
-      <p class="aside">Lazy: take as little as possible.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A more precise alternative">
-    <div class="slide-inner">
-      <h2>A more precise alternative</h2>
-      <pre><code>regex.findall(r"&lt;[^&gt;]*&gt;", text)
-# ['&lt;b&gt;', '&lt;/b&gt;', '&lt;i&gt;', '&lt;/i&gt;']</code></pre>
-      <p class="aside">&ldquo;An angle bracket, then anything that is <em>not</em> a closing
-      bracket, then a closing bracket.&rdquo; Now it cannot go too far.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: a+? on aaa">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="0">
-        <span class="q-num">Question 1 of 2</span>
-        <p class="q-text">On the text <code>"aaa"</code>, what does <code>a+?</code> match?</p>
-        <div class="q-opts">
-          <button class="opt">Just one letter a, the shortest possible</button>
-          <button class="opt">All three letters, the longest possible</button>
-          <button class="opt">Nothing at all, because it is invalid</button>
-          <button class="opt">Zero letters, an empty match at start</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>just one letter a</strong>.</p>
-          <p><code>a+</code> means &ldquo;one or more a.&rdquo; The <code>?</code> after a
-          quantifier means &ldquo;be lazy about it&rdquo; — must take at least one, and being
-          lazy, takes exactly one and stops.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--quiz" data-title="Quiz: why findall returns tuples">
-    <div class="slide-inner">
-      <div class="quiz" data-answer="2">
-        <span class="q-num">Question 2 of 2</span>
-        <p class="q-text">Why does <code>findall(r"(\d{2})/(\d{4})", text)</code> return
-        tuples?</p>
-        <div class="q-opts">
-          <button class="opt">Because findall always returns tuples of strings</button>
-          <button class="opt">Because the slash character splits every match found</button>
-          <button class="opt">Because findall returns the groups when groups exist</button>
-          <button class="opt">Because the pattern matches two separate things here</button>
-        </div>
-        <div class="q-fb">
-          <p>Correct: <strong>findall returns the groups when groups exist</strong>.</p>
-          <p>No groups → a list of whole matches. Add brackets, and it assumes the groups are
-          what was wanted — a tuple per match.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Substitution">
-    <div class="slide-inner">
-      <h2><code>regex.sub</code> reformats in one line</h2>
-      <pre><code>regex.sub(r"(\d{2})/(\d{2})/(\d{4})", r"\3-\2-\1",
-          "Exam on 15/03/2026.")
-
-# 'Exam on 2026-03-15.'</code></pre>
-      <p class="aside">Day, month, year captured — then written back in a different order.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="A worked example: a small extractor">
-    <div class="slide-inner">
-      <h2>Four fields, and the format is not the same on every line</h2>
-      <pre><code>INV-2291  15/03/2026  Rs 12,500    paid
-INV-2292  16-03-2026  Rs 900       due
-INV-2293  17/03/2026  Rs 1,05,000  due</code></pre>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="Named groups">
-    <div class="slide-inner">
-      <h2>Give each piece a name</h2>
-      <pre><code>(?P&lt;invoice&gt;INV-\d{4})\s+
-(?P&lt;date&gt;\d{2}[/-]\d{2}[/-]\d{4})\s+
-Rs\s(?P&lt;amount&gt;[\d,]+)\s+
-(?P&lt;status&gt;paid|due)</code></pre>
-      <p class="aside"><code>m.group("amount")</code> still reads correctly six months later
-      — <code>m.group(3)</code> does not.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--code" data-title="One dictionary per line">
-    <div class="slide-inner">
-      <h2>The shortcut: <code>groupdict()</code></h2>
-      <pre><code>regex.search(pattern, lines[0]).groupdict()
-
-# {'invoice': 'INV-2291', 'date': '15/03/2026',
-#  'amount': '12,500', 'status': 'paid'}</code></pre>
-      <p class="aside">Text went in; structured data came out.</p>
-    </div>
-  </section>
-
-  <section class="slide slide--recall" data-title="Exercise">
+  <section class="slide slide--recall" data-title="Exercise: make a GRU do row 2">
     <div class="slide-inner">
       <h2>Exercise</h2>
       <div class="recall">
-        <span class="label">Add a fifth field</span>
-        <p>The log gains a customer code at the end, like <code>[CUST-4471]</code> — square
-        brackets included.</p>
-        <p>Two points require care: the brackets are literal, and they should not appear in the
-        captured value.</p>
+        <span class="label">The LSTM held 0.7298 while emitting 0.0623</span>
+        <p>What values of <math data-tex="z"><mi>z</mi></math> and <math data-tex="\tilde{h}"><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></math> would make a GRU do the same — carry roughly
+        0.73 forward while emitting almost nothing?</p>
         <button class="reveal">Show answer</button>
         <div class="answer">
-          <p><code>\[(?P&lt;customer&gt;CUST-\d{4})\]</code></p>
-          <p>Escape both brackets — <code>[</code> starts a character class. Put the named
-          group <em>inside</em> the escaped brackets, so they stay out of the captured text.</p>
+          <p>There are none. <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> is both the memory and the output, so "carry 0.73 forward"
+          and "emit almost nothing" are contradictory. No choice of <math data-tex="z"><mi>z</mi></math>, <math data-tex="\tilde{h}"><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></math> or
+          <math data-tex="r"><mi>r</mi></math> separates them, because the separation is structural and the GRU does not have
+          the structure.</p>
+          <p>It is worth being precise about what this does and does not mean. The GRU can still
+          <em>retain</em>
+          information over many steps — <math data-tex="z \approx 1"><mrow><mi>z</mi><mo>≈</mo><mn>1</mn></mrow></math> does that perfectly well. What it cannot
+          do is retain information <em>quietly</em>.</p>
         </div>
       </div>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what the GRU removed">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="2">
+        <span class="q-num">Question 1 of 2</span>
+        <p class="q-text">What did the GRU remove, relative to the LSTM?</p>
+        <div class="q-opts">
+          <button class="opt">The candidate computation, so that the new state is built from the input alone rather than from the previous hidden state</button>
+          <button class="opt">The reset gate replaces the forget gate, so one gate now does the work that previously took two separate ones</button>
+          <button class="opt">The separate context vector and the output gate — forget and add are merged into one update gate used as z and 1 − z</button>
+          <button class="opt">The element-wise products, so that all of the gating is done by ordinary matrix multiplication instead</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>the separate context vector and the output gate</strong>. Four matrix
+          pairs become three, two vectors become one.</p>
+          <p>The second is the instructive wrong answer: <strong>the gate that forgets is
+          <math data-tex="z"><mi>z</mi></math></strong>, not <math data-tex="r"><mi>r</mi></math>. The reset gate controls what the candidate may see, a job
+          the LSTM had no equivalent of. The first is false — (8) does compute a candidate and does
+          read <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, filtered through <math data-tex="r"><mi>r</mi></math>.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--table" data-title="What it saves">
+    <div class="slide-inner">
+      <h2>What the simplification saves</h2>
+      <table>
+        <tr><th></th><th>matrix pairs</th><th>matrices</th><th>parameters at <math data-tex="d = 300"><mrow><mi>d</mi><mo>=</mo><mn>300</mn></mrow></math></th></tr>
+        <tr><td>RNN</td><td>1</td><td>2</td><td>180,000</td></tr>
+        <tr><td><strong>GRU</strong></td><td><strong>3</strong></td><td><strong>6</strong></td>
+        <td><strong>540,000</strong></td></tr>
+        <tr><td>LSTM</td><td>4</td><td>8</td><td>720,000</td></tr>
+      </table>
+      <p class="aside"><strong>75% of the LSTM's parameters.</strong> Worth stating plainly, because
+      it is smaller than the reputation suggests — "simpler architecture" tends to be heard as "much
+      smaller model", and a quarter fewer is real but not dramatic.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Chung et al. 2014">
+    <div class="slide-inner">
+      <p class="lede">Whether it costs accuracy</p>
+      <p>"The evaluation clearly demonstrated the superiority of the gated units; both the LSTM unit
+      and GRU, over the traditional tanh unit… <strong>However, we could not make concrete
+      conclusion on which of the two gating units was better.</strong>"</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="Read the author list">
+    <div class="slide-inner">
+      <p>Chung, Gulcehre, <strong>Cho</strong> and <strong>Bengio</strong>. Two of the four are
+      authors of the GRU paper itself.</p>
+      <footer>The people who proposed the GRU compared it against the LSTM and declined to claim a
+      winner.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="A pattern this course keeps finding">
+    <div class="slide-inner">
+      <p>Session 18 checked idf against the Shakespeare features. Session 21 checked
+      <math data-tex="\text{king} - \text{man} + \text{woman}"><mrow><mtext>king</mtext><mrow><mspace width="0.222em"></mspace><mo>−</mo><mspace width="0.222em"></mspace></mrow><mtext>man</mtext><mrow><mspace width="0.222em"></mspace><mo>+</mo><mspace width="0.222em"></mspace></mrow><mtext>woman</mtext></mrow></math> and found it landing on <code>king</code>.
+      Session 22 checked GloVe's pitch against Levy &amp; Goldberg. Here the check is one the authors
+      ran themselves.</p>
+      <footer>Four times a well-known claim has been checked against the evidence and come back
+      weaker than advertised. The habit is more durable than any of the four results.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="The practical answer">
+    <div class="slide-inner">
+      <p><strong>Try both, prefer the GRU when data or compute is tight, and do not expect the choice
+      to decide anything.</strong></p>
+      <footer>In PyTorch it is a one-word change, which is worth doing in lab 9 to see the difference
+      for yourself.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="PyTorch is not equation 8">
+    <div class="slide-inner">
+      <p>PyTorch's own documentation says so: "The calculation of new gate <math data-tex="n_t"><msub><mi>n</mi><mi>t</mi></msub></math> subtly differs
+      from the original paper… the Hadamard product between <math data-tex="r_t"><msub><mi>r</mi><mi>t</mi></msub></math> and <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math> is done
+      before the multiplication with the weight matrix <math data-tex="W"><mi>W</mi></math>…"</p>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="Side by side">
+    <div class="slide-inner">
+      <h2>Cho applies the reset gate before the matrix; PyTorch after</h2>
+      <div class="meq"><math data-tex="\begin{aligned}
+\text{Cho (8):} \quad \tilde{h} &amp;= \tanh\bigl(W x + U(r \odot h_{t-1})\bigr) \\
+\text{PyTorch:} \quad n_t &amp;= \tanh\bigl(W_{in} x + b_{in} + r \odot (W_{hn} h_{t-1} + b_{hn})\bigr)
+\end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>Cho (8):</mtext><mspace width="1em"></mspace><mover><mi>h</mi><mo stretchy="false" style="math-depth:0;">~</mo></mover></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><mi>W</mi><mi>x</mi><mo>+</mo><mi>U</mi><mo form="prefix" stretchy="false">(</mo><mi>r</mi><mo>⊙</mo><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mtext>PyTorch:</mtext><mspace width="1em"></mspace><msub><mi>n</mi><mi>t</mi></msub></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mrow><mi>tanh</mi><mo>⁡</mo></mrow><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">(</mo><msub><mi>W</mi><mrow><mi>i</mi><mi>n</mi></mrow></msub><mi>x</mi><mo>+</mo><msub><mi>b</mi><mrow><mi>i</mi><mi>n</mi></mrow></msub><mo>+</mo><mi>r</mi><mo>⊙</mo><mo form="prefix" stretchy="false">(</mo><msub><mi>W</mi><mrow><mi>h</mi><mi>n</mi></mrow></msub><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>+</mo><msub><mi>b</mi><mrow><mi>h</mi><mi>n</mi></mrow></msub><mo form="postfix" stretchy="false">)</mo><mo fence="true" symmetric="true" minsize="1.2em" maxsize="1.2em">)</mo></mrow></mtd></mtr></mtable></math></div>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="Why this matters here">
+    <div class="slide-inner">
+      <p>These are <strong>not algebraically equal</strong>. In Cho's form the gate masks the state
+      and the matrix mixes what survives; in PyTorch's the matrix mixes everything and the mask is
+      applied after. PyTorch says the change is deliberate, for efficiency.</p>
+      <footer>It matters here because the course's own assigned source runs the PyTorch variant. Rao
+      &amp; McMahan call <code>nn.GRU</code> and never write the equations out — so a student who
+      implements (5)–(8) by hand and compares is running two different architectures, and neither
+      source says so.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="One more discrepancy">
+    <div class="slide-inner">
+      <p>A footnote in Cho's paper describes the LSTM as having <strong>four gating units</strong>.
+      Session 25 taught <strong>three</strong>, following SLP3, and said <math data-tex="g"><mi>g</mi></math> is the candidate
+      content rather than a gate.</p>
+      <footer>The equations are identical either way — the sources simply count the candidate
+      differently. Nothing about the architecture is in dispute; only the noun is.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--quiz" data-title="Quiz: what the evidence says">
+    <div class="slide-inner">
+      <div class="quiz" data-answer="1">
+        <span class="q-num">Question 2 of 2</span>
+        <p class="q-text">What does the empirical evidence say about choosing between the LSTM and
+        the GRU?</p>
+        <div class="q-opts">
+          <button class="opt">The GRU is better, because a simpler architecture with fewer parameters generalises more reliably from the same training data</button>
+          <button class="opt">Both clearly beat the plain tanh unit, and no consistent winner emerged between the two of them</button>
+          <button class="opt">The LSTM is better, because its separate context vector lets it hold information over distances the GRU's single vector cannot reach</button>
+          <button class="opt">Neither is worth using now, because the comparison was run on music and speech data rather than on any language task</button>
+        </div>
+        <div class="q-fb">
+          <p>Correct: <strong>gating clearly wins, and neither gated unit consistently beats the
+          other</strong> — Chung et al.'s conclusion in their own words, with two GRU authors on the
+          paper.</p>
+          <p>The first is exactly the claim the evidence does not support, and the one most people
+          carry: "simpler" is a hypothesis, not an argument, and this one was tested. The third is a
+          plausible structural argument that did not show up as a consistent accuracy gap. The
+          fourth over-corrects — the datasets are a caveat worth noting, not a reason to discard the
+          finding.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="slide slide--bullets" data-title="What neither fixes">
+    <div class="slide-inner">
+      <h2>What neither of them fixes</h2>
+      <ul>
+        <li><strong>Both are strictly sequential.</strong> <math data-tex="h_t"><msub><mi>h</mi><mi>t</mi></msub></math> needs <math data-tex="h_{t-1}"><msub><mi>h</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub></math>, so
+        neither parallelises across time whatever hardware is available</li>
+        <li><strong>Both push everything through one vector per position.</strong> Fewer gates does
+        not change how much can be carried</li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What session 27 changes">
+    <div class="slide-inner">
+      <p>Session 27 attacks neither limit. It keeps the sequential unit exactly as it is and changes
+      what gets built <em>out</em> of it: two recurrent networks, one reading and one writing.</p>
+      <footer>That is the shape that makes translation possible — and it is where Cho's paper
+      reappears, since these equations come from §2.3 of a paper whose actual subject is the
+      encoder-decoder. Bahdanau, session 28's author, is a co-author of it.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Summary">
     <div class="slide-inner">
       <p class="lede">Summary</p>
-      <p>Quantifiers are <strong>greedy</strong> by default, consuming as much text as they can.
-      When a match is far larger than expected, this is almost always the reason.</p>
-      <footer>Next: tokenization, where we address the \b problem properly.</footer>
+      <p>The GRU removes the separate context vector and the output gate. <math data-tex="r"><mi>r</mi></math> decides how much
+      of the past the candidate may see; <math data-tex="z"><mi>z</mi></math> interpolates between the previous state and the
+      candidate with weights summing to 1. Two costs follow from the arithmetic: it cannot remember
+      without acting, and keeping and writing are coupled.</p>
+      <footer>In exchange, 540,000 parameters against 720,000 — 75%. On accuracy, Chung et al. could
+      not separate the two. And PyTorch's <code>nn.GRU</code> is not Cho's equation (8).</footer>
     </div>
   </section>
 
@@ -1110,22 +1202,32 @@ Rs\s(?P&lt;amount&gt;[\d,]+)\s+
       <h2>Reading</h2>
       <ul class="ref-list">
         <li>
-          <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language
-          Processing</em>, chapter 2, §2.6</p>
-          <p class="ref-note">Finish §2.6 this week, including the substitution part.</p>
-          <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/2.pdf"
-          target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/2.pdf</a>
+          <p class="ref-title">Rao &amp; McMahan — <em>Natural Language Processing with
+          PyTorch</em>, chapter 7</p>
+          <p class="ref-note">The assigned source, and the one lab 9 follows. It uses
+          <code>nn.GRU</code> and does not write the equations out, which is why they are written
+          out above.</p>
+          <a class="ref-link" href="https://github.com/delip/PyTorchNLPBook"
+          target="_blank" rel="noopener">github.com/delip/PyTorchNLPBook</a>
         </li>
         <li>
-          <p class="ref-title">regex101.com</p>
-          <p class="ref-note">Paste some HTML there, then type <code>&lt;.*&gt;</code>. The site
-          highlights the match as you type, so you can watch it take too much.</p>
-          <a class="ref-link" href="https://regex101.com/" target="_blank"
-          rel="noopener">regex101.com</a>
+          <p class="ref-title">Cho et al. 2014, <strong>§2.3</strong> only</p>
+          <p class="ref-note">Four pages, and the origin of equations (5)–(8). Read it knowing two
+          things: PyTorch does not implement (8) as written, and the paper's footnote counts the
+          LSTM's gates differently from session 25.</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1406.1078"
+          target="_blank" rel="noopener">arxiv.org/abs/1406.1078</a>
+        </li>
+        <li>
+          <p class="ref-title">Chung et al. 2014</p>
+          <p class="ref-note">The comparison in full. Short, and its conclusion is the honest answer
+          to "which one should I use?"</p>
+          <a class="ref-link" href="https://arxiv.org/abs/1412.3555"
+          target="_blank" rel="noopener">arxiv.org/abs/1412.3555</a>
         </li>
       </ul>
-      <a class="deck-onward" href="0003-tokenization-and-the-vocabulary-problem.html">Next deck
-      &mdash; session 3: Tokenization &rarr;</a>
+      <a class="deck-onward" href="0027-sequence-to-sequence.html">Next deck &mdash;
+      session 27: Sequence-to-sequence &rarr;</a>
     </div>
   </section>
 
