@@ -69,7 +69,8 @@ print("  (?:cat|dog)s?  ", regex.findall(r"(?:cat|dog)s?", text))
 print("                  ^ the s? applies to cat OR dog, as intended")
 print()
 print("  cat|dogs?      ", regex.findall(r"cat|dogs?", text))
-print("                  ^ no group: | splits the WHOLE pattern, so this reads")
-print("                    as 'cat' OR 'dogs?' — the plural on cats is lost")
+print("""\
+                  ^ no group: | splits the WHOLE pattern, so this reads
+                    as 'cat' OR 'dogs?' — the plural on cats is lost""")
 
 print()

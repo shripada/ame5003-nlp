@@ -56,22 +56,22 @@ head("2. Why anyone removes them")
 review = "this is one of the best phones I have ever bought"
 print(f"  before   {review}")
 print(f"  after    {strip_stop_words(review)}")
-print()
-print("  Eleven tokens become five, and the five carry the substance. For search")
-print("  and topic-finding that is a real improvement: less to store, and the")
-print("  informative words stand out.")
-print()
-print("  Note that 'one' survives. It is a content-free word by any reasonable")
-print("  reading, and NLTK's list simply does not have it. A stop-word list is")
-print("  somebody's list, not a law — check what is on the one you are using.")
+print("""
+  Eleven tokens become five, and the five carry the substance. For search
+  and topic-finding that is a real improvement: less to store, and the
+  informative words stand out.
+
+  Note that 'one' survives. It is a content-free word by any reasonable
+  reading, and NLTK's list simply does not have it. A stop-word list is
+  somebody's list, not a law — check what is on the one you are using.""")
 
 # How much of a real corpus is stop words. Gutenberg is a shelf of full books,
 # so this is a fair sample of running English rather than a hand-picked line.
 words = [w.lower() for w in gutenberg.words("austen-emma.txt") if w.isalpha()]
 n_stop = sum(1 for w in words if w in STOP)
-print()
-print(f"  Austen's Emma:  {len(words):,} word tokens, {n_stop:,} of them on the list")
-print(f"                  that is {100 * n_stop / len(words):.0f}% of the text, gone in one pass.")
+print(f"""
+  Austen's Emma:  {len(words):,} word tokens, {n_stop:,} of them on the list
+                  that is {100 * n_stop / len(words):.0f}% of the text, gone in one pass.""")
 
 
 # ── the case against ─────────────────────────────────────────────────────
@@ -81,9 +81,9 @@ negations = ["not", "no", "nor", "against", "only", "very"]
 for word in negations:
     print(f"    {word:9} on the list?  {word in STOP}")
 
-print()
-print("  Every one of those changes the meaning of a sentence, and 'not' is")
-print("  the most important word English has for a negative judgement.")
+print("""
+  Every one of those changes the meaning of a sentence, and 'not' is
+  the most important word English has for a negative judgement.""")
 
 
 head("4. The reversal")
@@ -95,10 +95,11 @@ for sentence in ["would not recommend",
     print(f"  after    {strip_stop_words(sentence)}")
     print()
 
-print("  A sentiment classifier reading the second line of each pair would call")
-print("  all three of these positive. Nothing raised an error — the preprocessing")
-print("  step simply destroyed the information the task depended on. This is the")
-print("  same failure as VADER on 'nightmare' in lab 1.")
+print("""\
+  A sentiment classifier reading the second line of each pair would call
+  all three of these positive. Nothing raised an error — the preprocessing
+  step simply destroyed the information the task depended on. This is the
+  same failure as VADER on 'nightmare' in lab 1.""")
 
 
 # ── the fix, when you must remove them ───────────────────────────────────
@@ -117,9 +118,10 @@ for sentence in ["would not recommend", "the battery is not very good"]:
     print(f"  curated       {strip_stop_words(sentence, keep=KEEP)}")
     print()
 
-print("  The decision rule: remove them when you want the topic (search,")
-print("  information retrieval — lab 4). Keep them when meaning depends on")
-print("  them (sentiment, question answering). If you must remove them for a")
-print("  meaning task, spare the negations first.")
+print("""\
+  The decision rule: remove them when you want the topic (search,
+  information retrieval — lab 4). Keep them when meaning depends on
+  them (sentiment, question answering). If you must remove them for a
+  meaning task, spare the negations first.""")
 
 print()

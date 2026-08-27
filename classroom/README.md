@@ -41,6 +41,10 @@ There is nothing to activate. `uv run` uses `.venv` on its own.
 | `demos/s04_unicode.py` | 04 | Unicode: why two identical-looking strings are not equal |
 | `demos/s05_stem_lemma.py` | 05 | stemming vs lemmatization, on the words from the lesson |
 | `demos/s06_pos_tagging.py` | 06 | part-of-speech tagging, including one sentence spaCy gets wrong |
+| `demos/s07_ner.py` | 07 | named entity recognition, and the BIO tags underneath it |
+| `demos/s08_incidence_matrix.py` | 08 | the term-document incidence matrix, and where it breaks |
+| `demos/s09_inverted_index.py` | 09 | the inverted index, and the two-pointer merge |
+| `demos/s10_tfidf.py` | 10 | TF-IDF, and what each of the two logarithms is doing |
 
 ## Notes
 

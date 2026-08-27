@@ -157,6 +157,50 @@ strong { font-weight: 600; }
 }
 .slide-inner { width: 100%; max-width: 62rem; }
 
+/* ---- Zoom and pan ----
+   Browser zoom is the wrong tool on this deck: the type is sized in vw and
+   clamp(), so Ctrl-+ reflows the slide rather than magnifying it, and the
+   overflow it produces cannot be panned because scroll-snap owns the vertical
+   axis and snaps to the next slide instead. slides.js therefore intercepts the
+   zoom keys and drives these two custom properties, magnifying the current
+   slide about its centre with a transform. Nothing reflows, the type stays
+   vector-crisp, and panning is a transform too, so it never touches the
+   scroll container.
+
+   .slide clips: a magnified slide must not spill over its neighbours or over
+   the fixed chrome. */
+.slide { overflow: hidden; }
+.slide-inner {
+  transform: translate(var(--pan-x, 0px), var(--pan-y, 0px)) scale(var(--zoom, 1));
+  transform-origin: 50% 50%;
+  transition: transform .12s ease-out;
+}
+/* Dragging must track the pointer exactly; a transition on transform would
+   make the slide lag behind the hand. */
+.deck.is-panning .slide-inner { transition: none; }
+.deck.is-zoomed { cursor: grab; }
+.deck.is-panning { cursor: grabbing; user-select: none; }
+
+/* The zoom readout, shown only while zoomed. Bottom left, opposite the slide
+   counter, so the two never collide. */
+.deck-zoom {
+  position: fixed;
+  bottom: 1rem;
+  left: 1.2rem;
+  font-family: var(--mono);
+  font-size: .72rem;
+  letter-spacing: .06em;
+  color: var(--ink-faint);
+  z-index: 60;
+  background: var(--bg);
+  padding: .2rem .5rem;
+  border-radius: 3px;
+  border: 1px solid var(--rule);
+  display: none;
+}
+.deck-zoom.show { display: block; }
+.deck-zoom .zoom-hint { color: var(--ink-faint); opacity: .8; }
+
 /* ---- Eyebrow / kicker, reused across shapes ---- */
 .slide-eyebrow {
   font-family: var(--mono);
@@ -698,7 +742,10 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 @media print {
   .deck { height: auto; overflow: visible; scroll-snap-type: none; }
   .slide { height: auto; min-height: 100vh; page-break-after: always; }
-  .deck-progress, .deck-counter, .deck-overview, .deck-exit { display: none; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit, .deck-zoom { display: none; }
+  /* Print the slide as authored, whatever it was magnified to on screen. */
+  .slide { overflow: visible; }
+  .slide-inner { transform: none; }
 }
 
 
@@ -1148,6 +1195,9 @@ AND      1 0 0 0 0 1</code></pre>
   var current = 0;
 
   function updateChrome(index) {
+    // The slide being left goes back to 1x: a deck must never arrive at its
+    // next slide already magnified and panned into a corner.
+    if (index !== current) resetZoom(current);
     current = index;
     if (counter) {
       counter.textContent =
@@ -1241,10 +1291,259 @@ AND      1 0 0 0 0 1</code></pre>
     }
   }
 
+  // ---- Zoom and pan ----
+  // Chrome's own zoom is the wrong instrument for this deck. Slide type is
+  // sized in vw and clamp(), so Cmd-+ reflows the slide instead of magnifying
+  // it, and whatever overflows cannot be reached: the vertical axis belongs to
+  // scroll-snap, which answers a pan gesture by snapping to the next slide.
+  // So we take the zoom keys ourselves and magnify the current slide with a
+  // transform, about the centre of what is currently on screen. Nothing
+  // reflows, the type stays vector-crisp at any factor, and panning is a
+  // transform too, so it never touches the scroll container.
+  //
+  //   Cmd/Ctrl + =   zoom in, from the centre
+  //   Cmd/Ctrl + -   zoom out
+  //   Cmd/Ctrl + 0   back to 1x  (Escape does this too)
+  //   trackpad pinch / Ctrl-wheel   zoom about the pointer
+  //   drag, two-finger scroll, or the arrow keys   pan, while zoomed
+  //
+  // Zoom belongs to the slide being shown and is dropped when the deck moves
+  // on, so the next slide is never inherited half-magnified.
+  var ZOOM_MIN = 1;
+  var ZOOM_MAX = 6;
+  var ZOOM_STEP = 1.25;
+  var PAN_KEY_FRACTION = 0.15; // of the viewport, per arrow press
+  var zoom = 1;
+  var panX = 0;
+  var panY = 0;
+
+  var readout = document.querySelector(".deck-zoom");
+  if (!readout) {
+    readout = document.createElement("div");
+    readout.className = "deck-zoom";
+    document.body.appendChild(readout);
+  }
+  var resetLabel =
+    /Mac|iPhone|iPad/.test(navigator.platform || "") ? "⌘0" : "Ctrl+0";
+
+  function innerOf(index) {
+    return slides[index] ? slides[index].querySelector(".slide-inner") : null;
+  }
+
+  // The pan limit is whatever the magnified box overhangs the slide by. At a
+  // factor where the content still fits, the limit is zero and the slide
+  // simply cannot be dragged off centre.
+  function clampPan() {
+    var slide = slides[current];
+    var inner = innerOf(current);
+    if (!slide || !inner) {
+      panX = panY = 0;
+      return;
+    }
+    var w = Math.max(inner.offsetWidth, inner.scrollWidth);
+    var h = Math.max(inner.offsetHeight, inner.scrollHeight);
+    var maxX = Math.max(0, (w * zoom - slide.clientWidth) / 2);
+    var maxY = Math.max(0, (h * zoom - slide.clientHeight) / 2);
+    panX = Math.min(maxX, Math.max(-maxX, panX));
+    panY = Math.min(maxY, Math.max(-maxY, panY));
+  }
+
+  function applyZoom() {
+    var inner = innerOf(current);
+    if (inner) {
+      inner.style.setProperty("--zoom", zoom);
+      inner.style.setProperty("--pan-x", panX + "px");
+      inner.style.setProperty("--pan-y", panY + "px");
+    }
+    var on = zoom > 1.001;
+    deck.classList.toggle("is-zoomed", on);
+    readout.classList.toggle("show", on);
+    if (on) {
+      readout.innerHTML =
+        Math.round(zoom * 100) + "%" +
+        ' <span class="zoom-hint">drag to pan · ' + resetLabel + " reset</span>";
+    }
+  }
+
+  // focusX/focusY are viewport coordinates to hold still — the pointer, for a
+  // pinch. Without them the centre of the current view is held instead, which
+  // is what the keyboard shortcuts want: the slide grows around what the room
+  // is already looking at rather than running off towards a corner.
+  function setZoom(next, focusX, focusY) {
+    // Snap back to exactly 1x rather than leaving a slide at 1.02 after a
+    // few steps down: a hair of scale is invisible, but it would keep the
+    // deck in its panning mode, where the wheel no longer changes slide.
+    if (next < 1.02) next = 1;
+    next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, next));
+    var slide = slides[current];
+    if (typeof focusX === "number" && slide) {
+      var rect = slide.getBoundingClientRect();
+      var cx = rect.left + rect.width / 2;
+      var cy = rect.top + rect.height / 2;
+      panX = focusX - cx - ((focusX - cx - panX) / zoom) * next;
+      panY = focusY - cy - ((focusY - cy - panY) / zoom) * next;
+    } else {
+      panX = (panX / zoom) * next;
+      panY = (panY / zoom) * next;
+    }
+    zoom = next;
+    if (zoom <= ZOOM_MIN) panX = panY = 0;
+    clampPan();
+    applyZoom();
+  }
+
+  // Clears the slide at `index`, which is not necessarily the current one:
+  // navigation resets the slide being left.
+  function resetZoom(index) {
+    var inner = innerOf(typeof index === "number" ? index : current);
+    zoom = 1;
+    panX = panY = 0;
+    if (inner) {
+      inner.style.removeProperty("--zoom");
+      inner.style.removeProperty("--pan-x");
+      inner.style.removeProperty("--pan-y");
+    }
+    deck.classList.remove("is-zoomed", "is-panning");
+    readout.classList.remove("show");
+  }
+
+  function panBy(dx, dy) {
+    panX += dx;
+    panY += dy;
+    clampPan();
+    applyZoom();
+  }
+
+  // Wheel deltas are pixels in Chrome but lines or pages elsewhere; everything
+  // below works in pixels.
+  function normaliseDelta(d, mode) {
+    if (mode === 1) return d * 16;
+    if (mode === 2) return d * 400;
+    return d;
+  }
+
+  // Ctrl-wheel is what Chrome reports a trackpad pinch as, and it is
+  // cancellable, unlike the browser's own pinch on a touchscreen. A plain
+  // wheel while zoomed pans, so two-finger scrolling reaches the corners of a
+  // magnified slide instead of snapping to the next one.
+  deck.addEventListener(
+    "wheel",
+    function (e) {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault();
+        // A pinch arrives as a stream of small deltas, a mouse wheel as one
+        // notch of 100 or more. Capping the per-event delta keeps a single
+        // notch to about a quarter, so neither gesture overshoots.
+        var d = Math.max(-25, Math.min(25, normaliseDelta(e.deltaY, e.deltaMode)));
+        setZoom(zoom * Math.exp(-d * 0.01), e.clientX, e.clientY);
+      } else if (zoom > 1.001) {
+        e.preventDefault();
+        panBy(
+          -normaliseDelta(e.deltaX, e.deltaMode),
+          -normaliseDelta(e.deltaY, e.deltaMode)
+        );
+      }
+    },
+    { passive: false }
+  );
+
+  // Drag to pan. Pointer capture keeps the gesture alive when the hand leaves
+  // the window, which at a high factor happens constantly.
+  var panning = false;
+  var lastX = 0;
+  var lastY = 0;
+
+  deck.addEventListener("pointerdown", function (e) {
+    if (zoom <= 1.001) return;
+    if (e.target.closest("button, a, .quiz, .recall")) return;
+    panning = true;
+    lastX = e.clientX;
+    lastY = e.clientY;
+    deck.classList.add("is-panning");
+    if (deck.setPointerCapture) deck.setPointerCapture(e.pointerId);
+  });
+
+  deck.addEventListener("pointermove", function (e) {
+    if (!panning) return;
+    e.preventDefault();
+    panBy(e.clientX - lastX, e.clientY - lastY);
+    lastX = e.clientX;
+    lastY = e.clientY;
+  });
+
+  function endPan(e) {
+    if (!panning) return;
+    panning = false;
+    deck.classList.remove("is-panning");
+    if (deck.releasePointerCapture && e.pointerId !== undefined) {
+      try { deck.releasePointerCapture(e.pointerId); } catch (err) {}
+    }
+  }
+  deck.addEventListener("pointerup", endPan);
+  deck.addEventListener("pointercancel", endPan);
+
+  // A magnified slide is measured against the viewport, so a resize or a
+  // rotation can leave the pan outside its limit.
+  window.addEventListener("resize", function () {
+    if (zoom > 1.001) {
+      clampPan();
+      applyZoom();
+    }
+  });
+
   // ---- Keyboard ----
   document.addEventListener("keydown", function (e) {
     if (overview.classList.contains("show") && e.key !== "o" && e.key !== "Escape") {
       return;
+    }
+    // Chrome delivers Cmd/Ctrl + =, - and 0 to the page and honours
+    // preventDefault on them, so the deck can zoom itself rather than letting
+    // the browser reflow the slide. Any other modified key is a browser
+    // shortcut (Cmd-F, Cmd-R) and must not double as deck navigation.
+    if ((e.metaKey || e.ctrlKey) && !e.altKey) {
+      if (e.key === "=" || e.key === "+" || e.code === "NumpadAdd") {
+        e.preventDefault();
+        setZoom(zoom * ZOOM_STEP);
+      } else if (e.key === "-" || e.key === "_" || e.code === "NumpadSubtract") {
+        e.preventDefault();
+        setZoom(zoom / ZOOM_STEP);
+      } else if (e.key === "0" || e.code === "Numpad0") {
+        e.preventDefault();
+        resetZoom();
+      }
+      return;
+    }
+    // While zoomed the arrows pan the slide instead of leaving it. Space and
+    // the page keys still advance, so the deck is never trapped at 3x.
+    if (zoom > 1.001) {
+      var step = slides[current] ? slides[current].clientHeight * PAN_KEY_FRACTION : 80;
+      switch (e.key) {
+        case "ArrowRight":
+          e.preventDefault();
+          panBy(-step, 0);
+          return;
+        case "ArrowLeft":
+          e.preventDefault();
+          panBy(step, 0);
+          return;
+        case "ArrowDown":
+          e.preventDefault();
+          panBy(0, -step);
+          return;
+        case "ArrowUp":
+          e.preventDefault();
+          panBy(0, step);
+          return;
+        case "-":
+        case "_":
+          e.preventDefault();
+          setZoom(zoom / ZOOM_STEP);
+          return;
+        case "Escape":
+          e.preventDefault();
+          resetZoom();
+          return;
+      }
     }
     switch (e.key) {
       case "ArrowRight":
@@ -1267,6 +1566,25 @@ AND      1 0 0 0 0 1</code></pre>
       case "End":
         e.preventDefault();
         goTo(slides.length - 1);
+        break;
+      // The same three actions without a modifier. Chrome hands the page
+      // Cmd/Ctrl + = - 0 and honours preventDefault on them, but a bare key
+      // cannot be reserved by any browser, so these are the path that is
+      // certain to work — including on a lectern keyboard whose modifiers the
+      // room's display software has claimed.
+      case "+":
+      case "=":
+        e.preventDefault();
+        setZoom(zoom * ZOOM_STEP);
+        break;
+      case "-":
+      case "_":
+        e.preventDefault();
+        setZoom(zoom / ZOOM_STEP);
+        break;
+      case "0":
+        e.preventDefault();
+        resetZoom();
         break;
       case "f":
         toggleFullscreen();
@@ -1297,6 +1615,9 @@ AND      1 0 0 0 0 1</code></pre>
 
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
+    // On a magnified slide a click is a pointing gesture, not a request for
+    // the next one. Space, or Cmd-0 first, advances.
+    if (zoom > 1.001) return;
     if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
         Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
     var sel = window.getSelection();

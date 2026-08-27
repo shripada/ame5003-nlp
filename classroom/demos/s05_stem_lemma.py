@@ -38,11 +38,11 @@ head("1. Four spellings, one key")
 for word in ["study", "studies", "studying", "studied"]:
     print(f"    {word:10} ->  {porter.stem(word)}")
 
-print()
-print("  'studi' is not an English word, and that is not a defect. The stemmer")
-print("  has one job — map related words to the same string — and it did it.")
-print("  The key is never shown to anyone; a search for 'studying' now finds a")
-print("  page that says 'studies'.")
+print("""
+  'studi' is not an English word, and that is not a defect. The stemmer
+  has one job — map related words to the same string — and it did it.
+  The key is never shown to anyone; a search for 'studying' now finds a
+  page that says 'studies'.""")
 
 print()
 for word in ["argue", "argued", "argues", "arguing"]:
@@ -65,8 +65,9 @@ print()
 print("  And two words that collapse together when they should not:")
 for word in ["universal", "university"]:
     print(f"    {word:14} ->  {porter.stem(word)}")
-print("  A search for one now matches the other. This is the price of rules")
-print("  without meaning.")
+print("""\
+  A search for one now matches the other. This is the price of rules
+  without meaning.""")
 
 
 # ── the lemmatizer, and the part of speech it needs ──────────────────────
@@ -81,9 +82,9 @@ lemmas = [("mice", "n"), ("was", "v"), ("better", "a"), ("studies", "v")]
 for word, pos in lemmas:
     print(f"    {word:10} ({pos}) ->  {wordnet.lemmatize(word, pos)}")
 
-print()
-print("  Every one of those is a word you can look up in a dictionary. That is")
-print("  the difference: a stem is a key, a lemma is the base form of the word.")
+print("""
+  Every one of those is a word you can look up in a dictionary. That is
+  the difference: a stem is a key, a lemma is the base form of the word.""")
 
 head("4. Without a part of speech it guesses 'noun', and is often wrong")
 
@@ -93,9 +94,9 @@ for word, pos in [("was", "v"), ("better", "a"), ("studying", "v")]:
     verdict = "same" if guessed == told else "WRONG"
     print(f"    {word:10}  no POS -> {guessed:10}  told it is '{pos}' -> {told:8}  {verdict}")
 
-print()
-print("  'was' -> 'wa' with no POS, which is no better than the stemmer managed.")
-print("  The lemmatizer is only as accurate as the part of speech it is given.")
+print("""
+  'was' -> 'wa' with no POS, which is no better than the stemmer managed.
+  The lemmatizer is only as accurate as the part of speech it is given.""")
 
 
 # ── the same word, two roots, decided by the sentence ────────────────────
@@ -117,11 +118,11 @@ for sentence in ["We had a meeting.", "They are meeting now."]:
     meeting = [t for t in doc if t.text == "meeting"][0]
     print(f"  {sentence:24}  meeting is a {meeting.pos_:5} ->  lemma  {meeting.lemma_}")
 
-print()
-print("  Identical spelling, different roots, and only the surrounding words")
-print("  decide which. spaCy works out the part of speech and lemmatizes in one")
-print("  step, which is why it is the usual choice. Working out the part of")
-print("  speech is itself a whole task — that is session 6.")
+print("""
+  Identical spelling, different roots, and only the surrounding words
+  decide which. spaCy works out the part of speech and lemmatizes in one
+  step, which is why it is the usual choice. Working out the part of
+  speech is itself a whole task — that is session 6.""")
 
 
 # ── side by side ─────────────────────────────────────────────────────────
@@ -137,12 +138,12 @@ for token in nlp(sentence):
         continue
     print(f"    {token.text:16} {porter.stem(token.text):16} {token.lemma_:16}")
 
-print()
-print("  One row is worth a second look. spaCy lemmatizes 'better' to 'well',")
-print("  not 'good', because in this sentence it tagged it as an adverb rather")
-print("  than an adjective — and 'well' is the right root for the adverb. The")
-print("  lemma follows the part of speech, and the part of speech follows the")
-print("  sentence.")
+print("""
+  One row is worth a second look. spaCy lemmatizes 'better' to 'well',
+  not 'good', because in this sentence it tagged it as an adverb rather
+  than an adjective — and 'well' is the right root for the adverb. The
+  lemma follows the part of speech, and the part of speech follows the
+  sentence.""")
 
 
 # ── why anyone still stems ───────────────────────────────────────────────
@@ -170,10 +171,10 @@ lemma_time = time.perf_counter() - start
 print(f"  {len(words):,} words of Austen's Emma:")
 print(f"    Porter stemmer      {stem_time:6.2f} s")
 print(f"    spaCy tag+lemmatize {lemma_time:6.2f} s   ({lemma_time / stem_time:.0f}x slower)")
-print()
-print("  spaCy is doing far more work — it tags every word before it lemmatizes.")
-print("  At web scale, over billions of words whose roots are never displayed,")
-print("  that is correctness you cannot use and would still pay for. Stem for")
-print("  search; lemmatize when the root is shown, or fed to a model.")
+print("""
+  spaCy is doing far more work — it tags every word before it lemmatizes.
+  At web scale, over billions of words whose roots are never displayed,
+  that is correctness you cannot use and would still pay for. Stem for
+  search; lemmatize when the root is shown, or fed to a model.""")
 
 print()

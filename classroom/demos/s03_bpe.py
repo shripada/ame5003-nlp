@@ -119,16 +119,18 @@ for i, (a, b) in enumerate(learned, 1):
     print(f"    {i}. {a} + {b}  ->  {a}{b}")
 
 head("Now tokenize words it has never seen")
-print("  This is the payoff. No word is ever <UNK> — the worst case is that")
-print("  it comes back as single characters.\n")
+print("""\
+  This is the payoff. No word is ever <UNK> — the worst case is that
+  it comes back as single characters.
+""")
 
 for word in ["lower", "newest", "widest", "doomscrolling"]:
     pieces = apply_merges(word, learned)
     print(f"    {word:16} ->  {' | '.join(pieces)}")
 
-print()
-print("  'lower' splits into low + er, two pieces it already knows.")
-print("  'doomscrolling' was never in the corpus, so it falls back to")
-print("  characters — still a valid tokenization, still no <UNK>.")
+print("""
+  'lower' splits into low + er, two pieces it already knows.
+  'doomscrolling' was never in the corpus, so it falls back to
+  characters — still a valid tokenization, still no <UNK>.""")
 
 print()

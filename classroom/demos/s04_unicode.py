@@ -38,17 +38,18 @@ for name, s in (("a", a), ("b", b)):
 # ── normalize, then compare ──────────────────────────────────────────────
 head("2. Normalize first, then compare")
 # NFC: Normalization Form Canonical Composition. This is the default normalization form
-print("  NFC composes: e + accent  ->  the single é")
-print("  NFD decomposes: the single é  ->  e + accent")
+print("""\
+  NFC composes: e + accent  ->  the single é
+  NFD decomposes: the single é  ->  e + accent""")
 print()
 print(f"  NFC(a) == NFC(b)   ->   {unicodedata.normalize('NFC', a) == unicodedata.normalize('NFC', b)}")
 print(f"  NFD(a) == NFD(b)   ->   {unicodedata.normalize('NFD', a) == unicodedata.normalize('NFD', b)}")
 print()
 print(f"  len NFC  a={len(unicodedata.normalize('NFC', a))}  b={len(unicodedata.normalize('NFC', b))}")
 print(f"  len NFD  a={len(unicodedata.normalize('NFD', a))}  b={len(unicodedata.normalize('NFD', b))}")
-print()
-print("  Pick one form and normalize everything on the way in. NFC is the")
-print("  usual choice — it is what the web is mostly already in.")
+print("""
+  Pick one form and normalize everything on the way in. NFC is the
+  usual choice — it is what the web is mostly already in.""")
 
 
 # ── lower() is not enough ────────────────────────────────────────────────
@@ -77,9 +78,9 @@ for encoding in ("utf-8", "utf-16", "latin-1"):
     except UnicodeEncodeError as e:
         print(f"  {encoding:9} FAILS — {e.reason}: {e.object[e.start:e.end]!r}")
 
-print()
-print("  Same text, different byte counts. This is why open() needs")
-print("  encoding='utf-8' — guessing wrong gives you mojibake or a crash.")
+print("""
+  Same text, different byte counts. This is why open() needs
+  encoding='utf-8' — guessing wrong gives you mojibake or a crash.""")
 
 wrong = text.encode("utf-8").decode("latin-1")
 print(f"\n  utf-8 bytes read as latin-1:  {wrong!r}")

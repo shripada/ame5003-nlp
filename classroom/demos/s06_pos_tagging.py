@@ -44,9 +44,9 @@ def tag_row(sentence: str) -> None:
 head("1. Every word gets a label")
 
 tag_row("They book flights daily.")
-print()
-print("  That is the whole output of a POS tagger: one grammatical class per")
-print("  word. What makes it a real task is the next section.")
+print("""
+  That is the whole output of a POS tagger: one grammatical class per
+  word. What makes it a real task is the next section.""")
 
 
 # ── the same word, three jobs ────────────────────────────────────────────
@@ -60,11 +60,11 @@ for sentence in ["Give me the book.", "I can book a flight.", "They book flights
     book = [t for t in doc if t.text.lower() == "book"][0]
     print(f"    {sentence:28}  book -> {book.pos_}")
 
-print()
-print("  No dictionary can choose between these; it would only list both. The")
-print("  neighbours decide. After 'the' comes a noun, and after a modal such as")
-print("  'can' comes a verb. The tagger reads the whole sentence, which is why")
-print("  this is called a sequence-labelling task.")
+print("""
+  No dictionary can choose between these; it would only list both. The
+  neighbours decide. After 'the' comes a noun, and after a modal such as
+  'can' comes a verb. The tagger reads the whole sentence, which is why
+  this is called a sequence-labelling task.""")
 
 
 # ── the two tagsets ──────────────────────────────────────────────────────
@@ -80,11 +80,11 @@ for token in nlp("They book flights daily."):
     # into the English sentence it stands for, which saves looking up the table.
     print(f"    {token.text:10} {token.pos_:12} {token.tag_:6} ({spacy.explain(token.tag_)})")
 
-print()
-print("  Universal has about 17 tags and is readable across languages. Penn has")
-print("  about 45 and splits each class further — plural vs singular noun, which")
-print("  present tense. Neither is more correct. Take the coarse one when you")
-print("  only need noun-vs-verb, as the lemmatizer in session 5 did.")
+print("""
+  Universal has about 17 tags and is readable across languages. Penn has
+  about 45 and splits each class further — plural vs singular noun, which
+  present tense. Neither is more correct. Take the coarse one when you
+  only need noun-vs-verb, as the lemmatizer in session 5 did.""")
 
 
 # ── the callback to session 5 ────────────────────────────────────────────
@@ -95,19 +95,20 @@ for sentence in ["We had a meeting.", "They are meeting now."]:
     meeting = [t for t in doc if t.text == "meeting"][0]
     print(f"    {sentence:24}  {meeting.pos_:5} ->  lemma  {meeting.lemma_}")
 
-print()
-print("  Session 5 left this open: the lemmatizer needed the part of speech and")
-print("  we deferred it to 'a tool that works it out'. This is that tool.")
+print("""
+  Session 5 left this open: the lemmatizer needed the part of speech and
+  we deferred it to 'a tool that works it out'. This is that tool.""")
 
 
 # ── open and closed classes ──────────────────────────────────────────────
 head("5. Open classes and closed classes")
 
-print("  Open classes take new members — 'to google', 'selfie' — and are the")
-print("  content words: NOUN, VERB, ADJ, ADV.")
-print("  Closed classes almost never do: DET, PRON, ADP, AUX, CCONJ, SCONJ,")
-print("  PART.")
-print("  Nobody is coining a new word for 'the'.")
+print("""\
+  Open classes take new members — 'to google', 'selfie' — and are the
+  content words: NOUN, VERB, ADJ, ADV.
+  Closed classes almost never do: DET, PRON, ADP, AUX, CCONJ, SCONJ,
+  PART.
+  Nobody is coining a new word for 'the'.""")
 
 # The closed classes and a stop-word list are close to the same set of words.
 # That is not a coincidence, and it is worth measuring rather than asserting.
@@ -134,25 +135,26 @@ print(f"    closed-class words on NLTK's stop-word list   "
       f"{on_list:,}/{len(closed):,}  ({100 * on_list / len(closed):.0f}%)")
 print(f"    open-class words on the same list             "
       f"{open_on_list:,}/{len(open_class):,}  ({100 * open_on_list / len(open_class):.0f}%)")
-print()
-print("  The stop-word list of session 4 is very nearly the closed classes,")
-print("  arrived at from the other direction — by frequency rather than by")
-print("  grammar. Same words, two different reasons.")
+print("""
+  The stop-word list of session 4 is very nearly the closed classes,
+  arrived at from the other direction — by frequency rather than by
+  grammar. Same words, two different reasons.""")
 
 
 # ── the honest failure ───────────────────────────────────────────────────
 head("6. A sentence the tagger gets wrong")
 
-print("  'The old man the boat.' is grammatical English. It means 'the old")
-print("  people staff the boat' — 'the old' is standing in as a noun, and 'man'")
-print("  is the verb, as in to man a lifeboat.")
+print("""\
+  'The old man the boat.' is grammatical English. It means 'the old
+  people staff the boat' — 'the old' is standing in as a noun, and 'man'
+  is the verb, as in to man a lifeboat.""")
 print()
 tag_row("The old man the boat.")
-print()
-print("  spaCy tags 'man' as a NOUN and 'old' as an ADJ, which is the reading")
-print("  you took on your first pass too, and it is a dead end. These are called")
-print("  garden-path sentences. Taggers run at about 97% accuracy, and the last")
-print("  few percent look like this. It is not a bug to be fixed by a better")
-print("  dictionary — the ambiguity is in the language.")
+print("""
+  spaCy tags 'man' as a NOUN and 'old' as an ADJ, which is the reading
+  you took on your first pass too, and it is a dead end. These are called
+  garden-path sentences. Taggers run at about 97% accuracy, and the last
+  few percent look like this. It is not a bug to be fixed by a better
+  dictionary — the ambiguity is in the language.""")
 
 print()

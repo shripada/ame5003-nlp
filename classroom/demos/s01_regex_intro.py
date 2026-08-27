@@ -51,10 +51,10 @@ show(r"[0-9]", text, "a range: one digit")
 show(r"[0-9]+", text, "'+' = one or more, so digits stay glued together")
 show(r"[^0-9 ]+", text, "'^' FIRST INSIDE brackets flips it: NOT these")
 
-print()
-print("  Careful — '^' means two different things:")
-print("    [^abc]   inside brackets   NOT a, b or c")
-print("    ^The     outside brackets  start of the string")
+print("""
+  Careful — '^' means two different things:
+    [^abc]   inside brackets   NOT a, b or c
+    ^The     outside brackets  start of the string""")
 print()
 print(f"  {'^Room':<{WIDTH}} {bool(re.search(r'^Room', text))}    'Room' does start the text")
 print(f"  {'^floor':<{WIDTH}} {bool(re.search(r'^floor', text))}   'floor' is in the middle, so the anchor fails")
@@ -75,11 +75,12 @@ show(r"\S+", text, r"uppercase inverts: \S is NOT whitespace, so it keeps the '.
 # ── 4. quantifiers ───────────────────────────────────────────────────────
 head("4. Quantifiers: how MANY of the thing before it")
 
-print("  *      zero or more      a*      '', 'a', 'aaa'")
-print("  +      one or more       a+      'a', 'aaa'  (not '')")
-print("  ?      zero or one       a?      '', 'a'")
-print("  {3}    exactly three     a{3}    'aaa'")
-print("  {2,4}  two to four       a{2,4}  'aa', 'aaa', 'aaaa'")
+print("""\
+  *      zero or more      a*      '', 'a', 'aaa'
+  +      one or more       a+      'a', 'aaa'  (not '')
+  ?      zero or one       a?      '', 'a'
+  {3}    exactly three     a{3}    'aaa'
+  {2,4}  two to four       a{2,4}  'aa', 'aaa', 'aaaa'""")
 
 spellings = "color colour colr colooor coloXr"
 print(f"\ntext  {spellings!r}\n")
@@ -197,8 +198,9 @@ show(r"\p{P}", script, "punctuation", module=regex)
 # ── what to remember ─────────────────────────────────────────────────────
 head("What to remember")
 
-print("  1. A pattern is literals plus classes plus quantifiers. That is most of it.")
-print("  2. '^' means 'not' inside [], and 'start of string' outside it.")
+print("""\
+  1. A pattern is literals plus classes plus quantifiers. That is most of it.
+  2. '^' means 'not' inside [], and 'start of string' outside it.""")
 print(r"  3. Escape anything with a job: \. \+ \? \( \)")
 print("  4. Be specific — a loose pattern quietly matches the wrong thing.")
 print(r"  5. The stdlib's \w assumes English. It splits Kannada mid-word.")
