@@ -14,39 +14,17 @@ Labs run in **Google Colab**. You need a Google account and a browser — nothin
 
 | Lab | Week | | |
 |-----|------|---|---|
-| 1 | 1 | Refresher and setup | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb) |
-| 2 | 2 | Information extraction with regular expressions | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-02-information-extraction.ipynb) |
-| 3 | 3 | Tokenize, normalize, stem, remove stop words | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-03-text-preprocessing.ipynb) |
-| 4 | 4 | Incidence matrix and inverted index | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-04-boolean-retrieval.ipynb) |
-| 5 | 5 | N-grams and n-gram probabilities | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-05-ngram-language-models.ipynb) |
-| 6 | 6 | Sentiment analysis with Naïve Bayes | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-06-sentiment-naive-bayes.ipynb) |
-| 7 | 7 | Cosine similarity and TF-IDF | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-07-cosine-tfidf.ipynb) |
-| 8 | 8 | Word2Vec, GloVe, and the comparison | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-08-word-embeddings.ipynb) |
-| 9 | 9 | Sequence models: the RNN and the LSTM | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-09-rnn-lstm.ipynb) |
-| 10 | 10 | Attention, and a translation system | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-10-attention-seq2seq.ipynb) |
-| 11 | 11 | Encoder and decoder transformers | [![Open In Colab]([![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/{repo}/blob/main/{folder}/{name})
-
-**Click the badge above to open this lab in Google Colab.** Then choose *File → Save a copy in Drive* so your work is saved.)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-11-transformers.ipynb) |
+| 1 | 1 | Refresher and setup | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-01-refresher.ipynb) |
+| 2 | 2 | Information extraction with regular expressions | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-02-information-extraction.ipynb) |
+| 3 | 3 | Tokenize, normalize, stem, remove stop words | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-03-text-preprocessing.ipynb) |
+| 4 | 4 | Incidence matrix and inverted index | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-04-boolean-retrieval.ipynb) |
+| 5 | 5 | N-grams and n-gram probabilities | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-05-ngram-language-models.ipynb) |
+| 6 | 6 | Sentiment analysis with Naïve Bayes | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-06-sentiment-naive-bayes.ipynb) |
+| 7 | 7 | Cosine similarity and TF-IDF | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-07-cosine-tfidf.ipynb) |
+| 8 | 8 | Word2Vec, GloVe, and the comparison | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-08-word-embeddings.ipynb) |
+| 9 | 9 | Sequence models: the RNN and the LSTM | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-09-rnn-lstm.ipynb) |
+| 10 | 10 | Attention, and a translation system | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-10-attention-seq2seq.ipynb) |
+| 11 | 11 | Encoder and decoder transformers | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-11-transformers.ipynb) |
 
 **Two things that catch everyone out:**
 
