@@ -52,7 +52,7 @@ print("""
 # ── BIO ──────────────────────────────────────────────────────────────────
 head("2. BIO: how one tag per word marks a span")
 
-doc = nlp("The Reserve Bank of India raised rates.")
+doc = nlp("The Gang of India raised rates.")
 for token in doc:
     # ent_iob_ is the B / I / O part and ent_type_ the label. spaCy keeps them
     # in separate attributes; joined with a hyphen they are the notation the
