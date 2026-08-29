@@ -19,6 +19,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -52,6 +54,8 @@
     --ink: #e7e5e0;
     --ink-soft: #b3afa8;
     --ink-faint: #8b8880;
+    --ink-strong: #f0ddd7;
+    --math-ink: #b1a4dd;
     --rule: #34373d;
     --bg: #14161a;
     --surface: #1b1e23;
@@ -78,6 +82,8 @@
   --ink: #e7e5e0;
   --ink-soft: #b3afa8;
   --ink-faint: #8b8880;
+  --ink-strong: #f0ddd7;
+  --math-ink: #b1a4dd;
   --rule: #34373d;
   --bg: #14161a;
   --surface: #1b1e23;
@@ -99,6 +105,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -131,6 +139,28 @@ html, body {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
 strong { font-weight: 600; }
+
+/* Two levels of bold on a slide, both warmer than the body ink so the eye
+   finds them from the back of the room:
+
+     <strong>                ordinary emphasis, in --ink-strong. A shade off
+                             the body text, not a second colour competing
+                             with the accent.
+     <strong class="term">   the key term, at the moment the deck introduces
+                             it, in the full accent.
+
+   Mark a term only where it is introduced. A term already named on an
+   earlier slide is plain <strong>, or the accent stops meaning anything. */
+.slide strong { color: var(--ink-strong); }
+.slide .term { color: var(--accent); }
+
+/* Where the component already speaks in colour, both levels stand down and
+   inherit it — a warn statement is warn-coloured throughout, and the good
+   and bad columns of a split carry their own hue. Quiz feedback keeps its
+   own rule further down. */
+.slide--statement.warn strong,
+.split-col.bad strong,
+.split-col.good strong { color: inherit; }
 
 /* ---- Deck + slide scaffolding ----
    scroll-snap does the actual navigation. slides.js only adds keyboard/click
@@ -410,8 +440,10 @@ strong { font-weight: 600; }
    the other. Only the sizing group at the end differs, because a lesson is
    read at arm's length and a deck from the back of a room.
 
-   Colour is never set here. MathML paints in currentColor, so it follows
-   --ink and is correct in dark mode for free. */
+   Colour is set on the slide, not here: the rules below are shared with
+   lesson.css rule for rule, and MathML paints in currentColor, so a `math`
+   element with no colour of its own follows whatever it sits in. The deck
+   gives it one further down, under sizing. */
 
 math {
   font-family: var(--math);
@@ -494,6 +526,19 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .slide .q-text math, .slide .subtitle math, .slide .aside math {
   font-size: 1.06em;
 }
+
+/* Maths gets its own ink on a slide — one colour for every mathematical
+   object, so a variable named in a bullet and the same variable inside the
+   display equation two slides later read as the same voice. The hue is cool
+   and deliberately outside the rest of the palette: the accent is a term,
+   --ok and --bad are verdicts, --warn is a caution, and an equation is none
+   of those. The equation number stays --ink-faint — it is SLP3's citation,
+   not part of the maths. */
+.slide math { color: var(--math-ink); }
+.slide--statement.warn math,
+.split-col.bad math,
+.split-col.good math,
+.slide .q-fb math { color: inherit; }
 
 /* Display equations. Centred rather than left-aligned, and with no reading
    measure: 55ch is right for a paragraph and wrong for a projector. The
@@ -856,12 +901,12 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 
   <section class="slide slide--statement" data-title="What this session adds">
     <div class="slide-inner">
-      <p class="lede">Supervised machine learning</p>
+      <p class="lede"><strong class="term">Supervised machine learning</strong></p>
       <p>Instead of writing the rules, give the program documents people have already labelled —
       each review marked positive or negative — and let it work out for itself which words
       matter.</p>
       <footer>This is the first point in the course where we ask a model to learn a task rather than
-      compute a definition. The method is <strong>Naïve Bayes</strong>.</footer>
+      compute a definition. The method is <strong class="term">Naïve Bayes</strong>.</footer>
     </div>
   </section>
 
@@ -869,8 +914,8 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
     <div class="slide-inner">
       <h2>Classification</h2>
       <ul>
-        <li>Choose one label from a fixed set, given a document</li>
-        <li>Here it is <strong>sentiment analysis</strong> — positive or negative — but the
+        <li><strong class="term">Classification</strong> chooses one label from a fixed set, given a document</li>
+        <li>Here it is <strong class="term">sentiment analysis</strong> — positive or negative — but the
         machinery is not specific to sentiment. The same classifier does spam detection, language
         identification and topic labelling unchanged</li>
         <li>"Supervised" means <strong>labelled training data</strong> is required, and that is a
@@ -924,11 +969,11 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
       <h2>Three terms, used constantly from here on</h2>
       <table>
         <tr><th>name</th><th>written</th><th>in our problem</th></tr>
-        <tr><td><strong>prior</strong></td><td><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how common this class is, before
+        <tr><td><strong class="term">prior</strong></td><td><math data-tex="P(c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how common this class is, before
         looking at the document</td></tr>
-        <tr><td><strong>likelihood</strong></td><td><math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this
+        <tr><td><strong class="term">likelihood</strong></td><td><math data-tex="P(d \mid c)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>d</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>c</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this
         document is, if the class were <math data-tex="c"><mi>c</mi></math></td></tr>
-        <tr><td><strong>posterior</strong></td><td><math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this class
+        <tr><td><strong class="term">posterior</strong></td><td><math data-tex="P(c \mid d)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>c</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></td><td>how likely this class
         is, now that we have read the document</td></tr>
       </table>
       <p class="aside">Prior and posterior mean before and after seeing the evidence. The posterior
@@ -990,7 +1035,7 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
       <p>Read it as a recipe: to produce a document, first pick a class, then produce words
       appropriate to that class. Classification reverses the process.</p>
       <footer>Because it describes how a document could be <em>generated</em>, Naïve Bayes is a
-      <strong>generative</strong> model. Discriminative models drop the generative account and learn
+      <strong class="term">generative</strong> model. Discriminative models drop the generative account and learn
       only what separates the classes.</footer>
     </div>
   </section>
@@ -1720,9 +1765,9 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
-    // On a magnified slide a click is a pointing gesture, not a request for
-    // the next one. Space, or Cmd-0 first, advances.
-    if (zoom > 1.001) return;
+    // A magnified slide advances on a click like any other; the drag test
+    // below is what separates a tap from a pan, so pointing at the slide and
+    // dragging it around never counts as a request for the next one.
     if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
         Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
     var sel = window.getSelection();

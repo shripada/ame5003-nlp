@@ -19,6 +19,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -52,6 +54,8 @@
     --ink: #e7e5e0;
     --ink-soft: #b3afa8;
     --ink-faint: #8b8880;
+    --ink-strong: #f0ddd7;
+    --math-ink: #b1a4dd;
     --rule: #34373d;
     --bg: #14161a;
     --surface: #1b1e23;
@@ -78,6 +82,8 @@
   --ink: #e7e5e0;
   --ink-soft: #b3afa8;
   --ink-faint: #8b8880;
+  --ink-strong: #f0ddd7;
+  --math-ink: #b1a4dd;
   --rule: #34373d;
   --bg: #14161a;
   --surface: #1b1e23;
@@ -99,6 +105,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -131,6 +139,28 @@ html, body {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
 strong { font-weight: 600; }
+
+/* Two levels of bold on a slide, both warmer than the body ink so the eye
+   finds them from the back of the room:
+
+     <strong>                ordinary emphasis, in --ink-strong. A shade off
+                             the body text, not a second colour competing
+                             with the accent.
+     <strong class="term">   the key term, at the moment the deck introduces
+                             it, in the full accent.
+
+   Mark a term only where it is introduced. A term already named on an
+   earlier slide is plain <strong>, or the accent stops meaning anything. */
+.slide strong { color: var(--ink-strong); }
+.slide .term { color: var(--accent); }
+
+/* Where the component already speaks in colour, both levels stand down and
+   inherit it — a warn statement is warn-coloured throughout, and the good
+   and bad columns of a split carry their own hue. Quiz feedback keeps its
+   own rule further down. */
+.slide--statement.warn strong,
+.split-col.bad strong,
+.split-col.good strong { color: inherit; }
 
 /* ---- Deck + slide scaffolding ----
    scroll-snap does the actual navigation. slides.js only adds keyboard/click
@@ -410,8 +440,10 @@ strong { font-weight: 600; }
    the other. Only the sizing group at the end differs, because a lesson is
    read at arm's length and a deck from the back of a room.
 
-   Colour is never set here. MathML paints in currentColor, so it follows
-   --ink and is correct in dark mode for free. */
+   Colour is set on the slide, not here: the rules below are shared with
+   lesson.css rule for rule, and MathML paints in currentColor, so a `math`
+   element with no colour of its own follows whatever it sits in. The deck
+   gives it one further down, under sizing. */
 
 math {
   font-family: var(--math);
@@ -494,6 +526,19 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .slide .q-text math, .slide .subtitle math, .slide .aside math {
   font-size: 1.06em;
 }
+
+/* Maths gets its own ink on a slide — one colour for every mathematical
+   object, so a variable named in a bullet and the same variable inside the
+   display equation two slides later read as the same voice. The hue is cool
+   and deliberately outside the rest of the palette: the accent is a term,
+   --ok and --bad are verdicts, --warn is a caution, and an equation is none
+   of those. The equation number stays --ink-faint — it is SLP3's citation,
+   not part of the maths. */
+.slide math { color: var(--math-ink); }
+.slide--statement.warn math,
+.split-col.bad math,
+.split-col.good math,
+.slide .q-fb math { color: inherit; }
 
 /* Display equations. Centred rather than left-aligned, and with no reading
    measure: 55ch is right for a paragraph and wrong for a projector. The
@@ -853,7 +898,7 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
     <div class="slide-inner">
       <h2>What is NLP?</h2>
       <ul>
-        <li>NLP stands for <strong>Natural Language Processing</strong></li>
+        <li>NLP stands for <strong class="term">Natural Language Processing</strong></li>
         <li>It means teaching computers to work with human language — the words people
         speak and write</li>
         <li>Not just English. Any language.</li>
@@ -866,11 +911,11 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
     <div class="slide-inner">
       <h2>Terms you will encounter</h2>
       <ul>
-        <li><strong>AI</strong> — the big goal: make a computer do something that used to
+        <li><strong class="term">AI</strong> — the big goal: make a computer do something that used to
         need a person</li>
-        <li><strong>Machine learning</strong> — one way to do that: show the computer
+        <li><strong class="term">Machine learning</strong> — one way to do that: show the computer
         examples, instead of writing rules yourself</li>
-        <li><strong>Deep learning</strong> — one kind of machine learning: networks with
+        <li><strong class="term">Deep learning</strong> — one kind of machine learning: networks with
         many layers</li>
       </ul>
       <p class="aside">Each one is inside the one before it — like nested circles.</p>
@@ -978,7 +1023,7 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 
   <section class="slide slide--statement" data-title="Language is ambiguous">
     <div class="slide-inner">
-      <p>Language is <strong>ambiguous</strong>.<br><br>Almost every technique in this
+      <p>Language is <strong class="term">ambiguous</strong>.<br><br>Almost every technique in this
       course is a way of dealing with it.</p>
     </div>
   </section>
@@ -1011,10 +1056,11 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
     <div class="slide-inner">
       <h2>A regex is a small language for describing shape</h2>
       <ul>
-        <li>We write a pattern; the computer finds every match</li>
+        <li>A <strong class="term">regular expression</strong> is a pattern, and the computer finds every
+        match</li>
         <li>The oldest tool in NLP — still one of the most used</li>
         <li>Pulling structured facts out of unstructured text is called
-        <strong>information extraction</strong></li>
+        <strong class="term">information extraction</strong></li>
       </ul>
       <p class="aside">For dates, phone numbers and ID numbers, this is often the complete
       answer. No machine learning needed.</p>
@@ -1084,7 +1130,7 @@ admin@manipal.edu</code></pre>
       <p class="lede">The most common regex bug</p>
       <p><code>+</code> means &ldquo;one or more&rdquo;. To match a literal plus sign,
       write <code>\+</code>.</p>
-      <p class="lede" style="margin-top:1.6rem">This is called <strong>escaping</strong>.
+      <p class="lede" style="margin-top:1.6rem">This is called <strong class="term">escaping</strong>.
       Everybody forgets it at least once.</p>
     </div>
   </section>
@@ -1759,9 +1805,9 @@ admin@manipal.edu</code></pre>
 
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
-    // On a magnified slide a click is a pointing gesture, not a request for
-    // the next one. Space, or Cmd-0 first, advances.
-    if (zoom > 1.001) return;
+    // A magnified slide advances on a click like any other; the drag test
+    // below is what separates a tap from a pan, so pointing at the slide and
+    // dragging it around never counts as a request for the next one.
     if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
         Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
     var sel = window.getSelection();

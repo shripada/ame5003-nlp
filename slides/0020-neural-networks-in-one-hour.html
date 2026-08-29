@@ -19,6 +19,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -52,6 +54,8 @@
     --ink: #e7e5e0;
     --ink-soft: #b3afa8;
     --ink-faint: #8b8880;
+    --ink-strong: #f0ddd7;
+    --math-ink: #b1a4dd;
     --rule: #34373d;
     --bg: #14161a;
     --surface: #1b1e23;
@@ -78,6 +82,8 @@
   --ink: #e7e5e0;
   --ink-soft: #b3afa8;
   --ink-faint: #8b8880;
+  --ink-strong: #f0ddd7;
+  --math-ink: #b1a4dd;
   --rule: #34373d;
   --bg: #14161a;
   --surface: #1b1e23;
@@ -99,6 +105,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -131,6 +139,28 @@ html, body {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
 strong { font-weight: 600; }
+
+/* Two levels of bold on a slide, both warmer than the body ink so the eye
+   finds them from the back of the room:
+
+     <strong>                ordinary emphasis, in --ink-strong. A shade off
+                             the body text, not a second colour competing
+                             with the accent.
+     <strong class="term">   the key term, at the moment the deck introduces
+                             it, in the full accent.
+
+   Mark a term only where it is introduced. A term already named on an
+   earlier slide is plain <strong>, or the accent stops meaning anything. */
+.slide strong { color: var(--ink-strong); }
+.slide .term { color: var(--accent); }
+
+/* Where the component already speaks in colour, both levels stand down and
+   inherit it — a warn statement is warn-coloured throughout, and the good
+   and bad columns of a split carry their own hue. Quiz feedback keeps its
+   own rule further down. */
+.slide--statement.warn strong,
+.split-col.bad strong,
+.split-col.good strong { color: inherit; }
 
 /* ---- Deck + slide scaffolding ----
    scroll-snap does the actual navigation. slides.js only adds keyboard/click
@@ -410,8 +440,10 @@ strong { font-weight: 600; }
    the other. Only the sizing group at the end differs, because a lesson is
    read at arm's length and a deck from the back of a room.
 
-   Colour is never set here. MathML paints in currentColor, so it follows
-   --ink and is correct in dark mode for free. */
+   Colour is set on the slide, not here: the rules below are shared with
+   lesson.css rule for rule, and MathML paints in currentColor, so a `math`
+   element with no colour of its own follows whatever it sits in. The deck
+   gives it one further down, under sizing. */
 
 math {
   font-family: var(--math);
@@ -494,6 +526,19 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .slide .q-text math, .slide .subtitle math, .slide .aside math {
   font-size: 1.06em;
 }
+
+/* Maths gets its own ink on a slide — one colour for every mathematical
+   object, so a variable named in a bullet and the same variable inside the
+   display equation two slides later read as the same voice. The hue is cool
+   and deliberately outside the rest of the palette: the accent is a term,
+   --ok and --bad are verdicts, --warn is a caution, and an equation is none
+   of those. The equation number stays --ink-faint — it is SLP3's citation,
+   not part of the maths. */
+.slide math { color: var(--math-ink); }
+.slide--statement.warn math,
+.split-col.bad math,
+.split-col.good math,
+.slide .q-fb math { color: inherit; }
 
 /* Display equations. Centred rather than left-aligned, and with no reading
    measure: 55ch is right for a paragraph and wrong for a projector. The
@@ -954,8 +999,8 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 
   <section class="slide slide--statement" data-title="Naming the parts">
     <div class="slide-inner">
-      <p><math data-tex="x"><mi>x</mi></math> are the inputs, <math data-tex="w"><mi>w</mi></math> the weights, <math data-tex="b"><mi>b</mi></math> the <strong>bias</strong>, and
-      <math data-tex="f"><mi>f</mi></math> the <strong>activation function</strong> — the one non-linear step.</p>
+      <p>That is a <strong class="term">neuron</strong>: <math data-tex="x"><mi>x</mi></math> are the inputs, <math data-tex="w"><mi>w</mi></math> the weights, <math data-tex="b"><mi>b</mi></math> the <strong class="term">bias</strong>, and
+      <math data-tex="f"><mi>f</mi></math> the <strong class="term">activation function</strong> — the one non-linear step.</p>
       <footer>The sum inside is often written <math data-tex="z"><mi>z</mi></math> and called the pre-activation. Everything
       left of the split is the arithmetic from session 16; the function on the right is the only
       addition.</footer>
@@ -1002,7 +1047,7 @@ y &amp;= \sigma(-6.7) = 0.001
 
   <section class="slide slide--statement" data-title="Why the sigmoid, here">
     <div class="slide-inner">
-      <p>It maps any real number into <math data-tex="(0, 1)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>: large positive <math data-tex="z"><mi>z</mi></math> near 1, large negative
+      <p>The <strong class="term">sigmoid</strong> maps any real number into <math data-tex="(0, 1)"><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo separator="true">,</mo><mn>1</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></math>: large positive <math data-tex="z"><mi>z</mi></math> near 1, large negative
       near 0, and <math data-tex="\sigma(0) = 0.5"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mn>0</mn><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mn>0.5</mn></mrow></math> exactly.</p>
       <footer>That is why its output reads as a probability, and why we introduce it now — session
       21's negative sampling scores a word pair as <math data-tex="\sigma(u \cdot v)"><mrow><mi>σ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>u</mi><mo>⋅</mo><mi>v</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, this function applied to
@@ -1067,7 +1112,7 @@ y &amp;= \sigma(-6.7) = 0.001
       <h2>The same notation, with next session's numbers</h2>
       <table>
         <tr><th></th><th>what it is</th><th>shape</th><th>note</th></tr>
-        <tr><td><math data-tex="E"><mi>E</mi></math></td><td>embedding matrix</td><td>10000 × 300</td><td>one row per word in
+        <tr><td><math data-tex="E"><mi>E</mi></math></td><td><strong class="term">embedding matrix</strong></td><td>10000 × 300</td><td>one row per word in
         the vocabulary</td></tr>
         <tr><td><math data-tex="x"><mi>x</mi></math></td><td>averaged context</td><td>300</td><td>mean of a few rows of
         <math data-tex="E"><mi>E</mi></math></td></tr>
@@ -1108,8 +1153,8 @@ y &amp;= \sigma(-6.7) = 0.001
         <tr><td></td><td></td><td><strong>24.025</strong></td><td><strong>1.000</strong></td></tr>
       </table>
       <p class="aside">Everything comes out positive, because <math data-tex="e^z"><msup><mi>e</mi><mi class="tml-sml-pad">z</mi></msup></math> is positive whatever
-      <math data-tex="z"><mi>z</mi></math> was. And everything sums to 1, because we divided by the total. That is a
-      distribution.</p>
+      <math data-tex="z"><mi>z</mi></math> was. And everything sums to 1, because we divided by the total. That is
+      <strong class="term">softmax</strong>, and what it produces is a distribution.</p>
     </div>
   </section>
 
@@ -1171,7 +1216,7 @@ y &amp;= \sigma(-6.7) = 0.001
     <div class="slide-inner">
       <p>Session 14's <strong>perplexity</strong> was the exponentiated average of exactly this
       quantity.</p>
-      <footer>Cross-entropy loss is not new machinery. It is what was inside perplexity all along,
+      <footer><strong class="term">Cross-entropy loss</strong> is not new machinery. It is what was inside perplexity all along,
       used directly rather than expressed as a branching factor. Minimising one is minimising the
       other.</footer>
     </div>
@@ -1182,7 +1227,7 @@ y &amp;= \sigma(-6.7) = 0.001
       <p>Think of the loss as a surface: every setting of the weights is a position, and the loss is
       the height. We want the lowest point.</p>
       <footer>We cannot see the surface — it has hundreds of thousands of dimensions and we occupy
-      one point. But at any point we can compute the <strong>gradient</strong>: which way is uphill,
+      one point. But at any point we can compute the <strong class="term">gradient</strong>: which way is uphill,
       and how steeply.</footer>
     </div>
   </section>
@@ -1249,7 +1294,7 @@ y &amp;= \sigma(-6.7) = 0.001
         <tr><td>5</td><td>2.767</td><td>0.054</td><td>−0.467</td></tr>
       </table>
       <p class="aside">It never exactly arrives, and does not need to. <math data-tex="\eta"><mi>η</mi></math> is the
-      <strong>learning rate</strong>: too small and convergence crawls, too large and each step
+      <strong class="term">learning rate</strong>: too small and convergence crawls, too large and each step
       overshoots.</p>
     </div>
   </section>
@@ -1258,14 +1303,14 @@ y &amp;= \sigma(-6.7) = 0.001
     <div class="slide-inner">
       <p>Real training differs in scale, not in kind: millions of weights instead of one, so the
       gradient is millions of numbers updated together, and the loss is averaged over a batch.</p>
-      <footer>The line <math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math> is unchanged, and it
+      <footer>The line <math data-tex="w \leftarrow w - \eta \cdot \mathrm{gradient}"><mrow><mi>w</mi><mo stretchy="false">←</mo><mi>w</mi><mo>−</mo><mi>η</mi><mo>⋅</mo><mpadded lspace="0"><mi>gradient</mi></mpadded></mrow></math> is <strong class="term">gradient descent</strong>, and it
       trains every model in the rest of the course.</footer>
     </div>
   </section>
 
   <section class="slide slide--statement" data-title="Backpropagation">
     <div class="slide-inner">
-      <p class="lede">Backpropagation</p>
+      <p class="lede"><strong class="term">Backpropagation</strong></p>
       <p>Getting the gradient of a weight buried deep in a network means differentiating a function
       composed of many others. Backpropagation is <strong>the chain rule applied
       systematically</strong>, working backwards from the loss.</p>
@@ -1950,9 +1995,9 @@ y &amp;= \sigma(-6.7) = 0.001
 
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
-    // On a magnified slide a click is a pointing gesture, not a request for
-    // the next one. Space, or Cmd-0 first, advances.
-    if (zoom > 1.001) return;
+    // A magnified slide advances on a click like any other; the drag test
+    // below is what separates a tap from a pan, so pointing at the slide and
+    // dragging it around never counts as a request for the next one.
     if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
         Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
     var sel = window.getSelection();

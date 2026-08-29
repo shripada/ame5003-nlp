@@ -41,6 +41,7 @@ not met; none of them is a prerequisite for the lessons.
 - **[NLTK](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/primers/primer-1-nltk.ipynb)** — primer 1
 - **[spaCy](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/primers/primer-2-spacy.ipynb)** — primer 2
 - **[NumPy](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/primers/primer-3-numpy.ipynb)** — primer 3
+- **[NumPy, Hands On](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/primers/primer-4-numpy.ipynb)** — primer 4
 
 ## Classroom demos
 

@@ -19,6 +19,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -52,6 +54,8 @@
     --ink: #e7e5e0;
     --ink-soft: #b3afa8;
     --ink-faint: #8b8880;
+    --ink-strong: #f0ddd7;
+    --math-ink: #b1a4dd;
     --rule: #34373d;
     --bg: #14161a;
     --surface: #1b1e23;
@@ -78,6 +82,8 @@
   --ink: #e7e5e0;
   --ink-soft: #b3afa8;
   --ink-faint: #8b8880;
+  --ink-strong: #f0ddd7;
+  --math-ink: #b1a4dd;
   --rule: #34373d;
   --bg: #14161a;
   --surface: #1b1e23;
@@ -99,6 +105,8 @@
   --ink: #111;
   --ink-soft: #444;
   --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
   --rule: #d8d4cc;
   --bg: #fffef9;
   --surface: #ffffff;
@@ -131,6 +139,28 @@ html, body {
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
 strong { font-weight: 600; }
+
+/* Two levels of bold on a slide, both warmer than the body ink so the eye
+   finds them from the back of the room:
+
+     <strong>                ordinary emphasis, in --ink-strong. A shade off
+                             the body text, not a second colour competing
+                             with the accent.
+     <strong class="term">   the key term, at the moment the deck introduces
+                             it, in the full accent.
+
+   Mark a term only where it is introduced. A term already named on an
+   earlier slide is plain <strong>, or the accent stops meaning anything. */
+.slide strong { color: var(--ink-strong); }
+.slide .term { color: var(--accent); }
+
+/* Where the component already speaks in colour, both levels stand down and
+   inherit it — a warn statement is warn-coloured throughout, and the good
+   and bad columns of a split carry their own hue. Quiz feedback keeps its
+   own rule further down. */
+.slide--statement.warn strong,
+.split-col.bad strong,
+.split-col.good strong { color: inherit; }
 
 /* ---- Deck + slide scaffolding ----
    scroll-snap does the actual navigation. slides.js only adds keyboard/click
@@ -410,8 +440,10 @@ strong { font-weight: 600; }
    the other. Only the sizing group at the end differs, because a lesson is
    read at arm's length and a deck from the back of a room.
 
-   Colour is never set here. MathML paints in currentColor, so it follows
-   --ink and is correct in dark mode for free. */
+   Colour is set on the slide, not here: the rules below are shared with
+   lesson.css rule for rule, and MathML paints in currentColor, so a `math`
+   element with no colour of its own follows whatever it sits in. The deck
+   gives it one further down, under sizing. */
 
 math {
   font-family: var(--math);
@@ -494,6 +526,19 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .slide .q-text math, .slide .subtitle math, .slide .aside math {
   font-size: 1.06em;
 }
+
+/* Maths gets its own ink on a slide — one colour for every mathematical
+   object, so a variable named in a bullet and the same variable inside the
+   display equation two slides later read as the same voice. The hue is cool
+   and deliberately outside the rest of the palette: the accent is a term,
+   --ok and --bad are verdicts, --warn is a caution, and an equation is none
+   of those. The equation number stays --ink-faint — it is SLP3's citation,
+   not part of the maths. */
+.slide math { color: var(--math-ink); }
+.slide--statement.warn math,
+.split-col.bad math,
+.split-col.good math,
+.slide .q-fb math { color: inherit; }
 
 /* Display equations. Centred rather than left-aligned, and with no reading
    measure: 55ch is right for a paragraph and wrong for a projector. The
@@ -864,7 +909,7 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
     <div class="slide-inner">
       <p class="lede">§11.3 names the flaw in the terms Unit I left it</p>
       <p>"They work only if there is exact overlap of words between the query and document… an issue
-      called the <strong>vocabulary mismatch problem</strong>."</p>
+      called the <strong class="term">vocabulary mismatch problem</strong>."</p>
       <footer>Session 8's matrix matched words exactly. Session 10 weighted the 1s and still needed
       the term to appear. The asker and the writer have to choose the same words — and lab 4's
       inverted index fails the same way, because there is no postings list to merge.</footer>
@@ -938,7 +983,7 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 
   <section class="slide slide--statement warn" data-title="One: hallucination">
     <div class="slide-inner">
-      <p>Models <strong>hallucinate</strong> — generate a response not faithful to the facts of the
+      <p>Models <strong class="term">hallucinate</strong> — generate a response not faithful to the facts of the
       world. Dahl et al. (2024) found models hallucinating from <strong>69% to 88%</strong> of the
       time on legal-domain questions.</p>
       <footer>They do this even when the fact is stored in the parameters and the feedforward layers
@@ -977,9 +1022,10 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 
   <section class="slide slide--statement" data-title="Two components, both already built">
     <div class="slide-inner">
-      <p>A <strong>retriever</strong> and a <strong>generator</strong>. Sparse retrieval from Unit I,
+      <p>A <strong class="term">retriever</strong> and a <strong class="term">generator</strong>. Sparse retrieval from Unit I,
       dense retrieval from sessions 32–33, generation from sessions 27–33.</p>
-      <footer>Nothing in the picture is a new model. RAG is those two things connected — and the
+      <footer>Nothing in the picture is a new model. <strong class="term">Retrieval-augmented generation</strong> is
+      those two things connected — and the
       connection is the new fact, not either box.</footer>
     </div>
   </section>
@@ -1103,8 +1149,8 @@ What year was the premiere of The Magic Flute?</code></pre>
 
   <section class="slide slide--statement" data-title="Evaluating QA">
     <div class="slide-inner">
-      <p>Two metrics, chosen by the form of the answer. <strong>Exact match</strong> for
-      multiple-choice — the percentage matching the gold exactly. <strong>Token F1</strong> for
+      <p>Two metrics, chosen by the form of the answer. <strong class="term">Exact match</strong> for
+      multiple-choice — the percentage matching the gold exactly. <strong class="term">Token F1</strong> for
       free text — bags of tokens, F1 per question, averaged.</p>
       <footer>Lab 6 defined precision, recall and F1 by hand from a confusion matrix. Token F1 is the
       same three quantities pointed at token overlap; session 34's chrF was the same move pointed at
@@ -1138,8 +1184,8 @@ exact match = 0</code></pre>
 
   <section class="slide slide--statement" data-title="Closed-book and open-book">
     <div class="slide-inner">
-      <p><strong>Closed-book</strong> QA answers from the model's parameters alone.
-      <strong>Open-book</strong> is given one or more documents — via RAG, or because a dataset
+      <p><strong class="term">Closed-book</strong> QA answers from the model's parameters alone.
+      <strong class="term">Open-book</strong> is given one or more documents — via RAG, or because a dataset
       attached a passage.</p>
       <footer>Natural Questions can be run either way; MMLU is closed-book. There is a third thing,
       and it is not either of those.</footer>
@@ -1161,8 +1207,8 @@ exact match = 0</code></pre>
   <section class="slide slide--statement" data-title="Extractive and abstractive">
     <div class="slide-inner">
       <p class="lede">The teachable core of the second half</p>
-      <p><strong>Extractive</strong> summarisation selects existing sentences from the source and
-      arranges them. <strong>Abstractive</strong> summarisation generates new text.</p>
+      <p><strong class="term">Extractive</strong> summarisation selects existing sentences from the source and
+      arranges them. <strong class="term">Abstractive</strong> summarisation generates new text.</p>
     </div>
   </section>
 
@@ -1215,7 +1261,7 @@ exact match = 0</code></pre>
       <code>sumy</code>, plus a BERT-based extractive summariser. Each ranks the document's sentences
       and takes the top few.</p>
       <footer>We derive none of them. One is worth naming because its similarity is already in the
-      course: <strong>TextRank</strong> is PageRank over a sentence-similarity graph, and the
+      course: <strong class="term">TextRank</strong> is PageRank over a sentence-similarity graph, and the
       similarity is cosine, from session 19.</footer>
     </div>
   </section>
@@ -1832,9 +1878,9 @@ exact match = 0</code></pre>
 
   deck.addEventListener("click", function (e) {
     if (e.target.closest("button, a, .quiz, .recall")) return;
-    // On a magnified slide a click is a pointing gesture, not a request for
-    // the next one. Space, or Cmd-0 first, advances.
-    if (zoom > 1.001) return;
+    // A magnified slide advances on a click like any other; the drag test
+    // below is what separates a tap from a pan, so pointing at the slide and
+    // dragging it around never counts as a request for the next one.
     if (Math.abs(e.clientX - pressX) > DRAG_SLOP ||
         Math.abs(e.clientY - pressY) > DRAG_SLOP) return;
     var sel = window.getSelection();
