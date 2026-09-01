@@ -45,6 +45,9 @@ There is nothing to activate. `uv run` uses `.venv` on its own.
 | `demos/s08_incidence_matrix.py` | 08 | the term-document incidence matrix, and where it breaks |
 | `demos/s09_inverted_index.py` | 09 | the inverted index, and the two-pointer merge |
 | `demos/s10_tfidf.py` | 10 | TF-IDF, and what each of the two logarithms is doing |
+| `demos/s11_ngrams.py` | 11 | n-grams by sliding a window, and how little of the table a corpus fills |
+| `demos/s12_bigram_probabilities.py` | 12 | bigram probabilities by counting, and the zero at the end of it |
+| `demos/s13_smoothing.py` | 13 | smoothing: paying for the unseen out of the seen |
 
 ## Notes
 

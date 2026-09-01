@@ -559,6 +559,19 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
   font-size: clamp(1.3rem, 3.2vw, 2.4rem);
 }
 .slide .meq > math { flex: 0 1 auto; }
+/* An equation is not prose, so it is not held to the 62rem reading measure the
+   slide's inner column gives text: a wide one — the chain rule written out, say
+   — would then scroll sideways on a projector, where sideways scrolling is not
+   available to a room. A .meq that is a direct child of the inner column may
+   use the full width the slide's 6vw padding leaves, and centres itself within
+   the narrower column, so short equations look unchanged and only an equation
+   wider than the screen still scrolls. Scoped to the direct child so a .meq
+   inside a card or a split column stays inside it. */
+.slide-inner > .meq {
+  width: 88vw;
+  margin-left: calc(50% - 44vw);
+  margin-right: calc(50% - 44vw);
+}
 .slide .meq .eqno {
   flex: 0 0 auto;
   font-family: var(--serif);
@@ -568,8 +581,10 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 }
 
 /* Shape: math — a heading and one equation, the display counterpart of
-   slide--statement. Nothing else: if a slide needs prose around the equation,
-   it is a bullets or statement slide with a .meq inside it. */
+   slide--statement, optionally with a single .aside under it reading off what
+   the equation comes to for the corpus in hand. Nothing beyond that: if a
+   slide needs prose around the equation, it is a bullets or statement slide
+   with a .meq inside it. */
 .slide--math h2 {
   font-weight: 400;
   font-size: clamp(1.6rem, 3.4vw, 2.4rem);
@@ -599,6 +614,23 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 @media (max-width: 900px) {
   .slide--split .split-grid { grid-template-columns: 1fr; }
 }
+
+/* Modifier: wide — for a slide holding two pieces of material side by side
+   that together need more than the 62rem reading measure, such as a table read
+   beside the corpus it was counted from. The inner column may grow to the full
+   width the slide's 6vw padding leaves, but the content is *not* stretched to
+   it: the columns are sized to what they hold and the pair is centred, so a
+   wide screen adds margin rather than a gulf between the two. Prose slides
+   keep the measure, which is what makes them readable. */
+.slide--wide .slide-inner { max-width: 88vw; }
+.slide--wide .split-grid {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  gap: 3.2rem;
+}
+/* Such a slide carries many rows as well as wide ones, so they are set a
+   little tighter to keep the whole table on one screen. */
+.slide--wide.slide--table th, .slide--wide.slide--table td { padding-top: .55rem; padding-bottom: .55rem; }
 
 /* ---- Shape: table (own larger-type variant — lesson.css's tables are too
    dense to read from the back of a room) ---- */
@@ -914,8 +946,9 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
     <div class="slide-inner">
       <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 12</p>
       <h1>N-gram probabilities and the Markov assumption</h1>
-      <p class="subtitle">Where the numbers come from. The exact answer is easy to write down and
-      impossible to estimate, so we approximate it with an assumption we know to be false.</p>
+      <p class="subtitle">Where the numbers come from. The chain rule states a sentence's
+      probability exactly, but the counts it asks for are too rare in any corpus to estimate, so we
+      approximate it with an assumption we know to be false.</p>
     </div>
   </section>
 
@@ -931,11 +964,13 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 
   <section class="slide slide--code" data-title="The corpus">
     <div class="slide-inner">
-      <h2>Everything today is computed from four sentences</h2>
+      <h2>The corpus for this session</h2>
       <pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
 &lt;s&gt; I want to eat Chinese food &lt;/s&gt;
 &lt;s&gt; I want Indian food &lt;/s&gt;
 &lt;s&gt; she wants to eat Indian food &lt;/s&gt;</code></pre>
+      <p class="aside">Every count and probability in this session is computed from these four
+      sentences.</p>
     </div>
   </section>
 
@@ -962,7 +997,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 
   <section class="slide slide--math" data-title="The chain rule written out">
     <div class="slide-inner">
-      <h2>Exact, with no approximation</h2>
+      <h2>The chain rule, written out</h2>
       <div class="meq"><math data-tex="\begin{aligned}
 P(\text{I want to eat Indian food}) = {} &amp; P(\text{I} \mid \text{&lt;s&gt;}) \\
   &amp;\times P(\text{want} \mid \text{I}) \\
@@ -977,14 +1012,15 @@ P(\text{I want to eat Indian food}) = {} &amp; P(\text{I} \mid \text{&lt;s&gt;})
 
   <section class="slide slide--math" data-title="Any term can be counted">
     <div class="slide-inner">
-      <h2>Each term is a count over a count</h2>
+      <h2>Each term is a ratio of two counts</h2>
       <div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian}) = \frac{\mathrm{count}(\text{I want to eat Indian food})}{\mathrm{count}(\text{I want to eat Indian})}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian food</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
+      <p class="aside">In our corpus that is <math data-tex="1/1 = 1.0"><mrow><mn>1</mn><mi>/</mi><mn>1</mn><mo>=</mo><mn>1.0</mn></mrow></math>.</p>
     </div>
   </section>
 
   <section class="slide slide--statement warn" data-title="Why the exact form is unusable">
     <div class="slide-inner">
-      <p class="lede">In our corpus that is <math data-tex="1/1 = 1.0"><mrow><mn>1</mn><mi>/</mi><mn>1</mn><mo>=</mo><mn>1.0</mn></mrow></math></p>
+      <p class="lede">The counts run out</p>
       <p>An estimate resting on a denominator of one is not evidence. And for a history the corpus
       never contained — <code>we want to eat Indian</code> — the denominator is zero and the
       probability is undefined.</p>
@@ -1003,7 +1039,7 @@ P(\text{I want to eat Indian food}) = {} &amp; P(\text{I} \mid \text{&lt;s&gt;})
 
   <section class="slide slide--math" data-title="The bigram approximation">
     <div class="slide-inner">
-      <h2>Condition on one word instead of five</h2>
+      <h2>The bigram approximation</h2>
       <div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian}) \approx P(\text{food} \mid \text{Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
     </div>
   </section>
@@ -1019,7 +1055,7 @@ P(\text{I want to eat Indian food}) = {} &amp; P(\text{I} \mid \text{&lt;s&gt;})
 
   <section class="slide slide--math" data-title="The chain rule, approximated">
     <div class="slide-inner">
-      <h2>Every term reduces to one previous word</h2>
+      <h2>The chain rule under the bigram assumption</h2>
       <div class="meq"><math data-tex="\begin{aligned}
 P(\text{I want to eat Indian food}) \approx {} &amp; P(\text{I} \mid \text{&lt;s&gt;}) \times P(\text{want} \mid \text{I}) \times P(\text{to} \mid \text{want}) \times P(\text{eat} \mid \text{to}) \\
   &amp;\times P(\text{Indian} \mid \text{eat}) \times P(\text{food} \mid \text{Indian}) \times P(\text{&lt;/s&gt;} \mid \text{food})
@@ -1043,23 +1079,38 @@ P(\text{I want to eat Indian food}) \approx {} &amp; P(\text{I} \mid \text{&lt;s
     </div>
   </section>
 
-  <section class="slide slide--table" data-title="The bigram counts">
+  <section class="slide slide--split slide--table slide--wide" data-title="The bigram counts">
     <div class="slide-inner">
-      <h2>Every bigram we will use, countable by hand</h2>
-      <table>
-        <tr><th>bigram</th><th><math data-tex="\mathrm{count}(w_1\, w_2)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th>
-        <th><math data-tex="\mathrm{count}(w_1)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w_2 \mid w_1)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
-        <tr><td><code>&lt;s&gt; I</code></td>     <td>3</td><td>4</td><td>3/4 = 0.75</td></tr>
-        <tr><td><code>&lt;s&gt; she</code></td>   <td>1</td><td>4</td><td>1/4 = 0.25</td></tr>
-        <tr><td><code>want to</code></td>         <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
-        <tr><td><code>want Indian</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
-        <tr><td><code>eat Indian</code></td>      <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
-        <tr><td><code>eat Chinese</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
-        <tr><td><code>I want</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
-        <tr><td><code>to eat</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
-        <tr><td><code>Indian food</code></td>     <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
-        <tr><td><code>food &lt;/s&gt;</code></td> <td>4</td><td>4</td><td>4/4 = 1.0</td></tr>
-      </table>
+      <h2>The bigram counts and probabilities</h2>
+      <div class="split-grid">
+        <div class="split-col">
+          <p class="col-label">Corpus</p>
+          <pre><code>&lt;s&gt; I want to eat Indian food &lt;/s&gt;
+&lt;s&gt; I want to eat Chinese food &lt;/s&gt;
+&lt;s&gt; I want Indian food &lt;/s&gt;
+&lt;s&gt; she wants to eat Indian food &lt;/s&gt;</code></pre>
+        </div>
+        <div class="split-col">
+          <p class="col-label">Counted from it</p>
+          <table>
+            <tr><th>bigram</th><th><math data-tex="\mathrm{count}(w_1\, w_2)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th>
+            <th><math data-tex="\mathrm{count}(w_1)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w_2 \mid w_1)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
+            <tr><td><code>&lt;s&gt; I</code></td>     <td>3</td><td>4</td><td>3/4 = 0.75</td></tr>
+            <tr><td><code>&lt;s&gt; she</code></td>   <td>1</td><td>4</td><td>1/4 = 0.25</td></tr>
+            <tr><td><code>she wants</code></td>       <td>1</td><td>1</td><td>1/1 = 1.0</td></tr>
+            <tr><td><code>wants to</code></td>        <td>1</td><td>1</td><td>1/1 = 1.0</td></tr>
+            <tr><td><code>want to</code></td>         <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
+            <tr><td><code>want Indian</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+            <tr><td><code>eat Indian</code></td>      <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
+            <tr><td><code>eat Chinese</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+            <tr><td><code>Chinese food</code></td>    <td>1</td><td>1</td><td>1/1 = 1.0</td></tr>
+            <tr><td><code>I want</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+            <tr><td><code>to eat</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+            <tr><td><code>Indian food</code></td>     <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
+            <tr><td><code>food &lt;/s&gt;</code></td> <td>4</td><td>4</td><td>4/4 = 1.0</td></tr>
+          </table>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1087,7 +1138,7 @@ P(\text{I want to eat Indian food}) \approx {} &amp; P(\text{I} \mid \text{&lt;s
 
   <section class="slide slide--math" data-title="Scoring a whole sentence">
     <div class="slide-inner">
-      <h2>Multiply the bigram probabilities</h2>
+      <h2>Scoring a whole sentence</h2>
       <div class="meq"><math data-tex="\begin{aligned}
 P(\text{I want to eat Indian food}) &amp;\approx \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{4}{4} \\
   &amp;= \tfrac{1}{3} \approx 0.333
@@ -1097,12 +1148,15 @@ P(\text{I want to eat Indian food}) &amp;\approx \tfrac{3}{4} \times \tfrac{3}{3
 
   <section class="slide slide--table" data-title="Comparing sentences">
     <div class="slide-inner">
-      <h2>The model can now compare sentences</h2>
+      <h2>Comparing three sentences</h2>
       <table>
-        <tr><th>sentence</th><th>bigram probability</th></tr>
-        <tr><td>I want to eat Indian food</td><td>1/3 ≈ 0.333</td></tr>
-        <tr><td>I want to eat Chinese food</td><td>1/6 ≈ 0.167</td></tr>
-        <tr><td>she wants to eat Indian food</td><td>1/6 ≈ 0.167</td></tr>
+        <tr><th>sentence</th><th>product of the bigram probabilities</th></tr>
+        <tr><td>I want to eat Indian food</td>
+            <td><math data-tex="3/4 \times 3/3 \times 2/3 \times 3/3 \times 2/3 \times 3/3 \times 4/4 = 1/3 \approx 0.333"><mrow><mn>3</mn><mi>/</mi><mn>4</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>2</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>2</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>4</mn><mi>/</mi><mn>4</mn><mo>=</mo><mn>1</mn><mi>/</mi><mn>3</mn><mo>≈</mo><mn>0.333</mn></mrow></math></td></tr>
+        <tr><td>I want to eat Chinese food</td>
+            <td><math data-tex="3/4 \times 3/3 \times 2/3 \times 3/3 \times 1/3 \times 1/1 \times 4/4 = 1/6 \approx 0.167"><mrow><mn>3</mn><mi>/</mi><mn>4</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>2</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>1</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>1</mn><mi>/</mi><mn>1</mn><mo>×</mo><mn>4</mn><mi>/</mi><mn>4</mn><mo>=</mo><mn>1</mn><mi>/</mi><mn>6</mn><mo>≈</mo><mn>0.167</mn></mrow></math></td></tr>
+        <tr><td>she wants to eat Indian food</td>
+            <td><math data-tex="1/4 \times 1/1 \times 1/1 \times 3/3 \times 2/3 \times 3/3 \times 4/4 = 1/6 \approx 0.167"><mrow><mn>1</mn><mi>/</mi><mn>4</mn><mo>×</mo><mn>1</mn><mi>/</mi><mn>1</mn><mo>×</mo><mn>1</mn><mi>/</mi><mn>1</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>2</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>3</mn><mi>/</mi><mn>3</mn><mo>×</mo><mn>4</mn><mi>/</mi><mn>4</mn><mo>=</mo><mn>1</mn><mi>/</mi><mn>6</mn><mo>≈</mo><mn>0.167</mn></mrow></math></td></tr>
       </table>
       <p class="aside">The first is rated twice as likely, and correctly so for this corpus. The
       model has no representation of what any word means, and ranks them from counts alone.</p>
@@ -1144,7 +1198,7 @@ P(\text{I want to eat Indian food}) &amp;\approx \tfrac{3}{4} \times \tfrac{3}{3
 
   <section class="slide slide--math" data-title="An ordinary sentence">
     <div class="slide-inner">
-      <h2>Now a perfectly ordinary English sentence</h2>
+      <h2>An ordinary English sentence</h2>
       <div class="meq"><math data-tex="P(\text{I want to eat Indian pizza}) \approx \tfrac{3}{4} \times \tfrac{3}{3} \times \tfrac{2}{3} \times \tfrac{3}{3} \times \tfrac{2}{3} \times P(\text{pizza} \mid \text{Indian}) \times \cdots" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>I want to eat Indian pizza</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>≈</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>4</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>3</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mstyle displaystyle="false" scriptlevel="0"><mfrac><mn>2</mn><mn>3</mn></mfrac></mstyle><mo>×</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>pizza</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>×</mo><mo>⋯</mo></mrow></math></div>
     </div>
   </section>
@@ -1784,6 +1838,45 @@ P(\text{I want to eat Indian food}) &amp;\approx \tfrac{3}{4} \times \tfrac{3}{3
     var sel = window.getSelection();
     if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
     next();
+  });
+
+  // ---- Fitting wide equations ----
+  // A display equation is set in vw, so on a wide screen it is projected large
+  // and on a narrow one it still overflows: the chain rule written out is
+  // simply wider than the slide can hold at that size. CSS gives .meq
+  // overflow-x: auto, which is the right fallback with this script disabled
+  // but a poor result in a room, where nobody can scroll the projection
+  // sideways. So an equation that does not fit is stepped down in size until
+  // it does, to a floor past which it would be unreadable from the back and
+  // scrolling is the lesser evil. Only shrinking happens here; an equation
+  // that already fits keeps the size the stylesheet gave it.
+  var MIN_FIT = 0.55;
+
+  function fitEquations() {
+    var eqs = deck.querySelectorAll(".meq");
+    for (var i = 0; i < eqs.length; i++) {
+      var eq = eqs[i];
+      eq.style.fontSize = "";
+      var avail = eq.clientWidth;
+      var needed = eq.scrollWidth;
+      if (!avail || needed <= avail + 1) continue;
+      var base = parseFloat(window.getComputedStyle(eq).fontSize);
+      // 0.98 leaves a hair of slack: the ratio is measured on a box whose
+      // glyph advances do not scale perfectly linearly with the font size.
+      var scale = Math.max((avail / needed) * 0.98, MIN_FIT);
+      eq.style.fontSize = (base * scale).toFixed(2) + "px";
+    }
+  }
+
+  fitEquations();
+  // Web fonts and MathML metrics can land after this script runs, which
+  // changes every measurement above.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitEquations);
+
+  var fitTimer = null;
+  window.addEventListener("resize", function () {
+    window.clearTimeout(fitTimer);
+    fitTimer = window.setTimeout(fitEquations, 120);
   });
 
   // ---- Initial position from location.hash ----

@@ -743,8 +743,9 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 12</p>
   <h1>N-gram probabilities and the Markov assumption</h1>
-  <p class="subtitle">Where the numbers come from. The exact answer is easy to write down and
-  impossible to use — so we deliberately use the wrong one.</p>
+  <p class="subtitle">Where the numbers come from. The chain rule states a sentence's probability
+  exactly, but the counts it asks for are too rare in any corpus to estimate, so we approximate it
+  with an assumption we know to be false.</p>
 </header>
 
 <div class="wrap">
@@ -866,10 +867,13 @@ Nothing is adjusted or assumed: the corpus shows <code>eat</code> followed by <c
   <tr><th>bigram</th><th><math data-tex="\mathrm{count}(w_1\, w_2)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mspace width="0.1667em"></mspace><msub><mi>w</mi><mn>2</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="\mathrm{count}(w_1)"><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th><th><math data-tex="P(w_2 \mid w_1)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>w</mi><mn>2</mn></msub><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><msub><mi>w</mi><mn>1</mn></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></th></tr>
   <tr><td><code>&lt;s&gt; I</code></td>     <td>3</td><td>4</td><td>3/4 = 0.75</td></tr>
   <tr><td><code>&lt;s&gt; she</code></td>   <td>1</td><td>4</td><td>1/4 = 0.25</td></tr>
+  <tr><td><code>she wants</code></td>       <td>1</td><td>1</td><td>1/1 = 1.0</td></tr>
+  <tr><td><code>wants to</code></td>        <td>1</td><td>1</td><td>1/1 = 1.0</td></tr>
   <tr><td><code>want to</code></td>         <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
   <tr><td><code>want Indian</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
   <tr><td><code>eat Indian</code></td>      <td>2</td><td>3</td><td>2/3 ≈ 0.67</td></tr>
   <tr><td><code>eat Chinese</code></td>     <td>1</td><td>3</td><td>1/3 ≈ 0.33</td></tr>
+  <tr><td><code>Chinese food</code></td>    <td>1</td><td>1</td><td>1/1 = 1.0</td></tr>
   <tr><td><code>I want</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
   <tr><td><code>to eat</code></td>          <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>
   <tr><td><code>Indian food</code></td>     <td>3</td><td>3</td><td>3/3 = 1.0</td></tr>

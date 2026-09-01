@@ -559,6 +559,19 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
   font-size: clamp(1.3rem, 3.2vw, 2.4rem);
 }
 .slide .meq > math { flex: 0 1 auto; }
+/* An equation is not prose, so it is not held to the 62rem reading measure the
+   slide's inner column gives text: a wide one — the chain rule written out, say
+   — would then scroll sideways on a projector, where sideways scrolling is not
+   available to a room. A .meq that is a direct child of the inner column may
+   use the full width the slide's 6vw padding leaves, and centres itself within
+   the narrower column, so short equations look unchanged and only an equation
+   wider than the screen still scrolls. Scoped to the direct child so a .meq
+   inside a card or a split column stays inside it. */
+.slide-inner > .meq {
+  width: 88vw;
+  margin-left: calc(50% - 44vw);
+  margin-right: calc(50% - 44vw);
+}
 .slide .meq .eqno {
   flex: 0 0 auto;
   font-family: var(--serif);
@@ -568,8 +581,10 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 }
 
 /* Shape: math — a heading and one equation, the display counterpart of
-   slide--statement. Nothing else: if a slide needs prose around the equation,
-   it is a bullets or statement slide with a .meq inside it. */
+   slide--statement, optionally with a single .aside under it reading off what
+   the equation comes to for the corpus in hand. Nothing beyond that: if a
+   slide needs prose around the equation, it is a bullets or statement slide
+   with a .meq inside it. */
 .slide--math h2 {
   font-weight: 400;
   font-size: clamp(1.6rem, 3.4vw, 2.4rem);
@@ -599,6 +614,23 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 @media (max-width: 900px) {
   .slide--split .split-grid { grid-template-columns: 1fr; }
 }
+
+/* Modifier: wide — for a slide holding two pieces of material side by side
+   that together need more than the 62rem reading measure, such as a table read
+   beside the corpus it was counted from. The inner column may grow to the full
+   width the slide's 6vw padding leaves, but the content is *not* stretched to
+   it: the columns are sized to what they hold and the pair is centred, so a
+   wide screen adds margin rather than a gulf between the two. Prose slides
+   keep the measure, which is what makes them readable. */
+.slide--wide .slide-inner { max-width: 88vw; }
+.slide--wide .split-grid {
+  grid-template-columns: auto auto;
+  justify-content: center;
+  gap: 3.2rem;
+}
+/* Such a slide carries many rows as well as wide ones, so they are set a
+   little tighter to keep the whole table on one screen. */
+.slide--wide.slide--table th, .slide--wide.slide--table td { padding-top: .55rem; padding-bottom: .55rem; }
 
 /* ---- Shape: table (own larger-type variant — lesson.css's tables are too
    dense to read from the back of a room) ---- */
@@ -1961,6 +1993,45 @@ HYP:  witnessofthepast,       17 unigrams, 16 bigrams</code></pre>
     var sel = window.getSelection();
     if (sel && !sel.isCollapsed && sel.toString().trim() !== "") return;
     next();
+  });
+
+  // ---- Fitting wide equations ----
+  // A display equation is set in vw, so on a wide screen it is projected large
+  // and on a narrow one it still overflows: the chain rule written out is
+  // simply wider than the slide can hold at that size. CSS gives .meq
+  // overflow-x: auto, which is the right fallback with this script disabled
+  // but a poor result in a room, where nobody can scroll the projection
+  // sideways. So an equation that does not fit is stepped down in size until
+  // it does, to a floor past which it would be unreadable from the back and
+  // scrolling is the lesser evil. Only shrinking happens here; an equation
+  // that already fits keeps the size the stylesheet gave it.
+  var MIN_FIT = 0.55;
+
+  function fitEquations() {
+    var eqs = deck.querySelectorAll(".meq");
+    for (var i = 0; i < eqs.length; i++) {
+      var eq = eqs[i];
+      eq.style.fontSize = "";
+      var avail = eq.clientWidth;
+      var needed = eq.scrollWidth;
+      if (!avail || needed <= avail + 1) continue;
+      var base = parseFloat(window.getComputedStyle(eq).fontSize);
+      // 0.98 leaves a hair of slack: the ratio is measured on a box whose
+      // glyph advances do not scale perfectly linearly with the font size.
+      var scale = Math.max((avail / needed) * 0.98, MIN_FIT);
+      eq.style.fontSize = (base * scale).toFixed(2) + "px";
+    }
+  }
+
+  fitEquations();
+  // Web fonts and MathML metrics can land after this script runs, which
+  // changes every measurement above.
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitEquations);
+
+  var fitTimer = null;
+  window.addEventListener("resize", function () {
+    window.clearTimeout(fitTimer);
+    fitTimer = window.setTimeout(fitEquations, 120);
   });
 
   // ---- Initial position from location.hash ----

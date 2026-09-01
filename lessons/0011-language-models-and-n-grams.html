@@ -839,13 +839,19 @@ enough to verify by hand.</p>
 
 <h2>Why the full context cannot be used</h2>
 
+<p>Before stating that quantity we need the notation for it. We write the probability of a word
+<math data-tex="w"><mi>w</mi></math> as <math data-tex="P(w)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. When that probability depends on what has already been written, the
+history <math data-tex="h"><mi>h</mi></math> is placed after a vertical bar, which is read "given": <math data-tex="P(w \mid h)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>h</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a
+<strong>conditional probability</strong>, the probability of <math data-tex="w"><mi>w</mi></math> given <math data-tex="h"><mi>h</mi></math>. A language
+model computes this quantity for every word the vocabulary offers.</p>
+
 <p>To predict the next word properly, we would want to use everything preceding it. Stated
 exactly, the quantity we want is:</p>
 
 <div class="meq"><math data-tex="P(\text{food} \mid \text{I want to eat Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>I want to eat Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
-<p>This reads as "the probability of <code>food</code> given <code>I want to eat Indian</code>".
-It is manageable for five words, but a model must handle any history at all, and most sequences of
+<p>Here the history is the five words already written and <math data-tex="w"><mi>w</mi></math> is <code>food</code>. It is
+manageable for five words, but a model must handle any history at all, and most sequences of
 eight or more words have never been written down anywhere. A model that learns from examples cannot
 learn from examples it does not have, and the longer the history required, the more certain it is
 that the history has never been observed.</p>
