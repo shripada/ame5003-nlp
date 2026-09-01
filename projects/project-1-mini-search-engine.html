@@ -1,0 +1,1258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Project 1 — A mini search engine</title>
+<style>
+/* Shared lesson stylesheet — MSIS NLP teaching workspace.
+   Quiet academic document: narrow measure, margin notes, restrained palette.
+   These are web pages, not handouts. Students read them on phones, often at
+   night, so the page follows the reader's light/dark setting.
+
+   All colour goes through tokens. Never hardcode a colour in a component —
+   if you do, it will look wrong in dark mode. Add a token instead.
+
+   assets/slides.css (the slide-deck stylesheet) duplicates the token block
+   below rather than importing it. Keep both in sync when a token changes. */
+
+:root {
+  /* neutrals — warm-biased, to sit with the red accent rather than fight it */
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;          /* cards: quiz, recall */
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;      /* only used when sidenotes collapse inline */
+
+  /* accent */
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+
+  /* status */
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+
+  /* teacher-only material — deliberately a different colour family from the
+     student-facing accent, so you can spot it at a glance while lecturing */
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+
+  --serif: et-book, Palatino, "Palatino Linotype", "Book Antiqua", Georgia, serif;
+  --mono: "SF Mono", "Menlo", "Consolas", "Liberation Mono", monospace;
+  /* Whichever maths font the reader's system has. The generic `math` keyword
+     is the fallback every current browser understands. */
+  --math: "Cambria Math", "STIX Two Math", "Latin Modern Math", "TeX Gyre Termes Math",
+          "Noto Sans Math", math;
+}
+
+/* Dark theme. Tokens only — components below never change. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e7e5e0;
+    --ink-soft: #b3afa8;
+    --ink-faint: #8b8880;
+    --ink-strong: #f0ddd7;
+    --math-ink: #b1a4dd;
+    --rule: #34373d;
+    --bg: #14161a;
+    --surface: #1b1e23;
+    --code-bg: #1d2026;
+    --sidenote-bg: #1a1d22;
+
+    --accent: #e0958a;
+    --accent-soft: #2c1f1e;
+    --mark: #6a5312;
+
+    --ok: #5cb083;
+    --ok-bg: #16281e;
+    --bad: #e08585;
+    --bad-bg: #2c1b1b;
+    --warn: #d7a44b;
+    --warn-bg: #2a2416;
+
+    --teacher: #86a9dd;
+    --teacher-ink: #c6d6ee;
+    --teacher-strong: #e2ebf8;
+    --teacher-bg: #171d27;
+    --teacher-border: #30405a;
+    --teacher-code-bg: #232c3a;
+  }
+}
+
+/* The reader's explicit choice must beat the OS setting, in both directions. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
+:root[data-theme="dark"] {
+  --ink: #e7e5e0;
+  --ink-soft: #b3afa8;
+  --ink-faint: #8b8880;
+  --ink-strong: #f0ddd7;
+  --math-ink: #b1a4dd;
+  --rule: #34373d;
+  --bg: #14161a;
+  --surface: #1b1e23;
+  --code-bg: #1d2026;
+  --sidenote-bg: #1a1d22;
+  --accent: #e0958a;
+  --accent-soft: #2c1f1e;
+  --mark: #6a5312;
+  --ok: #5cb083;
+  --ok-bg: #16281e;
+  --bad: #e08585;
+  --bad-bg: #2c1b1b;
+  --warn: #d7a44b;
+  --warn-bg: #2a2416;
+  --teacher: #86a9dd;
+  --teacher-ink: #c6d6ee;
+  --teacher-strong: #e2ebf8;
+  --teacher-bg: #171d27;
+  --teacher-border: #30405a;
+  --teacher-code-bg: #232c3a;
+}
+:root[data-theme="light"] {
+  --ink: #111;
+  --ink-soft: #444;
+  --ink-faint: #6b6b6b;
+  --ink-strong: #4a3b36;
+  --math-ink: #46397a;
+  --rule: #d8d4cc;
+  --bg: #fffef9;
+  --surface: #ffffff;
+  --code-bg: #f4f2ec;
+  --sidenote-bg: #faf8f2;
+  --accent: #7a2e2e;
+  --accent-soft: #f3e9e9;
+  --mark: #fff3b8;
+  --ok: #1f6f43;
+  --ok-bg: #e6f4ec;
+  --bad: #aa3333;
+  --bad-bg: #fbeaea;
+  --warn: #8a5a00;
+  --warn-bg: #fdf3dc;
+  --teacher: #2c4a7c;
+  --teacher-ink: #24405f;
+  --teacher-strong: #16293f;
+  --teacher-bg: #f5f8fd;
+  --teacher-border: #c3d0e6;
+  --teacher-code-bg: #e6ecf7;
+}
+
+html { font-size: 15px; }
+
+body {
+  margin: 0 auto;
+  padding: 3rem 2rem 6rem;
+  max-width: 1200px;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--serif);
+  line-height: 1.62;
+  counter-reset: sidenote;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 55ch; }
+
+/* ---- Masthead ---- */
+.masthead {
+  max-width: 55ch;
+  border-bottom: 1px solid var(--rule);
+  padding-bottom: 1rem;
+  margin-bottom: 2.5rem;
+}
+.eyebrow {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin: 0 0 .6rem;
+}
+.eyebrow a { color: inherit; }
+
+h1 {
+  font-weight: 400;
+  font-size: 2.1rem;
+  line-height: 1.18;
+  margin: 0 0 .4rem;
+  letter-spacing: -.01em;
+  text-wrap: balance;
+}
+.subtitle {
+  font-style: italic;
+  color: var(--ink-soft);
+  font-size: 1.05rem;
+  margin: 0;
+  text-wrap: balance;
+}
+
+h2 {
+  font-weight: 400;
+  font-size: 1.45rem;
+  margin: 3rem 0 .8rem;
+  letter-spacing: -.005em;
+  text-wrap: balance;
+}
+h3 {
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 2rem 0 .5rem;
+  color: var(--accent);
+}
+
+p { margin: 0 0 1.1rem; }
+ul, ol { margin: 0 0 1.1rem; padding-left: 1.4rem; }
+li { margin-bottom: .35rem; }
+a { color: var(--accent); text-decoration-thickness: .5px; text-underline-offset: 2px; }
+em { font-style: italic; }
+strong { font-weight: 600; }
+mark { background: var(--mark); color: var(--ink); padding: 0 .15em; }
+
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ---- Margin notes ---- */
+.sidenote {
+  float: right;
+  clear: right;
+  width: 17rem;
+  margin-right: -20rem;
+  margin-bottom: 1rem;
+  font-size: .8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+  position: relative;
+}
+.sidenote::before {
+  counter-increment: sidenote;
+  content: counter(sidenote) " ";
+  font-family: var(--mono);
+  font-size: .65rem;
+  color: var(--accent);
+  vertical-align: super;
+}
+
+/* ---- Code ---- */
+code {
+  font-family: var(--mono);
+  font-size: .82em;
+  background: var(--code-bg);
+  padding: .1em .35em;
+  border-radius: 3px;
+}
+pre {
+  background: var(--code-bg);
+  border-left: 2px solid var(--rule);
+  padding: 1rem 1.1rem;
+  overflow-x: auto;
+  font-size: .8rem;
+  line-height: 1.5;
+  max-width: 55ch;
+}
+pre code { background: none; padding: 0; font-size: 1em; }
+
+/* ---- Mathematics ----
+   Maths is authored as LaTeX and rendered to MathML by tools/mathify.py, which
+   writes the result straight into the lesson. Nothing is fetched at read time:
+   no library, no webfont, no CDN. The rules below are the small runtime that
+   MathML needs — the first group is trimmed from Temml's stylesheet (MIT), the
+   rest is ours.
+
+   `code` is for programs, filenames and literals; maths is for mathematical
+   objects, including single variables in running prose. Do not use one for the
+   other. Figure labels stay <text> inside the SVG — MathML has no place there.
+
+   Colour is never set here. MathML paints in currentColor, so it follows --ink
+   and is correct in dark mode for free. */
+
+math {
+  font-family: var(--math);
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Stop Firefox dropping the dot on i and j. */
+  font-feature-settings: "dtls" off;
+}
+math * { border-color: currentColor; }
+/* Firefox and Safari need this; Chromium honours the inline display:block math. */
+math.tml-display { display: block; width: 100%; }
+/* Cramped superscripts in WebKit. */
+mfrac > :nth-child(2), msqrt, mover > :first-child { math-shift: compact; }
+
+@supports (-moz-appearance: none) {
+  .tml-vec { transform: scale(0.75); }
+}
+@supports (not (-moz-appearance: none)) {
+  /* Italic correction on superscripts. */
+  .tml-sml-pad { padding-left: 0.05em; }
+  .tml-med-pad { padding-left: 0.10em; }
+  .tml-lrg-pad { padding-left: 0.15em; }
+}
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical and italic correction on accents. */
+  .wbk-acc { transform: translate(0em, 0.431em); }
+  .wbk-sml { transform: translate(0.07em, 0); }
+  .wbk-sml-acc { transform: translate(0.07em, 0.431em); }
+  .wbk-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .wbk-med { transform: translate(0.14em, 0); }
+  .wbk-med-acc { transform: translate(0.14em, 0.431em); }
+  .wbk-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .wbk-lrg { transform: translate(0.21em, 0); }
+  .wbk-lrg-acc { transform: translate(0.21em, 0.431em); }
+  .wbk-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Chromium gives <msqrt> a box 0.42em wider than the ink it draws — the
+     radical glyph's full advance is reserved, then the overbar is drawn to fit
+     the content instead. Measured constant across font sizes; scale-invariant,
+     so it corrects in em. Without it every inline root looks like it is
+     followed by a stray space, and √d_k occurs seventeen times in session 29
+     alone. Firefox and WebKit do not need this.
+     The exact figure comes from the maths font's surd advance, so recheck it if
+     --math changes or Chromium fixes the layout. */
+  msqrt { margin-right: -0.4em; }
+
+  /* Italic correction on accents, Chromium. */
+  .chr-sml { transform: translate(0.07em, 0); }
+  .chr-sml-vec { transform: scale(0.75) translate(0.07em, 0); }
+  .chr-med { transform: translate(0.14em, 0); }
+  .chr-med-vec { transform: scale(0.75) translate(0.14em, 0); }
+  .chr-lrg { transform: translate(0.21em, 0); }
+  .chr-lrg-vec { transform: scale(0.75) translate(0.21em, 0); }
+}
+
+/* Aligned arrays. Cell justification is set by class in Firefox and WebKit;
+   Chromium needs the -webkit- values. */
+.tml-right { text-align: right; }
+.tml-left { text-align: left; }
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  .tml-right { text-align: -webkit-right; }
+  .tml-left { text-align: -webkit-left; }
+}
+mtable.tml-jot mtd { padding-top: 0.7ex; padding-bottom: 0.7ex; }
+mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
+@-moz-document url-prefix() {
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0; }
+}
+
+/* Inline maths sits in a serif paragraph, so it runs slightly small without
+   help. Nothing else about the line box may move: a variable in prose must not
+   open the leading. */
+p math, li math, td math, th math, figcaption math, .q-text math, .label math {
+  font-size: 1.06em;
+}
+
+/* Display equations. The equation number is SLP3's, printed as text: it is a
+   citation into the book, not a counter of ours, and it must not renumber
+   itself when a lesson quotes equations out of order. */
+.meq {
+  display: flex;
+  align-items: baseline;
+  gap: 1rem;
+  margin: 1.6rem 0;
+  max-width: 55ch;
+  overflow-x: auto;
+  font-size: 1.05rem;
+}
+.meq > math { flex: 1 1 auto; }
+.meq .eqno {
+  flex: 0 0 auto;
+  font-family: var(--serif);
+  font-size: .85rem;
+  color: var(--ink-faint);
+  font-variant-numeric: lining-nums;
+}
+
+/* ---- Callouts ---- */
+.callout {
+  border-left: 3px solid var(--accent);
+  background: var(--accent-soft);
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .92rem;
+}
+.callout > :last-child { margin-bottom: 0; }
+.callout .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+  display: block;
+  margin-bottom: .45rem;
+}
+.callout.warn { border-left-color: var(--warn); background: var(--warn-bg); }
+.callout.warn .label { color: var(--warn); }
+
+/* ---- Teacher-only blocks ----
+   Anything marked [data-teacher] is for the lecturer only. Hidden in Student
+   view. Hiding is presentation, NOT security — the text stays in the source.
+   For anything students can open, publish the stripped build:
+       python3 tools/build-student.py
+*/
+body[data-view="student"] [data-teacher] { display: none !important; }
+
+.teacher-note {
+  border: 1px solid var(--teacher-border);
+  border-left: 3px solid var(--teacher);
+  background: var(--teacher-bg);
+  border-radius: 4px;
+  padding: 1rem 1.2rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--teacher-ink);
+}
+.teacher-note > :last-child { margin-bottom: 0; }
+.teacher-note .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--teacher);
+  display: block;
+  margin-bottom: .5rem;
+}
+.teacher-note strong { color: var(--teacher-strong); }
+.teacher-note code { background: var(--teacher-code-bg); }
+.teacher-note a { color: var(--teacher); }
+
+/* ---- Student / Teacher switch ---- */
+/* ---- Corner tray: student/teacher view + theme toggle ----
+   Built by assets/view-toggle.js and assets/theme-toggle.js. Both scripts
+   append into the same .page-tools element, so the buttons sit in one row and
+   a page carrying only one of the scripts still looks right. */
+.page-tools {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 50;
+  display: flex;
+  gap: .4rem;
+}
+.page-tools button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.page-tools button:hover { border-color: var(--accent); color: var(--accent); }
+.page-tools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Teacher view is a state worth seeing across the room, so it fills in. */
+.page-tools button.view-toggle[aria-pressed="true"] {
+  background: var(--teacher);
+  border-color: var(--teacher);
+  color: #fff;
+}
+@media (max-width: 1100px) {
+  .page-tools { position: static; margin: 0 0 1.2rem; }
+}
+
+/* ---- Tables ---- */
+.table-scroll { overflow-x: auto; max-width: 55ch; }
+table {
+  border-collapse: collapse;
+  margin: 1.8rem 0;
+  font-size: .85rem;
+  max-width: 55ch;
+  width: 100%;
+}
+th, td {
+  text-align: left;
+  padding: .45rem .7rem .45rem 0;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: top;
+}
+th {
+  font-weight: 600;
+  border-bottom: 1.5px solid var(--ink-soft);
+  font-size: .78rem;
+  letter-spacing: .02em;
+}
+
+/* ---- Quiz (see assets/quiz.js) ---- */
+.quiz {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 1.3rem 1.4rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.quiz .q-num {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.quiz .q-text { font-size: 1rem; margin-bottom: 1rem; }
+.quiz .q-opts { display: flex; flex-direction: column; gap: .5rem; }
+.quiz button.opt {
+  font-family: var(--serif);
+  font-size: .92rem;
+  text-align: left;
+  padding: .6rem .8rem;
+  border: 1px solid var(--rule);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--ink);
+  cursor: pointer;
+  transition: background .12s, border-color .12s;
+  line-height: 1.4;
+}
+.quiz button.opt:hover:not(:disabled) { background: var(--accent-soft); border-color: var(--accent); }
+.quiz button.opt:disabled { cursor: default; opacity: .55; }
+.quiz button.opt.correct {
+  background: var(--ok-bg); border-color: var(--ok); color: var(--ink);
+  opacity: 1; font-weight: 600;
+}
+.quiz button.opt.wrong {
+  background: var(--bad-bg); border-color: var(--bad); color: var(--ink); opacity: 1;
+}
+.quiz .q-fb {
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .87rem;
+  line-height: 1.5;
+  color: var(--ink-soft);
+  display: none;
+}
+.quiz .q-fb.show { display: block; }
+.quiz .q-fb strong { color: var(--ink); }
+
+/* ---- Recall prompt: try to remember before revealing ---- */
+.recall {
+  border: 1px dashed var(--ink-faint);
+  border-radius: 4px;
+  padding: 1.1rem 1.3rem;
+  margin: 1.8rem 0;
+  max-width: 55ch;
+  background: var(--surface);
+}
+.recall .label {
+  font-family: var(--mono);
+  font-size: .62rem;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  display: block;
+  margin-bottom: .5rem;
+}
+.recall button.reveal {
+  font-family: var(--mono);
+  font-size: .7rem;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: .45rem .9rem;
+  border: 1px solid var(--ink-faint);
+  border-radius: 3px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  margin-top: .7rem;
+}
+.recall button.reveal:hover { background: var(--code-bg); }
+.recall .answer {
+  display: none;
+  margin-top: .9rem;
+  padding-top: .9rem;
+  border-top: 1px solid var(--rule);
+  font-size: .9rem;
+}
+.recall .answer.show { display: block; }
+
+/* ---- Footer ---- */
+.footer-nav {
+  max-width: 55ch;
+  margin-top: 4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--rule);
+  font-size: .85rem;
+  color: var(--ink-faint);
+}
+.footer-nav a { margin-right: 1.2rem; }
+
+.ask {
+  max-width: 55ch;
+  margin-top: 2rem;
+  padding: .9rem 1.1rem;
+  background: var(--code-bg);
+  border-radius: 4px;
+  font-size: .85rem;
+  color: var(--ink-soft);
+}
+
+/* ---- Figures ----
+   Inline SVG only — no chart library, no build step, no external requests.
+   All colour goes through tokens, so light/dark both work; strokes use
+   currentColor where they should follow the text. Keep the viewBox and let
+   the SVG scale, or it will overflow on a phone. */
+figure {
+  margin: 1.8rem 0;
+  max-width: 55ch;
+}
+figure svg {
+  width: 100%;
+  height: auto;
+  display: block;
+  overflow: visible;
+}
+figcaption {
+  margin-top: .6rem;
+  font-size: .82rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+/* Plot furniture */
+.fig-axis   { stroke: var(--rule); stroke-width: 1.5; fill: none; }
+.fig-tick   { stroke: var(--rule); stroke-width: 1; }
+.fig-label  { fill: var(--ink-faint); font-size: 12px; font-family: var(--mono); }
+.fig-axname { fill: var(--ink-soft); font-size: 13px; font-family: var(--mono); }
+.fig-pt     { fill: var(--accent); }
+.fig-pt-b   { fill: var(--ok); }
+.fig-ptname { fill: var(--ink); font-size: 13px; }
+.fig-group  { fill: none; stroke-dasharray: 4 3; stroke-width: 1.5; opacity: .55; }
+.fig-group-a { stroke: var(--accent); }
+.fig-group-b { stroke: var(--ok); }
+/* Vector diagrams (session 19 on) */
+.fig-vec    { stroke: var(--accent); stroke-width: 2; fill: none; }
+.fig-vec-b  { stroke: var(--ok); stroke-width: 2; fill: none; }
+.fig-vec-d  { stroke: var(--ok); stroke-width: 2; fill: none; stroke-dasharray: 5 4; }
+.fig-head   { fill: var(--accent); }
+.fig-head-b { fill: var(--ok); }
+.fig-arc    { stroke: var(--ink-faint); stroke-width: 1.2; fill: none; }
+.fig-gap    { stroke: var(--ink-faint); stroke-width: 1; fill: none; stroke-dasharray: 2 3; }
+
+/* Set diagrams (session 1: how NLP relates to AI). Translucent fills so the
+   overlaps read as overlaps; the stroke carries the boundary in both themes,
+   where a fill alone would wash out. */
+.fig-set      { stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-set-ai   { fill: var(--accent); fill-opacity: .10; }
+.fig-set-ml   { fill: var(--accent); fill-opacity: .13; }
+.fig-set-dl   { fill: var(--ok);     fill-opacity: .20; }
+.fig-set-nlp  { fill: var(--warn);   fill-opacity: .18; }
+.fig-set-side { fill: var(--ink-faint); fill-opacity: .12; }
+.fig-setname  { fill: var(--ink); font-size: 14px; text-anchor: middle; }
+.fig-setname-sm { fill: var(--ink-soft); font-size: 12px; text-anchor: middle; }
+
+/* Unit III figure vocabulary (sessions 25-33). Decided in one place rather
+   than invented per figure: four plans each asked for "one small new class",
+   which is how four inconsistent treatments of the same idea get born.
+
+   .fig-gate    a gate or operator sitting on a line   (25: LSTM forget/add/output)
+   .fig-edge-w  an edge whose weight is its opacity    (28: attention weights)
+   .fig-cell    a matrix cell shaded by a weight       (29: the attention matrix)
+   .fig-cellg   the grid ruling such a matrix sits on  (29 on)
+   .fig-mask    a shaded region marking blocked cells  (29, 31: the masked future)
+   .fig-frozen  "present but not trained"              (33: frozen encoder)
+
+   Set opacity on .fig-edge-w and .fig-cell inline per edge or per cell; the class
+   supplies everything else. .fig-cell carries no stroke of its own — the grid is one
+   layer of .fig-cellg rectangles drawn over the shading, so a cell whose weight is
+   near zero still reads as a cell rather than as blank paper. */
+.fig-gate    { fill: var(--bg); stroke: var(--ink-faint); stroke-width: 1.4; }
+.fig-gate-t  { fill: var(--ink); font-size: 13px; text-anchor: middle; }
+.fig-edge-w  { stroke: var(--accent); stroke-width: 2.5; fill: none; stroke-linecap: round; }
+.fig-cell    { fill: var(--accent); stroke: none; }
+.fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1; }
+.fig-mask    { fill: var(--ink-faint); fill-opacity: .16; stroke: none; }
+.fig-frozen  { stroke-dasharray: 5 4; opacity: .55; }
+/* Node-and-edge diagrams (session 20 on) — neurons, layers, networks */
+.fig-node   { fill: var(--surface); stroke: var(--accent); stroke-width: 2; }
+.fig-node-q { fill: var(--surface); stroke: var(--ink-faint); stroke-width: 1.5; }
+.fig-edge   { stroke: var(--ink-faint); stroke-width: 1.5; fill: none; }
+.fig-edge-h { fill: var(--ink-faint); stroke: none; }
+.fig-split  { stroke: var(--accent); stroke-width: 1.2; fill: none; opacity: .5; }
+.fig-glyph  { fill: var(--ink); font-size: 17px; font-family: var(--mono); }
+.fig-curve  { stroke: var(--accent); stroke-width: 2; fill: none; }
+
+/* ---- Narrow screens: margin notes fold into the text ---- */
+@media (max-width: 1100px) {
+  body { padding: 2rem 1.2rem 4rem; }
+  .wrap, .masthead, .callout, .quiz, .recall, table, pre, figure,
+  .footer-nav, .ask, .teacher-note, .table-scroll { max-width: 100%; }
+  .sidenote {
+    float: none;
+    width: auto;
+    margin: 1rem 0;
+    padding: .7rem .9rem;
+    border-left: 2px solid var(--rule);
+    background: var(--sidenote-bg);
+    font-size: .82rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+
+/* ---- Print ----
+   These are web pages; nobody here wants printouts. This block only stops a
+   stray Ctrl+P looking broken. It does NOT reveal quiz answers — the answer
+   appears when you click, on paper as on screen. */
+@media print {
+  body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
+  .page-tools, .footer-nav, .ask { display: none; }
+  h2 { page-break-after: avoid; }
+  pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
+  a { color: #000; }
+  .sidenote { float: none; width: auto; margin: .8rem 0; border-left: 2px solid #ccc; padding-left: .7rem; }
+}
+
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <p class="eyebrow">MSIS · AME 5053 · Unit I · Project 1</p>
+  <h1>A mini search engine</h1>
+  <p class="subtitle">Everything from sessions 1 to 10, assembled into one working system: raw
+  newswire in, ranked results out, with a search box on top and an honest account of what each
+  step did to the answers.</p>
+</header>
+
+<div class="wrap">
+
+
+
+<h2>What you are building</h2>
+
+<p>A search engine over a collection of 10,788 news articles. A user types a query into a box in
+the browser; your system returns the documents that best match, in order, with the matched words
+highlighted, in well under a second. Behind the box sits everything Unit I taught: a regular
+expression that pulls structure out of raw text, a preprocessing pipeline, an inverted index, and
+TF-IDF ranking.</p>
+
+<p>You are not being asked to invent anything. Every component was covered in a session and most
+were built in a lab, on six documents. The project is what happens when you assemble them, point
+them at a real collection, and then have to answer the question a working system always raises:
+<em>which of my choices actually helped?</em></p>
+
+<div class="callout">
+  <span class="label">The shape of the work</span>
+  <p>Six stages, in order. Each one produces something you can run and check before you start the
+  next. Stage 6 is the interface; do not start there. A search box over an index that returns the
+  wrong documents is worth very little, and the interface carries 10 marks of 100.</p>
+</div>
+
+<h2>Two ways to do this</h2>
+
+<p>The project can be built either way, and <strong>both are marked identically</strong>.</p>
+
+<p><strong>From the starter repository.</strong> It holds the collection, a command line for
+trying queries, the evaluation harness and a test suite, with a stub for every function you have
+to write. Take this route if you would rather spend your three weeks on the measuring and the
+writing, which is where most of the marks are.</p>
+
+<p><strong>From an empty directory.</strong> The
+<a href="project-1-requirements.md">requirements sheet</a> is this brief written out as a plain
+checklist, with no code in it, plus the figures your finished system has to reproduce so that you
+can check yourself without the test suite. Take this route if you would rather build the whole
+thing, plumbing and tests included.</p>
+
+<p>Neither is the harder option on paper. Building from scratch simply means the plumbing is also
+yours. The rest of this section describes the starter; if you are not using it, read the
+requirements sheet instead and rejoin at <em>The collection</em>.</p>
+
+<h2>The starter code, and its tests</h2>
+
+<p>You are given a repository rather than an empty directory. It holds the collection, a command
+line for trying queries, the evaluation harness, and a test suite. Every function you have to write
+is a stub that raises <code>NotImplementedError</code> naming its stage, so running the tests once
+before you start anything tells you the order to work in.</p>
+
+<pre><code>minisearch/
+  corpus.py     the collection, and the document ordering everyone uses    given
+  extract.py    headline, body, amounts, dates                             stage 1
+  pipeline.py   raw text -&gt; index terms                                    stage 2
+  matrix.py     the term-document incidence matrix                         stage 3
+  index.py      the inverted index and its postings merges                 stage 3
+  ranking.py    TF-IDF weights and ranked retrieval                        stage 4
+  evaluate.py   the precision@10 harness (given) and the ablation          stage 5
+  cli.py        a command line over all of it                              given
+build_index.py  builds and saves the indexes the app loads                 given
+app.py          the Streamlit interface                                    stage 6
+tests/          the suite that tells you whether any of it is right</code></pre>
+
+<p><strong>The tests are the specification.</strong> Where this brief says a postings list must come
+out sorted, or that idf is base 10, or that only candidate documents may be scored, there is a test
+that checks it. Read a stub's tests before you write the stub — they are shorter than the prose and
+they are exact.</p>
+
+<pre><code>pytest                    the fast tests — a toy collection, about a second
+pytest -m slow            the corpus tests; a few minutes, on the real index
+pytest -m ""              both
+pytest -k merge -x        one thing, stopping at the first failure
+pytest --pdb              drop into the debugger where it broke</code></pre>
+
+<p>The fast tests run on the six-document collection from lab 4, where you already know the right
+answers, so a failure names the merge that is wrong instead of telling you the corpus is
+disappointing. The slow ones build the real index and check the figures quoted in this brief. Run
+those before you submit, and before you believe any number in your report.</p>
+
+<p>One file, <code>tests/test_yours.py</code>, fails on purpose. Those five are yours to write, and
+they carry marks — see the rubric.</p>
+
+<div class="callout warn">
+  <span class="label">Do not edit the given tests</span>
+  <p>A suite that passes because you weakened it is worth nothing, and it is obvious in a diff. If
+  you think a given test is itself wrong, say so in your report and show why. That is a reasonable
+  claim to make about a specification and it will be read as one.</p>
+</div>
+
+<h2>The collection</h2>
+
+<p>You will index the <strong>Reuters-21578</strong> corpus, a standard collection of Reuters
+newswire articles from 1987. It ships with NLTK, so there is nothing to download by hand:</p>
+
+<pre><code>import nltk
+nltk.download("reuters")
+from nltk.corpus import reuters
+
+fileids = sorted(reuters.fileids())   # 10,788 documents
+print(len(fileids))
+print(reuters.raw(fileids[0])[:200])</code></pre>
+
+<p>Two properties of this corpus matter for the project.</p>
+
+<p>First, each document begins with a <strong>headline in capitals</strong> on its own line,
+followed by the body. That is a piece of structure sitting in unstructured text, which is what
+stage 1 is about.</p>
+
+<p>Second, every document carries one or more <strong>topic labels</strong> —
+<code>reuters.categories(fileid)</code> returns them, from a set of 90 including
+<code>crude</code>, <code>grain</code>, <code>earn</code> and <code>acq</code>. These labels were
+assigned by Reuters, not by us, and your search engine must never look at them. They exist in this
+project for one purpose only: in stage 5 they let you check whether a change you made improved the
+results or made them worse, instead of asserting that it helped.</p>
+
+<p><strong>Everyone indexes the same documents in the same order.</strong> Use
+<code>sorted(reuters.fileids())</code> and let document 0 be the first of that list, so that a
+document ID means the same thing in your submission as in everyone else's, and a claim about
+document 4,174 can be checked.</p>
+
+<h2>Stage 1 — Pulling structure out of raw text</h2>
+
+<p>The corpus arrives as unstructured strings. Before anything can be indexed, split each document
+into the fields a search result will need to display, using regular expressions (sessions 1 and 2):</p>
+
+<ul>
+<li><strong>Headline</strong> — the first line.</li>
+<li><strong>Body</strong> — everything after it, with the whitespace tidied. Reuters bodies are
+hard-wrapped mid-sentence; a single-spaced string is easier to snippet.</li>
+<li><strong>Money amounts</strong> — the corpus is full of them, in several shapes:
+<code>3.5 mln dlrs</code>, <code>1,250,000</code>, <code>vs 2.1 pct</code>. Write one expression
+that catches the common forms and report how many documents contain at least one.</li>
+<li><strong>Dates</strong> — the corpus writes them as <code>March 5</code>, <code>MARCH 1987</code>
+and other variants. Catch what you reasonably can.</li>
+</ul>
+
+<p>You will not catch everything, and you are not expected to. What you are expected to do is
+<strong>look at what you missed</strong>: pick twenty documents at random, read your extractor's
+output against the text, and record in your report one thing your expression gets wrong and why.
+Session 2's greedy trap is a good place to start looking.</p>
+
+<div class="callout warn">
+  <span class="label">A rule for the whole project</span>
+  <p>Regular expressions are for stage 1 only. Do not use one as your tokenizer — session 3
+  explained at some length why that fails, and stage 2 is where you use a real one.</p>
+</div>
+
+<h2>Stage 2 — The preprocessing pipeline</h2>
+
+<p>Fill in <strong>one analyser</strong> that turns a string into a list of terms, with each step
+controlled by a field:</p>
+
+<pre><code>class Analyzer:
+    def __init__(self, fold=True, drop_stop=True, stem=True, lemma=False):
+        ...
+
+    def terms(self, text):
+        """Raw text in, list of index terms out."""
+        ...</code></pre>
+
+<p>The steps it applies, all from sessions 3 to 5, <strong>in this order</strong>. The order is
+part of the specification and the docstring in <code>pipeline.py</code> repeats it:</p>
+
+<ol>
+<li><strong>Unicode normalisation</strong> (NFKC) of the whole string, always — before tokenization,
+because a compatibility ligature has to become letters before anything can split on word
+boundaries. This one does not depend on the <code>fold</code> switch.</li>
+<li><strong>Tokenization</strong> with NLTK's <code>word_tokenize</code> or spaCy, not
+<code>str.split()</code>.</li>
+<li><strong>Keeping only tokens that are all letters</strong>, with <code>token.isalpha()</code>.
+That drops punctuation and pure numerals. Keep the numbers you extracted in stage 1 — they are
+metadata, not index terms.</li>
+<li><strong>Case folding</strong>, if <code>fold</code>.</li>
+<li><strong>Stop word removal</strong>, using NLTK's English list. The comparison is against the
+lowercased token whether or not <code>fold</code> is set, because that list is lowercase and
+testing an unfolded token would silently keep every capitalised <code>The</code>.</li>
+<li><strong>Stemming</strong> (Porter) or <strong>lemmatization</strong> (WordNet or spaCy).
+Implement both; you will compare them in stage 5.</li>
+</ol>
+
+<p>That this is one object with switches, rather than four hard-coded pipelines, is not a
+stylistic preference. It is worth saying why twice over.</p>
+
+<div class="callout">
+  <span class="label">The rule this project is built around</span>
+  <p><strong>The query must go through exactly the same pipeline as the documents.</strong> If the
+  index holds <code>opec</code> because the pipeline folded case, and a user's <code>OPEC</code>
+  reaches the index unfolded, the term is simply absent and the query silently returns nothing.
+  Session 9 said this; it is the single most common way this project goes wrong. The index
+  therefore <em>keeps</em> the analyser it was built with and calls it on every query, so the two
+  cannot drift apart — that is what <code>index.analyse_query()</code> is for, and it is the one
+  method you are given rather than asked to write.</p>
+</div>
+
+<p>The second reason is that stage 5 asks you to run the whole system four different ways. If the
+steps are hard-coded you will be editing your indexer four times and comparing runs you cannot
+reproduce. An analyser you can pass as an argument makes the ablation a loop.</p>
+
+<h2>Stage 3 — Boolean retrieval</h2>
+
+<p>Build both structures from sessions 8 and 9, on the same terms, and compare them honestly.</p>
+
+<p><strong>The term-document incidence matrix</strong>, first, on a <strong>500-document
+subset</strong> — enough to be real, small enough to hold. Answer <code>A AND B AND NOT C</code>
+with bitwise operations on its rows, as in session 8. Then measure: how many cells does the matrix
+have, how many are non-zero, and how large would the matrix be over the full 10,788 documents?</p>
+
+<p>Report that last number carefully, because it does not say what session 8's argument might lead
+you to expect. Over the full corpus the matrix is about 20,000 × 10,800 cells. Packed one bit per
+cell that is roughly 28 MB, which fits in memory without difficulty. The matrix does not fail at
+this scale. Work out where it does fail, using session 8's own numbers for a web-sized collection,
+and say so in your report in terms of how the cost grows rather than what it happens to be here.</p>
+
+<p><strong>The inverted index</strong>, second, over all 10,788 documents: a dictionary from term
+to a sorted postings list. Store the within-document count alongside each document ID — stage 4
+needs it, and adding it later means rebuilding.</p>
+
+<p>Implement query processing by <strong>merging postings lists</strong>, not by converting them to
+Python sets:</p>
+
+<ul>
+<li><code>AND</code>, <code>OR</code> and <code>AND NOT</code> as linear merges over sorted lists.</li>
+<li>Multi-term <code>AND</code> with the <strong>rarest-first</strong> optimisation from session 9,
+processing terms in increasing document frequency.</li>
+<li>Evidence that rarest-first helps: time a three-term query both ways and report both numbers.</li>
+</ul>
+
+<p>A <code>set()</code> intersection gives the same answer and is genuinely fast, but it hides the
+merge, and the merge is what session 9 was about. Use sets anywhere else you like.</p>
+
+<h2>Stage 4 — Ranked retrieval</h2>
+
+<p>Boolean retrieval returns a set. On this corpus, <code>crude AND oil AND opec</code> returns 72
+documents in no particular order, and nobody reads 72 documents. Add ranking, exactly as session 10
+defined it.</p>
+
+<p>The term frequency weight, with the count compressed:</p>
+
+<div class="meq"><math data-tex="w_{t,d} = 1 + \log_{10}(\mathrm{tf}_{t,d})" display="block" class="tml-display" style="display:block math;"><mrow><msub><mi>w</mi><mrow><mi>t</mi><mo separator="true">,</mo><mi>d</mi></mrow></msub><mo>=</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mpadded lspace="0"><mi>tf</mi></mpadded><mrow><mi>t</mi><mo separator="true">,</mo><mi>d</mi></mrow></msub><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
+
+<p>the inverse document frequency, from the postings list length:</p>
+
+<div class="meq"><math data-tex="\mathrm{idf}_t = \log_{10}\frac{N}{\mathrm{df}_t}" display="block" class="tml-display" style="display:block math;"><mrow><msub><mpadded lspace="0"><mi>idf</mi></mpadded><mi>t</mi></msub><mo>=</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mfrac><mi>N</mi><msub><mpadded lspace="0"><mi>df</mi></mpadded><mi>t</mi></msub></mfrac></mrow></math></div>
+
+<p>and the score of a document for a query, summed over the query's terms:</p>
+
+<div class="meq"><math data-tex="\mathrm{score}(q, d) = \sum_{t \in q} \left(1 + \log_{10} \mathrm{tf}_{t,d}\right) \cdot \log_{10}\frac{N}{\mathrm{df}_t}" display="block" class="tml-display" style="display:block math;"><mrow><mpadded lspace="0"><mi>score</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>q</mi><mo separator="true">,</mo><mi>d</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><munder><mo movablelimits="false">∑</mo><mrow><mi>t</mi><mo>∈</mo><mi>q</mi></mrow></munder></mrow><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mn>1</mn><mo>+</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><msub><mpadded lspace="0"><mi>tf</mi></mpadded><mrow><mi>t</mi><mo separator="true">,</mo><mi>d</mi></mrow></msub><mo fence="true" form="postfix" stretchy="true">)</mo></mrow><mo>⋅</mo><msub><mi>log</mi><mn>10</mn></msub><mo>⁡</mo><mspace width="0.1667em"></mspace><mfrac><mi>N</mi><msub><mpadded lspace="0"><mi>df</mi></mpadded><mi>t</mi></msub></mfrac></mrow></math></div>
+
+<p>Return the top <math data-tex="k"><mi>k</mi></math> by that score. Two requirements on how you compute it:</p>
+
+<ul>
+<li><strong>Score only the documents that can score above zero</strong> — those appearing on the
+postings list of at least one query term. Walking all 10,788 documents for every query gives the
+same ranking and is the wrong algorithm.</li>
+<li><strong>Precompute nothing you cannot justify.</strong> Document frequency is the length of a
+postings list, so it needs no separate pass. Say in your report what you cached and why.</li>
+</ul>
+
+<p>Two sanity checks before you go on. A term appearing in every document must receive
+<math data-tex="\mathrm{idf} = 0"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mn>0</mn></mrow></math> and contribute nothing to any score; construct a case and show it. And
+<code>opec</code> (df 121) must outweigh <code>said</code> (df 6,784) heavily — on this corpus
+their idf values are 1.950 and 0.201.</p>
+
+<h2>Stage 5 — Measuring your own choices</h2>
+
+<p>This stage is what separates the project from the labs, and together with the tests you write
+it carries nearly a third of the marks. Every decision in stage 2 was presented to you as a choice, and so far you have only been
+told that such choices matter. Here you find out, on your own system.</p>
+
+<h3>The query set</h3>
+
+<p>These ten queries are supplied, each paired with the Reuters topic label that a good answer
+ought to carry:</p>
+
+<div class="table-scroll">
+<table>
+<tr><th>query</th><th>relevant label</th></tr>
+<tr><td>crude oil prices opec</td><td><code>crude</code></td></tr>
+<tr><td>interest rate cut by the federal reserve</td><td><code>interest</code></td></tr>
+<tr><td>wheat grain exports to the soviet union</td><td><code>grain</code></td></tr>
+<tr><td>coffee quota talks</td><td><code>coffee</code></td></tr>
+<tr><td>gold mining output</td><td><code>gold</code></td></tr>
+<tr><td>japanese yen dollar currency intervention</td><td><code>money-fx</code></td></tr>
+<tr><td>company fourth quarter earnings per share</td><td><code>earn</code></td></tr>
+<tr><td>merger acquisition takeover bid</td><td><code>acq</code></td></tr>
+<tr><td>sugar production quota</td><td><code>sugar</code></td></tr>
+<tr><td>shipping freight rates</td><td><code>ship</code></td></tr>
+</table>
+</div>
+
+<p>For one query, retrieve the top ten documents and count how many carry the paired label. That
+fraction is <strong>precision at 10</strong>. Average it over the ten queries and you have one
+number describing your system.</p>
+
+<p>It is a rough measure and you should treat it as one. A document about the oil price that
+Reuters happened not to label <code>crude</code> counts against you unfairly, and ten queries is a
+small sample. It is nevertheless a great deal better than looking at the results and deciding they
+seem reasonable, and it has the property that matters: it is computed the same way before and after
+a change, so a difference means something.</p>
+
+<h3>The comparison</h3>
+
+<p>Run your full system under each of these settings and record vocabulary size, index build time,
+mean query time, and mean precision at 10:</p>
+
+<ol>
+<li>Tokenization and case folding only.</li>
+<li>Plus stop word removal.</li>
+<li>Plus Porter stemming.</li>
+<li>Plus lemmatization instead of stemming.</li>
+<li>Stemming with the stop list taken back out — the run the next section needs.</li>
+</ol>
+
+<p>These are the five entries of <code>evaluate.SETTINGS</code>, and
+<code>python -m minisearch.cli ablate</code> prints the table once <code>ablation()</code> is
+written.</p>
+
+<p>Then write the paragraph that the table is for. Which step changed the results most? Did any step
+make them <em>worse</em>? Session 4 warned that stop word removal is sometimes a mistake and session
+5 that stemming and lemmatization are not interchangeable — you now have evidence about this
+corpus, and evidence about one corpus is what you should claim.</p>
+
+<h3>What idf does to stop words</h3>
+
+<p>Session 10 claimed that TF-IDF suppresses common words without needing a stop list, because a
+word in every document has <math data-tex="\mathrm{idf} = 0"><mrow><mpadded lspace="0"><mi>idf</mi></mpadded><mo>=</mo><mn>0</mn></mrow></math>. Test that claim directly, and note what the comparison has to
+be: <strong>setting 5 against setting 3</strong>. Those two differ in exactly one field — one has
+the stop list, the other leaves the stop words in the index and lets idf deal with them — so a
+difference between them is attributable. Comparing against setting 1 would move stemming at the
+same time and tell you nothing about the claim.</p>
+
+<p>While you are there, sort your vocabulary by document frequency and read the top thirty terms.
+NLTK's stop list was written for English in general, not for newswire, and this corpus has words
+that behave exactly like stop words without appearing on any list. Name one in your report, give
+its df and idf, and say what a stop list would have had to know in order to contain it.</p>
+
+<h3>Subword tokenization</h3>
+
+<p>Session 3 introduced BPE, and every step above has assumed a word is the unit. Train a BPE
+tokenizer on this corpus with a vocabulary of 8,000 and compare it with your word vocabulary:</p>
+
+<pre><code>from tokenizers import Tokenizer, models, trainers, pre_tokenizers, normalizers
+
+tok = Tokenizer(models.BPE(unk_token="[UNK]"))
+tok.normalizer = normalizers.Sequence([normalizers.NFKC(), normalizers.Lowercase()])
+tok.pre_tokenizer = pre_tokenizers.Whitespace()
+tok.train_from_iterator((reuters.raw(f) for f in fileids),
+                        trainers.BpeTrainer(vocab_size=8000, special_tokens=["[UNK]"]))</code></pre>
+
+<p>Report three things. How many types the word pipeline needs to cover the corpus against BPE's
+8,000. What BPE does to a word your word index has never seen — take a word from outside the
+corpus and encode it. And what the pieces look like: <code>unbelievably</code> comes back as
+<code>un</code>, <code>belie</code>, <code>v</code>, <code>ably</code>, which are not the morphemes
+session 3 described, and the brief explanation of why not is the point of this exercise.</p>
+
+<p>You are <strong>not</strong> asked to build a second index on subword units. Say in one
+paragraph why subword tokens are awkward as index terms for a search engine, given what stage 4
+does with document frequency.</p>
+
+<h2>Stage 6 — The interface</h2>
+
+<p>Put a Streamlit app in front of the index. A single page:</p>
+
+<ul>
+<li>A <strong>search box</strong>, and a choice between Boolean and ranked retrieval.</li>
+<li><strong>Results</strong>: headline, score, topic labels, and a snippet of the body with the
+query's terms highlighted. The highlight must survive stemming — a search for <code>mining</code>
+should mark <code>mines</code> if that is why the document matched. Say how you did it.</li>
+<li>A <strong>timing line</strong>: "10 results of 328 in 24 ms". The 328 is
+<code>n_matching</code> in ranked mode and the length of the postings result in Boolean mode —
+<code>search_ranked</code> hands back the slice, not the total.</li>
+<li><strong>A sidebar that switches between the stage 5 settings</strong>, so a visitor can see
+the ablation happen rather than read the table.</li>
+</ul>
+
+<p>That last one has a trap in it, and noticing the trap is part of the exercise. You cannot change
+the analyser and search the same index: the terms in the index were produced by that analyser, so
+an unstemmed query against a stemmed index is exactly the mismatch stage 2 was about. Each setting
+needs <strong>its own index</strong>, built ahead of time. <code>build_index.py --all</code> does
+that and saves them together.</p>
+
+<p>Two practical points. Load the saved indexes <strong>once</strong>, with
+<code>@st.cache_resource</code>; without it Streamlit re-reads them on every keystroke and the app
+is unusable. And the app should load, never build — it should start in about a second, not in the
+minute per setting the build takes.</p>
+
+<p>The interface is worth 10 marks of 100. It should be clean and it need not be beautiful.</p>
+
+<h2>What you hand in</h2>
+
+<p>The starter repository with the stubs filled in, submitted as a link or a zip. Its layout is
+the layout you hand back:</p>
+
+<div class="table-scroll">
+<table>
+<tr><th>file</th><th>what it holds</th></tr>
+<tr><td><code>minisearch/extract.py</code></td><td>Stage 1.</td></tr>
+<tr><td><code>minisearch/pipeline.py</code></td><td>Stage 2 — the analyser.</td></tr>
+<tr><td><code>minisearch/matrix.py</code> and <code>index.py</code></td><td>Stage 3.</td></tr>
+<tr><td><code>minisearch/ranking.py</code></td><td>Stage 4.</td></tr>
+<tr><td><code>minisearch/evaluate.py</code></td><td>Stage 5's ablation. The harness above it is
+given, and the query set does not change.</td></tr>
+<tr><td><code>app.py</code></td><td>Stage 6. It imports the engine; the engine imports no
+Streamlit.</td></tr>
+<tr><td><code>tests/test_yours.py</code></td><td>The five tests you write, and any you add.</td></tr>
+<tr><td><code>report.md</code></td><td>Four pages at most, including tables.</td></tr>
+<tr><td><code>README.md</code></td><td>How to run it, from a clone to a search box, and where you
+used an AI assistant.</td></tr>
+<tr><td><code>requirements.txt</code></td><td>Pinned versions.</td></tr>
+</table>
+</div>
+
+<p><code>pytest -m ""</code> must pass, <code>tests/test_yours.py</code> included. Nothing else
+in <code>tests/</code> may be edited: those tests are the specification, and a suite that passes
+because you weakened it is worth nothing. If you think one of them is itself wrong, say so in your
+report and show why — that is a reasonable claim to make about a specification, and it will be
+read as one.</p>
+
+<p>The report is not a description of your code. It contains: the ablation table and the paragraph
+reading it; your answer on the incidence matrix; the stop word you found and its numbers; the BPE
+comparison; and one honest paragraph on what your system does badly, with a query that shows it.
+Every system has one. Finding your own is worth more here than not having one.</p>
+
+<p>You will also give a <strong>three-minute demo</strong>: run two queries, one that works and one
+that does not, and answer questions about your ablation table.</p>
+
+<h2>How it is marked</h2>
+
+<div class="table-scroll">
+<table>
+<tr><th>&nbsp;</th><th>marks</th><th>&nbsp;</th></tr>
+<tr><td>Stage 1 — regex extraction</td><td>5</td><td>Fields extracted; one failure found and
+explained.</td></tr>
+<tr><td>Stage 2 — pipeline</td><td>15</td><td>One switchable analyser, used for both indexing and
+queries.</td></tr>
+<tr><td>Stage 3 — index and Boolean</td><td>20</td><td>Both structures; merges, not sets;
+rarest-first timed.</td></tr>
+<tr><td>Stage 4 — TF-IDF ranking</td><td>20</td><td>Correct weights; only candidate documents
+scored.</td></tr>
+<tr><td>Stage 5 — measurement and report</td><td>20</td><td>The table, and the reading of it.</td></tr>
+<tr><td>Stage 6 — interface</td><td>10</td><td>Works, cached, highlights correctly.</td></tr>
+<tr><td>The tests you write</td><td>10</td><td>The five in <code>test_yours.py</code>: whether they
+test what your report actually claims.</td></tr>
+</table>
+</div>
+
+<p>Marks are lost for a system that cannot be run from your README, for numbers in the report that
+<code>evaluate.py</code> does not reproduce, and for claims stated without the evidence to support
+them. A precision of 0.62 that you understand and can explain scores above a 0.90 you cannot.</p>
+
+<h3>Rules</h3>
+
+<ul>
+<li><strong>Individual submission.</strong> Discuss the ideas with anyone; the code and the report
+are yours.</li>
+<li><strong>Libraries.</strong> NLTK, spaCy, <code>regex</code>, NumPy, <code>tokenizers</code>,
+Streamlit and the standard library. Also scikit-learn, but see below.</li>
+<li><strong>Build the index and the ranking yourself.</strong> Not
+<code>TfidfVectorizer</code>, not Whoosh, not Elasticsearch. Scikit-learn is allowed for checking
+your work — comparing your weights against <code>TfidfVectorizer</code> is a reasonable thing to
+do, and lab 7 shows that the two disagree — but the engine you submit must be yours.</li>
+<li><strong>AI assistants.</strong> Permitted, and you must say where you used one, in a section of
+your README. The demo is where this is checked: you will be asked to explain any part of your
+code.</li>
+<li><strong>Deadline.</strong> <em>[date]</em>. Demos in the lab session of <em>[date]</em>.</li>
+</ul>
+
+<h3>What is not in this project</h3>
+
+<p>Sessions 6 and 7 — part-of-speech tagging and named entity recognition — are deliberately
+excluded. So is anything from Unit II onwards: no word embeddings, no classifier, no neural
+network. In particular <strong>cosine similarity is not part of this project</strong>. It arrives
+in session 19, and ranking here is the sum of TF-IDF weights that session 10 defined. Using cosine
+early is not rewarded, and describing your ranking as cosine when it is a sum costs marks.</p>
+
+<h2>Where each stage comes from</h2>
+
+<div class="table-scroll">
+<table>
+<tr><th>stage</th><th>sessions</th><th>lab</th></tr>
+<tr><td>1 · Regex extraction</td><td>1, 2</td><td>Lab 2</td></tr>
+<tr><td>2 · Pipeline</td><td>3, 4, 5</td><td>Lab 3</td></tr>
+<tr><td>3 · Index and Boolean</td><td>8, 9</td><td>Lab 4</td></tr>
+<tr><td>4 · TF-IDF ranking</td><td>10</td><td>—</td></tr>
+<tr><td>5 · Measurement</td><td>3, 4, 5, 10</td><td>—</td></tr>
+<tr><td>6 · Interface</td><td>—</td><td>—</td></tr>
+</table>
+</div>
+
+<p>Stages 4 and 5 have no lab behind them, which is why the starter code carries the most
+scaffolding there. If you are stuck, the session is the place to go back to before the internet
+is.</p>
+
+</div>
+
+<div class="ask">
+  <strong>Stuck on anything?</strong> Ask. Questions are the point — if something here does not
+  make sense, that is worth saying out loud.
+</div>
+
+<nav class="footer-nav">
+  <a href="../reference/glossary.html">Glossary</a>
+  <a href="project-1-requirements.md">Requirements</a>
+  <a href="project-1-starter/README.md">Starter code</a>
+  <a href="../lessons/0010-ranking-with-tf-idf.html">← Session 10: Ranking with TF-IDF</a>
+</nav>
+
+
+</body>
+</html>

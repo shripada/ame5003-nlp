@@ -94,6 +94,10 @@
 }
 
 /* The reader's explicit choice must beat the OS setting, in both directions. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
 :root[data-theme="dark"] {
   --ink: #e7e5e0;
   --ink-soft: #b3afa8;
@@ -438,8 +442,19 @@ body[data-view="student"] [data-teacher] { display: none !important; }
 .teacher-note a { color: var(--teacher); }
 
 /* ---- Student / Teacher switch ---- */
-.view-toggle { position: fixed; top: 1rem; right: 1rem; z-index: 50; }
-.view-toggle button {
+/* ---- Corner tray: student/teacher view + theme toggle ----
+   Built by assets/view-toggle.js and assets/theme-toggle.js. Both scripts
+   append into the same .page-tools element, so the buttons sit in one row and
+   a page carrying only one of the scripts still looks right. */
+.page-tools {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 50;
+  display: flex;
+  gap: .4rem;
+}
+.page-tools button {
   font-family: var(--mono);
   font-size: .68rem;
   letter-spacing: .08em;
@@ -452,14 +467,16 @@ body[data-view="student"] [data-teacher] { display: none !important; }
   cursor: pointer;
   box-shadow: 0 1px 4px rgba(0,0,0,.14);
 }
-.view-toggle button:hover { border-color: var(--accent); color: var(--accent); }
-.view-toggle button[aria-pressed="true"] {
+.page-tools button:hover { border-color: var(--accent); color: var(--accent); }
+.page-tools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* Teacher view is a state worth seeing across the room, so it fills in. */
+.page-tools button.view-toggle[aria-pressed="true"] {
   background: var(--teacher);
   border-color: var(--teacher);
   color: #fff;
 }
 @media (max-width: 1100px) {
-  .view-toggle { position: static; margin: 0 0 1.2rem; }
+  .page-tools { position: static; margin: 0 0 1.2rem; }
 }
 
 /* ---- Tables ---- */
@@ -710,7 +727,7 @@ figcaption {
    appears when you click, on paper as on screen. */
 @media print {
   body { padding: 0; font-size: 10.5pt; max-width: 100%; background: #fff; color: #000; }
-  .view-toggle, .footer-nav, .ask { display: none; }
+  .page-tools, .footer-nav, .ask { display: none; }
   h2 { page-break-after: avoid; }
   pre, .callout, .quiz, figure, table, .teacher-note { page-break-inside: avoid; }
   a { color: #000; }
@@ -718,6 +735,8 @@ figcaption {
 }
 
 </style>
+<script>/* Apply the saved theme before first paint; see assets/theme-toggle.js. */
+try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 </head>
 <body>
 
@@ -1162,5 +1181,82 @@ greedy matching. Session 3 then introduces tokenization.</p>
 
 </script>
 
+<script>
+/* Light / dark / follow-OS theme toggle.
+ *
+ * Three states, cycled by one button:
+ *
+ *   auto   no data-theme attribute; the page follows the reader's OS setting
+ *          through the @media (prefers-color-scheme: dark) block
+ *   light  :root[data-theme="light"] — an explicit choice, which beats the OS
+ *   dark   :root[data-theme="dark"]
+ *
+ * The choice is remembered per browser in localStorage. Both stylesheets
+ * already define all three tiers of tokens; this file only sets the attribute.
+ *
+ * A page that wants no flash of the wrong palette on load must also carry the
+ * one-line inline script in its <head> — see any lesson. This file runs too
+ * late to prevent that flash on its own, which is why the two exist.
+ */
+
+(function () {
+  "use strict";
+
+  var KEY = "nlp-theme";
+  var ORDER = ["auto", "light", "dark"];
+  var LABEL = { auto: "Theme: auto", light: "Theme: light", dark: "Theme: dark" };
+
+  // Shared corner tray. view-toggle.js creates the same element if it runs
+  // first; whichever script gets there first wins and the other reuses it.
+  function tray() {
+    var el = document.querySelector(".page-tools");
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "page-tools";
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function apply(theme, btn) {
+    if (theme === "auto") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+    if (btn) {
+      btn.textContent = LABEL[theme];
+      var next = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];
+      btn.setAttribute("aria-label", LABEL[theme] + ". Switch to " + next + ".");
+    }
+    try { localStorage.setItem(KEY, theme); } catch (e) { /* private mode */ }
+  }
+
+  function boot() {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "theme-toggle";
+
+    var saved;
+    try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+    var theme = ORDER.indexOf(saved) === -1 ? "auto" : saved;
+
+    btn.addEventListener("click", function () {
+      theme = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];
+      apply(theme, btn);
+    });
+
+    tray().appendChild(btn);
+    apply(theme, btn);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
+  }
+})();
+
+</script>
 </body>
 </html>

@@ -43,6 +43,21 @@ not met; none of them is a prerequisite for the lessons.
 - **[NumPy](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/primers/primer-3-numpy.ipynb)** — primer 3
 - **[NumPy, Hands On](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/primers/primer-4-numpy.ipynb)** — primer 4
 
+## Projects
+
+Each project comes three ways. The **brief** says what to build and why, and how it is marked.
+The **requirements** sheet is the same thing in plain English with no code, for building from an
+empty directory. The **starter repository** has the corpus loading, a command line and a test suite
+already written, with stubs for the parts you fill in.
+
+Both routes are marked identically — take the starter if you would rather spend the time on the
+measuring and the writing, and the requirements sheet if you would rather build the whole thing
+yourself.
+
+| # | project | | |
+|---|---------|---|---|
+| 1 | [A mini search engine](https://shripada.github.io/ame5003-nlp/projects/project-1-mini-search-engine.html) | [requirements](https://github.com/shripada/ame5003-nlp/blob/main/projects/project-1-requirements.md) | [starter code](https://github.com/shripada/ame5003-nlp/tree/main/projects/project-1-starter) |
+
 ## Classroom demos
 
 `classroom/demos/` holds the scripts run live in class, one per session, using the same examples

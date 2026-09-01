@@ -78,6 +78,10 @@
   }
 }
 
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"]  { color-scheme: dark; }
+
 :root[data-theme="dark"] {
   --ink: #e7e5e0;
   --ink-soft: #b3afa8;
@@ -742,6 +746,39 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
   border-radius: 3px;
 }
 
+/* ---- Corner tray: theme toggle ----
+   Built by assets/theme-toggle.js. Identical to lesson.css's copy — a deck
+   must stand alone, so slides.css carries its own. Fix one, fix the other.
+   A deck has no teacher-view button; the tray holds the theme button alone. */
+.page-tools {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 60;                 /* with the rest of the deck chrome */
+  display: flex;
+  gap: .4rem;
+}
+.page-tools button {
+  font-family: var(--mono);
+  font-size: .68rem;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: .5rem .85rem;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0,0,0,.14);
+}
+.page-tools button:hover { border-color: var(--accent); color: var(--accent); }
+.page-tools button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* A deck has no document flow to drop the tray into, so unlike lesson.css's
+   copy it stays fixed on a narrow screen and only shrinks. */
+@media (max-width: 1100px) {
+  .page-tools button { padding: .4rem .6rem; font-size: .62rem; }
+}
+
 /* ---- Overview / jump list (toggled by "o", built by slides.js) ---- */
 .deck-overview {
   position: fixed;
@@ -787,7 +824,8 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 @media print {
   .deck { height: auto; overflow: visible; scroll-snap-type: none; }
   .slide { height: auto; min-height: 100vh; page-break-after: always; }
-  .deck-progress, .deck-counter, .deck-overview, .deck-exit, .deck-zoom { display: none; }
+  .deck-progress, .deck-counter, .deck-overview, .deck-exit, .deck-zoom,
+  .page-tools { display: none; }
   /* Print the slide as authored, whatever it was magnified to on screen. */
   .slide { overflow: visible; }
   .slide-inner { transform: none; }
@@ -861,6 +899,8 @@ mtable.tml-small mtd { padding-top: 0.35ex; padding-bottom: 0.35ex; }
 .fig-cellg   { fill: none; stroke: var(--rule); stroke-width: 1.2; }
 
 </style>
+<script>/* Apply the saved theme before first paint; see assets/theme-toggle.js. */
+try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.documentElement.setAttribute("data-theme",t);}catch(e){}</script>
 </head>
 <body>
 
@@ -2147,6 +2187,83 @@ ROOM:    Gates 104</code></pre>
     });
   } else {
     updateChrome(0);
+  }
+})();
+
+</script>
+<script>
+/* Light / dark / follow-OS theme toggle.
+ *
+ * Three states, cycled by one button:
+ *
+ *   auto   no data-theme attribute; the page follows the reader's OS setting
+ *          through the @media (prefers-color-scheme: dark) block
+ *   light  :root[data-theme="light"] — an explicit choice, which beats the OS
+ *   dark   :root[data-theme="dark"]
+ *
+ * The choice is remembered per browser in localStorage. Both stylesheets
+ * already define all three tiers of tokens; this file only sets the attribute.
+ *
+ * A page that wants no flash of the wrong palette on load must also carry the
+ * one-line inline script in its <head> — see any lesson. This file runs too
+ * late to prevent that flash on its own, which is why the two exist.
+ */
+
+(function () {
+  "use strict";
+
+  var KEY = "nlp-theme";
+  var ORDER = ["auto", "light", "dark"];
+  var LABEL = { auto: "Theme: auto", light: "Theme: light", dark: "Theme: dark" };
+
+  // Shared corner tray. view-toggle.js creates the same element if it runs
+  // first; whichever script gets there first wins and the other reuses it.
+  function tray() {
+    var el = document.querySelector(".page-tools");
+    if (!el) {
+      el = document.createElement("div");
+      el.className = "page-tools";
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+
+  function apply(theme, btn) {
+    if (theme === "auto") {
+      document.documentElement.removeAttribute("data-theme");
+    } else {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+    if (btn) {
+      btn.textContent = LABEL[theme];
+      var next = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];
+      btn.setAttribute("aria-label", LABEL[theme] + ". Switch to " + next + ".");
+    }
+    try { localStorage.setItem(KEY, theme); } catch (e) { /* private mode */ }
+  }
+
+  function boot() {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "theme-toggle";
+
+    var saved;
+    try { saved = localStorage.getItem(KEY); } catch (e) { saved = null; }
+    var theme = ORDER.indexOf(saved) === -1 ? "auto" : saved;
+
+    btn.addEventListener("click", function () {
+      theme = ORDER[(ORDER.indexOf(theme) + 1) % ORDER.length];
+      apply(theme, btn);
+    });
+
+    tray().appendChild(btn);
+    apply(theme, btn);
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", boot);
+  } else {
+    boot();
   }
 })();
 

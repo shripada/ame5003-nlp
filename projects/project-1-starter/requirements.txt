@@ -1,0 +1,8 @@
+# Pin these. A report whose numbers cannot be reproduced loses marks, and an
+# unpinned NLTK is one of the ways that happens.
+nltk==3.9.1
+regex==2024.11.6
+numpy==2.2.1
+tokenizers==0.21.0
+streamlit==1.41.1
+pytest==8.3.4
