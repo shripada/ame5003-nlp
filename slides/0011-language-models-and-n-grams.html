@@ -1108,8 +1108,10 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
         <tr><td>trigram</td><td>125,000,000,000,000</td></tr>
         <tr><td>4-gram</td><td>6,250,000,000,000,000,000</td></tr>
       </table>
-      <p class="aside">Each increase in n multiplies by the whole vocabulary. There is not enough
-      text in existence to have seen most trigrams even once.</p>
+      <p class="aside">Each increase in n multiplies by the whole vocabulary. These are the cells
+      the model must be able to fill, not the sequences the corpus contains &mdash; the corpus
+      supplies at most one n-gram per word position, so almost every cell is one it never
+      filled.</p>
     </div>
   </section>
 

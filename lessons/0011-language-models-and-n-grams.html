@@ -915,9 +915,11 @@ of 50,000 words:</p>
   <tr><td>4-gram</td><td>6,250,000,000,000,000,000</td></tr>
 </table>
 
-<p>Each increase in n multiplies the count by the size of the whole vocabulary. There is not
-enough text in existence to have observed most trigrams even once, let alone often enough to
-estimate a probability from. The counts therefore become sparser as n grows.</p>
+<p>Each increase in n multiplies the count by the size of the whole vocabulary. These are the
+cells the model must be able to fill, not the sequences the corpus contains: the corpus supplies at
+most one n-gram per word position, so almost every cell in the table is one the corpus never
+filled. There is not enough text in existence to have observed most trigrams even once, let alone
+often enough to estimate a probability from. The counts therefore become sparser as n grows.</p>
 
 <p><mark>This is the central tension in n-gram models: more context gives better predictions, but
 more context leaves less data from which to estimate it.</mark> In practice, trigram to 5-gram
