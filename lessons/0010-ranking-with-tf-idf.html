@@ -841,8 +841,9 @@ explicitly.</p>
 
 <p>The first factor measures how often the term appears in this document; the second, how rare it
 is across all documents. This quantity is high in precisely the desired case: a term that appears often in this
-document and is rare across the collection, that is, a word distinctive to this document. It is low
-for a word that is rare here and close to zero for a word that occurs everywhere.</p>
+document and is rare across the collection, that is, a word distinctive to this document. It is
+lower for a common word appearing only once or twice here, and close to zero for a word that occurs
+everywhere.</p>
 
 <p>To score a whole document for a query, we sum the tf-idf weights of the query terms and sort the
 matching documents by that total, placing the highest-scoring document first. This is ranked
