@@ -1172,8 +1172,19 @@ P(w_3 \mid w_1 w_2) &amp;= \lambda_1 \, P(w_3 \mid w_1 w_2) &amp;&amp; \text{tri
     <div class="slide-inner">
       <p class="lede">Smoothing handles an unseen <em>pair of known words</em></p>
       <p>Session 12's failure was <code>Indian pizza</code>, and <code>pizza</code> is not in our
-      vocabulary at all. It has no count to smooth and is not among the V words the probability was
-      spread over.</p>
+      vocabulary at all. It has no count to smooth and is not among the <math data-tex="V"><mi>V</mi></math> words the
+      probability was spread over.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement" data-title="What modern systems do">
+    <div class="slide-inner">
+      <p class="lede">Modern systems mostly arrange for the problem not to arise</p>
+      <p>A language model usually runs over the <strong>subword tokens</strong> of session 3, and
+      BPE can write any string as tokens the model has seen — worst case, one per character. Under a
+      subword vocabulary <code>pizza</code> is not an unknown word, only a sequence of known pieces.
+      Our four sentences are split on whitespace, so the mechanism to work through is the other
+      one.</p>
     </div>
   </section>
 
@@ -1286,8 +1297,8 @@ P(w_3 \mid w_1 w_2) &amp;= \lambda_1 \, P(w_3 \mid w_1 w_2) &amp;&amp; \text{tri
         <li>
           <p class="ref-title">Jurafsky &amp; Martin — <em>Speech and Language Processing</em>,
           chapter 3</p>
-          <p class="ref-note">&ldquo;N-gram Language Models&rdquo;. Read the sections on smoothing
-          and on unknown words.</p>
+          <p class="ref-note">&ldquo;N-gram Language Models&rdquo;. &sect;3.6 for smoothing,
+          interpolation and backoff; the end of &sect;3.5 for unknown words.</p>
           <a class="ref-link" href="https://web.stanford.edu/~jurafsky/slp3/"
           target="_blank" rel="noopener">web.stanford.edu/~jurafsky/slp3/</a>
         </li>

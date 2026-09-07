@@ -926,16 +926,24 @@ Measuring what "best" means is the subject of session 14.</p>
 <h2>Unknown words</h2>
 
 <p>Everything above addresses an unseen <em>pair of known words</em>. Session 12's failure,
-however, involved <code>Indian pizza</code>, and <code>pizza</code> is not in our vocabulary at all.
-Smoothing cannot help here: the word has no count to smooth and is not among the V words over which
-the probability was distributed.</p>
+however, involved <code>Indian pizza</code>, and <code>pizza</code> appears nowhere in the four
+sentences. Smoothing cannot help here: the word has no count to smooth and is not among the
+<math data-tex="V"><mi>V</mi></math> words over which the probability was distributed.</p>
 
-<p>The standard solution is to reserve a slot for such words. Before training, rare words in the
-corpus, for instance every word occurring only once, are replaced by a single special token,
+<p>Modern systems mostly arrange for the problem not to arise. A language model is usually run
+not over words but over the subword tokens of session 3, and <strong>BPE</strong> can write any
+string as a sequence of tokens the model has seen — in the worst case one token per character. Under
+a subword vocabulary <code>pizza</code> is not an unknown word at all, only a short sequence of
+known pieces. We cannot show that on our four sentences, which are tokenized by whitespace, so the
+mechanism worth working through here is the other one.</p>
+
+<p>That mechanism reserves a slot for such words. Before training, rare words in the corpus, for
+instance every word occurring only once, are replaced by a single special token,
 <strong><code>&lt;UNK&gt;</code></strong>, and training proceeds normally.
 <code>&lt;UNK&gt;</code> becomes an ordinary vocabulary item with real counts, and at test time any
-word the model has not seen is replaced by <code>&lt;UNK&gt;</code> and receives that
-probability.</p>
+word the model has not seen is replaced by <code>&lt;UNK&gt;</code> and receives that probability.
+Libraries do this by default: NLTK's vocabulary for our corpus has an <code>&lt;UNK&gt;</code> entry
+whether we ask for one or not, which is a discrepancy the lab will run into.</p>
 
 <p>The model therefore no longer reports that the sentence is impossible. It reports that the
 sentence contains a word it does not know, which is both accurate and useful.</p>
@@ -1017,8 +1025,10 @@ Session 14 introduces perplexity.</p>
 
 <p>The primary source is <strong><a href="https://web.stanford.edu/~jurafsky/slp3/">Speech and
 Language Processing</a></strong> by Jurafsky and Martin, 3rd edition, <strong>chapter 3</strong>,
-"N-gram Language Models", available free online. Read the sections on smoothing and on unknown
-words. <strong>Appendix C</strong> of the same book covers the stronger methods that develop these
+"N-gram Language Models", available free online. <strong>&sect;3.6</strong> is smoothing,
+interpolation and backoff; the closing paragraph of <strong>&sect;3.5</strong> is where the book
+answers the unseen-word question, and answers it with subword tokenization.
+<strong>Appendix C</strong> of the same book covers the stronger methods that develop these
 ideas, including Good-Turing and Kneser-Ney. Read chapter 3 first; the appendix is optional.</p>
 
 

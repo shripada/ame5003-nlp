@@ -743,8 +743,9 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 11</p>
   <h1>Language models and n-grams</h1>
-  <p class="subtitle">A model that guesses the next word. It is the same idea ChatGPT runs on — and
-  the simplest version of it is just looking at the last word or two.</p>
+  <p class="subtitle">A model that guesses the next word. It is the same idea ChatGPT runs on —
+  and the simplest version of it is just looking at the last word or two which is known as
+  n-gram model.</p>
 </header>
 
 <div class="wrap">
@@ -762,14 +763,14 @@ so far, what word comes next?</p>
 
 <pre><code>I want to eat Indian ____</code></pre>
 
-<p>Most readers supply <code>food</code>, or perhaps <code>curry</code>, and almost certainly not
-<code>helicopter</code>. No lookup is involved; the prediction comes from knowledge of how English
-sentences typically proceed. A <strong>language model</strong> is a system that does the same
-thing.</p>
+<p>Most readers supply <code>food</code>, or perhaps <code>curry</code>, and almost certainly
+not <code>helicopter</code>. No lookup is involved; the prediction comes from knowledge of how
+English sentences typically proceed. A <strong>language model</strong> is a system that does the
+same thing - predicts the next word.</p>
 
 <h2>What a language model is</h2>
 
-<p>The definition is brief.</p>
+<p>A program that predicts next word given a sequence of words</p>
 
 <div class="callout">
   <span class="label">Definition</span>
@@ -839,10 +840,13 @@ enough to verify by hand.</p>
 
 <h2>Why the full context cannot be used</h2>
 
-<p>Before stating that quantity we need the notation for it. We write the probability of a word
-<math data-tex="w"><mi>w</mi></math> as <math data-tex="P(w)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>. When that probability depends on what has already been written, the
-history <math data-tex="h"><mi>h</mi></math> is placed after a vertical bar, which is read "given": <math data-tex="P(w \mid h)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>h</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is a
-<strong>conditional probability</strong>, the probability of <math data-tex="w"><mi>w</mi></math> given <math data-tex="h"><mi>h</mi></math>. A language
+<p>We write the probability of a word <math data-tex="w"><mi>w</mi></math> as
+<math data-tex="P(w)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>.
+When that probability depends on what has already been written, the history
+<math data-tex="h"><mi>h</mi></math> is placed after a vertical bar, which is read "given":
+<math data-tex="P(w \mid h)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>w</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>h</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>
+is a <strong>conditional probability</strong>, the probability of
+<math data-tex="w"><mi>w</mi></math> given <math data-tex="h"><mi>h</mi></math>. A language
 model computes this quantity for every word the vocabulary offers.</p>
 
 <p>To predict the next word properly, we would want to use everything preceding it. Stated
@@ -861,10 +865,10 @@ words</strong>:</p>
 
 <div class="meq"><math data-tex="P(\text{food} \mid \text{Indian})" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>food</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>Indian</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math></div>
 
-<p>The first form conditions on everything and is impossible to estimate; the second conditions on
-the last word alone and is easy. Short histories recur constantly; <code>Indian food</code> appears frequently in any corpus.
-This trade, discarding the distant history and retaining a small window, is the idea underlying
-n-grams.</p>
+<p>The first form requires us to get conditional probability with whole sequence, which is hard,
+the second conditions on the last word alone and is easy. Short histories recur constantly;
+<code>Indian food</code> appears frequently in any corpus. This trade, discarding the distant
+history and retaining a small window, is the idea underlying n-grams.</p>
 
 <h2>What an n-gram is</h2>
 
@@ -904,14 +908,15 @@ essential, since it is how the model observes each word in more than one context
   <tr><td>trigram</td><td>the previous 2 words</td><td>what usually follows <code>eat Indian</code>?</td></tr>
 </table>
 
-<p>A unigram model has no context and therefore predicts common words, producing output such as
-"the of and to a". A bigram model at least preserves adjacent pairs, and a trigram model produces
-output noticeably closer to natural language. More context yields better predictions.</p>
+<p>A unigram model has no context and therefore can only know the individual occurrences of each
+word in isolation. A bigram model at least preserves adjacent pairs, and a trigram model looks
+at least 2 words previous to current one and produces output noticeably closer to natural
+language. More context yields better predictions.</p>
 
 <h3>Why n cannot be large</h3>
 
-<p>The reason is that the number of possible n-grams grows extremely rapidly. With a vocabulary
-of 50,000 words:</p>
+<p>The reason is that the number of possible n-grams (permutations) grows extremely rapidly.
+With a vocabulary of 50,000 words:</p>
 
 <table>
   <tr><th>model</th><th>possible sequences</th></tr>
@@ -997,10 +1002,10 @@ principal reason they displaced n-grams.</p>
   which trades accuracy for having sufficient data from which to estimate.</p>
 </div>
 
-<p>Session 12 makes this concrete by addressing where the probabilities come from. The answer is
-counting: count how often <code>Indian food</code> appears, compare that with how often
-<code>Indian</code> appears, and the result is a probability. This introduces the chain rule and the
-assumption that permits discarding the distant history.</p>
+<p>Session 12 makes this concrete by addressing how the probabilities are computed. The answer
+is counting: count how often <code>Indian food</code> appears, compare that with how often
+<code>Indian</code> appears, and the result is a probability. This introduces the chain rule and
+the assumption that permits discarding the distant history.</p>
 
 <h2>Reading</h2>
 
