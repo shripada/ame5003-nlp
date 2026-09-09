@@ -946,8 +946,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
     <div class="slide-inner">
       <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 13</p>
       <h1>The zero problem and smoothing</h1>
-      <p class="subtitle">Counting calls an unseen sentence impossible, which it is not. Fixing that
-      means taking probability away from what we saw and giving it to what we did not.</p>
+      <p class="subtitle">We encountered the unseen bigram problem that resulted in zero probabilities. How do we fix it?</p>
     </div>
   </section>
 
@@ -963,7 +962,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
       <p>This is not an artefact of a small corpus that disappears with more data; at realistic
       vocabulary sizes it becomes more severe.</p>
       <footer>A 50,000-word vocabulary admits 2.5 billion possible bigrams, and no corpus holds more
-      than a small fraction. Most test sentences contain at least one unseen pair.</footer>
+      than a small fraction of these bigrams. Most test sentences contain at least one unseen pair.</footer>
     </div>
   </section>
 

@@ -17,4 +17,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pdbpp>=0.12.1",
+    # Session 13 is taught from notebooks/s13-smoothing.ipynb, which runs in this
+    # environment because it needs matplotlib. nbclient executes it for checking.
+    "jupyterlab>=4.4.0",
+    "nbclient>=0.10.0",
 ]
