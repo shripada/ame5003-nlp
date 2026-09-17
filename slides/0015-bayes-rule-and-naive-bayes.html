@@ -946,9 +946,11 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
     <div class="slide-inner">
       <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 15</p>
       <h1>Bayes' rule and the Naïve Bayes classifier</h1>
-      <p class="subtitle">The question we want to ask cannot be counted, so we turn it into two
-      questions that can, and then make two assumptions we know to be false so that the harder of
-      the two becomes countable as well.</p>
+      <p class="subtitle">To label a new review we would have to count how often that exact review
+      has been labelled positive before, and the answer is never. Bayes' rule turns that into two
+      questions we can count instead — how common each class is, and how often each word appears
+      in it — once we agree to two simplifications that are plainly untrue of language: that word
+      order does not matter, and that the words are unrelated to one another.</p>
     </div>
   </section>
 
@@ -1019,10 +1021,26 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
     </div>
   </section>
 
-  <section class="slide slide--statement warn" data-title="The denominator is 0 or 1">
+  <section class="slide slide--table" data-title="What the counts count">
     <div class="slide-inner">
-      <p>The denominator is 1 if that document is in the training set and 0 otherwise. It will not
-      be — it is a new document, which is the entire point of a classifier.</p>
+      <h2>Both counts are taken over whole documents</h2>
+      <table>
+        <tr><th>class</th><th>document</th></tr>
+        <tr><td>−</td><td>predictable with no fun</td></tr>
+        <tr><td>−</td><td>predictable with no fun</td></tr>
+        <tr><td>+</td><td>predictable with no fun</td></tr>
+        <tr><td>+</td><td>predictable but fun</td></tr>
+      </table>
+      <p class="aside">In this invented training set, three documents match exactly and one is
+      positive, so the estimate is <math data-tex="1/3"><mrow><mn>1</mn><mi>/</mi><mn>3</mn></mrow></math>. <em>predictable but fun</em> shares two words and
+      counts for nothing.</p>
+    </div>
+  </section>
+
+  <section class="slide slide--statement warn" data-title="A new document counts 0">
+    <div class="slide-inner">
+      <p>A real training set will not contain our review even once, so the fraction is
+      <math data-tex="0/0"><mrow><mn>0</mn><mi>/</mi><mn>0</mn></mrow></math>. It is a new document, which is the entire point of a classifier.</p>
       <footer>The same shape as session 12: the quantity we want is well defined and cannot be
       counted, because the thing we would count is unique.</footer>
     </div>
@@ -1053,10 +1071,28 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
     </div>
   </section>
 
+  <section class="slide slide--statement" data-title="The joint probability">
+    <div class="slide-inner">
+      <p>The <strong class="term">joint probability</strong> <math data-tex="P(x, y)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> is the probability that
+      <math data-tex="x"><mi>x</mi></math> and <math data-tex="y"><mi>y</mi></math> are both true. It can be built up in either order: <math data-tex="y"><mi>y</mi></math> first and
+      then <math data-tex="x"><mi>x</mi></math> given <math data-tex="y"><mi>y</mi></math>, or <math data-tex="x"><mi>x</mi></math> first and then <math data-tex="y"><mi>y</mi></math> given <math data-tex="x"><mi>x</mi></math>.</p>
+      <footer>Both orders describe the same event, so the two products are the same number.</footer>
+    </div>
+  </section>
+
+  <section class="slide slide--math" data-title="The joint, written both ways">
+    <div class="slide-inner">
+      <h2>The joint, written both ways</h2>
+      <div class="meq"><math data-tex="\begin{aligned} P(x, y) &amp;= P(x \mid y)\, P(y) \\ P(x, y) &amp;= P(y \mid x)\, P(x) \end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
+      <p class="aside">Set the two right-hand sides equal and divide through by <math data-tex="P(y)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>.</p>
+    </div>
+  </section>
+
   <section class="slide slide--math" data-title="Bayes' rule">
     <div class="slide-inner">
       <h2>Bayes' rule, in general form</h2>
       <div class="meq"><math data-tex="P(x \mid y) = \frac{P(y \mid x)\, P(x)}{P(y)}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
+      <p class="aside">A rearrangement of the line above, not a new assumption.</p>
     </div>
   </section>
 

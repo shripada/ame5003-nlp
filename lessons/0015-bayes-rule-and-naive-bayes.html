@@ -743,8 +743,11 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 15</p>
   <h1>Bayes' rule and the Naïve Bayes classifier</h1>
-  <p class="subtitle">The question we want to ask cannot be counted. So we turn it into two
-  questions that can — and then tell two deliberate lies to make the second one countable too.</p>
+  <p class="subtitle">To label a new review we would have to count how often that exact review has
+  been labelled positive before, and the answer is never. Bayes' rule turns that into two
+  questions we can count instead — how common each class is, and how often each word appears in it
+  — once we agree to two simplifications that are plainly untrue of language: that word order does
+  not matter, and that the words are unrelated to one another.</p>
 </header>
 
 <div class="wrap">
@@ -803,8 +806,28 @@ counting:</p>
 
 <div class="meq"><math data-tex="P(\text{positive} \mid \text{&quot;predictable with no fun&quot;}) = \frac{\mathrm{count}(\text{that exact document, labelled positive})}{\mathrm{count}(\text{that exact document})}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>positive</mtext><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mtext>&quot;predictable with no fun&quot;</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>that exact document, labelled positive</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mpadded lspace="0"><mi>count</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mtext>that exact document</mtext><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
 
-<p>The denominator is 1 if that document happens to appear in the training set and 0 otherwise.
-It will not appear, because it is a new document, which is the entire purpose of a classifier.</p>
+<p>Both counts are taken over whole documents. The numerator is the number of training documents
+that are, word for word, <em>predictable with no fun</em> and are labelled positive. The
+denominator is the number of training documents that are that string, whatever their label. A
+small invented training set shows what this means. Suppose, for the sake of the example, it held
+these four reviews:</p>
+
+<table>
+  <tr><th>class</th><th>document</th></tr>
+  <tr><td>−</td><td>predictable with no fun</td></tr>
+  <tr><td>−</td><td>predictable with no fun</td></tr>
+  <tr><td>+</td><td>predictable with no fun</td></tr>
+  <tr><td>+</td><td>predictable but fun</td></tr>
+</table>
+
+<p>Three documents match the string exactly and one of them is positive, so the estimate is
+<math data-tex="1/3"><mrow><mn>1</mn><mi>/</mi><mn>3</mn></mrow></math>. The fourth review shares two words with ours and contributes nothing to either count,
+because under this estimate a document matches as a whole or not at all.</p>
+
+<p>A real training set will not contain our review even once. Both counts are then 0, the
+fraction is <math data-tex="0/0"><mrow><mn>0</mn><mi>/</mi><mn>0</mn></mrow></math>, and there is no estimate, however many training reviews share its words.
+This is not bad luck. A classifier exists to label documents it has not seen, so for almost every
+document we ask about, the denominator will be 0.</p>
 
 <div class="callout warn">
   <span class="label">The same problem as in session 12</span>
@@ -836,10 +859,21 @@ is the quantity we want and cannot count.</p>
 
 <h2>Bayes' rule</h2>
 
-<p><strong>Bayes' rule</strong> relates the two conditional probabilities that point in opposite
-directions. In general form:</p>
+<p>The rule is not an extra assumption. It follows in two lines from the definition of a
+conditional probability. Write <math data-tex="P(x, y)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, the <strong>joint probability</strong>, for the
+probability that <math data-tex="x"><mi>x</mi></math> and <math data-tex="y"><mi>y</mi></math> are both true. That event can be described in either order:
+<math data-tex="y"><mi>y</mi></math> happens, and then <math data-tex="x"><mi>x</mi></math> given <math data-tex="y"><mi>y</mi></math>; or <math data-tex="x"><mi>x</mi></math> happens, and then <math data-tex="y"><mi>y</mi></math> given
+<math data-tex="x"><mi>x</mi></math>. The two descriptions are of the same event, so the two products agree:</p>
+
+<div class="meq"><math data-tex="\begin{aligned} P(x, y) &amp;= P(x \mid y)\, P(y) \\ P(x, y) &amp;= P(y \mid x)\, P(x) \end{aligned}" display="block" class="tml-display" style="display:block math;"><mtable displaystyle="true" class="tml-jot"><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr><mtr><mtd class="tml-right" style="padding-left:0em;padding-right:0em;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo separator="true">,</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mo>=</mo><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mtd></mtr></mtable></math></div>
+
+<p>The two right-hand sides are therefore equal, and dividing both by <math data-tex="P(y)"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math> leaves the
+conditional we want alone on the left. The result is <strong>Bayes' rule</strong>, which relates
+the two conditional probabilities that point in opposite directions:</p>
 
 <div class="meq"><math data-tex="P(x \mid y) = \frac{P(y \mid x)\, P(x)}{P(y)}" display="block" class="tml-display" style="display:block math;"><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mfrac><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo lspace="0.22em" rspace="0.22em" stretchy="false">|</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mspace width="0.1667em"></mspace><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>x</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow><mrow><mi>P</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>y</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></mfrac></mrow></math></div>
+
+
 
 <p>Applied to our problem, it turns the posterior into the other three:</p>
 

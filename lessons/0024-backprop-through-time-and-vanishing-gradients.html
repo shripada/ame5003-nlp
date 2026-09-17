@@ -743,9 +743,10 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <header class="masthead">
   <p class="eyebrow">MSIS · AME 5003 · Unit III · Session 24</p>
   <h1>Training an RNN: backprop through time, and the vanishing gradient</h1>
-  <p class="subtitle">Last session ended on a promise the architecture makes and a question nobody
-  answered. This session answers it, and the answer is no — not by default. That "no" is the entire
-  reason the next session exists.</p>
+  <p class="subtitle">Session 23 claimed an RNN can let a decision depend on a word hundreds of
+  steps back. Training it does not deliver that, because the gradient is multiplied by the same
+  matrix once for every step it travels back and shrinks away long before it arrives. That failure
+  is where the next architecture comes from.</p>
 </header>
 
 <div class="wrap">

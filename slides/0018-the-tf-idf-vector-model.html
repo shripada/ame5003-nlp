@@ -946,8 +946,11 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
     <div class="slide-inner">
       <p class="slide-eyebrow">MSIS · AME 5003 · Unit II · Session 18</p>
       <h1>The TF-IDF vector model</h1>
-      <p class="subtitle">Last session's table rewarded the wrong words. This session re-weights it,
-      and the result says something unexpected about the collection itself.</p>
+      <p class="subtitle">Last session's table rewarded the wrong words, because <code>good</code>
+      is common everywhere. Re-weighting each count by how rare the word is across the collection
+      fixes that, and it also says something about the collection itself: across Shakespeare's 37
+      plays <code>fool</code> and <code>wit</code> are worth almost nothing, because he uses them
+      in 36 and 34 of them.</p>
     </div>
   </section>
 

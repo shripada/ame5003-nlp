@@ -209,7 +209,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <a class="item" href="lessons/0012-n-gram-probabilities-and-the-markov-assumption.html">
   <span class="n">Session 12</span>
   <span class="t">N-gram probabilities and the Markov assumption</span>
-  <span class="d">Where the numbers come from. The chain rule states a sentence's probability exactly, but the counts it asks for are too rare in any corpus to estimate, so we approximate it with an assumption we know to be false.</span>
+  <span class="d">Where the numbers come from. The chain rule states a sentence's probability exactly, but the counts it asks for are too rare in any corpus to estimate, so we replace the whole history with the last word or two — the Markov assumption, which is plainly untrue of language and works anyway.</span>
 </a>
 
 <a class="item" href="lessons/0013-the-zero-problem-and-smoothing.html">
@@ -227,7 +227,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <a class="item" href="lessons/0015-bayes-rule-and-naive-bayes.html">
   <span class="n">Session 15</span>
   <span class="t">Bayes' rule and the Naïve Bayes classifier</span>
-  <span class="d">The question we want to ask cannot be counted. So we turn it into two questions that can — and then tell two deliberate lies to make the second one countable too.</span>
+  <span class="d">To label a new review we would have to count how often that exact review has been labelled positive before, and the answer is never. Bayes' rule turns that into two questions we can count instead — how common each class is, and how often each word appears in it — once we agree to two simplifications that are plainly untrue of language: that word order does not matter, and that the words are unrelated to one another.</span>
 </a>
 
 <a class="item" href="lessons/0016-naive-bayes-for-sentiment.html">
@@ -245,7 +245,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <a class="item" href="lessons/0018-the-tf-idf-vector-model.html">
   <span class="n">Session 18</span>
   <span class="t">The TF-IDF vector model</span>
-  <span class="d">Last session's table rewarded the wrong words. Today we re-weight it — and the answer we get back is not the one anybody expects.</span>
+  <span class="d">Last session's table rewarded the wrong words, because good is common everywhere. Re-weighting each count by how rare the word is across the collection fixes that, and it also says something about the collection itself: across Shakespeare's 37 plays fool and wit are worth almost nothing, because he uses them in 36 and 34 of them.</span>
 </a>
 
 <a class="item" href="lessons/0019-cosine-similarity.html">
@@ -269,7 +269,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <a class="item" href="lessons/0022-glove.html">
   <span class="n">Session 22</span>
   <span class="t">GloVe</span>
-  <span class="d">One loss function and one co-occurrence matrix. What makes the session worth an hour is the question it raises about Word2Vec, and the answer, which is not the one GloVe's own paper gives.</span>
+  <span class="d">One loss function and one co-occurrence matrix. The session's real subject is the question GloVe raises about Word2Vec — whether counting the whole corpus at once beats predicting from one window at a time — and the answer, which is not the one GloVe's paper gives.</span>
 </a>
 
 <h3 class="unit">Unit III — Deep learning and applications</h3>
@@ -283,7 +283,7 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 <a class="item" href="lessons/0024-backprop-through-time-and-vanishing-gradients.html">
   <span class="n">Session 24</span>
   <span class="t">Training an RNN: backprop through time, and the vanishing gradient</span>
-  <span class="d">Last session ended on a promise the architecture makes and a question nobody answered. This session answers it, and the answer is no — not by default. That "no" is the entire reason the next session exists.</span>
+  <span class="d">Session 23 claimed an RNN can let a decision depend on a word hundreds of steps back. Training it does not deliver that, because the gradient is multiplied by the same matrix once for every step it travels back and shrinks away long before it arrives. That failure is where the next architecture comes from.</span>
 </a>
 
 <a class="item" href="lessons/0025-the-lstm.html">
@@ -580,6 +580,29 @@ detail.</p>
   <span class="n">Session 13</span>
   <span class="t">Smoothing: paying for the unseen out of the seen</span>
   <span class="d">demos/s13_smoothing.py</span>
+</a>
+
+<h2>Exam practice</h2>
+
+<p>Sample papers for the mid-semester examinations. Both theory papers have the same shape as the
+real one: answer all questions, 1 hour 50 minutes, 50 marks.</p>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/exam-practice/mse-set-a.md">
+  <span class="n">Theory</span>
+  <span class="t">Sample paper, Set A</span>
+  <span class="d">Text processing, retrieval, n-gram models and tokenisation.</span>
+</a>
+
+<a class="item" href="https://github.com/shripada/ame5003-nlp/blob/main/exam-practice/mse-set-e.md">
+  <span class="n">Theory</span>
+  <span class="t">Sample paper, Set E</span>
+  <span class="d">The same syllabus with different examples.</span>
+</a>
+
+<a class="item" href="https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/exam-practice/sample-lab-exam.ipynb">
+  <span class="n">Lab</span>
+  <span class="t">Sample lab examination</span>
+  <span class="d">Covers Labs 1–5. Opens in Colab; save a copy in Drive before you start.</span>
 </a>
 
 <h2>Reference</h2>

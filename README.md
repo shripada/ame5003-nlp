@@ -59,6 +59,14 @@ yourself.
 |---|---------|---|---|
 | 1 | [A mini search engine](https://shripada.github.io/ame5003-nlp/projects/project-1-mini-search-engine.html) | [requirements](https://github.com/shripada/ame5003-nlp/blob/main/projects/project-1-requirements.md) | [starter code](https://github.com/shripada/ame5003-nlp/tree/main/projects/project-1-starter) |
 
+## Exam practice
+
+Sample papers for the mid-semester examinations. Answer all questions; 1 hour 50 minutes; 50 marks.
+
+- [Theory sample paper, Set A](exam-practice/mse-set-a.md)
+- [Theory sample paper, Set E](exam-practice/mse-set-e.md)
+- [Sample lab examination](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/exam-practice/sample-lab-exam.ipynb) — opens in Colab
+
 ## Classroom demos
 
 `classroom/demos/` holds the scripts run live in class, one per session, using the same examples

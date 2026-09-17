@@ -744,8 +744,9 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
   <p class="eyebrow">MSIS · AME 5003 · Unit II · Session 12</p>
   <h1>N-gram probabilities and the Markov assumption</h1>
   <p class="subtitle">Where the numbers come from. The chain rule states a sentence's probability
-  exactly, but the counts it asks for are too rare in any corpus to estimate, so we approximate it
-  with an assumption we know to be false.</p>
+  exactly, but the counts it asks for are too rare in any corpus to estimate, so we replace the
+  whole history with the last word or two — the Markov assumption, which is plainly untrue of
+  language and works anyway.</p>
 </header>
 
 <div class="wrap">
