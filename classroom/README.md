@@ -48,6 +48,7 @@ There is nothing to activate. `uv run` uses `.venv` on its own.
 | `demos/s11_ngrams.py` | 11 | n-grams by sliding a window, and how little of the table a corpus fills |
 | `demos/s12_bigram_probabilities.py` | 12 | bigram probabilities by counting, and the zero at the end of it |
 | `demos/s13_smoothing.py` | 13 | smoothing: paying for the unseen out of the seen |
+| `demos/s16_naive_bayes_sentiment.py` | 16 | a sentiment analyser trained by hand, counts to verdict |
 
 ## Notes
 
