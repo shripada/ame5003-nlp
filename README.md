@@ -4,7 +4,7 @@
 
 ### 👉 [Open the course page](https://shripada.github.io/ame5003-nlp/)
 
-Lessons, slides, labs, primers and the glossary are all there.
+Lessons, slides, labs, primers, the question bank and the glossary are all there.
 
 ---
 
