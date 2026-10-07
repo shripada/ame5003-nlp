@@ -134,6 +134,84 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
   or you will lose it when the tab closes.</p>
 </div>
 
+<h2>Term 2 — lecture slides</h2>
+
+<p>The slides for this term's twelve one-hour lectures, from Naïve Bayes to BERT, written in plain
+language with everyday examples. Open one and move through it with the arrow keys or the space
+bar.</p>
+
+<a class="item" href="slides/lecture-01-naive-bayes-and-sentiment.html">
+  <span class="n">Lecture 01</span>
+  <span class="t">Teaching a computer to tell good reviews from bad ones</span>
+  <span class="d">How a program can learn whether a film review is happy or unhappy, just by counting words in reviews people have already marked.</span>
+</a>
+
+<a class="item" href="slides/lecture-02-naive-bayes-worked-example.html">
+  <span class="n">Lecture 02</span>
+  <span class="t">Naïve Bayes by hand</span>
+  <span class="d">Five tiny reviews, one new sentence, and every number worked out. The first try breaks completely; two small fixes make it work.</span>
+</a>
+
+<a class="item" href="slides/lecture-03-vector-space-tf-idf-cosine.html">
+  <span class="n">Lecture 03</span>
+  <span class="t">Documents as points on a map</span>
+  <span class="d">Count the words in a document and you get a list of numbers. Treat that list as a position, and similar documents land near each other. Then we make the counts fairer and learn a good way to measure "near".</span>
+</a>
+
+<a class="item" href="slides/lecture-04-word2vec-and-glove.html">
+  <span class="n">Lecture 04</span>
+  <span class="t">Learning what words mean</span>
+  <span class="d">A computer can't look words up in a dictionary the way you do. But it can play a fill-in-the-blank game billions of times, and end up with a list of numbers for every word that captures a surprising amount of its meaning. This is Word2Vec, and its cousin GloVe.</span>
+</a>
+
+<a class="item" href="slides/lecture-05-recurrent-neural-networks.html">
+  <span class="n">Lecture 05</span>
+  <span class="t">Reading one word at a time</span>
+  <span class="d">So far the computer has treated a sentence as a bag of words. A recurrent neural network reads the way you do — left to right, keeping a running memory of what it has read.</span>
+</a>
+
+<a class="item" href="slides/lecture-06-backprop-through-time-to-lstm.html">
+  <span class="n">Lecture 06</span>
+  <span class="t">Why RNNs forget, and the fix</span>
+  <span class="d">An RNN could in principle remember words from far back. In practice it forgets quickly, for two reasons. The LSTM fixes this by giving the network a separate notebook for long-term memory.</span>
+</a>
+
+<a class="item" href="slides/lecture-07-lstm-and-gru.html">
+  <span class="n">Lecture 07</span>
+  <span class="t">Inside the LSTM, and the GRU</span>
+  <span class="d">Three gates manage the LSTM's notebook: erase, write, and speak. The GRU is a simpler cousin with one memory and two gates. Which is better? Surprisingly, neither clearly wins.</span>
+</a>
+
+<a class="item" href="slides/lecture-08-sequence-to-sequence.html">
+  <span class="n">Lecture 08</span>
+  <span class="t">Translation: one network reads, another writes</span>
+  <span class="d">Translating isn't swapping words one by one. We use two networks: an encoder that reads the whole sentence into a summary, and a decoder that writes the translation from it.</span>
+</a>
+
+<a class="item" href="slides/lecture-09-attention.html">
+  <span class="n">Lecture 09</span>
+  <span class="t">Attention: letting the translator look back</span>
+  <span class="d">Instead of squeezing the whole sentence into one summary, let the decoder look back at every source word each time it writes, and decide which ones to focus on.</span>
+</a>
+
+<a class="item" href="slides/lecture-10-self-attention.html">
+  <span class="n">Lecture 10</span>
+  <span class="t">Self-attention: every word looks at every other word</span>
+  <span class="d">Use attention inside a single sentence. Each word gathers information from whichever other words help explain it — all at once, with no reading left to right. This is the core of modern language models.</span>
+</a>
+
+<a class="item" href="slides/lecture-11-the-transformer.html">
+  <span class="n">Lecture 11</span>
+  <span class="t">The transformer</span>
+  <span class="d">The design behind almost every modern language model. We give each word a "seat number" so order isn't lost, run several attentions side by side, wrap them in a repeatable block, and stack the blocks.</span>
+</a>
+
+<a class="item" href="slides/lecture-12-bert-fine-tuning-and-applications.html">
+  <span class="n">Lecture 12</span>
+  <span class="t">BERT, DistilBERT, and choosing the right tool</span>
+  <span class="d">BERT is a transformer encoder that learned language by filling in blanks. Teach it a new job with a small add-on, shrink it into DistilBERT, and finish by matching tools to tasks.</span>
+</a>
+
 <h2>Lessons</h2>
 
 <h3 class="unit">Unit I — Text processing and information retrieval</h3>
@@ -356,83 +434,6 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
   <span class="n">Session 36</span>
   <span class="t">Chatbots, and the course wrap-up</span>
   <span class="d">A task-oriented chatbot fills a frame. Then the table session 22 left standing, extended to the rest of the course.</span>
-</a>
-
-<h2>Lecture slides</h2>
-
-<p>Twelve one-hour slide decks, from Naïve Bayes to BERT, written in plain language with everyday
-examples. Open one and move through it with the arrow keys or the space bar.</p>
-
-<a class="item" href="slides/lecture-01-naive-bayes-and-sentiment.html">
-  <span class="n">Lecture 01</span>
-  <span class="t">Teaching a computer to tell good reviews from bad ones</span>
-  <span class="d">How a program can learn whether a film review is happy or unhappy, just by counting words in reviews people have already marked.</span>
-</a>
-
-<a class="item" href="slides/lecture-02-naive-bayes-worked-example.html">
-  <span class="n">Lecture 02</span>
-  <span class="t">Naïve Bayes by hand</span>
-  <span class="d">Five tiny reviews, one new sentence, and every number worked out. The first try breaks completely; two small fixes make it work.</span>
-</a>
-
-<a class="item" href="slides/lecture-03-vector-space-tf-idf-cosine.html">
-  <span class="n">Lecture 03</span>
-  <span class="t">Documents as points on a map</span>
-  <span class="d">Count the words in a document and you get a list of numbers. Treat that list as a position, and similar documents land near each other. Then we make the counts fairer and learn a good way to measure "near".</span>
-</a>
-
-<a class="item" href="slides/lecture-04-word2vec-and-glove.html">
-  <span class="n">Lecture 04</span>
-  <span class="t">Learning what words mean</span>
-  <span class="d">A computer can't look words up in a dictionary the way you do. But it can play a fill-in-the-blank game billions of times, and end up with a list of numbers for every word that captures a surprising amount of its meaning. This is Word2Vec, and its cousin GloVe.</span>
-</a>
-
-<a class="item" href="slides/lecture-05-recurrent-neural-networks.html">
-  <span class="n">Lecture 05</span>
-  <span class="t">Reading one word at a time</span>
-  <span class="d">So far the computer has treated a sentence as a bag of words. A recurrent neural network reads the way you do — left to right, keeping a running memory of what it has read.</span>
-</a>
-
-<a class="item" href="slides/lecture-06-backprop-through-time-to-lstm.html">
-  <span class="n">Lecture 06</span>
-  <span class="t">Why RNNs forget, and the fix</span>
-  <span class="d">An RNN could in principle remember words from far back. In practice it forgets quickly, for two reasons. The LSTM fixes this by giving the network a separate notebook for long-term memory.</span>
-</a>
-
-<a class="item" href="slides/lecture-07-lstm-and-gru.html">
-  <span class="n">Lecture 07</span>
-  <span class="t">Inside the LSTM, and the GRU</span>
-  <span class="d">Three gates manage the LSTM's notebook: erase, write, and speak. The GRU is a simpler cousin with one memory and two gates. Which is better? Surprisingly, neither clearly wins.</span>
-</a>
-
-<a class="item" href="slides/lecture-08-sequence-to-sequence.html">
-  <span class="n">Lecture 08</span>
-  <span class="t">Translation: one network reads, another writes</span>
-  <span class="d">Translating isn't swapping words one by one. We use two networks: an encoder that reads the whole sentence into a summary, and a decoder that writes the translation from it.</span>
-</a>
-
-<a class="item" href="slides/lecture-09-attention.html">
-  <span class="n">Lecture 09</span>
-  <span class="t">Attention: letting the translator look back</span>
-  <span class="d">Instead of squeezing the whole sentence into one summary, let the decoder look back at every source word each time it writes, and decide which ones to focus on.</span>
-</a>
-
-<a class="item" href="slides/lecture-10-self-attention.html">
-  <span class="n">Lecture 10</span>
-  <span class="t">Self-attention: every word looks at every other word</span>
-  <span class="d">Use attention inside a single sentence. Each word gathers information from whichever other words help explain it — all at once, with no reading left to right. This is the core of modern language models.</span>
-</a>
-
-<a class="item" href="slides/lecture-11-the-transformer.html">
-  <span class="n">Lecture 11</span>
-  <span class="t">The transformer</span>
-  <span class="d">The design behind almost every modern language model. We give each word a "seat number" so order isn't lost, run several attentions side by side, wrap them in a repeatable block, and stack the blocks.</span>
-</a>
-
-<a class="item" href="slides/lecture-12-bert-fine-tuning-and-applications.html">
-  <span class="n">Lecture 12</span>
-  <span class="t">BERT, DistilBERT, and choosing the right tool</span>
-  <span class="d">BERT is a transformer encoder that learned language by filling in blanks. Teach it a new job with a small add-on, shrink it into DistilBERT, and finish by matching tools to tasks.</span>
 </a>
 
 <h2>Labs</h2>
