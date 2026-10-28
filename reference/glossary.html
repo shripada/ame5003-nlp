@@ -1461,6 +1461,37 @@ try{var t=localStorage.getItem("nlp-theme");if(t==="dark"||t==="light")document.
 </dl>
 
 <dl class="term">
+  <dt>Truncated backpropagation through time <span class="sym">truncated BPTT</span></dt>
+  <dd>Backpropagation through time run over a fixed-length chunk of the sequence rather than the
+  whole of it: the gradient flows back to the start of the chunk and no further. It is what makes
+  training on a long text affordable, and it caps how far back the model can learn from at the
+  chunk length — 100 characters in lab 9. Lab 9.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Gradient clipping</dt>
+  <dd>If the gradient's norm exceeds a threshold, scale it down to that threshold before the
+  weights are updated. The standard guard against the exploding gradients session 24 derived; it
+  does nothing for vanishing ones. Lab 9 clips at 1 and prints how often it fired.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Character-level language model</dt>
+  <dd>A language model whose tokens are characters: read the text so far and predict the next
+  character. Its vocabulary is the alphabet (65 symbols for Shakespeare), so there is no
+  <code>&lt;UNK&gt;</code> problem, but it must learn spelling before anything else. Lab 9 trains
+  an RNN, an LSTM and a GRU as character models against a character bigram baseline. Lab 9.</dd>
+</dl>
+
+<dl class="term">
+  <dt>Temperature <span class="sym">sampling</span></dt>
+  <dd>When generating, divide the scores by <math data-tex="\tau"><mi>τ</mi></math> before the softmax,
+  <math data-tex="\mathrm{softmax}(y_t / \tau)"><mrow><mpadded lspace="0"><mi>softmax</mi></mpadded><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><msub><mi>y</mi><mi>t</mi></msub><mi>/</mi><mi>τ</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow></mrow></math>, then sample. Below 1 the distribution sharpens and the text
+  becomes safer and more repetitive; above 1 it flattens and the text becomes stranger; at
+  <math data-tex="\tau = 1"><mrow><mi>τ</mi><mo>=</mo><mn>1</mn></mrow></math> the model's own probabilities are used. Lab 9.</dd>
+</dl>
+
+<dl class="term">
   <dt>LSTM <span class="sym">Long Short-Term Memory</span></dt>
   <dd>RNN with a <strong>cell state</strong> and gates (forget, input, output). The cell state's
   additive path lets gradients survive.</dd>

@@ -23,7 +23,7 @@ Labs run in **Google Colab**. You need a Google account and a browser — nothin
 | 6 | 6 | Sentiment analysis with Naïve Bayes | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-06-sentiment-naive-bayes.ipynb) |
 | 7 | 7 | Cosine similarity and TF-IDF | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-07-cosine-tfidf.ipynb) |
 | 8 | 8 | Word2Vec, GloVe, and the comparison | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-08-word-embeddings.ipynb) |
-| 9 | 9 | Sequence models: the RNN and the LSTM | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-09-rnn-lstm.ipynb) |
+| 9 | 9 | Sequence models: RNN, LSTM and GRU on Shakespeare | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-09-rnn-lstm.ipynb) |
 | 10 | 10 | Attention, and a translation system | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-10-attention-seq2seq.ipynb) |
 | 11 | 11 | Encoder and decoder transformers | [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/shripada/ame5003-nlp/blob/main/labs/lab-11-transformers.ipynb) |
 
